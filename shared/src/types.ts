@@ -232,6 +232,7 @@ export type GameEvent =
   | { type: 'cargoMoved'; playerId: number; nodeId: number; shipId: number; good: Good; qty: number; direction: 'load' | 'unload' }
   | { type: 'buildingBuilt'; playerId: number; nodeId: number; kind: BuildingKind; level: number }
   | { type: 'buildOffered'; playerId: number; nodeId: number }
+  | { type: 'barterTraded'; playerId: number; offer: BarterOffer }
   | { type: 'cargoMarketOpened'; playerId: number; nodeId: number }
   | ({ type: 'marketTrade'; playerId: number; total: number } & MarketOrder)
   | { type: 'turnStarted'; playerId: number }

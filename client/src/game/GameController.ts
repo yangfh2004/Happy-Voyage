@@ -4,7 +4,7 @@ import { EventBus } from './EventBus';
 import { localize, ref, tx, type Text } from '@happy-voyage/shared';
 import type { HermitId, StrategyId } from '@happy-voyage/shared';
 import { TurnFeedback } from './TurnFeedback';
-import { isMuted, setMuted, sfx } from './sfx';
+import { isMuted, setMuted, setVolume, sfx, startSoundtrack, type SoundChannel } from './sfx';
 import type { SeaEventResult } from '@happy-voyage/shared';
 
 export interface SeaNotice {
@@ -456,6 +456,16 @@ export class GameController {
     this.changed();
   }
 
+  setVolume(channel: SoundChannel, value: number): void {
+    setVolume(channel, value);
+    this.changed();
+  }
+
+  /** Starts the soundtrack and waves; browsers only allow it from a user gesture. */
+  startSoundtrack(): void {
+    startSoundtrack();
+  }
+
   islandsOwnedBy(playerId: number): number {
     return this.view?.islandsOwnedBy(playerId) ?? 0;
   }
@@ -494,8 +504,12 @@ export class GameController {
         }
         this.seaNotices = this.seaNotices.slice(0, SEA_NOTICE_LIMIT);
         this.noticeTimers.set(id, setTimeout(() => this.dismissSeaNotice(id), SEA_NOTICE_DURATION_MS));
-        if ((event.gold ?? 0) > 0) sfx.coin();
+        const fought = event.outcome === 'victory' || event.outcome === 'defeat' || event.outcome === 'damaged' || event.outcome === 'sunk';
+        if (event.event === 'merchant' && event.outcome === 'accepted') sfx.sell();
+        else if (event.event === 'pirates' && fought) sfx.cannon();
+        else if ((event.gold ?? 0) > 0) sfx.coin();
         else if (event.outcome === 'damaged' || event.outcome === 'sunk' || event.outcome === 'defeat') sfx.storm();
+        if (event.shipsLost?.length) sfx.splash();
         break;
       }
       case 'royalAudience':
@@ -557,11 +571,23 @@ export class GameController {
       }
       case 'shipAdded': {
         const ship = players[event.playerId].fleet.find((candidate) => candidate.id === event.shipId);
-        if (isViewer(event.playerId) && ship) this.headline = this.makeHeadline(tx('{s} joined your fleet.', '{s}加入了你的舰队。', { s: ref.ship(ship.name) }), 'gain');
+        if (isViewer(event.playerId) && ship) {
+          this.headline = this.makeHeadline(tx('{s} joined your fleet.', '{s}加入了你的舰队。', { s: ref.ship(ship.name) }), 'gain');
+          sfx.bell();
+        }
         break;
       }
       case 'shipSold':
-        if (isViewer(event.playerId)) this.headline = this.makeHeadline(tx('Sold {s} for {g}g.', '以 {g} 金币卖出{s}。', { s: ref.ship(event.shipName), g: event.price }), 'gain');
+        if (isViewer(event.playerId)) {
+          this.headline = this.makeHeadline(tx('Sold {s} for {g}g.', '以 {g} 金币卖出{s}。', { s: ref.ship(event.shipName), g: event.price }), 'gain');
+          sfx.sell();
+        }
+        break;
+      case 'barterTraded':
+        if (isViewer(event.playerId)) sfx.barter();
+        break;
+      case 'cargoMoved':
+        if (isViewer(event.playerId)) sfx.cargo();
         break;
       case 'battleFought': {
         const { report } = event;
@@ -575,7 +601,8 @@ export class GameController {
             : report.outcome === 'defeat' ? this.makeHeadline(tx('You repel {r} at {n} and collect {g}g double toll!', '你在{n}击退了 {r}，收取 {g} 金币双倍过路费！', params), 'gain')
             : this.makeHeadline(tx('{r} attacks {n}; the battle is a draw and both fleets sail home.', '{r} 进攻{n}，双方不分胜负，各自归队。', params), 'loss');
         }
-        sfx.storm();
+        const won = isViewer(report.defender) ? report.outcome === 'defeat' : report.outcome === 'victory';
+        sfx.battle(report.rounds, report.attackerSunk.length + report.defenderSunk.length, won ? 'victory' : 'loss');
         break;
       }
       case 'lotteryOpened':
@@ -627,8 +654,8 @@ export class GameController {
           const sold = event.side === 'sell';
           const trade = { q: event.quantity, good: ref.good(event.good), g: event.total };
           this.headline = this.makeHeadline(sold ? tx('Sold {q} {good} for {g}g.', '以 {g} 金币卖出 {q} 单位{good}。', trade) : tx('Bought {q} {good} for {g}g.', '以 {g} 金币买入 {q} 单位{good}。', trade), sold ? 'gain' : 'loss');
-          if (sold) sfx.coin();
-          else sfx.pay();
+          if (sold) sfx.sell();
+          else sfx.buy();
         }
         break;
       case 'gameOver':

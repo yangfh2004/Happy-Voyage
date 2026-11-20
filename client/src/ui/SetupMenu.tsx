@@ -5,6 +5,7 @@ import { cssColor } from './nations';
 import { NavigatorCard } from './NavigatorCard';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { SpeedControl } from './SpeedControl';
+import { SoundControl } from './SoundControl';
 import { ShortcutLegend } from './ShortcutLegend';
 import { LanguageSwitch } from './LanguageSwitch';
 import { useT } from '../i18n';
@@ -172,6 +173,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
 
       <button className="setup-rules" onClick={onRules}>{t('How to play', '玩法说明')}</button>
       <SpeedControl />
+      <SoundControl />
       <ShortcutLegend />
       <button className="primary big" onClick={start}>
         {t('Set sail', '扬帆起航')}

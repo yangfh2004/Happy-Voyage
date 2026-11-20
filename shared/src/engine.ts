@@ -491,6 +491,7 @@ export class GameEngine extends GameView {
       remaining -= add;
     }
     this.log(tx('{p} barters {gq} {g} for {rq} {r} with the natives.', '{p} 用 {gq} 单位{g}向土人换得 {rq} 单位{r}。', { p: ref.player(player.id), gq: offer.giveQty, g: ref.good(offer.give), rq: offer.receiveQty, r: ref.good(offer.receive) }));
+    this.emit({ type: 'barterTraded', playerId: player.id, offer });
     this.endTurn();
   }
 

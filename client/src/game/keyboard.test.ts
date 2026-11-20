@@ -6,7 +6,7 @@ const controller = {
   state: { phase: 'awaitingSpin' } as { phase: string } | null,
   spinCompass: vi.fn(), claim: vi.fn(), decline: vi.fn(), quit: vi.fn(),
   finishBuilding: vi.fn(), finishTrading: vi.fn(),
-  skipToMyTurn: vi.fn(), setSpeed: vi.fn(), confirmHandoff: vi.fn(),
+  skipToMyTurn: vi.fn(), setSpeed: vi.fn(), toggleMute: vi.fn(), confirmHandoff: vi.fn(),
   awaitingHandoff: false,
 };
 let keys: ReturnType<typeof keyboardShortcuts>;
@@ -49,6 +49,12 @@ describe('keyboard shortcuts', () => {
     keys.blur();
     keys.keydown(event(' '));
     expect(controller.spinCompass).toHaveBeenCalledTimes(3);
+  });
+
+  it('toggles sound with M, even on the setup menu', () => {
+    controller.state = null;
+    keys.keydown(event('M'));
+    expect(controller.toggleMute).toHaveBeenCalledOnce();
   });
 
   it('uses Enter and Space to quit only at game over', () => {

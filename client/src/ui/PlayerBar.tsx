@@ -5,6 +5,7 @@ import { LanguageSwitch } from './LanguageSwitch';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorPortrait } from './NavigatorPortrait';
+import { SoundControl } from './SoundControl';
 import { SpeedControl } from './SpeedControl';
 import { seatTag } from './seats';
 
@@ -16,6 +17,7 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
     <div className="panel players">
       <SpeedControl />
       <LanguageSwitch />
+      <SoundControl />
       <div className="player-header">
         <div className="round">
           {t('Round {r} · goal: {goal}', '第 {r} 回合 · 目标：{goal}', {
@@ -25,9 +27,6 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
           })}
         </div>
         <div className="player-controls">
-          <button className="sound" onClick={() => gameController.toggleMute()} aria-pressed={!gameController.muted}>
-            {gameController.muted ? t('Sound off', '声音关') : t('Sound on', '声音开')}
-          </button>
           <button onClick={onFleet}>{t('Fleet', '舰队')}</button>
           <button onClick={onRules}>{t('? Rules', '? 规则')}</button>
         </div>

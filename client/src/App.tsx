@@ -32,6 +32,15 @@ export function App() {
       window.removeEventListener('blur', shortcuts.blur);
     };
   }, [rulesOpen, fleetOpen]);
+  useEffect(() => {
+    const start = () => gameController.startSoundtrack();
+    window.addEventListener('pointerdown', start, { once: true });
+    window.addEventListener('keydown', start, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+    };
+  }, []);
   // Re-render whenever the controller reports a state change.
   useSyncExternalStore(gameController.subscribe, gameController.getVersion);
   const { t, locale } = useT();
