@@ -106,6 +106,24 @@ describe('colony ownership', () => {
   });
 });
 
+describe('fleet cleanup', () => {
+  it('kills rocking tweens before destroying ships and does not repeat cleanup', () => {
+    const destroy = vi.fn();
+    const sprite = { destroy };
+    const killTweensOf = vi.fn();
+    Object.assign(scene, {
+      ships: new Map([[0, sprite]]), flags: { clear: vi.fn() },
+      tweens: { killTweensOf },
+    });
+    scene.syncFromState();
+    scene.syncFromState();
+    expect(killTweensOf).toHaveBeenCalledOnce();
+    expect(killTweensOf).toHaveBeenCalledWith(sprite);
+    expect(destroy).toHaveBeenCalledOnce();
+    expect(killTweensOf.mock.invocationCallOrder[0]).toBeLessThan(destroy.mock.invocationCallOrder[0]);
+  });
+});
+
 describe('movement pacing', () => {
   it('retimes active and subsequent steps, resolving exactly once', () => {
     scene.animateMove({ playerId: 0, path: [1, 2], id: 7 });

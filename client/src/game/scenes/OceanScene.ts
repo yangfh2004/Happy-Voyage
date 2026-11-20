@@ -322,7 +322,10 @@ export class OceanScene extends Phaser.Scene {
         badges.forEach((badge) => badge.destroy());
         badges.clear();
       }
-      this.ships.forEach((ship) => ship.destroy());
+      this.ships.forEach((ship) => {
+        this.tweens.killTweensOf(ship);
+        ship.destroy();
+      });
       this.ships.clear();
       this.sailing.clear();
       return;
