@@ -11,7 +11,7 @@ import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
-import { CAMPAIGN_STAGES, buildingDescription, buildingName, campaignStage, chartIdentity, goodName, nationName, nodeName, playerName, shipName, shipTypeName, stageText, strategyText } from '@happy-voyage/shared';
+import { CAMPAIGN_STAGES, SPIN_COMPASS_LABEL, buildingDescription, buildingName, campaignStage, chartIdentity, goodName, nationName, nodeName, playerName, shipName, shipTypeName, stageText, strategyText } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { seatTag } from './seats';
@@ -119,7 +119,7 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
       <>
         <p>{t('Your turn, {p}.', '轮到你了，{p}。', { p: name(player) })}</p>
         <button className="primary big" onClick={() => gameController.spinCompass()}>
-          {t('Spin compass', '转动罗盘')} <kbd>Space / Enter</kbd>
+          {l(SPIN_COMPASS_LABEL)} <kbd>Space / Enter</kbd>
         </button>
       </>
     );
@@ -252,7 +252,7 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
       {atHelm && state.phase !== 'gameOver' && <section aria-label={t('Strategy cards', '谋略卡')}>
         <h3><StatTooltip stat="cards">{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</StatTooltip></h3>
         {player.strategies.length === 0 && <p>{t('No strategy cards.', '没有谋略卡。')}</p>}
-        {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
+        {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
           {state.map.map((node) => <option key={node.id} value={node.id}>{nodeName(node, locale)}</option>)}
         </select></label>}
         {player.strategies.map((id, index) => <div key={`${id}-${index}`}>

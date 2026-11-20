@@ -64,7 +64,7 @@ describe('navigators in the UI', () => {
     vi.stubGlobal('document', { body: null });
     const html = renderToStaticMarkup(<TutorialPanel onClose={() => {}} />);
     expect(html).toContain('First voyage · 1 of 4');
-    expect(html).toContain('Spin the compass');
+    expect(html).toContain('Spin compass');
     expect(html).toContain('Skip tutorial');
     expect(html).toContain('>Next</button>');
     vi.unstubAllGlobals();

@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { STAT_HELP, TUTORIAL_STEPS, chartIdentity } from './accessibility';
+import { SPIN_COMPASS_LABEL, STAT_HELP, TUTORIAL_STEPS, chartIdentity } from './accessibility';
 import { localize } from './i18n';
 import { NATIONS } from './nations';
 
 describe('accessibility copy', () => {
+  it.each(['en', 'zh'] as const)('uses the compass button label in the %s tutorial heading and instructions', (locale) => {
+    const { title, text } = TUTORIAL_STEPS[0];
+    const label = localize(locale, SPIN_COMPASS_LABEL);
+    expect(localize(locale, title)).toBe(label);
+    expect(localize(locale, text)).toContain(label);
+  });
+
   it('localizes every tutorial step and stat explanation', () => {
     const copy = [
       ...TUTORIAL_STEPS.flatMap(({ title, text }) => [title, text]),

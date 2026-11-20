@@ -1,7 +1,9 @@
 import { tx } from './i18n';
 
+export const SPIN_COMPASS_LABEL = tx('Spin compass', '转动罗盘');
+
 export const TUTORIAL_STEPS = [
-  { title: tx('Spin the compass', '旋转罗盘'), text: tx('On your turn, select Spin compass (or press Space or Enter). The result tells your fleet how many stops to sail. What you can do next depends on where you land.', '轮到你时，选择“旋转罗盘”（或按空格键或回车键）。结果决定舰队航行几站。抵达地点后，可以采取的行动取决于你停靠的位置。') },
+  { title: SPIN_COMPASS_LABEL, text: tx('On your turn, select {action} (or press Space or Enter). The result tells your fleet how many stops to sail. What you can do next depends on where you land.', '轮到你时，选择“{action}”（或按空格键或回车键）。结果决定舰队航行几站。抵达地点后，可以采取的行动取决于你停靠的位置。', { action: SPIN_COMPASS_LABEL }) },
   { title: tx('Claim and build colonies', '占领并建设殖民地'), text: tx('Spend gold to claim an uncharted island. Rivals who land there must pay you a toll or fight. At your own colony, build facilities to produce goods, repair ships or expand your fleet.', '花费金币占领未知岛屿。对手停靠时必须向你缴纳过路费或开战。在自己的殖民地修建设施，可以生产货物、修理船只或扩充舰队。') },
   { title: tx('Manage your fleet', '管理舰队'), text: tx('Open Fleet to inspect your ships, cargo and captains. Trade goods at special islands, and keep gold available for purchases and tolls.', '打开“舰队”查看船只、货物和船长。在特殊岛屿交易货物，并留足金币用于购买和支付过路费。') },
   { title: tx('Check your goal', '查看目标'), text: tx('The player panel shows this voyage’s colony goal or king’s missions. Open Rules for the full victory conditions. Select any underlined stat to see what it means.', '玩家面板显示本次航行的殖民地目标或国王使命。打开“规则”查看完整胜利条件。选择有下划线的数据即可查看说明。') },
