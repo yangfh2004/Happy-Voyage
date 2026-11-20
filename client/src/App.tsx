@@ -12,7 +12,9 @@ import { keyboardShortcuts } from './game/keyboard';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
+  const [rulesOpen, setRulesOpen] = useState(false);
   useEffect(() => {
+    if (rulesOpen) return;
     const shortcuts = keyboardShortcuts(gameController);
     window.addEventListener('keydown', shortcuts.keydown);
     window.addEventListener('keyup', shortcuts.keyup);
@@ -22,11 +24,10 @@ export function App() {
       window.removeEventListener('keyup', shortcuts.keyup);
       window.removeEventListener('blur', shortcuts.blur);
     };
-  }, []);
+  }, [rulesOpen]);
   // Re-render whenever the controller reports a state change.
   useSyncExternalStore(gameController.subscribe, gameController.getVersion);
   const state = gameController.state;
-  const [rulesOpen, setRulesOpen] = useState(false);
 
   return (
     <div className={state ? 'app playing' : 'app'}>
