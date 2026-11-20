@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { GameEngine } from '@happy-voyage/shared';
+import { GameEngine, type ShipType } from '@happy-voyage/shared';
 
 vi.mock('../game/GameController', () => ({ gameController: {
   spinId: 0, feedback: {}, headline: null, timings: { spin: 0 }, waiting: false,
   canBuild: () => false,
+  canBuildShip: vi.fn(() => false),
   shownPosition: (player: { position: number }) => player.position,
 } }));
 vi.mock('./Compass', () => ({ Compass: () => null }));
@@ -12,6 +13,7 @@ vi.mock('dialog-polyfill', () => ({ default: { registerDialog: vi.fn() } }));
 import { ActionPanel } from './ActionPanel';
 import { RouteDetails } from './RouteDetails';
 import { TransferContents } from './TransferPanel';
+import { gameController } from '../game/GameController';
 
 describe('build menu', () => {
   it('shows empty, upgraded and maxed buildings with costs and disabled actions', () => {
@@ -23,6 +25,7 @@ describe('build menu', () => {
     let html = renderToStaticMarkup(<ActionPanel state={state} />);
     expect(html).toContain('None');
     expect(html).toContain('Build (100g)');
+    expect(html).toContain('Build a shipyard to launch ships.');
     expect(html).toContain('disabled');
     state.buildings[node.id] = { lumberMill: 2, repairYard: 1 };
     html = renderToStaticMarkup(<ActionPanel state={state} />);
@@ -52,6 +55,28 @@ describe('build menu', () => {
     expect(html).toContain('iron: 7');
     expect(html).toMatch(/disabled="">Dock/);
     expect(html).toContain('Load onto ship');
+  });
+
+  it('shows material prices and why a ship order is unavailable', () => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
+    const { state } = engine;
+    const node = state.map.find((n) => n.kind === 'island')!;
+    state.players[0].position = node.id;
+    state.owners[node.id] = 0;
+    state.phase = 'awaitingBuild';
+    state.buildings[node.id] = { shipyard: 1 };
+    vi.mocked(gameController.canBuildShip).mockImplementation((type: ShipType) => engine.canBuildShip(type));
+
+    let html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(html).toContain('2 lumber · 1 iron');
+    expect(html).toContain('<button disabled="">Build Explorer</button>');
+    expect(html).toContain('Not enough materials.');
+    state.stockpiles[node.id] = { lumber: 2, iron: 1, specialties: {} };
+    html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(html).toContain('<button>Build Explorer</button>');
+    expect(html).toContain('<button disabled="">Build Cargo Ship</button>');
+    expect(html).toContain('Requires a medium shipyard.');
+    expect(html).toContain('Requires a large shipyard.');
   });
 
   it('shows the same stockpile and production rates in the build menu and route details', () => {

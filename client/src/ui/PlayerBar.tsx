@@ -31,6 +31,7 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
             <strong>{p.name}</strong>
             <span className="tag">{p.isAI ? 'AI' : 'You'}</span>
             <div className="stats">
+              {!p.isAI && p.nation && <>{p.nation}<br /></>}
               {p.gold}g · {islands(gameController.islandsOwnedBy(p.id))} · {p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}
             </div>
           </div>

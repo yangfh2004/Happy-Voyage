@@ -68,6 +68,25 @@ it('offers the human build menu and guards build actions outside the visit', () 
   expect(state.currentPlayer).toBe(1);
 });
 
+it('launches a ship during a human colony visit and announces its arrival', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  state.owners[2] = 0;
+  state.buildings[2].shipyard = 1;
+  state.stockpiles[2] = { lumber: 2, iron: 1, specialties: {} };
+  controller.buildShip('explorer');
+  expect(state.players[0].fleet).toHaveLength(3);
+
+  humanTurn();
+  expect(controller.canBuildShip('explorer')).toBe(true);
+  controller.buildShip('explorer');
+  controller.buildShip('explorer');
+  expect(state.players[0].fleet).toHaveLength(4);
+  expect(state.players[0].fleet.at(-1)?.type).toBe('explorer');
+  expect(controller.headline?.text).toBe(`${state.players[0].fleet.at(-1)?.name} joined your fleet.`);
+  expect(controller.canBuildShip('explorer')).toBe(false);
+});
+
 describe('pacing', () => {
   it('replays a move lost before scene startup and clears it after landing', () => {
     controller.newGame(players);
