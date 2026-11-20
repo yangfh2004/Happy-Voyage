@@ -151,7 +151,9 @@ describe('Nightless Island market', () => {
     g.decideForAI();
     expect(ai.gold).toBeGreaterThan(gold);
     expect(ai.fleet[0].cargo.Wine).toBeUndefined();
-    expect(g.currentPlayer.id).toBe(0);
+    expect(g.state.round).toBe(2);
     expect(g.state.phase).toBe('awaitingSpin');
+    land(g, 0);
+    expect(g.currentPlayer.id).toBe(0);
   });
 });
