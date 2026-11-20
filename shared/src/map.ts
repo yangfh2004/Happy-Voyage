@@ -32,7 +32,7 @@ export function createDefaultMap(): MapNode[] {
       }
     }
   }
-  return nodes.map((node, id) => {
+  const map: MapNode[] = nodes.map((node, id) => {
     if (id >= 64) return { ...node, id, x: 80, y: 1070 - (id - 64) * 196 };
     // Outbound lanes wind east and west; the western margin carries the return leg.
     const lane = Math.floor(id / 8);
@@ -41,4 +41,12 @@ export function createDefaultMap(): MapNode[] {
     const y = 90 + lane * 140 + Math.sin(column * Math.PI / 3.5) * 12;
     return { ...node, id, x, y };
   });
+  for (const id of [2, 12, 18, 28, 34, 44, 50, 60]) {
+    const lane = Math.floor(id / 8);
+    const target = lane < 7 ? (lane + 1) * 8 + 7 - id % 8 : 64;
+    map[id].next = [(id + 1) % map.length, target];
+  }
+  // A return-leg fork offers a northbound shortcut while retaining the homeward course.
+  map[66].next = [67, 68];
+  return map;
 }

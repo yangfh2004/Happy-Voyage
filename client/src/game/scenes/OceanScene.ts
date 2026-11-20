@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { atmosphere, buildingDescription, buildingName, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type BuildingKind, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
+import { windExit, successors, atmosphere, buildingDescription, buildingName, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type BuildingKind, type GameEvent, type GameState, type MapNode, type WindDirection } from '@happy-voyage/shared';
 import { getLocale, pick, subscribeLocale } from '../../i18n';
 import { readPreference } from '../../ui/accessibilityPreferences';
 
@@ -10,6 +10,7 @@ import { gameController } from '../GameController';
 import { sfx } from '../sfx';
 import { CHART_DEPTH, drawAtmosphere } from '../atmosphereArt';
 import { landingTarget, sailingRoute, type MovePath, type NavigatePreview } from '../landingTarget';
+import { routeEdge } from '../routeEdge';
 
 const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
@@ -51,6 +52,7 @@ export class OceanScene extends Phaser.Scene {
   private ships = new Map<number, Phaser.GameObjects.Image>();
   private colorBlind = false;
   private ocean!: Phaser.GameObjects.Graphics;
+  private route?: Phaser.GameObjects.Graphics;
   private atmosphereLayer?: Phaser.GameObjects.Graphics;
   private colonyBadges = new Map<number, Phaser.GameObjects.Text>();
   private shipBadges = new Map<number, Phaser.GameObjects.Text>();
@@ -112,6 +114,7 @@ export class OceanScene extends Phaser.Scene {
     EventBus.on('follow-ship', onFollow);
     this.colorBlind = readPreference('color-blind');
     this.drawOcean();
+    this.route = this.add.graphics();
     this.drawRoute();
     this.labels = this.add.layer().setDepth(CHART_DEPTH.labels);
     this.drawStops();
@@ -298,20 +301,58 @@ export class OceanScene extends Phaser.Scene {
     }
   }
 
-  private drawRoute() {
-    const g = this.add.graphics();
-    g.lineStyle(4, 0xffffff, 0.25);
-    this.map.forEach((node, i) => {
-      const next = this.map[(i + 1) % this.map.length];
-      g.lineBetween(node.x, node.y, next.x, next.y);
-      const angle = Math.atan2(next.y - node.y, next.x - node.x);
-      const x = (node.x + next.x) / 2;
-      const y = (node.y + next.y) / 2;
-      g.lineStyle(2, 0xffffff, 0.65);
-      for (const side of [-1, 1]) {
-        g.lineBetween(x, y, x - 9 * Math.cos(angle) + side * 5 * Math.sin(angle), y - 9 * Math.sin(angle) - side * 5 * Math.cos(angle));
+  private drawRoute(direction: WindDirection | undefined = gameController.state?.wind?.direction) {
+    const g = this.route;
+    if (!g) return;
+    g.clear();
+    this.map.forEach((node) => {
+      const exits = successors(this.map, node.id);
+      const fork = exits.length > 1;
+      const chosen = fork && direction ? windExit(this.map, node.id, direction) : undefined;
+      if (fork) {
+        g.lineStyle(11, 0x06283d, 1).strokeCircle(node.x, node.y, 34);
+        g.lineStyle(6, 0xffd369, 1).strokeCircle(node.x, node.y, 34);
       }
-      g.lineStyle(4, 0xffffff, 0.25);
+      for (const [index, id] of exits.entries()) {
+        const shortcut = index > 0;
+        const selected = id === chosen;
+        const { point, length, inset, curved } = routeEdge(this.map, node.id, id, shortcut);
+        const line = (from: number, to: number) => {
+          const segments = curved ? Math.max(1, Math.ceil((to - from) * 40)) : 1;
+          for (let i = 0; i < segments; i++) {
+            const a = point(from + (to - from) * i / segments);
+            const b = point(from + (to - from) * (i + 1) / segments);
+            g.lineBetween(a.x, a.y, b.x, b.y);
+          }
+        };
+        if (shortcut || selected) {
+          g.lineStyle(selected ? 18 : 13, 0x06283d, 1);
+          line(0, 1);
+        }
+        if (selected) {
+          g.lineStyle(12, 0x7ffff0, 1);
+          line(0, 1);
+        }
+        if (shortcut) {
+          g.lineStyle(7, 0xffd369, 1);
+          for (let distance = inset; distance < length - inset; distance += 25) {
+            const to = Math.min(distance + 16, length - inset);
+            line((distance - inset) / (length - 2 * inset), (to - inset) / (length - 2 * inset));
+          }
+        } else if (!selected) {
+          g.lineStyle(4, 0xffffff, 0.35);
+          line(0, 1);
+        }
+        const { x, y } = point(.62);
+        const ahead = point(.63);
+        const behind = point(.61);
+        const angle = Math.atan2(ahead.y - behind.y, ahead.x - behind.x);
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
+        const size = shortcut || selected ? 16 : 9;
+        g.fillStyle(0x06283d, 1).fillTriangle(x + 5 * dx, y + 5 * dy, x - (size + 4) * dx + (size + 2) * dy, y - (size + 4) * dy - (size + 2) * dx, x - (size + 4) * dx - (size + 2) * dy, y - (size + 4) * dy + (size + 2) * dx);
+        g.fillStyle(selected ? 0x7ffff0 : shortcut ? 0xffd369 : 0xffffff, shortcut || selected ? 1 : .65).fillTriangle(x, y, x - size * dx + size * .65 * dy, y - size * dy - size * .65 * dx, x - size * dx - size * .65 * dy, y - size * dy + size * .65 * dx);
+      }
     });
   }
 
@@ -403,6 +444,7 @@ export class OceanScene extends Phaser.Scene {
 
   private syncFromState() {
     const state = gameController.state;
+    this.drawRoute();
     this.relabel(state);
     this.flags.clear();
     this.marker.clear();
@@ -552,6 +594,9 @@ export class OceanScene extends Phaser.Scene {
     const state = gameController.state;
     if (!state) return;
     switch (event.type) {
+      case 'windChanged':
+        this.drawRoute(event.direction);
+        break;
       case 'seaEvent': {
         const ship = this.ships.get(event.playerId);
         if (event.event === 'largeMonster') this.cameras.main.shake(450, 0.009);

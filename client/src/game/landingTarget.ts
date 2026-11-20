@@ -1,4 +1,4 @@
-import type { GameState } from '@happy-voyage/shared';
+import { walkPath, type GameState } from '@happy-voyage/shared';
 
 export interface LandingTarget {
   nodeId: number;
@@ -15,11 +15,12 @@ export function sailingRoute(state: GameState | null, move?: MovePath | null): n
   const player = state.players[state.currentPlayer];
   if (!player || player.bankrupt) return [];
   if (state.phase === 'spinning' && state.lastSpin && Number.isInteger(state.lastSpin) && state.lastSpin > 0) {
-    return Array.from({ length: state.lastSpin + 1 }, (_, i) => (player.position + i) % state.map.length);
+    return [player.position, ...walkPath(state.map, player.position, state.lastSpin, state.wind.direction)];
   }
   if (state.phase !== 'moving' || move?.playerId !== player.id || move.sailFrom === undefined || !move.path.length) return [];
   const from = move.sailFrom;
-  return move.path.every((node, i) => node === (from + i + 1) % state.map.length) ? [from, ...move.path] : [];
+  const expected = walkPath(state.map, from, move.path.length, state.wind.direction);
+  return move.path.every((node, i) => node === expected[i]) ? [from, ...move.path] : [];
 }
 
 export function landingTarget(state: GameState | null, move?: MovePath | null, preview?: NavigatePreview | null): LandingTarget | null {
@@ -29,7 +30,7 @@ export function landingTarget(state: GameState | null, move?: MovePath | null, p
   if (state.phase === 'spinning') {
     const steps = state.lastSpin;
     if (steps === null || !Number.isInteger(steps) || steps <= 0) return null;
-    const node = state.map[(player.position + steps) % state.map.length];
+    const node = state.map[walkPath(state.map, player.position, steps, state.wind.direction).at(-1)!];
     return node ? { nodeId: node.id, playerId: player.id, steps, preview: false } : null;
   }
   if (state.phase === 'moving' && move?.playerId === player.id && move.path.length) {

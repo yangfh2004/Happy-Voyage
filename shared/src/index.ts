@@ -4,6 +4,7 @@ export * from './strategies';
 export * from './ranks';
 export * from './buildings';
 export * from './map';
+export * from './graph';
 export * from './nations';
 export * from './navigators';
 export * from './compass';

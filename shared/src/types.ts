@@ -13,13 +13,14 @@ export type EventKind = 'treasure' | 'storm' | 'tradeWind' | 'pirates' | 'smallM
 
 /** One stop on the node-based sea route. */
 export interface MapNode {
+  next?: number[];
   id: number;
   name: string;
   kind: NodeKind;
   special?: SpecialKind;
   chineseName?: string;
   nation?: string;
-  /** World position in pixels, used by the renderer only. */
+  /** World position in pixels; also determines exit headings. */
   x: number;
   y: number;
   /** Islands only: cost to found a colony. */
@@ -165,7 +166,10 @@ export interface GameConfig {
   maxRounds: number;
 }
 
+export type WindDirection = 'N' | 'E' | 'S' | 'W';
+
 export interface GameState {
+  wind: { direction: WindDirection; turnsLeft: number };
   hoardNode: number | null;
   strategyUsed: boolean;
   inspired: boolean;
@@ -210,6 +214,7 @@ export interface GameState {
 
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
+  | { type: 'windChanged'; direction: WindDirection; turnsLeft: number }
   | SeaEventResult
   | { type: 'merchantOffered'; playerId: number; offer: MerchantOffer }
   | { type: 'wyvernOffered'; playerId: number }
