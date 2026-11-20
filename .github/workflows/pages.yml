@@ -1,0 +1,49 @@
+name: Deploy client to GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # Pages must be enabled once in Settings > Pages (Source: GitHub Actions); skip cleanly until then.
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${{ github.repository }}/pages" >/dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::GitHub Pages is not enabled for this repository; skipping deploy."
+          fi
+      - if: steps.check.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+      - if: steps.check.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - if: steps.check.outputs.enabled == 'true'
+        run: npm ci
+      - if: steps.check.outputs.enabled == 'true'
+        run: npm run build -w client
+      - if: steps.check.outputs.enabled == 'true'
+        uses: actions/configure-pages@v5
+      - if: steps.check.outputs.enabled == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: client/dist
+      - if: steps.check.outputs.enabled == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4
