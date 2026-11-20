@@ -198,13 +198,33 @@ export class GameController {
   }
 
   tradeAtMarket(order: MarketOrder): void {
-    if (this.isHumanTurn('awaitingMarket') && quoteMarketTrade(this.engine!.state, order) !== null) {
+    if (this.isHumanTurn('awaitingCargoMarket') && quoteMarketTrade(this.engine!.state, order) !== null) {
       this.engine!.tradeAtMarket(order);
     }
   }
 
   finishTrading(): void {
-    if (this.isHumanTurn('awaitingMarket')) this.engine!.finishTrading();
+    if (this.isHumanTurn('awaitingCargoMarket')) this.engine!.finishTrading();
+  }
+
+  canBuyUsedShip(type: ShipType): boolean {
+    return this.isHumanTurn('awaitingMarket') && this.engine!.canBuyUsedShip(type);
+  }
+
+  buyUsedShip(type: ShipType): void {
+    if (this.canBuyUsedShip(type)) this.engine!.buyUsedShip(type);
+  }
+
+  canSellShip(shipId: number): boolean {
+    return this.isHumanTurn('awaitingMarket') && this.engine!.canSellShip(shipId);
+  }
+
+  sellShip(shipId: number): void {
+    if (this.canSellShip(shipId)) this.engine!.sellShip(shipId);
+  }
+
+  finishMarket(): void {
+    if (this.isHumanTurn('awaitingMarket')) this.engine!.finishMarket();
   }
 
   /** A fleet's stop as the board shows it: its departure stop until it has sailed in. */
@@ -287,10 +307,14 @@ export class GameController {
         if (isHuman(event.playerId) && ship) this.headline = { text: `${ship.name} joined your fleet.`, tone: 'gain' };
         break;
       }
+      case 'shipSold':
+        if (isHuman(event.playerId)) this.headline = { text: `Sold ${event.shipName} for ${event.price}g.`, tone: 'gain' };
+        break;
       case 'claimOffered':
+      case 'marketOffered':
       case 'barterOffered':
       case 'buildOffered':
-      case 'marketOpened':
+      case 'cargoMarketOpened':
         if (!engine.currentPlayer.isAI) this.skipping = false;
         if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());
         break;

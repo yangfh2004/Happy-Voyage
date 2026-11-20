@@ -58,7 +58,7 @@ describe('keyboard shortcuts', () => {
   });
 
   it.each(['d', 'Escape'])('ends a market visit with %s', (key) => {
-    controller.state = { phase: 'awaitingMarket' };
+    controller.state = { phase: 'awaitingCargoMarket' };
     keys.keydown(event(key));
     expect(controller.finishTrading).toHaveBeenCalledOnce();
     expect(controller.finishBuilding).not.toHaveBeenCalled();

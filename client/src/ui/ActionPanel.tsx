@@ -1,4 +1,4 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, SHIP_RECIPES, SHIP_TYPES, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, SHIP_RECIPES, SHIP_TYPES, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
@@ -15,7 +15,7 @@ export function ActionPanel({ state }: { state: GameState }) {
   const [transfersOpen, setTransfersOpen] = useState(false);
   const player = state.players[state.currentPlayer];
   const spinning = state.phase === 'spinning';
-  const trading = state.phase === 'awaitingMarket' && !player.isAI;
+  const trading = state.phase === 'awaitingCargoMarket' && !player.isAI;
   const spinId = gameController.spinId;
   const summary = !player.isAI && state.phase === 'awaitingSpin' ? gameController.feedback.summary : null;
   const gold = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value)}g`;
@@ -60,6 +60,24 @@ export function ActionPanel({ state }: { state: GameState }) {
     );
   } else if (trading) {
     body = <MarketPanel key={player.id} state={state} />;
+  } else if (state.phase === 'awaitingMarket') {
+    body = <>
+      <h2>Skeleton Island ship market</h2>
+      <p>Treasury {player.gold}g · Second-hand ships have {USED_SHIP_CONDITION * 100}% durability.</p>
+      <h3>Pirate stock</h3>
+      {state.marketStock.length === 0 && <p>Sold out. New stock arrives next visit.</p>}
+      {state.marketStock.map((type) => <div className="building-option" key={type}>
+        <strong>{SHIP_TYPES[type].label}</strong> · {Math.floor(SHIP_TYPES[type].maxDurability * USED_SHIP_CONDITION)}/{SHIP_TYPES[type].maxDurability} durability
+        <button disabled={!gameController.canBuyUsedShip(type)} onClick={() => gameController.buyUsedShip(type)}>Buy {SHIP_TYPES[type].label} ({USED_SHIP_PRICES[type]}g)</button>
+      </div>)}
+      <h3>Your fleet</h3>
+      <p>Keep at least one ship. Only empty ships can be sold; unload cargo at a colony first. Sales are final.</p>
+      {player.fleet.map((ship) => <div className="building-option" key={ship.id}>
+        <strong>{ship.name}</strong> · {ship.durability}/{ship.maxDurability} durability
+        <button disabled={!gameController.canSellShip(ship.id)} onClick={() => gameController.sellShip(ship.id)}>Sell {ship.name} ({shipSalePrice(ship)}g)</button>
+      </div>)}
+      <button className="primary" onClick={() => gameController.finishMarket()}>Sail on</button>
+    </>;
   } else if (state.phase === 'awaitingBuild') {
     const nodeId = player.position;
     const yardLevel = buildingLevel(state, nodeId, 'shipyard');

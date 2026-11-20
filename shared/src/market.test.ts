@@ -77,7 +77,7 @@ describe('Nightless Island market', () => {
     expect(ship.cargo.Wine).toBeUndefined();
     expect(g.currentPlayer.gold).toBe(gold - total + revenue);
     expect(marketPrices(g.state, 'Wine')).toEqual(before);
-    expect(g.state.phase).toBe('awaitingMarket');
+    expect(g.state.phase).toBe('awaitingCargoMarket');
     g.finishTrading();
     expect(g.currentPlayer.id).toBe(1);
     expect(g.state.phase).toBe('awaitingSpin');

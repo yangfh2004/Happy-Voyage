@@ -47,7 +47,7 @@ export function marketPrices(state: GameState, good: Good) {
 /** Total at current prices, or null if the full order cannot be filled. */
 export function quoteMarketTrade(state: GameState, order: MarketOrder): number | null {
   const { side, shipId, good, quantity } = order;
-  if (state.phase !== 'awaitingMarket' || !GOODS.includes(good) ||
+  if (state.phase !== 'awaitingCargoMarket' || !GOODS.includes(good) ||
     (side !== 'buy' && side !== 'sell') || !Number.isSafeInteger(quantity) || quantity < 1) return null;
   const player = state.players[state.currentPlayer];
   const node = state.map[player.position];

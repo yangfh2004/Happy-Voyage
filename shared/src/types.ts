@@ -86,7 +86,8 @@ export interface ColonyStockpile {
   specialties: Partial<Record<Specialty, number>>;
 }
 
-export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' | 'awaitingBarter' | 'awaitingMarket' | 'gameOver';
+export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' |
+  'awaitingMarket' | 'awaitingBarter' | 'awaitingCargoMarket' | 'gameOver';
 
 export interface MarketState {
   stock: Record<Good, number>;
@@ -122,6 +123,7 @@ export interface GameState {
   map: MapNode[];
   players: Player[];
   nextShipId: number;
+  marketStock: ShipType[];
   /** owners[nodeId] = owning player id, or null when neutral / not an island. */
   owners: (number | null)[];
   buildings: Partial<Record<BuildingKind, number>>[];
@@ -141,12 +143,14 @@ export interface GameState {
 
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
+  | { type: 'shipSold'; playerId: number; shipName: string; price: number }
+  | { type: 'marketOffered'; playerId: number; nodeId: number }
   | { type: 'barterOffered'; playerId: number; nodeId: number }
   | { type: 'shipTransferred'; playerId: number; nodeId: number; shipId: number; direction: 'dock' | 'board' }
   | { type: 'cargoMoved'; playerId: number; nodeId: number; shipId: number; good: Good; qty: number; direction: 'load' | 'unload' }
   | { type: 'buildingBuilt'; playerId: number; nodeId: number; kind: BuildingKind; level: number }
   | { type: 'buildOffered'; playerId: number; nodeId: number }
-  | { type: 'marketOpened'; playerId: number; nodeId: number }
+  | { type: 'cargoMarketOpened'; playerId: number; nodeId: number }
   | ({ type: 'marketTrade'; playerId: number; total: number } & MarketOrder)
   | { type: 'turnStarted'; playerId: number }
   | { type: 'compassSpun'; playerId: number; steps: number }
