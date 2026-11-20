@@ -47,6 +47,7 @@ function land(event: EventKind, ai = false, rivalAI = true) {
   const state = gameController.state!;
   state.map[2] = { ...state.map[2], kind: 'event', event };
   state.players[0].fleet[0].cargo.Silk = 3;
+  state.players[0].strategies = [];
   if (ai) vi.advanceTimersByTime(700);
   else gameController.spinCompass();
   gameController.finishSpin(gameController.spinId);

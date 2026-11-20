@@ -65,6 +65,8 @@ export interface Ship extends ShipStats {
 }
 
 export interface Player extends PlayerSetup {
+  strategies: import('./strategies').StrategyId[];
+  knownHoard: number | null;
   rank: number;
   audienceMerit: number;
   id: number;
@@ -145,6 +147,7 @@ export interface BattleReport {
 }
 
 export interface GameConfig {
+  startingStrategies: number;
   startingGold: number;
   /** Paid by the crown every time a fleet passes or lands on the home port. */
   homeSalary: number;
@@ -155,6 +158,9 @@ export interface GameConfig {
 }
 
 export interface GameState {
+  hoardNode: number | null;
+  strategyUsed: boolean;
+  inspired: boolean;
   royalAudience: import('./ranks').RoyalAudience | null;
   config: GameConfig;
   map: MapNode[];
@@ -192,6 +198,8 @@ export type GameEvent =
   | SeaEventResult
   | { type: 'merchantOffered'; playerId: number; offer: MerchantOffer }
   | { type: 'wyvernOffered'; playerId: number }
+  | { type: 'strategyGained'; playerId: number; card: import('./strategies').StrategyId; source: string }
+  | { type: 'strategyUsed'; playerId: number; card: import('./strategies').StrategyId; target?: number }
   | { type: 'royalAudience'; audience: import('./ranks').RoyalAudience }
   | { type: 'shipSold'; playerId: number; shipName: string; price: number }
   | { type: 'marketOffered'; playerId: number; nodeId: number }

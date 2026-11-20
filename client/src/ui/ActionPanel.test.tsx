@@ -5,6 +5,7 @@ import { GameEngine, type ShipType } from '@happy-voyage/shared';
 vi.mock('../game/GameController', () => ({ gameController: {
   spinId: 0, feedback: {}, headline: null, timings: { spin: 0 }, waiting: false,
   canBuild: () => false,
+  canUseStrategy: vi.fn(() => false),
   canBuildShip: vi.fn(() => false),
   canBuyUsedShip: vi.fn(() => false),
   canSellShip: vi.fn(() => false),
@@ -18,6 +19,52 @@ import { TransferContents } from './TransferPanel';
 import { gameController } from '../game/GameController';
 
 describe('build menu', () => {
+  it('updates the toll battle forecast after playing Inspire without changing ship stats', () => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }] });
+    const { state } = engine;
+    const player = engine.currentPlayer;
+    const node = state.map.find((n) => n.kind === 'island')!;
+    player.position = node.id;
+    state.owners[node.id] = 1;
+    state.phase = 'awaitingToll';
+    player.fleet.splice(1);
+    state.players[1].fleet.splice(1);
+    const attacker = player.fleet[0];
+    const defender = state.players[1].fleet[0];
+    attacker.firepower = 30;
+    attacker.durability = 200;
+    defender.firepower = 10;
+    defender.durability = 120;
+    player.strategies = ['inspire'];
+    expect(renderToStaticMarkup(<ActionPanel state={state} />)).toContain('(likely draw)');
+    engine.useStrategy('inspire');
+    expect(renderToStaticMarkup(<ActionPanel state={state} />)).toContain('(likely victory)');
+    expect(attacker.firepower).toBe(30);
+    expect(attacker.durability).toBe(200);
+    expect(defender.durability).toBe(120);
+  });
+  it('shows strategy names, descriptions, destinations, hand counts and revealed hoard', () => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }] });
+    engine.currentPlayer.strategies = ['navigate', 'locate'];
+    engine.currentPlayer.knownHoard = engine.state.hoardNode;
+    vi.mocked(gameController.canUseStrategy).mockImplementation((id, target) => engine.canUseStrategy(id, target));
+    const html = renderToStaticMarkup(<ActionPanel state={engine.state} />);
+    expect(html).toContain('Navigate · 导航');
+    expect(html).toContain('Reveal the buried hoard');
+    expect(html).toContain('Navigate destination');
+    expect(html).toContain('Rival: 3 cards');
+    engine.state.players[1].strategies = ['inspire'];
+    const singleCardHtml = renderToStaticMarkup(<ActionPanel state={engine.state} />);
+    expect(singleCardHtml).toContain('Rival: 1 card');
+    expect(singleCardHtml).not.toContain('Rival: 1 cards');
+    expect(html).toContain('Buried hoard:');
+    expect(html).toContain('<button>Use Locate</button>');
+    engine.state.strategyUsed = true;
+    expect(renderToStaticMarkup(<ActionPanel state={engine.state} />)).toContain('<button disabled="">Use Locate</button>');
+    engine.currentPlayer.strategies = [];
+    expect(renderToStaticMarkup(<ActionPanel state={engine.state} />)).toContain('No strategy cards.');
+    vi.mocked(gameController.canUseStrategy).mockReturnValue(false);
+  });
   it('keeps royal announcements visible alongside the turn summary', () => {
     const { state } = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
     gameController.headline = { text: 'King promotes you to Knight (骑士)!', tone: 'gain', royal: true };
