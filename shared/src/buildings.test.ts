@@ -82,17 +82,17 @@ describe('colony buildings', () => {
     engine.build('collectionField');
     engine.finishBuilding();
     expect(state.round).toBe(2);
-    expect(state.currentPlayer).toBe(1);
+    expect(state.currentPlayer).toBe(0);
     expect(state.stockpiles[madeira.id]).toEqual({ lumber: 2, iron: 1, specialties: { Wine: 1 } });
-    expect(state.stockpiles[canaries.id]).toEqual({ lumber: 0, iron: 2, specialties: { Sugar: 2 } });
-
-    landAtColony(canaries.id);
-    engine.build('collectionField');
-    engine.finishBuilding();
     expect(state.stockpiles[canaries.id]).toEqual({ lumber: 0, iron: 2, specialties: { Sugar: 2 } });
 
     landAtColony(madeira.id);
     engine.build('lumberMill');
+    engine.finishBuilding();
+    expect(state.stockpiles[canaries.id]).toEqual({ lumber: 0, iron: 2, specialties: { Sugar: 2 } });
+
+    landAtColony(canaries.id);
+    engine.build('collectionField');
     engine.finishBuilding();
     expect(state.phase).toBe('gameOver');
     expect(state.stockpiles[madeira.id]).toEqual({ lumber: 5, iron: 2, specialties: { Wine: 2 } });

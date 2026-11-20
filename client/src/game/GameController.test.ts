@@ -231,10 +231,6 @@ describe('pacing', () => {
     EventBus.emit('move-complete', moveId);
     await vi.runAllTimersAsync();
     expect(controller.state?.round).toBe(2);
-    expect(controller.state?.currentPlayer).toBe(1);
-    expect(controller.timings.step).toBe(0);
-    EventBus.emit('move-complete', moveId);
-    await vi.runAllTimersAsync();
     expect(controller.state?.currentPlayer).toBe(0);
     expect(controller.state?.phase).toBe('awaitingSpin');
     expect(controller.timings).toEqual({ ai: 250, step: 70, spin: 500 });
@@ -419,6 +415,95 @@ it('reveals a held lottery result on a fallback timer if the last ball never rep
 });
 
 describe('local multiplayer', () => {
+  it.each([['Normal', 1000], ['Fast', 350], ['Instant', 0]] as const)('announces turns at %s speed for %s ms', async (speed, duration) => {
+    controller.setSpeed(speed);
+    controller.newGame(players);
+    expect(controller.turnNoticeDuration).toBe(duration);
+    expect(controller.turnNotice !== null).toBe(duration > 0);
+    if (duration > 0) {
+      await vi.advanceTimersByTimeAsync(duration - 1);
+      expect(controller.turnNotice).not.toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(controller.turnNotice).toBeNull();
+    }
+  });
+
+  it('clears the compass on handover and explains an AI Navigate instead of a spin', async () => {
+    controller.newGame(createNationRoster([{ name: 'Human', nation: 'Spain' }], { totalPlayers: 4 }));
+    const state = controller.state!;
+    for (const player of state.players) player.strategies = [];
+    const islands = state.map.filter((node) => node.kind === 'island');
+    state.players[0].position = (islands[0].id - 2 + state.map.length) % state.map.length;
+    state.players[1].strategies = ['navigate'];
+    humanTurn();
+    expect(state.currentPlayer).toBe(1);
+    expect(state.lastSpin).toBeNull();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(state.lastSpin).toBeNull();
+    expect(controller.turnAction).toMatchObject({ en: '{p} used Navigate to {n}.' });
+    controller.setSpeed('Instant');
+    expect(controller.turnAction).toBeNull();
+    expect(controller.turnNotice).toBeNull();
+  });
+
+  it('clears the previous Navigate notice and cancels its timer when the next turn starts', async () => {
+    const setTimer = vi.spyOn(globalThis, 'setTimeout');
+    const clearTimer = vi.spyOn(globalThis, 'clearTimeout');
+    controller.newGame(createNationRoster([{ name: 'Human', nation: 'Spain' }], { totalPlayers: 4 }));
+    const state = controller.state!;
+    for (const player of state.players) player.strategies = [];
+    const island = state.map.find((node) => node.kind === 'island')!;
+    state.players[0].position = (island.id - 2 + state.map.length) % state.map.length;
+    state.players[1].strategies = ['navigate'];
+    humanTurn();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(state.currentPlayer).toBe(1);
+    expect(controller.turnAction).not.toBeNull();
+    const timerIndex = setTimer.mock.calls.map(([, delay]) => delay).lastIndexOf(1000);
+    const actionTimer = setTimer.mock.results[timerIndex].value;
+    clearTimer.mockClear();
+
+    await vi.advanceTimersByTimeAsync(700);
+    expect(state.currentPlayer).toBe(2);
+    expect(controller.turnNotice).toMatchObject({ params: { p: { id: 2 } } });
+    expect(controller.turnAction).toBeNull();
+    expect(clearTimer).toHaveBeenCalledWith(actionTimer);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(controller.turnAction).toBeNull();
+    expect(controller.turnNotice).not.toBeNull();
+  });
+
+  it('holds each of three AI seats for its own compass and sailing completion at Normal speed', async () => {
+    controller.setSpeed('Normal');
+    controller.newGame(createNationRoster([{ name: 'Human', nation: 'Spain' }], { totalPlayers: 4 }));
+    const state = controller.state!;
+    const islands = state.map.filter((node) => node.kind === 'island');
+    for (const player of state.players) {
+      player.strategies = [];
+      player.position = (islands[player.id].id - 2 + state.map.length) % state.map.length;
+    }
+    humanTurn();
+    for (const seat of [1, 2, 3]) {
+      expect(state.currentPlayer).toBe(seat);
+      expect(state.phase).toBe('awaitingSpin');
+      await vi.advanceTimersByTimeAsync(699);
+      expect(state.phase).toBe('awaitingSpin');
+      await vi.advanceTimersByTimeAsync(1);
+      expect(state.phase).toBe('spinning');
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(state.currentPlayer).toBe(seat);
+      expect(state.phase).toBe('spinning');
+      controller.finishSpin(controller.spinId);
+      expect(state.phase).toBe('moving');
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(state.currentPlayer).toBe(seat);
+      expect(state.phase).toBe('moving');
+      EventBus.emit('move-complete', moveId);
+      await vi.advanceTimersByTimeAsync(700);
+    }
+    expect(state.log.filter((line) => line.includes(' spins '))).toHaveLength(4);
+  });
+
   const roster = () => createNationRoster([
     { name: 'Ana', nation: 'Spain' },
     { name: 'Bo', nation: 'China' },
