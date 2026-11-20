@@ -138,8 +138,8 @@ export class GameEngine {
     player.position = path[path.length - 1];
     this.pendingPath = path;
     this.state.phase = 'moving';
-    this.log(`${player.name} spins ${steps}.`);
     this.emit({ type: 'moved', playerId: player.id, path });
+    this.log(`${player.name} spins ${steps}.`);
     return path;
   }
 
