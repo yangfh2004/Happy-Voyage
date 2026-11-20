@@ -12,6 +12,7 @@ export * from './ai';
 export { marketDemand, marketPrices, quoteMarketTrade } from './market';
 export * from './barter';
 export * from './lottery';
+export * from './mist';
 export * from './captains';
 export * from './combat';
 export * from './seaEvents';
