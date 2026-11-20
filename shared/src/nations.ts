@@ -15,7 +15,7 @@ export const NATIONS = [
 ] as const;
 
 export type Nation = (typeof NATIONS)[number]['name'];
-type NationPick = { name: string; nation: Nation };
+export type NationPick = { name: string; nation: Nation };
 
 /** Keep human seats in pick order, then fill every other nation with an AI seat. */
 export function createNationRoster(picks: readonly NationPick[], aiDifficulty?: AIDifficulty): PlayerSetup[] {

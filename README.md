@@ -21,6 +21,18 @@ Choose Easy, Normal, or Hard before setting sail. Difficulty changes rival decis
 
 Expanded trading, naval combat, and multiplayer come next.
 
+## Royal campaign
+
+Choose **Campaign** at setup and start any stage. Each stage gives you a **Navigate**
+card to reach a destination of your choice without spinning. The king pays a gold
+reward for each mission; finish both without going bankrupt to clear the stage.
+
+| Stage | King's missions | Challenge |
+| --- | --- | --- |
+| First Voyage | Found a colony and land at your home port while holding one. | One Easy rival; no deadline. |
+| The Merchant Charter | Sell 3 specialties at Nightless Island and build a collection field. | Two Normal rivals; 28 rounds. |
+| Crown of the Seas | Hold 2 colonies at once and capture a rival colony in battle. | Three Hard rivals; 20 rounds and less starting gold. |
+
 ## Tech stack
 
 | Part | Tech |

@@ -15,6 +15,7 @@ export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
 import { GAME_MODES, hasRoundLimit } from './modes';
+import { campaignRoster, campaignStage, type CampaignObjective, type CampaignSetup, type CampaignState } from './campaign';
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
@@ -36,12 +37,11 @@ export const EVENT_GOLD = {
 } as const;
 
 
-export interface EngineOptions {
-  players: PlayerSetup[];
-  config?: Partial<GameConfig>;
+export type EngineOptions = {
   map?: MapNode[];
   rng?: Rng;
-}
+} & ({ players: PlayerSetup[]; config?: Partial<GameConfig>; campaign?: never } |
+     { campaign: CampaignSetup; players?: never; config?: never });
 
 type Listener = (event: GameEvent, state: GameState) => void;
 
@@ -68,19 +68,21 @@ export class GameEngine {
   private pendingPath: number[] = [];
 
   constructor(options: EngineOptions) {
-    if (options.players.length < 1) throw new Error('At least one player is required');
+    const stage = options.campaign && campaignStage(options.campaign.stage);
+    const players = options.campaign ? campaignRoster(options.campaign.navigator, stage!) : options.players;
+    if (players.length < 1) throw new Error('At least one player is required');
     const map = options.map ?? createDefaultMap();
-    const config = { ...DEFAULT_CONFIG, ...options.config };
+    const config = { ...DEFAULT_CONFIG, ...(stage?.config ?? options.config) };
     const islandCount = map.filter((node) => node.kind === 'island').length;
     if (islandCount > 0) config.islandsToWin = Math.min(config.islandsToWin, islandCount);
     const ports = map.filter((node) => node.kind === 'port');
     const usedPorts = new Set<number>();
-    const homes = options.players.map((player) => {
+    const homes = players.map((player) => {
       const port = ports.find((node) => node.nation === player.nation && player.nation && !usedPorts.has(node.id));
       if (port) usedPorts.add(port.id);
       return port?.id;
     });
-    options.players.forEach((_, seat) => {
+    players.forEach((_, seat) => {
       if (homes[seat] !== undefined) return;
       const preferred = ports[seat];
       const port = preferred && !usedPorts.has(preferred.id) ? preferred : ports.find((node) => !usedPorts.has(node.id));
@@ -93,9 +95,10 @@ export class GameEngine {
       strategyUsed: false,
       inspired: false,
       royalAudience: null,
+      campaign: stage ? { stage: stage.id, playerId: 0, progress: {}, status: 'active' } : null,
       config,
       map,
-      players: options.players.map((p, id) => ({
+      players: players.map((p, id) => ({
         ...p,
         id,
         rank: 0,
@@ -139,7 +142,11 @@ export class GameEngine {
     for (const player of this.state.players) {
       const pool = Object.keys(STRATEGIES) as StrategyId[];
       const count = Math.min(config.startingStrategies, STRATEGY_RULES.handCap, pool.length);
-      for (let i = 0; i < count; i++) {
+      if (count > 0 && player.id === this.state.campaign?.playerId) {
+        this.gainStrategy(player.id, 'the king’s commission', 'navigate');
+        pool.splice(pool.indexOf('navigate'), 1);
+      }
+      for (let i = player.strategies.length; i < count; i++) {
         const card = pool.splice(Math.floor(this.rng() * pool.length), 1)[0];
         this.gainStrategy(player.id, 'starting hand', card);
       }
@@ -375,6 +382,7 @@ export class GameEngine {
     const audience = { playerId: player.id, rank: player.rank, promoted, reward, message };
     this.state.royalAudience = audience;
     this.emit({ type: 'royalAudience', audience });
+    if (this.islandsOwnedBy(player.id) > 0) this.updateCampaignMission(player.id, 'reportHome', (progress) => progress + 1);
   }
 
   /** Found a colony on the offered island. */
@@ -386,6 +394,7 @@ export class GameEngine {
     this.state.owners[node.id] = player.id;
     this.log(`${player.name} plants the flag on ${node.name}!`);
     this.emit({ type: 'claimed', playerId: player.id, nodeId: node.id });
+    this.updateCampaignMission(player.id, 'foundColony', (progress) => progress + 1);
     this.endTurn();
   }
 
@@ -474,6 +483,7 @@ export class GameEngine {
     }
     this.state.battles.push(report);
     this.emit({ type: 'battleFought', report });
+    if (report.outcome === 'victory') this.updateCampaignMission(player.id, 'captureColony', (progress) => progress + 1);
     this.endTurn();
     return report;
   }
@@ -714,6 +724,7 @@ export class GameEngine {
     this.state.buildings[nodeId][kind] = level;
     this.log(`${player.name} builds ${BUILDINGS[kind].label} level ${level} at ${this.node(nodeId).name}.`);
     this.emit({ type: 'buildingBuilt', playerId: player.id, nodeId, kind, level });
+    if (kind === 'collectionField') this.updateCampaignMission(player.id, 'buildCollectionField', (progress) => progress + 1);
   }
 
   finishBuilding(): void {
@@ -736,6 +747,9 @@ export class GameEngine {
     this.changeGold(player, buying ? -total : total, 'Nightless Island market');
     this.log(`${player.name} ${buying ? 'buys' : 'sells'} ${quantity} ${good} for ${total}g at Nightless Island.`);
     this.emit({ ...order, type: 'marketTrade', playerId: player.id, total });
+    if (!buying && good !== 'lumber' && good !== 'iron') {
+      this.updateCampaignMission(player.id, 'sellSpecialties', (progress) => progress + quantity);
+    }
   }
 
   finishTrading(): void {
@@ -1304,6 +1318,8 @@ export class GameEngine {
   }
 
   private checkVictory(): boolean {
+    if (this.state.campaign) return this.checkCampaignResult(this.state.campaign);
+
     const { players, config } = this.state;
     const alive = players.filter((p) => !p.bankrupt);
     let winner: Player | undefined;
@@ -1333,12 +1349,51 @@ export class GameEngine {
     }
 
     if (!winner || !victory) return false;
+    this.finishGame(winner, victory, reason);
+    return true;
+  }
+
+  private updateCampaignMission(playerId: number, objective: CampaignObjective, update: (progress: number) => number): void {
+    const campaign = this.state.campaign;
+    if (!campaign || campaign.status !== 'active' || campaign.playerId !== playerId || this.state.players[playerId].bankrupt) return;
+    const mission = campaignStage(campaign.stage).missions.find((candidate) => candidate.objective === objective);
+    const progress = campaign.progress[objective] ?? 0;
+    if (!mission || progress >= mission.target) return;
+    const next = Math.min(mission.target, update(progress));
+    campaign.progress[objective] = next;
+    if (next === mission.target) {
+      this.changeGold(this.state.players[playerId], mission.reward, 'king’s mission');
+      this.log(`King’s mission complete: ${mission.description}. The crown awards ${mission.reward}g.`);
+      this.emit({ type: 'campaignMissionCompleted', playerId, mission });
+    }
+  }
+
+  private checkCampaignResult(campaign: CampaignState): boolean {
+    const player = this.state.players[campaign.playerId];
+    const stage = campaignStage(campaign.stage);
+    const { config, round } = this.state;
+    const expired = hasRoundLimit(config) && round > config.maxRounds;
+    if (player.bankrupt || expired) {
+      const reason = player.bankrupt ? 'Your navigator went bankrupt.' : `The ${config.maxRounds}-round deadline passed.`;
+      campaign.status = 'failed';
+      this.state.phase = 'gameOver';
+      this.log(reason);
+      this.emit({ type: 'campaignFailed', playerId: player.id, reason });
+      return true;
+    }
+    this.updateCampaignMission(player.id, 'holdColonies', () => this.islandsOwnedBy(player.id));
+    if (!stage.missions.every((mission) => (campaign.progress[mission.objective] ?? 0) >= mission.target)) return false;
+    campaign.status = 'completed';
+    this.finishGame(player, 'campaign', `completes ${stage.name} for the crown`);
+    return true;
+  }
+
+  private finishGame(winner: Player, victory: VictoryKind, reason: string): void {
     this.state.phase = 'gameOver';
     this.state.winner = winner.id;
     this.state.victory = victory;
     this.log(`${winner.name} ${reason}!`);
     this.emit({ type: 'gameOver', winner: winner.id, victory, reason });
-    return true;
   }
 
   private node(id: number): MapNode {

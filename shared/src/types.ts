@@ -137,7 +137,7 @@ export interface BarterOffer {
 }
 
 /** everyContinent: held every new continent at once (the original's victory); islandGoal: reached a shorter mode's island target. */
-export type VictoryKind = 'everyContinent' | 'islandGoal' | 'lastAfloat' | 'richest';
+export type VictoryKind = 'everyContinent' | 'islandGoal' | 'lastAfloat' | 'richest' | 'campaign';
 
 export type BattleOutcome = 'victory' | 'defeat' | 'draw';
 
@@ -170,6 +170,7 @@ export interface GameState {
   strategyUsed: boolean;
   inspired: boolean;
   royalAudience: import('./ranks').RoyalAudience | null;
+  campaign: import('./campaign').CampaignState | null;
   config: GameConfig;
   map: MapNode[];
   players: Player[];
@@ -213,6 +214,8 @@ export type GameEvent =
   | { type: 'strategyGained'; playerId: number; card: import('./strategies').StrategyId; source: string }
   | { type: 'strategyUsed'; playerId: number; card: import('./strategies').StrategyId; target?: number }
   | { type: 'royalAudience'; audience: import('./ranks').RoyalAudience }
+  | { type: 'campaignMissionCompleted'; playerId: number; mission: import('./campaign').CampaignMission }
+  | { type: 'campaignFailed'; playerId: number; reason: string }
   | { type: 'shipSold'; playerId: number; shipName: string; price: number }
   | { type: 'marketOffered'; playerId: number; nodeId: number }
   | { type: 'barterOffered'; playerId: number; nodeId: number }

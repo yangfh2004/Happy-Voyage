@@ -11,7 +11,7 @@ import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
-import { STRATEGIES } from '@happy-voyage/shared';
+import { CAMPAIGN_STAGES, STRATEGIES, campaignStage } from '@happy-voyage/shared';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { seatTag } from './seats';
 
@@ -49,7 +49,21 @@ export function ActionPanel({ state }: { state: GameState }) {
   }
 
   let body;
-  if (state.phase === 'gameOver') {
+  if (state.phase === 'gameOver' && state.campaign) {
+    const stage = campaignStage(state.campaign.stage);
+    const completed = state.campaign.status === 'completed';
+    body = (
+      <div role="status">
+        <h2>{completed ? `Stage complete: ${stage.name}` : `Stage failed: ${stage.name}`}</h2>
+        <p>{completed ? 'You completed every mission for the crown.' : state.log[state.log.length - 1]}</p>
+        <div className="row">
+          {completed && stage.id !== CAMPAIGN_STAGES[CAMPAIGN_STAGES.length - 1].id &&
+            <button className="primary" onClick={() => gameController.nextCampaignStage()}>Next stage</button>}
+          <button onClick={() => gameController.quit()}>New voyage <kbd>Enter / Space</kbd></button>
+        </div>
+      </div>
+    );
+  } else if (state.phase === 'gameOver') {
     const winner = state.players[state.winner!];
     const everyContinent = state.victory === 'everyContinent';
     const flag = winner.nation ?? winner.name;
@@ -204,7 +218,8 @@ export function ActionPanel({ state }: { state: GameState }) {
           Rivals landing here must pay you {island.toll}g or attack your ships.
         </p>
         <p>
-          Claiming leaves you {player.gold - island.price!}g in cash. This colony adds {colonyValue(island)}g to your final score.
+          Claiming leaves you {player.gold - island.price!}g in cash.
+          {!state.campaign && ` This colony adds ${colonyValue(island)}g to your final score.`}
         </p>
         <div className="row">
           <button className="primary" onClick={() => gameController.claim()}>
