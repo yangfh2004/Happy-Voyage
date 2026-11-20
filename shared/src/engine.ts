@@ -1,6 +1,6 @@
 import { aiShouldClaim, aiBuildingChoice, aiBarterChoice } from './ai';
 import { barterOffers, fleetQuantity } from './barter';
-import { CAPTAINS, MAX_CAPTAINS, captainBonus, recruitOffers, aiRecruitChoice } from './captains';
+import { CAPTAINS, MAX_CAPTAINS, captainBonus, discountedByCaptains, recruitOffers, aiRecruitChoice } from './captains';
 import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
@@ -750,7 +750,7 @@ export class GameEngine {
 
   private payToll(player: Player, owner: Player, node: MapNode): void {
     const base = colonyToll(this.state, node.id);
-    const toll = Math.ceil(base * (1 - captainBonus(player, 'toll')));
+    const toll = discountedByCaptains(player, 'toll', base);
     const amount = Math.min(toll, Math.max(player.gold, 0));
     this.log(`${player.name} pays ${amount}g toll to ${owner.name} at ${node.name}.`);
     this.changeGold(player, -toll, `toll at ${node.name}`);
@@ -759,7 +759,7 @@ export class GameEngine {
   }
 
   private payForeignTax(player: Player, host: Player | undefined, node: MapNode): void {
-    const tax = Math.ceil(foreignTaxDue(player.rank) * (1 - captainBonus(player, 'tax')));
+    const tax = discountedByCaptains(player, 'tax', foreignTaxDue(player.rank));
     const paid = Math.min(player.gold, tax);
     let shortfall = tax - paid;
     this.log(`${player.name} pays ${paid}g foreign tax to ${host?.name ?? 'the crown'} at ${node.name} (${tax}g due).`);

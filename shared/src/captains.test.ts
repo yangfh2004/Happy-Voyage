@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine } from './engine';
-import { CAPTAINS, aiRecruitChoice, captainBonus, recruitOffers } from './captains';
+import { CAPTAINS, aiRecruitChoice, captainBonus, discountedByCaptains, recruitOffers } from './captains';
 import { foreignTaxDue } from './ranks';
 
 function game() {
@@ -149,5 +149,13 @@ describe('Dragon Snake captains', () => {
     expect(g.state.pendingRecruits).toBeNull();
     p.captains = ['ines', 'rui', 'mei'];
     expect(aiRecruitChoice(p, ['leonor'])).toBeNull();
+  });
+});
+
+describe('captain discounts', () => {
+  it('stacks percentages without float rounding up the fee', () => {
+    const p = game().currentPlayer;
+    p.captains = ['ines', 'zahra'];
+    expect(discountedByCaptains(p, 'toll', 100)).toBe(55);
   });
 });

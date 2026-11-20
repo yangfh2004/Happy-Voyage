@@ -31,6 +31,11 @@ export function captainBonus(player: Player, kind: CaptainBonus): number {
   return kind === 'salary' ? total : Math.min(0.75, total);
 }
 
+/** Integer-percent math so stacked discounts never round a fee up by float error. */
+export function discountedByCaptains(player: Player, kind: Exclude<CaptainBonus, 'salary'>, amount: number): number {
+  return Math.ceil(amount * (100 - Math.round(captainBonus(player, kind) * 100)) / 100);
+}
+
 export function captainDescription(captain: Captain): string {
   return captain.bonus === 'salary' ? `+${captain.amount}g per home salary` :
     `${Math.round(captain.amount * 100)}% less ${captain.bonus === 'toll' ? 'colony toll' : 'foreign tax'}`;
