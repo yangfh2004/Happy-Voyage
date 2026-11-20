@@ -33,7 +33,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         <input value={name} maxLength={16} onChange={(e) => setName(e.target.value)} />
       </label>
 
-      <div className="field">
+      <div className="field nations">
         Nation
         <div className="choices">
           {NATIONS.map((n, i) => (
@@ -50,7 +50,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         </div>
       </div>
 
-      <div className="field">
+      <div className="field rivals">
         AI rivals
         <div className="choices">
           {[1, 2, 3].map((n) => (
@@ -61,7 +61,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         </div>
       </div>
 
-      <button onClick={onRules}>How to play</button>
+      <button className="setup-rules" onClick={onRules}>How to play</button>
       <button className="primary big" onClick={start}>
         Set sail
       </button>
