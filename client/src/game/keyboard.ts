@@ -3,7 +3,10 @@ import type { GameController } from './GameController';
 export function keyboardShortcuts(controller: GameController) {
   const held = new Set<string>();
   const finishVisit = () => {
-    if (controller.state?.phase === 'awaitingCargoMarket') controller.finishTrading();
+    if (controller.state?.phase === 'awaitingLottery') {
+      if (controller.state.lottery?.draw) controller.finishLottery();
+      else controller.drawLottery();
+    } else if (controller.state?.phase === 'awaitingCargoMarket') controller.finishTrading();
     else controller.finishBuilding();
   };
   const actions: Record<string, () => void> = {

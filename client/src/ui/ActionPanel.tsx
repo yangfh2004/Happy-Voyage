@@ -5,6 +5,8 @@ import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
 import { useState } from 'react';
 import { BarterPanel } from './BarterPanel';
+import { LotteryPanel } from './LotteryPanel';
+import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
@@ -127,6 +129,8 @@ export function ActionPanel({ state }: { state: GameState }) {
         <button className="primary" onClick={() => gameController.finishBuilding()}>Done <kbd>D / Esc</kbd></button>
       </>
     );
+  } else if (state.phase === 'awaitingRecruit') {
+    body = <RecruitPanel state={state} />;
   } else if (state.phase === 'awaitingToll') {
     const island = state.map[player.position];
     const { ships: defenders, owner, fromFleet } = colonyDefenders(state, island.id);
@@ -150,6 +154,8 @@ export function ActionPanel({ state }: { state: GameState }) {
         </div>
       </>
     );
+  } else if (state.phase === 'awaitingLottery') {
+    body = <LotteryPanel state={state} />;
   } else if (state.phase === 'awaitingBarter') {
     body = <BarterPanel state={state} />;
   } else if (state.phase === 'awaitingClaim') {

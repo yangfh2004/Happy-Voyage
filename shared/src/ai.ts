@@ -1,14 +1,24 @@
 import { COMPASS_SECTORS } from './compass';
 import { colonyDefenders, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
+import { captainBonus, discountedByCaptains } from './captains';
 import type { BarterOffer } from './types';
 import { BUILDINGS, colonyToll, nextBuildingCost } from './buildings';
 import type { BuildingKind } from './types';
 import { colonyValue, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
 import { SEA_RULES } from './seaRules';
+import { LOTTERY, expectedLotteryPrize } from './lottery';
 import { RANKS, foreignTaxDue } from './ranks';
 import { shipSalePrice } from './ships';
 import type { GameState, MapNode, Player, Ship } from './types';
+
+/** Gold an AI keeps back before buying lottery numbers. */
+export const AI_LOTTERY_RESERVE = 600;
+
+/** How many Treasure Island numbers the AI buys: up to three, never dipping below its reserve. */
+export function aiLotteryPickCount(gold: number): number {
+  return Math.max(0, Math.min(3, Math.floor((gold - AI_LOTTERY_RESERVE) / LOTTERY.ticketPrice)));
+}
 
 export function aiBarterChoice(player: Player, offers: BarterOffer[]): number | null {
   let best: number | null = null;
@@ -41,7 +51,7 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
   const { map, owners, config } = state;
   const horizon = Math.min(2, config.maxRounds - state.round);
   const tradeIncome = 50 + 30 * coloniesAfterClaim;
-  function forecast(position: number, cash: number, turns: number, protectedFromHazards: boolean, captain: boolean, fleet: Ship[]): number {
+  function forecast(position: number, cash: number, turns: number, protectedFromHazards: boolean, fleet: Ship[]): number {
     if (cash < 0) return 1;
     if (turns === 0) return 0;
     return COMPASS_SECTORS.reduce((risk, { steps, odds }) => {
@@ -49,26 +59,26 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
       const next = distance % map.length;
       const node = map[next];
       const passes = Array.from({ length: steps }, (_, i) => (position + i + 1) % map.length).filter((id) => id === player.homePort).length;
-      const afterSalary = cash + passes * (config.homeSalary + RANKS[player.rank].salary);
+      const afterSalary = cash + passes * (config.homeSalary + RANKS[player.rank].salary + captainBonus(player, 'salary'));
       const owner = owners[next];
       const hazard = ['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'].includes(node.event ?? '');
-      const onward = (balance: number, protection = protectedFromHazards, recruited = captain, ships = fleet) => forecast(next, balance, turns - 1, protection, recruited, ships);
+      const onward = (balance: number, protection = protectedFromHazards, ships = fleet) => forecast(next, balance, turns - 1, protection, ships);
       if (hazard && protectedFromHazards) return risk + odds * onward(afterSalary, false);
       if (node.kind === 'port' && node.id !== player.homePort) {
-        const balance = afterSalary - foreignTaxDue(player.rank);
+        const balance = afterSalary - discountedByCaptains(player, 'tax', foreignTaxDue(player.rank));
         let shortfall = Math.max(0, -balance);
         const remaining = [...fleet].sort((a, b) => shipSalePrice(a) - shipSalePrice(b) || a.id - b.id);
         while (shortfall > 0 && remaining.length > 0) shortfall -= shipSalePrice(remaining.shift()!);
-        return risk + odds * (shortfall > 0 || remaining.length === 0 ? 1 : onward(Math.max(0, balance), protectedFromHazards, captain, remaining));
+        return risk + odds * (shortfall > 0 || remaining.length === 0 ? 1 : onward(Math.max(0, balance), protectedFromHazards, remaining));
       }
       if (node.event === 'pirates' || node.event === 'smallMonster' || node.event === 'largeMonster') return risk + odds * onward(afterSalary - SEA_RULES[node.event]);
       if (node.event === 'whirlpool') return risk + odds * (SEA_RULES.whirlpoolDamageChance * onward(afterSalary - SEA_RULES.whirlpoolLoss) + (1 - SEA_RULES.whirlpoolDamageChance) * onward(afterSalary));
       if (node.special === 'skeleton') return risk + odds * onward(afterSalary >= SEA_RULES.tribute ? afterSalary - SEA_RULES.tribute : afterSalary + SEA_RULES.scrap);
-      if (node.special === 'treasure' && afterSalary >= SEA_RULES.ticket) {
-        const balance = afterSalary - SEA_RULES.ticket;
-        return risk + odds * ((1 - SEA_RULES.lotteryChance) * onward(balance) + SEA_RULES.lotteryChance * onward(balance + SEA_RULES.lotteryPrize));
+      if (node.special === 'treasure' && aiLotteryPickCount(afterSalary) > 0) {
+        const picks = aiLotteryPickCount(afterSalary);
+        const balance = afterSalary - picks * LOTTERY.ticketPrice;
+        return risk + odds * onward(balance + Math.round(expectedLotteryPrize(picks)));
       }
-      if (node.special === 'dragonSnake' && afterSalary >= SEA_RULES.captainPrice) return risk + odds * onward(afterSalary - SEA_RULES.captainPrice, protectedFromHazards, true);
       if (node.special === 'revival') {
         const damage = fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
         const fee = Math.min(damage, Math.floor(Math.max(0, afterSalary) / REPAIR_GOLD_PER_POINT)) * REPAIR_GOLD_PER_POINT;
@@ -93,10 +103,10 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
       }
       const paysToll = node.kind === 'island' && owner !== null && owner !== player.id;
       const toll = paysToll ? colonyToll(state, node.id) : 0;
-      return risk + odds * onward(afterSalary - (captain ? Math.ceil(toll / 2) : toll), protectedFromHazards, paysToll ? false : captain);
+      return risk + odds * onward(afterSalary - discountedByCaptains(player, 'toll', toll));
     }, 0);
   }
-  return forecast(player.position, gold, horizon, player.revivalProtection, player.captain, player.fleet);
+  return forecast(player.position, gold, horizon, player.revivalProtection, player.fleet);
 }
 
 function estimatedTolls(state: GameState, player: Player, node: MapNode): number {

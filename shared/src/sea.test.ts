@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine, SEA_RULES } from './engine';
+import { LOTTERY } from './lottery';
 import { createDefaultMap } from './map';
 import { createNationRoster, type Nation } from './nations';
 import type { EventKind, SpecialKind } from './types';
@@ -127,14 +128,14 @@ describe('living sea board', () => {
     const p = g.currentPlayer;
     g.state.owners[1] = 0;
     land(g, g.state.map.find((n) => n.special === special)!.id);
-    expect(g.state.phase).toBe(special === 'skeleton' ? 'awaitingMarket' : 'awaitingSpin');
+    expect(g.state.phase).toBe(special === 'skeleton' ? 'awaitingMarket' : special === 'treasure' ? 'awaitingLottery' : special === 'dragonSnake' ? 'awaitingRecruit' : 'awaitingSpin');
     expect(g.state.log.length).toBeGreaterThan(0);
     expect(g.state.log.some((line) => /\b[Yy]our\b|\bYou win/.test(line))).toBe(false);
     expect(g.state.log.slice(0, 2).every((line) => line.includes(p.name))).toBe(true);
     if (special === 'revival') expect(p.revivalProtection).toBe(true);
-    if (special === 'dragonSnake') expect(p.captain).toBe(true);
+    if (special === 'dragonSnake') expect(g.state.pendingRecruits).toHaveLength(3);
     if (special === 'wind') expect(p.gold).toBe(g.state.config.startingGold);
-    if (special === 'treasure') expect(p.gold).toBe(g.state.config.startingGold - SEA_RULES.ticket + SEA_RULES.lotteryPrize);
+    if (special === 'treasure') expect(g.state.lottery).toMatchObject({ playerId: p.id, picks: [], secondsLeft: LOTTERY.timerSeconds, draw: null });
   });
 
   it.each(['treasure', 'dragonSnake', 'nightless', 'wind', 'skeleton'] as SpecialKind[])('handles empty purse and colonies at %s', (special) => {
@@ -146,19 +147,22 @@ describe('living sea board', () => {
     expect(p.bankrupt).toBe(false);
   });
 
-  it('loses a lottery and consumes a captain on one toll', () => {
+  it('loses a lottery and keeps a captain after a discounted toll', () => {
     const g = game(0.99);
     const p = g.currentPlayer;
     land(g, g.state.map.find((n) => n.special === 'treasure')!.id);
-    expect(p.gold).toBe(g.state.config.startingGold - SEA_RULES.ticket);
+    g.buyLotteryNumber(1);
+    g.drawLottery();
+    g.finishLottery();
+    expect(p.gold).toBe(g.state.config.startingGold - LOTTERY.ticketPrice);
     g.state.currentPlayer = 0;
-    p.captain = true;
+    p.captains = ['ines'];
     g.state.owners[1] = 1;
     const gold = p.gold;
     land(g, 1);
     g.payToll();
-    expect(p.gold).toBe(gold - Math.ceil(g.state.map[1].toll! / 2));
-    expect(p.captain).toBe(false);
+    expect(p.gold).toBe(gold - Math.ceil(g.state.map[1].toll! * 0.9));
+    expect(p.captains).toEqual(['ines']);
   });
 
   it.each(['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'] as EventKind[])('revival blocks one %s hazard', (event) => {

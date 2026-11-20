@@ -1,7 +1,7 @@
 export const SEA_RULES = {
-  foreignTax: 40, tribute: 35, scrap: 60, ticket: 40, lotteryPrize: 300,
-  lotteryChance: 0.25, nimStones: 12, nimPrize: 130,
-  barterPerColony: 25, captainPrice: 45, pirates: 80,
+  foreignTax: 40, tribute: 35, scrap: 60,
+  nimStones: 12, nimPrize: 130,
+  barterPerColony: 25, pirates: 80,
   pirateLoot: 140, pirateDurability: 90, pirateFirepower: 24,
   smallMonster: 30, largeMonster: 110, smallMonsterDamage: 12, largeMonsterDamage: 55,
   monsterSinkChance: 0.35, turtleDamage: 70,
