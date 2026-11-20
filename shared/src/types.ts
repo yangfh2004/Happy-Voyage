@@ -39,6 +39,23 @@ export interface PlayerSetup {
   isAI: boolean;
 }
 
+export type ShipType = 'warship' | 'cargo' | 'explorer';
+
+export interface ShipStats {
+  maxDurability: number;
+  firepower: number;
+  cargoCapacity: number;
+  speed: number;
+  crewCapacity: number;
+}
+
+export interface Ship extends ShipStats {
+  id: number;
+  name: string;
+  type: ShipType;
+  durability: number;
+}
+
 export interface Player extends PlayerSetup {
   id: number;
   gold: number;
@@ -48,9 +65,10 @@ export interface Player extends PlayerSetup {
   homePort: number;
   revivalProtection: boolean;
   captain: boolean;
+  fleet: Ship[];
 }
 
-export type Phase = 'awaitingRoll' | 'moving' | 'awaitingClaim' | 'gameOver';
+export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'gameOver';
 
 export interface GameConfig {
   startingGold: number;
@@ -66,12 +84,13 @@ export interface GameState {
   config: GameConfig;
   map: MapNode[];
   players: Player[];
+  nextShipId: number;
   /** owners[nodeId] = owning player id, or null when neutral / not an island. */
   owners: (number | null)[];
   currentPlayer: number;
   round: number;
   phase: Phase;
-  lastRoll: [number, number] | null;
+  lastSpin: number | null;
   /** Island the current player may claim while phase === 'awaitingClaim'. */
   pendingClaim: number | null;
   winner: number | null;
@@ -81,10 +100,11 @@ export interface GameState {
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
   | { type: 'turnStarted'; playerId: number }
-  | { type: 'diceRolled'; playerId: number; dice: [number, number] }
+  | { type: 'compassSpun'; playerId: number; steps: number }
   | { type: 'moved'; playerId: number; path: number[] }
   | { type: 'claimOffered'; playerId: number; nodeId: number }
   | { type: 'claimed'; playerId: number; nodeId: number }
+  | { type: 'shipAdded'; playerId: number; shipId: number }
   | { type: 'tollPaid'; from: number; to: number; amount: number }
   | { type: 'goldChanged'; playerId: number; delta: number; reason: string }
   | { type: 'bankrupt'; playerId: number }

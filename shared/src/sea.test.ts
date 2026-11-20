@@ -48,7 +48,7 @@ describe('living sea board', () => {
     const p = g.currentPlayer;
     g.state.owners[1] = 0;
     land(g, g.state.map.find((n) => n.special === special)!.id);
-    expect(g.state.phase).toBe('awaitingRoll');
+    expect(g.state.phase).toBe('awaitingSpin');
     expect(g.state.log.length).toBeGreaterThan(0);
     expect(g.state.log.some((line) => /\b[Yy]our\b|\bYou win/.test(line))).toBe(false);
     expect(g.state.log.slice(0, 2).every((line) => line.includes(p.name))).toBe(true);
@@ -94,7 +94,7 @@ describe('living sea board', () => {
       expect(g.state.phase).toBe('moving');
       while (g.state.phase === 'moving') g.resolveLanding();
       expect(g.state.phase).not.toBe('moving');
-    } else expect(g.state.phase).toBe('awaitingRoll');
+    } else expect(g.state.phase).toBe('awaitingSpin');
     if (event === 'pirates' || event === 'seaMonster') expect(p.gold).toBe(g.state.config.startingGold - SEA_RULES[event]);
     if (event === 'bottle' || event === 'floatingCargo') expect(p.gold).toBe(g.state.config.startingGold + SEA_RULES[event]);
   });
@@ -106,7 +106,7 @@ describe('living sea board', () => {
     land(g, g.state.map.find((n) => n.event === event)!.id);
     expect(p.gold).toBe(g.state.config.startingGold);
     expect(p.revivalProtection).toBe(false);
-    expect(g.state.phase).toBe('awaitingRoll');
+    expect(g.state.phase).toBe('awaitingSpin');
   });
 
   it.each([[0.1, false], [0.99, true]] as const)('simulates Nim with rng %s', (rng, wins) => {
@@ -118,11 +118,12 @@ describe('living sea board', () => {
 
   it('bounds wyvern chains even on an all-event route', () => {
     const g = new GameEngine({ players, rng: () => 0, map: [{ id: 0, name: 'Wyvern', kind: 'event', event: 'wyvern', x: 0, y: 0 }] });
-    g.roll();
+    g.spinCompass();
+    g.sail();
     let resolutions = 0;
     while (g.state.phase === 'moving' && resolutions++ < 10) g.resolveLanding();
     expect(resolutions).toBe(5);
-    expect(g.state.phase).toBe('awaitingRoll');
+    expect(g.state.phase).toBe('awaitingSpin');
     expect(() => g.resolveLanding()).toThrow('Expected phase moving');
   });
 });

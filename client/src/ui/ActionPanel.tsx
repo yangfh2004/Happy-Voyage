@@ -1,19 +1,15 @@
 import { colonyValue, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
+import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
 
-const DIE_FACES = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-
-/** What the human can do right now: roll, claim or decline, or start over. */
+/** What the human can do right now: spin, claim or decline, or start over. */
 export function ActionPanel({ state }: { state: GameState }) {
   const player = state.players[state.currentPlayer];
-  const summary = !player.isAI && state.phase === 'awaitingRoll' ? gameController.feedback.summary : null;
+  const spinning = state.phase === 'spinning';
+  const spinId = gameController.spinId;
+  const summary = !player.isAI && state.phase === 'awaitingSpin' ? gameController.feedback.summary : null;
   const gold = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value)}g`;
-  const dice = state.lastRoll && (
-    <div className="dice" aria-label={`Rolled ${state.lastRoll[0]} and ${state.lastRoll[1]}`}>
-      {DIE_FACES[state.lastRoll[0]]} {DIE_FACES[state.lastRoll[1]]}
-    </div>
-  );
 
   let body;
   if (state.phase === 'gameOver') {
@@ -39,14 +35,16 @@ export function ActionPanel({ state }: { state: GameState }) {
         </button>
       </>
     );
+  } else if (spinning) {
+    body = <p className="waiting">{player.isAI ? `${player.name} spins the compass.` : 'Your compass is spinning.'}</p>;
   } else if (player.isAI) {
     body = <p className="waiting">{player.name} is at the helm…</p>;
-  } else if (state.phase === 'awaitingRoll') {
+  } else if (state.phase === 'awaitingSpin') {
     body = (
       <>
         <p>Your turn, {player.name}.</p>
-        <button className="primary big" onClick={() => gameController.roll()}>
-          Roll dice <kbd>Space / Enter</kbd>
+        <button className="primary big" onClick={() => gameController.spinCompass()}>
+          Spin compass <kbd>Space / Enter</kbd>
         </button>
       </>
     );
@@ -88,8 +86,18 @@ export function ActionPanel({ state }: { state: GameState }) {
           <div>Net gold: <strong className={summary.netGold < 0 ? 'expense' : 'income'}>{gold(summary.netGold)}</strong></div>
         </div>
       )}
-      {dice}
-      {body}
+      {state.phase === 'gameOver' ? body : (
+        <div className="action-content">
+          <Compass
+            spinId={spinId}
+            result={state.lastSpin}
+            spinning={spinning}
+            duration={gameController.timings.spin}
+            onSettled={() => gameController.finishSpin(spinId)}
+          />
+          <div>{body}</div>
+        </div>
+      )}
       {gameController.waiting && (
         <button onClick={() => gameController.skipToMyTurn()}>Skip to my turn <kbd>K</kbd></button>
       )}

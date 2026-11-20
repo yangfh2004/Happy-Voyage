@@ -3,9 +3,9 @@ import { EventBus } from './EventBus';
 import { TurnFeedback } from './TurnFeedback';
 
 export const SPEEDS = {
-  Normal: { ai: 700, step: 200 },
-  Fast: { ai: 250, step: 70 },
-  Instant: { ai: 0, step: 0 },
+  Normal: { ai: 700, step: 200, spin: 1400 },
+  Fast: { ai: 250, step: 70, spin: 500 },
+  Instant: { ai: 0, step: 0, spin: 0 },
 };
 export type GameSpeed = keyof typeof SPEEDS;
 const SPEED_KEY = 'happy-voyage-speed';
@@ -34,6 +34,7 @@ export class GameController {
   feedback = new TurnFeedback();
   private skipping = false;
   private moveId = 0;
+  private spinSequence = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private pending: (() => void) | null = null;
   private pendingSince = 0;
@@ -52,9 +53,13 @@ export class GameController {
     return SPEEDS[this.skipping ? 'Instant' : this.speed];
   }
 
+  get spinId(): number {
+    return this.spinSequence;
+  }
+
   get waiting(): boolean {
     return !!this.engine && this.engine.state.phase !== 'gameOver' &&
-      (this.engine.state.phase === 'moving' || this.engine.currentPlayer.isAI);
+      (this.engine.state.phase === 'spinning' || this.engine.state.phase === 'moving' || this.engine.currentPlayer.isAI);
   }
 
   setSpeed(speed: GameSpeed): void {
@@ -71,6 +76,7 @@ export class GameController {
 
   private refreshPacing(): void {
     this.schedulePending();
+    if (this.timings.spin === 0) this.finishSpin(this.spinId);
     EventBus.emit('pacing-changed');
     this.changed();
   }
@@ -99,8 +105,17 @@ export class GameController {
   }
 
   /** Human actions; ignored when it is not the human's move. */
-  roll(): void {
-    if (this.isHumanTurn('awaitingRoll')) this.engine!.roll();
+  spinCompass(): void {
+    if (this.isHumanTurn('awaitingSpin')) this.beginSpin(this.engine!);
+  }
+
+  finishSpin(id: number): void {
+    if (id === this.spinId && this.engine?.state.phase === 'spinning') this.engine.sail();
+  }
+
+  private beginSpin(engine: GameEngine): void {
+    engine.spinCompass();
+    if (this.timings.spin === 0) this.finishSpin(this.spinId);
   }
 
   claim(): void {
@@ -133,12 +148,15 @@ export class GameController {
       case 'goldChanged':
         EventBus.emit('gold-changed', event);
         break;
+      case 'compassSpun':
+        this.spinSequence += 1;
+        break;
       case 'moved':
         EventBus.emit('animate-move', { playerId: event.playerId, path: event.path, id: ++this.moveId });
         break;
       case 'turnStarted':
         if (!engine.currentPlayer.isAI) this.skipping = false;
-        if (engine.currentPlayer.isAI) this.later(() => engine.roll());
+        if (engine.currentPlayer.isAI) this.later(() => this.beginSpin(engine));
         break;
       case 'claimOffered':
         if (!engine.currentPlayer.isAI) this.skipping = false;

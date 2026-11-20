@@ -3,8 +3,8 @@ import type { GameController } from './GameController';
 export function keyboardShortcuts(controller: GameController) {
   const held = new Set<string>();
   const actions: Record<string, () => void> = {
-    ' ': () => controller.state?.phase === 'gameOver' ? controller.quit() : controller.roll(),
-    enter: () => controller.state?.phase === 'gameOver' ? controller.quit() : controller.roll(),
+    ' ': () => controller.state?.phase === 'gameOver' ? controller.quit() : controller.spinCompass(),
+    enter: () => controller.state?.phase === 'gameOver' ? controller.quit() : controller.spinCompass(),
     c: () => controller.claim(),
     s: () => controller.decline(),
     escape: () => controller.decline(),

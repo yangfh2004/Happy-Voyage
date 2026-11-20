@@ -4,14 +4,20 @@ import { cssColor } from './nations';
 import { SpeedControl } from './SpeedControl';
 
 /** Gold and colonies for every navigator; the current one is highlighted. */
-export function PlayerBar({ state, onRules }: { state: GameState; onRules: () => void }) {
+export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRules: () => void; onFleet: () => void }) {
   return (
     <div className="panel players">
       <SpeedControl />
-      <div className="player-header"><div className="round">
-        Round {Math.min(state.round, state.config.maxRounds)} / {state.config.maxRounds} · goal: {state.config.islandsToWin}{' '}
-        islands
-      </div><button className="rules-toggle" onClick={onRules}>? Rules</button></div>
+      <div className="player-header">
+        <div className="round">
+          Round {Math.min(state.round, state.config.maxRounds)} / {state.config.maxRounds} · goal: {state.config.islandsToWin}{' '}
+          islands
+        </div>
+        <div className="player-controls">
+          <button onClick={onFleet}>Fleet</button>
+          <button onClick={onRules}>? Rules</button>
+        </div>
+      </div>
       <div className="player-list">
         {state.players.map((p) => (
           <div
@@ -22,7 +28,7 @@ export function PlayerBar({ state, onRules }: { state: GameState; onRules: () =>
             <strong>{p.name}</strong>
             <span className="tag">{p.isAI ? 'AI' : 'You'}</span>
             <div className="stats">
-              {p.gold}g · {gameController.islandsOwnedBy(p.id)} islands
+              {p.gold}g · {gameController.islandsOwnedBy(p.id)} islands · {p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}
             </div>
           </div>
         ))}

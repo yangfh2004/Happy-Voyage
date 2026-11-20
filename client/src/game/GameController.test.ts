@@ -41,7 +41,8 @@ afterEach(() => {
 });
 
 function humanTurn() {
-  controller.roll();
+  controller.spinCompass();
+  controller.finishSpin(controller.spinId);
   EventBus.emit('move-complete', moveId);
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
 }
@@ -51,7 +52,8 @@ describe('pacing', () => {
     controller.newGame(players);
     const state = controller.state!;
     state.map[2] = { ...state.map[2], kind: 'event', event: 'wyvern' };
-    controller.roll();
+    controller.spinCompass();
+    controller.finishSpin(controller.spinId);
     const rollId = moveId;
     EventBus.emit('move-complete', rollId);
     expect(moveId).not.toBe(rollId);
@@ -60,7 +62,7 @@ describe('pacing', () => {
     EventBus.emit('move-complete', rollId);
     expect(state.phase).toBe('moving');
     EventBus.emit('move-complete', moveId);
-    expect(state.phase).toBe('awaitingRoll');
+    expect(state.phase).toBe('awaitingSpin');
     expect(state.currentPlayer).toBe(1);
   });
   it('defaults to Normal and persists/restores valid choices', () => {
@@ -81,21 +83,24 @@ describe('pacing', () => {
     expect(() => other.setSpeed('Instant')).not.toThrow();
   });
 
-  it('reschedules an in-flight AI delay without double rolling', async () => {
+  it('reschedules an in-flight AI delay without spinning twice', async () => {
     controller.newGame(players);
     humanTurn();
     expect(controller.state?.currentPlayer).toBe(1);
     await vi.advanceTimersByTimeAsync(100);
     controller.setSpeed('Fast');
     await vi.advanceTimersByTimeAsync(149);
-    expect(controller.state?.phase).toBe('awaitingRoll');
+    expect(controller.state?.phase).toBe('awaitingSpin');
     await vi.advanceTimersByTimeAsync(1);
+    expect(controller.state?.phase).toBe('spinning');
+    expect(controller.timings.spin).toBe(500);
+    controller.finishSpin(controller.spinId);
     expect(controller.state?.phase).toBe('moving');
     await vi.advanceTimersByTimeAsync(1000);
     expect(controller.state?.phase).toBe('moving');
   });
 
-  it('skips AI actions, restores chosen speed, and stops at the human roll', async () => {
+  it('skips AI actions, restores chosen speed, and stops at the human spin', async () => {
     controller.setSpeed('Fast');
     controller.newGame(players);
     humanTurn();
@@ -110,14 +115,15 @@ describe('pacing', () => {
     EventBus.emit('move-complete', moveId);
     await vi.runAllTimersAsync();
     expect(controller.state?.currentPlayer).toBe(0);
-    expect(controller.state?.phase).toBe('awaitingRoll');
-    expect(controller.timings).toEqual({ ai: 250, step: 70 });
+    expect(controller.state?.phase).toBe('awaitingSpin');
+    expect(controller.timings).toEqual({ ai: 250, step: 70, spin: 500 });
     expect(storage.get('happy-voyage-speed')).toBe('Fast');
   });
 
   it('stops skipping at a human claim decision and ignores duplicate completions', () => {
     controller.newGame(players);
-    controller.roll();
+    controller.spinCompass();
+    controller.finishSpin(controller.spinId);
     controller.skipToMyTurn();
     EventBus.emit('move-complete', moveId);
     expect(controller.state?.phase).toBe('awaitingClaim');
@@ -127,12 +133,47 @@ describe('pacing', () => {
     expect(controller.state?.phase).toBe('awaitingClaim');
   });
 
+  it('can skip an active spin without waiting for its animation or sailing twice', () => {
+    controller.newGame(players);
+    controller.spinCompass();
+    expect(controller.state?.phase).toBe('spinning');
+    expect(controller.waiting).toBe(true);
+    expect(controller.state?.players[0].position).toBe(0);
+    const spinId = controller.spinId;
+    controller.skipToMyTurn();
+    expect(controller.state?.phase).toBe('moving');
+    expect(controller.timings.spin).toBe(0);
+    const skippedMoveId = moveId;
+    controller.finishSpin(spinId);
+    expect(moveId).toBe(skippedMoveId);
+    EventBus.emit('move-complete', skippedMoveId);
+    expect(controller.state?.phase).toBe('awaitingClaim');
+    expect(controller.timings.spin).toBe(1400);
+  });
+
+  it('uses the selected speed for an in-progress spin, including Instant', () => {
+    controller.newGame(players);
+    controller.spinCompass();
+    expect(controller.timings.spin).toBe(1400);
+    controller.setSpeed('Fast');
+    expect(controller.timings.spin).toBe(500);
+    expect(controller.state?.phase).toBe('spinning');
+    controller.setSpeed('Instant');
+    expect(controller.timings.spin).toBe(0);
+    expect(controller.state?.phase).toBe('moving');
+    expect(controller.state?.lastSpin).toBe(2);
+  });
+
   it('ignores obsolete movement and timers after starting a new game', async () => {
     controller.newGame(players);
     humanTurn();
     const oldId = moveId;
+    const oldSpinId = controller.spinId;
     controller.newGame(players);
-    controller.roll();
+    controller.spinCompass();
+    controller.finishSpin(oldSpinId);
+    expect(controller.state?.phase).toBe('spinning');
+    controller.finishSpin(controller.spinId);
     EventBus.emit('move-complete', oldId);
     await vi.runAllTimersAsync();
     expect(controller.state?.currentPlayer).toBe(0);
@@ -153,7 +194,8 @@ describe('pacing', () => {
     controller.newGame(players);
     const state = controller.state!;
     state.players[1].bankrupt = true;
-    controller.roll();
+    controller.spinCompass();
+    controller.finishSpin(controller.spinId);
     controller.skipToMyTurn();
     EventBus.emit('move-complete', moveId);
     if (state.phase === 'awaitingClaim') controller.decline();

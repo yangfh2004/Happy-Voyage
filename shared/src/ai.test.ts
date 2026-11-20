@@ -24,14 +24,14 @@ function claimOffer(maxRounds = 30, islandsToWin = 8, nodeId = 17) {
 describe('AI colony decisions', () => {
   it('saves cash for a likely toll rather than using a flat reserve', () => {
     const { engine, state, node } = claimOffer();
-    state.owners[23] = 1; // A roll of six lands before salary and costs 124g.
+    state.owners[23] = 1; // Six steps land before salary and cost 124g.
     engine.decideForAI();
     expect(state.owners[node.id]).toBeNull();
   });
 
   it('uses the same cash to buy if nearby tolls are covered by salary', () => {
     const { engine, state, node } = claimOffer();
-    state.owners[1] = 1; // A roll of eight lands after salary.
+    state.owners[1] = 1; // Eight steps land after salary.
     engine.decideForAI();
     expect(state.owners[node.id]).toBe(0);
   });
@@ -39,7 +39,7 @@ describe('AI colony decisions', () => {
   it.each([
     { event: 'treasure', colony: 6, toll: 22 },
     { event: 'trade wind', colony: 1, toll: 20 },
-  ])('accounts for $event income before a second-roll toll', ({ colony, toll }) => {
+  ])('accounts for $event income before a second-move toll', ({ colony, toll }) => {
     const { engine, state, player, node } = claimOffer(30, 8, colony);
     player.gold = node.price! + 75;
     state.owners[toll] = 1;
@@ -48,7 +48,7 @@ describe('AI colony decisions', () => {
     expect(state.owners[colony]).toBe(0);
   });
 
-  it('counts multiple salaries on one roll when forecasting toll risk on a short route', () => {
+  it('counts multiple salaries in one move when forecasting toll risk on a short route', () => {
     const route = forecastMap();
     const map = [route[0], route[1], { ...route[2], toll: 100 }, { ...route[4], id: 3 }];
     const game = new GameEngine({
@@ -84,7 +84,7 @@ describe('AI colony decisions', () => {
 
   it('keeps cash when a late colony cannot earn its score cost', () => {
     const { engine, state, node } = claimOffer(1);
-    state.players[1].position = 10; // Even a likely roll of seven is not enough expected toll.
+    state.players[1].position = 10; // Even a likely spin of seven is not enough expected toll.
     engine.decideForAI();
     expect(state.owners[node.id]).toBeNull();
   });

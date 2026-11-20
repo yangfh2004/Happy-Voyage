@@ -9,7 +9,8 @@ Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, tradin
 
 Single player against 1–3 AI rivals:
 
-- Roll two dice and sail your fleet around a 24-stop sea route.
+- Spin the compass to sail 2–12 stops around a 24-stop sea route. Set the game speed or skip animations and AI turns until your next decision.
+- Open **Fleet** to inspect any navigator's starting warship, cargo ship, and explorer.
 - Land on an unowned island to found a colony; rivals who land there pay you a toll.
 - Passing the home port pays a royal salary; event stops bring treasure, storms or trade winds.
 - Claim 8 islands, be the last navigator afloat, or be the richest after 30 rounds to win.
@@ -36,7 +37,7 @@ npm workspaces monorepo:
 shared/   Game rules, independent of any renderer (runs in the browser now, on the server later)
   src/types.ts     Plain serialisable state: players, map nodes, game state, events
   src/map.ts       The sea route (add stops here)
-  src/engine.ts    GameEngine: roll -> move -> resolve landing -> claim/decline -> next turn
+  src/engine.ts    GameEngine: spin compass -> sail -> resolve landing -> claim/decline -> next turn
   src/ai.ts        AI rival decisions
 client/   Phaser + React front end
   src/game/GameController.ts   Owns the engine, runs AI turns, notifies React and Phaser

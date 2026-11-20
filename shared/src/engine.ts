@@ -1,8 +1,9 @@
 import { aiShouldClaim } from './ai';
-import { rollDice, type Rng } from './dice';
+import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
-import type { GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup } from './types';
+import { SHIP_TYPES, STARTING_FLEET } from './ships';
+import type { GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup, Ship, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
   startingGold: 1400,
@@ -36,11 +37,11 @@ type Listener = (event: GameEvent, state: GameState) => void;
 /**
  * The rules of the core loop, independent of any renderer:
  *
- *   awaitingRoll --roll()--> moving --resolveLanding()--> awaitingClaim --claim()/decline()-->
- *   (next player) awaitingRoll ... until gameOver
+ *   awaitingSpin --spinCompass()--> spinning --sail()--> moving --resolveLanding()-->
+ *   awaitingClaim --claim()/decline()--> (next player) awaitingSpin ... until gameOver
  *
- * `moving` exists so a renderer can animate the path before the landing is
- * applied. The same class can run on the server for multiplayer.
+ * Renderers can animate the compass and path before the next action.
+ * The same class can run on the server for multiplayer.
  */
 export class GameEngine {
   readonly state: GameState;
@@ -65,16 +66,21 @@ export class GameEngine {
         revivalProtection: false,
         captain: false,
         bankrupt: false,
+        fleet: [],
       })),
+      nextShipId: 1,
       owners: map.map(() => null),
       currentPlayer: 0,
       round: 1,
-      phase: 'awaitingRoll',
-      lastRoll: null,
+      phase: 'awaitingSpin',
+      lastSpin: null,
       pendingClaim: null,
       winner: null,
       log: [],
     };
+    for (const player of this.state.players) {
+      for (const type of STARTING_FLEET) this.addShipToFleet(player.id, type);
+    }
   }
 
   /** Subscribe to engine events; returns an unsubscribe function. */
@@ -97,6 +103,20 @@ export class GameEngine {
     return this.state.owners.filter((o) => o === playerId).length;
   }
 
+  /** Commission a ship for setup or after a game rule has authorized construction. */
+  addShipToFleet(playerId: number, type: ShipType): Ship {
+    const player = this.state.players[playerId];
+    if (!player) throw new Error(`Unknown player: ${playerId}`);
+    if (!Object.prototype.hasOwnProperty.call(SHIP_TYPES, type)) throw new Error(`Unknown ship type: ${type}`);
+
+    const id = this.state.nextShipId++;
+    const { label, ...stats } = SHIP_TYPES[type];
+    const ship = { ...stats, id, type, name: `${label} ${id}`, durability: stats.maxDurability };
+    player.fleet.push(ship);
+    this.emit({ type: 'shipAdded', playerId, shipId: id });
+    return ship;
+  }
+
   /** Gold plus the end-of-voyage value of every colony. */
   netWorth(playerId: number): number {
     const colonies = this.state.map
@@ -105,16 +125,22 @@ export class GameEngine {
     return this.state.players[playerId].gold + colonies;
   }
 
-  /** Roll two dice and move the current fleet. Returns the nodes visited, in order. */
-  roll(): number[] {
-    this.assertPhase('awaitingRoll');
+  /** Choose the movement distance without moving the fleet yet. */
+  spinCompass(): number {
+    this.assertPhase('awaitingSpin');
+    const steps = spinCompass(this.rng);
+    this.state.lastSpin = steps;
+    this.state.phase = 'spinning';
+    this.emit({ type: 'compassSpun', playerId: this.currentPlayer.id, steps });
+    return steps;
+  }
+
+  /** Move the fleet by the compass result. Returns the nodes visited, in order. */
+  sail(): number[] {
+    this.assertPhase('spinning');
     this.relocations = 0;
     const player = this.currentPlayer;
-    const dice = rollDice(this.rng);
-    this.state.lastRoll = dice;
-    this.emit({ type: 'diceRolled', playerId: player.id, dice });
-
-    const steps = dice[0] + dice[1];
+    const steps = this.state.lastSpin!;
     const size = this.state.map.length;
     const path: number[] = [];
     for (let i = 1; i <= steps; i++) path.push((player.position + i) % size);
@@ -125,8 +151,8 @@ export class GameEngine {
 
     player.position = path[path.length - 1];
     this.state.phase = 'moving';
-    this.log(`${player.name} rolls ${dice[0]} + ${dice[1]} and sails to ${this.node(player.position).name}.`);
     this.emit({ type: 'moved', playerId: player.id, path });
+    this.log(`${player.name} spins ${steps} and sails to ${this.node(player.position).name}.`);
     return path;
   }
 
@@ -368,7 +394,7 @@ export class GameEngine {
     }
 
     this.state.currentPlayer = next;
-    this.state.phase = 'awaitingRoll';
+    this.state.phase = 'awaitingSpin';
     this.emit({ type: 'turnStarted', playerId: next });
   }
 
