@@ -11,6 +11,7 @@ import { EventBus } from './game/EventBus';
 import { RouteDetails } from './ui/RouteDetails';
 import { keyboardShortcuts } from './game/keyboard';
 import { FleetPanel } from './ui/FleetPanel';
+import { SeaNotifications } from './ui/SeaNotifications';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
@@ -34,7 +35,8 @@ export function App() {
   const overlay = useRef<HTMLDivElement>(null);
   const needsInput = state && !state.players[state.currentPlayer].isAI &&
     (state.phase === 'awaitingSpin' || state.phase === 'awaitingClaim' ||
-      state.phase === 'awaitingBarter' || state.phase === 'awaitingRecruit' || state.phase === 'awaitingLottery' || state.phase === 'awaitingCargoMarket' || state.phase === 'awaitingToll');
+      state.phase === 'awaitingRecruit' || state.phase === 'awaitingLottery' || state.phase === 'awaitingBarter' || state.phase === 'awaitingCargoMarket' || state.phase === 'awaitingToll' ||
+      state.phase === 'awaitingMerchant' || state.phase === 'awaitingWyvern');
   const prompt = needsInput ? `${state.round}:${state.currentPlayer}:${state.phase}` : null;
   useLayoutEffect(() => {
     if (prompt && overlay.current) overlay.current.scrollTop = 0;
@@ -42,7 +44,10 @@ export function App() {
 
   return (
     <div className={`app ${state ? 'playing' : ''}`}>
-      <PhaserGame />
+      <div className="sea-map">
+        <PhaserGame />
+        {state && <SeaNotifications notices={gameController.seaNotices} onDismiss={(id) => gameController.dismissSeaNotice(id)} />}
+      </div>
       <div className="overlay" ref={overlay}>
         {state ? (
           <div className="hud">

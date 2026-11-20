@@ -10,8 +10,8 @@ const specials: [SpecialKind, string, string][] = [
   ['nightless', 'Nightless Island', '不夜岛'], ['wind', 'Wind Island', '风之岛'],
   ['dragonSnake', 'Dragon Snake Island', '龙蛇岛'],
 ];
-const events: EventKind[] = ['treasure', 'storm', 'tradeWind', 'pirates', 'seaMonster', 'whirlpool', 'bottle', 'floatingCargo', 'merchant', 'wyvern', 'storm', 'tradeWind', 'treasure'];
-const eventNames = ['Treasure Shoal', 'Tempest Passage', 'Zephyr Strait', 'Pirate Cove', 'Kraken Deep', 'Bermuda Triangle', 'Drifting Bottle Reef', 'Castaway Cargo Bay', 'Merchant Lane', 'Wyvern Cliffs', 'Thunderhead Reach', 'Monsoon Channel', 'Sunken Crown Shoal'];
+const events: EventKind[] = ['treasure', 'storm', 'tradeWind', 'pirates', 'smallMonster', 'whirlpool', 'bottle', 'floatingCargo', 'merchant', 'wyvern', 'largeMonster', 'turtle', 'treasure'];
+const eventNames = ['Treasure Shoal', 'Tempest Passage', 'Zephyr Strait', 'Pirate Cove', 'Serpent Shallows', 'Bermuda Triangle', 'Drifting Bottle Reef', 'Castaway Cargo Bay', 'Merchant Lane', 'Wyvern Cliffs', 'Kraken Deep', 'Turtle Reach', 'Sunken Crown Shoal'];
 
 export function createDefaultMap(): MapNode[] {
   const nodes: MapNode[] = [];

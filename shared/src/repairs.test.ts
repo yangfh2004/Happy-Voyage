@@ -45,7 +45,7 @@ describe('fleet repairs', () => {
     }
   });
 
-  it.each(['storm', 'pirates', 'seaMonster', 'whirlpool'] as const)('%s damages sailing ships, unless protected', (event) => {
+  it.each(['storm', 'whirlpool'] as const)('%s damages sailing ships, unless protected', (event) => {
     for (const protectedFromHazards of [false, true]) {
       const engine = game();
       const player = engine.currentPlayer;

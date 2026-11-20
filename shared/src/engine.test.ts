@@ -212,8 +212,8 @@ describe('GameEngine', () => {
         engine.decideForAI();
         if (engine.state.phase === 'awaitingSpin') spinAndSail(engine);
       }
-      while (engine.state.phase === 'moving') engine.resolveLanding();
-      engine.decideForAI();
+      else if (engine.state.phase === 'moving') engine.resolveLanding();
+      else engine.decideForAI();
     }
     expect(engine.state.phase).toBe('gameOver');
     expect(engine.state.winner).not.toBeNull();
