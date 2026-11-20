@@ -1,5 +1,6 @@
 import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight, aiLotteryPickCount } from './ai';
-import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
+import { STRATEGIES, STRATEGY_RULES, type StrategyId } from './strategies';
+import { COMBAT, colonyDefenders, fightNavalBattle, forecastNavalBattle, tollDue } from './combat';
 import { barterOffers, fleetQuantity } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { CAPTAINS, MAX_CAPTAINS, captainBonus, discountedByCaptains, recruitOffers, aiRecruitChoice } from './captains';
@@ -18,6 +19,7 @@ import { navigatorById, type SignatureShip } from './navigators';
 import type { BattleReport, ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, MarketOrder, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
+  startingStrategies: 3,
   startingGold: 1400,
   homeSalary: 400,
   islandsToWin: 10,
@@ -82,6 +84,9 @@ export class GameEngine {
     });
     this.rng = options.rng ?? Math.random;
     this.state = {
+      hoardNode: null,
+      strategyUsed: false,
+      inspired: false,
       royalAudience: null,
       config,
       map,
@@ -97,6 +102,8 @@ export class GameEngine {
         captains: [],
         bankrupt: false,
         fleet: [],
+        strategies: [],
+        knownHoard: null,
       })),
       nextShipId: 1,
       marketStock: [],
@@ -118,6 +125,15 @@ export class GameEngine {
       winner: null,
       log: [],
     };
+    this.buryHoard();
+    for (const player of this.state.players) {
+      const pool = Object.keys(STRATEGIES) as StrategyId[];
+      const count = Math.min(config.startingStrategies, STRATEGY_RULES.handCap, pool.length);
+      for (let i = 0; i < count; i++) {
+        const card = pool.splice(Math.floor(this.rng() * pool.length), 1)[0];
+        this.gainStrategy(player.id, 'starting hand', card);
+      }
+    }
     for (const player of this.state.players) {
       const flagship = player.navigator === undefined ? undefined : navigatorById(player.navigator)?.signatureShip;
       if (player.navigator !== undefined && !flagship) throw new Error(`Unknown navigator: ${player.navigator}`);
@@ -133,6 +149,61 @@ export class GameEngine {
 
   get currentPlayer(): Player {
     return this.state.players[this.state.currentPlayer];
+  }
+
+  private buryHoard(previous?: number): void {
+    const nodes = this.state.map.filter((n) => n.event === 'treasure' && n.id !== previous);
+    this.state.hoardNode = nodes.length ? nodes[Math.floor(this.rng() * nodes.length)].id : null;
+  }
+
+  gainStrategy(playerId: number, source: string, card?: StrategyId): boolean {
+    const player = this.state.players[playerId];
+    const ids = Object.keys(STRATEGIES) as StrategyId[];
+    card ??= ids[Math.floor(this.rng() * ids.length)];
+    if (player.strategies.length >= STRATEGY_RULES.handCap) {
+      this.log(`${player.name}'s hand is full; ${STRATEGIES[card].name} is discarded.`);
+      return false;
+    }
+    player.strategies.push(card);
+    this.log(`${player.name} gains ${STRATEGIES[card].name} (${source}).`);
+    this.emit({ type: 'strategyGained', playerId, card, source });
+    return true;
+  }
+
+  canUseStrategy(id: StrategyId, target?: number): boolean {
+    const card = STRATEGIES[id];
+    if (!card || this.state.strategyUsed || this.currentPlayer.bankrupt || !this.currentPlayer.strategies.includes(id) || !card.phases.includes(this.state.phase)) return false;
+    if (id === 'navigate') return Number.isInteger(target) && this.state.map.some((n) => n.id === target);
+    if (id === 'locate') return this.state.hoardNode !== null;
+    const owner = this.state.owners[this.currentPlayer.position];
+    if (owner === null || owner === undefined || owner === this.currentPlayer.id) return false;
+    if (id === 'inspire') return this.currentPlayer.fleet.length > 0;
+    const defenders = colonyDefenders(this.state, this.currentPlayer.position);
+    return defenders.ships.length > (defenders.fromFleet ? 1 : 0);
+  }
+
+  private readonly strategyHandlers: Record<StrategyId, (target?: number) => void> = {
+    navigate: (target) => {
+      this.relocations = 0;
+      this.pendingPath = [];
+      this.currentPlayer.position = target!;
+      this.state.phase = 'moving';
+      this.resolveLanding();
+    },
+    locate: () => { this.currentPlayer.knownHoard = this.state.hoardNode; },
+    inspire: () => { this.state.inspired = true; },
+    mislead: () => { colonyDefenders(this.state, this.currentPlayer.position).ships.shift(); },
+    betray: () => { this.currentPlayer.fleet.push(colonyDefenders(this.state, this.currentPlayer.position).ships.shift()!); },
+  };
+
+  useStrategy(id: StrategyId, target?: number): void {
+    if (!this.canUseStrategy(id, target)) throw new Error('Cannot use strategy');
+    const player = this.currentPlayer;
+    player.strategies.splice(player.strategies.indexOf(id), 1);
+    this.state.strategyUsed = true;
+    this.log(`${player.name} uses ${STRATEGIES[id].name}${target === undefined ? '' : ` to ${this.node(target).name}`}.`);
+    this.strategyHandlers[id](target);
+    this.emit({ type: 'strategyUsed', playerId: player.id, card: id, target });
   }
 
   /** Start the first turn (separate from the constructor so listeners can attach first). */
@@ -356,7 +427,8 @@ export class GameEngine {
     const node = this.node(player.position);
     const { ships: defenders, owner, fromFleet } = colonyDefenders(this.state, node.id);
     this.log(`${player.name} opens fire on ${owner.name}'s ${fromFleet ? 'fleet' : 'docked ships'} at ${node.name}!`);
-    const result = fightNavalBattle(player.fleet, defenders, this.rng);
+    const result = fightNavalBattle(player.fleet, defenders, this.rng, { attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1 });
+    this.state.inspired = false;
     const sink = (fleet: Ship[], sunk: Ship[]) => {
       for (const ship of sunk) fleet.splice(fleet.indexOf(ship), 1);
     };
@@ -631,7 +703,21 @@ export class GameEngine {
 
   /** Let the built-in AI make the current player's pending decision. */
   decideForAI(): void {
+    if (this.state.phase === 'awaitingSpin') {
+      const p = this.currentPlayer;
+      const target = p.knownHoard ?? this.state.map.find((n) => n.kind === 'island' && this.state.owners[n.id] === null && aiShouldClaim(this.state, { ...p, position: n.id }, n.id))?.id;
+      if (target !== undefined && target !== null && this.canUseStrategy('navigate', target)) { this.useStrategy('navigate', target); return; }
+      if (p.knownHoard === null && this.canUseStrategy('locate')) this.useStrategy('locate');
+    }
     if (this.state.phase === 'awaitingToll') {
+      for (const id of ['betray', 'mislead', 'inspire'] as StrategyId[]) {
+        if (!this.canUseStrategy(id)) continue;
+        const { ships: defenders, owner, fromFleet } = colonyDefenders(this.state, this.currentPlayer.position);
+        const boosted = id === 'inspire' ? { attackerMultiplier: STRATEGY_RULES.inspireMultiplier } : {};
+        const attackers = id === 'betray' ? [...this.currentPlayer.fleet, defenders[0]] : this.currentPlayer.fleet;
+        const remainingDefenders = id === 'inspire' ? defenders : !fromFleet && defenders.length === 1 ? owner.fleet : defenders.slice(1);
+        if (aiShouldFight(this.state, this.currentPlayer) || forecastNavalBattle(attackers, remainingDefenders, boosted) === 'victory') this.useStrategy(id);
+      }
       if (aiShouldFight(this.state, this.currentPlayer)) this.fight();
       else this.payToll();
       return;
@@ -765,7 +851,10 @@ export class GameEngine {
           human = !human;
         }
         this.log(`${player.name} plays hermit Nim: take 1–3 stones, last loses. ${human ? 'The hermit wins.' : `${player.name} wins the prize!`}`);
-        if (!human) this.changeGold(player, r.nimPrize, 'Nim prize');
+        if (!human) {
+          this.changeGold(player, r.nimPrize, 'Nim prize');
+          this.gainStrategy(player.id, 'hermit Nim');
+        }
         break;
       }
       case 'revival': {
@@ -831,6 +920,7 @@ export class GameEngine {
         break;
       case 'bottle':
       case 'floatingCargo':
+        if (node.event === 'bottle' && this.rng() < STRATEGY_RULES.bottleChance) this.gainStrategy(player.id, 'drifting bottle');
         this.log(`${player.name} recovers ${node.event === 'bottle' ? 'a bottled reward chart' : 'floating cargo'}.`);
         this.changeGold(player, SEA_RULES[node.event], node.event);
         break;
@@ -862,6 +952,12 @@ export class GameEngine {
         return true;
       }
       case 'treasure': {
+        if (node.id === this.state.hoardNode) {
+          this.changeGold(player, STRATEGY_RULES.hoardGold, 'buried hoard');
+          this.log(`${player.name} digs up the buried hoard: ${STRATEGY_RULES.hoardGold}g!`);
+          for (const p of this.state.players) p.knownHoard = null;
+          this.buryHoard(node.id);
+        }
         const { min, max, step } = EVENT_GOLD.treasure;
         const amount = min + Math.floor(this.rng() * ((max - min) / step + 1)) * step;
         this.log(`${player.name} hauls up a sunken chest worth ${amount}g!`);
@@ -960,6 +1056,8 @@ export class GameEngine {
     }
 
     this.state.currentPlayer = next;
+    this.state.strategyUsed = false;
+    this.state.inspired = false;
     this.state.phase = 'awaitingSpin';
     this.repairDockedShips();
     this.emit({ type: 'turnStarted', playerId: next });

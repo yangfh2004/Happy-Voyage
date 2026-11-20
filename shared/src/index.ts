@@ -1,4 +1,5 @@
 export * from './types';
+export * from './strategies';
 export * from './ranks';
 export * from './buildings';
 export * from './map';

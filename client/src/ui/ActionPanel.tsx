@@ -1,4 +1,4 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COMBAT, forecastNavalBattle, tollDue, SHIP_RECIPES, SHIP_TYPES, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COMBAT, forecastColonyBattle, tollDue, SHIP_RECIPES, SHIP_TYPES, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
@@ -9,12 +9,14 @@ import { LotteryPanel } from './LotteryPanel';
 import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
+import { STRATEGIES } from '@happy-voyage/shared';
 
 const BUILDING_SIZES = ['None', 'Small', 'Medium', 'Large'];
 
 /** What the human can do right now: spin, claim or decline, or start over. */
 export function ActionPanel({ state }: { state: GameState }) {
   const [transfersOpen, setTransfersOpen] = useState(false);
+  const [destination, setDestination] = useState(state.map[0].id);
   const player = state.players[state.currentPlayer];
   const spinning = state.phase === 'spinning';
   const trading = state.phase === 'awaitingCargoMarket' && !player.isAI;
@@ -133,7 +135,7 @@ export function ActionPanel({ state }: { state: GameState }) {
     const { ships: defenders, owner, fromFleet } = colonyDefenders(state, island.id);
     const firepower = (ships: { firepower: number }[]) => ships.reduce((sum, ship) => sum + ship.firepower, 0);
     const hull = (ships: { durability: number }[]) => ships.reduce((sum, ship) => sum + ship.durability, 0);
-    const forecast = { victory: 'likely victory', defeat: 'likely defeat', draw: 'likely draw' }[forecastNavalBattle(player.fleet, defenders)];
+    const forecast = { victory: 'likely victory', defeat: 'likely defeat', draw: 'likely draw' }[forecastColonyBattle(state, player)];
     body = (
       <>
         <h2>{owner.name}'s colony at {island.name}</h2>
@@ -181,6 +183,20 @@ export function ActionPanel({ state }: { state: GameState }) {
 
   return (
     <div className="panel actions">
+      {!player.isAI && state.phase !== 'gameOver' && <section aria-label="Strategy cards" style={{ fontFamily: "'Sea Names', sans-serif" }}>
+        <h3>Strategy cards ({player.strategies.length}/5)</h3>
+        {player.strategies.length === 0 && <p>No strategy cards.</p>}
+        {player.strategies.includes('navigate') && <label>Navigate destination <select value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
+          {state.map.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}
+        </select></label>}
+        {player.strategies.map((id, index) => <div key={`${id}-${index}`}>
+          <strong>{STRATEGIES[id].name} · {STRATEGIES[id].chineseName}</strong>
+          <p>{STRATEGIES[id].description}</p>
+          <button disabled={!gameController.canUseStrategy(id, id === 'navigate' ? destination : undefined)} onClick={() => gameController.useStrategy(id, id === 'navigate' ? destination : undefined)}>Use {STRATEGIES[id].name}</button>
+        </div>)}
+        {player.knownHoard !== null && <p>Buried hoard: {state.map[player.knownHoard].name}</p>}
+      </section>}
+      <p>{state.players.filter((p) => p.id !== player.id).map((p) => `${p.name}: ${p.strategies.length} ${p.strategies.length === 1 ? 'card' : 'cards'}`).join(' · ')}</p>
       {state.phase === 'gameOver' || trading ? body : (
         <div className="action-content">
           <Compass

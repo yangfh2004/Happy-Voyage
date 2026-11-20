@@ -57,7 +57,7 @@ describe('living sea board', () => {
 
   it('settles salary once at the end of a relocation chain to a national home port', () => {
     const rng = [0.6, 0.3];
-    const g = new GameEngine({ players: [{ ...players[0], nation: 'England' }], rng: () => rng.shift()!, map: [
+    const g = new GameEngine({ players: [{ ...players[0], nation: 'England' }], config: { startingStrategies: 0 }, rng: () => rng.shift()!, map: [
       { id: 0, name: 'First Wyvern', kind: 'event', event: 'wyvern', x: 0, y: 0 },
       { id: 1, name: 'England', kind: 'port', nation: 'England', x: 1, y: 0 },
       { id: 2, name: 'Second Wyvern', kind: 'event', event: 'wyvern', x: 2, y: 0 },
