@@ -96,8 +96,9 @@ describe('GameEngine', () => {
   it('pays the salary for every lap on a short route', () => {
     const map = createDefaultMap().slice(0, 4);
     const engine = new GameEngine({ players: [twoPlayers[0]], rng: fixedDice(6), map });
+    const before = engine.currentPlayer.gold;
     engine.roll(); // 12 steps on a 4-stop route: home three times
-    expect(engine.currentPlayer.gold).toBe(1000 + 3 * 200);
+    expect(engine.currentPlayer.gold).toBe(before + 3 * engine.state.config.homeSalary);
   });
 
   it('plays an all-AI game to completion', () => {

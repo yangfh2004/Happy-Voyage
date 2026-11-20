@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { aiShouldClaim } from './ai';
 import { GameEngine } from './engine';
+import { createDefaultMap } from './map';
 
 function claimOffer(maxRounds = 30, islandsToWin = 8) {
   const engine = new GameEngine({
@@ -32,6 +33,28 @@ describe('AI colony decisions', () => {
     state.owners[1] = 1; // A roll of eight lands after salary.
     engine.decideForAI();
     expect(state.owners[node.id]).toBe(0);
+  });
+
+  it('counts multiple salaries on one roll when forecasting toll risk on a short route', () => {
+    const route = createDefaultMap();
+    const map = [route[0], route[1], { ...route[2], toll: 100 }, { ...route[4], id: 3 }];
+    const game = new GameEngine({
+      players: [
+        { name: 'Rival', color: 0, isAI: true },
+        { name: 'Captain', color: 1, isAI: false },
+      ],
+      map,
+      config: { homeSalary: 50, maxRounds: 2, islandsToWin: 2 },
+    });
+    game.currentPlayer.position = 1;
+    game.currentPlayer.gold = map[1].price!;
+    game.state.owners[2] = 1;
+    game.state.pendingClaim = 1;
+    game.state.phase = 'awaitingClaim';
+
+    // Only a five is risky: a nine also lands on stop 2, but earns two salaries.
+    game.decideForAI();
+    expect(game.state.owners[1]).toBe(0);
   });
 
   it('takes an affordable winning colony despite the risk', () => {

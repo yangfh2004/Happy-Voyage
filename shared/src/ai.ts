@@ -21,9 +21,10 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number): number 
     if (cash < 0) return 1;
     if (turns === 0) return 0;
     return DICE_TOTALS.reduce((risk, { steps, odds }) => {
-      const next = (position + steps) % map.length;
+      const distance = position + steps;
+      const next = distance % map.length;
       const node = map[next];
-      const afterSalary = cash + (position + steps >= map.length ? config.homeSalary : 0);
+      const afterSalary = cash + Math.floor(distance / map.length) * config.homeSalary;
       const owner = owners[next];
       if (node.event === 'storm') {
         const stormRisk = [50, 75, 100].reduce(
