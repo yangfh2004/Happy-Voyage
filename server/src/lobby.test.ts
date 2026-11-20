@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Server } from 'socket.io';
 import { io, type Socket } from 'socket.io-client';
@@ -128,6 +129,8 @@ it('runs a complete server-owned match and resumes a seat without resetting the 
   const decisions = [0, 0];
   let revision = 0;
   for (let i = 0; i < 200; i++) {
+    // The accelerated server still enforces the real per-socket request limit.
+    await delay(75);
     const ready = () => {
       const snap = host.state.game!;
       const { state } = snap;
