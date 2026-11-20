@@ -1,7 +1,7 @@
 import { COMPASS_SECTORS } from './compass';
 import { BUILDINGS, colonyToll, nextBuildingCost } from './buildings';
 import type { BuildingKind } from './types';
-import { colonyValue, turnOrderPosition } from './rules';
+import { colonyValue, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
 import { SEA_RULES } from './seaRules';
 import type { GameState, MapNode, Player } from './types';
 
@@ -32,7 +32,11 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
         return risk + odds * ((1 - SEA_RULES.lotteryChance) * onward(balance) + SEA_RULES.lotteryChance * onward(balance + SEA_RULES.lotteryPrize));
       }
       if (node.special === 'dragonSnake' && afterSalary >= SEA_RULES.captainPrice) return risk + odds * onward(afterSalary - SEA_RULES.captainPrice, protectedFromHazards, true);
-      if (node.special === 'revival') return risk + odds * onward(afterSalary, true);
+      if (node.special === 'revival') {
+        const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
+        const fee = Math.min(damage, Math.floor(Math.max(0, afterSalary) / REPAIR_GOLD_PER_POINT)) * REPAIR_GOLD_PER_POINT;
+        return risk + odds * onward(afterSalary - fee, true);
+      }
       if (node.event === 'storm') {
         const stormRisk = [50, 75, 100].reduce(
           (sum, repair) => sum + onward(afterSalary - repair),

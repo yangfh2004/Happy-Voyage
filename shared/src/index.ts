@@ -7,4 +7,4 @@ export * from './compass';
 export * from './engine';
 export * from './ai';
 export { SHIP_RECIPES, SHIP_TYPES, GOODS, cargoLoad } from './ships';
-export { colonyValue } from './rules';
+export { colonyValue, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { EVENT_GOLD, SEA_RULES, type GameConfig } from '@happy-voyage/shared';
+import { EVENT_GOLD, SEA_RULES, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE, type GameConfig } from '@happy-voyage/shared';
 
 export function RulesPanel({ config, onClose }: { config: GameConfig; onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null);
@@ -27,7 +27,9 @@ export function RulesPanel({ config, onClose }: { config: GameConfig; onClose: (
           <dt><span className="rule-icon treasure">≈</span> Trade Winds</dt><dd>Earn +{EVENT_GOLD.tradeWind.base}g plus {EVENT_GOLD.tradeWind.perColony}g per colony you own.</dd>
         </dl>
         <p><strong>Shipyards:</strong> Revisit your colony to build a lumber mill, iron mine, and shipyard. Each round, the mill and mine add materials to the colony's stockpile. Spend those materials at the yard to add a new ship to your fleet; upgrade the yard to unlock bigger ships.</p>
-        <p><strong>Seven special islands:</strong> Skeleton trades scrap or charges tribute; Treasure sells lottery tickets; Mist hosts a simulated Nim duel (take 1–3, last loses); Revival repairs your fleet and blocks the next sea hazard; Nightless buys colony specialties; Wind offers random barter rates; Dragon Snake recruits a captain to halve your next toll.</p>
+        <p><strong>Repair yards:</strong> Fully repair all ships docked at that colony for free at the owner's turn start. Ships sailing in your fleet are not repaired by yards.</p>
+        <p><strong>Seven special islands:</strong> Skeleton trades scrap or charges tribute; Treasure sells lottery tickets; Mist hosts a simulated Nim duel (take 1–3, last loses); Revival repairs your fleet for {REPAIR_GOLD_PER_POINT}g per missing durability point (partial repairs in fleet order if gold runs short; a sound fleet is free) and blocks the next sea hazard; Nightless buys colony specialties; Wind offers random barter rates; Dragon Snake recruits a captain to halve your next toll.</p>
+        <p>Storms, pirates, sea monsters, and damaging Bermuda whirlpools also remove up to {SEA_HAZARD_DAMAGE} durability per ship, keeping their gold costs. Durability cannot fall below 0; ships are not sunk. Inspect durability in Fleet.</p>
         <p><strong>Living seas:</strong> pirates and sea monsters cost gold; Bermuda currents move you or damage your fleet. Bottles and floating cargo reward gold, merchants buy colony goods, and wyverns carry you to a new stop whose effect is resolved. Revival blocks these hazards once.</p>
         <p>Drag to pan; pinch or scroll to zoom. Use Fit chart for the whole route, or Follow ship to return to the active fleet.</p>
         <p><strong>Stay afloat:</strong> below 0 gold means bankruptcy. Your colonies go neutral.</p>
