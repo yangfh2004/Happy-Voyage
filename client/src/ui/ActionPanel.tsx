@@ -6,6 +6,7 @@ import { ShortcutLegend } from './ShortcutLegend';
 import { useState } from 'react';
 import { BarterPanel } from './BarterPanel';
 import { TransferPanel } from './TransferPanel';
+import { MarketPanel } from './MarketPanel';
 
 const BUILDING_SIZES = ['None', 'Small', 'Medium', 'Large'];
 
@@ -14,6 +15,7 @@ export function ActionPanel({ state }: { state: GameState }) {
   const [transfersOpen, setTransfersOpen] = useState(false);
   const player = state.players[state.currentPlayer];
   const spinning = state.phase === 'spinning';
+  const trading = state.phase === 'awaitingCargoMarket' && !player.isAI;
   const spinId = gameController.spinId;
   const summary = !player.isAI && state.phase === 'awaitingSpin' ? gameController.feedback.summary : null;
   const gold = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value)}g`;
@@ -56,6 +58,8 @@ export function ActionPanel({ state }: { state: GameState }) {
         </button>
       </>
     );
+  } else if (trading) {
+    body = <MarketPanel key={player.id} state={state} />;
   } else if (state.phase === 'awaitingMarket') {
     body = <>
       <h2>Skeleton Island ship market</h2>
@@ -148,7 +152,7 @@ export function ActionPanel({ state }: { state: GameState }) {
 
   return (
     <div className="panel actions">
-      {state.phase === 'gameOver' ? body : (
+      {state.phase === 'gameOver' || trading ? body : (
         <div className="action-content">
           <Compass
             spinId={spinId}
