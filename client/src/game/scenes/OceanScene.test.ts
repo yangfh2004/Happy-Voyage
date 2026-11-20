@@ -7,7 +7,7 @@ vi.mock('../GameController', () => ({ gameController: { timings: { step: 200 } }
 import { OceanScene } from './OceanScene';
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
-import { createNationRoster, GameEngine } from '@happy-voyage/shared';
+import { createNationRoster, GameEngine, type GameEvent, type WindDirection } from '@happy-voyage/shared';
 
 type Move = { playerId: number; path: number[]; id: number };
 type SceneHarness = {
@@ -17,6 +17,8 @@ type SceneHarness = {
   syncFromState(): void;
   update(): void;
   drawLandingTarget(): void;
+  drawRoute(direction?: WindDirection): void;
+  onEngineEvent(event: GameEvent): void;
 };
 
 let scene: SceneHarness;
@@ -42,6 +44,44 @@ beforeEach(() => {
       return tween;
     } },
   }) as unknown as SceneHarness;
+});
+
+describe('fork routes', () => {
+  function routeGraphics() {
+    return { clear: vi.fn(), lineStyle: vi.fn().mockReturnThis(), strokeCircle: vi.fn().mockReturnThis(), lineBetween: vi.fn().mockReturnThis(), fillStyle: vi.fn().mockReturnThis(), fillTriangle: vi.fn().mockReturnThis() };
+  }
+
+  it('draws bold dashed gold shortcuts and highlights the wind-selected exit', () => {
+    const route = routeGraphics();
+    const map = [
+      { id: 0, x: 0, y: 0, next: [1, 2] },
+      { id: 1, x: 200, y: 0 },
+      { id: 2, x: 0, y: 200 },
+    ];
+    Object.assign(scene, { map, route });
+    scene.drawRoute('S');
+    expect(route.strokeCircle).toHaveBeenCalledWith(0, 0, 34);
+    expect(route.lineStyle).toHaveBeenCalledWith(7, 0xffd369, 1);
+    expect(route.lineBetween).toHaveBeenCalledWith(expect.closeTo(0), 38, expect.closeTo(0), 54);
+    expect(route.lineStyle).toHaveBeenCalledWith(12, 0x7ffff0, 1);
+    expect(route.lineBetween).toHaveBeenCalledWith(expect.closeTo(0), 38, expect.closeTo(0), 162);
+    expect(route.fillStyle).toHaveBeenCalledWith(0x7ffff0, 1);
+    route.lineBetween.mockClear();
+    Object.assign(gameController, { state: { wind: { direction: 'S', turnsLeft: 2 } } });
+    scene.onEngineEvent({ type: 'windChanged', direction: 'E', turnsLeft: 3 });
+    expect(route.clear).toHaveBeenCalledTimes(2);
+    expect(route.lineBetween).toHaveBeenCalledWith(38, 0, 162, 0);
+    expect(route.lineStyle.mock.calls.filter(([width]) => width === 12)).toHaveLength(2);
+  });
+
+  it('clears an empty map and tolerates a route layer not created yet', () => {
+    scene.drawRoute('N');
+    const route = routeGraphics();
+    Object.assign(scene, { map: [], route });
+    scene.drawRoute('N');
+    expect(route.clear).toHaveBeenCalledOnce();
+    expect(route.lineBetween).not.toHaveBeenCalled();
+  });
 });
 
 describe('landing highlight', () => {
