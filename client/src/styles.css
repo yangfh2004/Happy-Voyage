@@ -1,5 +1,5 @@
 .building-option { margin-bottom: 12px; }
-.atmosphere-status { position: absolute; bottom: 12px; left: 12px; padding: 7px 12px; border: 2px solid #a9f6ef; border-radius: 20px; background: #103c5bed; color: #fff9d9; font-size: 13px; font-weight: 700; text-transform: capitalize; pointer-events: none; }
+.atmosphere-status { position: absolute; bottom: 12px; left: 12px; padding: 7px 12px; border: 2px solid #a9f6ef; border-radius: 20px; background: #103c5bed; color: #fff9d9; font-family: 'Sea Names', system-ui, sans-serif; font-size: 13px; font-weight: 700; text-transform: capitalize; pointer-events: none; }
 .building-option small { display: block; margin: 3px 0; }
 .sea-map { position: absolute; inset: 0; }
 .playing .sea-map { position: relative; inset: auto; min-width: 0; min-height: 0; overflow: hidden; }
