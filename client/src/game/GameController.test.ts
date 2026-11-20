@@ -88,6 +88,11 @@ describe('pacing', () => {
     await vi.runOnlyPendingTimersAsync();
     EventBus.emit('move-complete', moveId);
     await vi.runAllTimersAsync();
+    expect(controller.state?.round).toBe(2);
+    expect(controller.state?.currentPlayer).toBe(1);
+    expect(controller.timings.step).toBe(0);
+    EventBus.emit('move-complete', moveId);
+    await vi.runAllTimersAsync();
     expect(controller.state?.currentPlayer).toBe(0);
     expect(controller.state?.phase).toBe('awaitingRoll');
     expect(controller.timings).toEqual({ ai: 250, step: 70 });
