@@ -6,7 +6,7 @@
 .menu-shortcuts { display: none; }
 .resource-icon { width: 18px; height: 18px; vertical-align: middle; }
 .mobile-sound, .seat-number { display: none; }
-.turn-coach { position: fixed; z-index: 24; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 12px; max-width: 210px; border: 2px solid #ebc466; border-radius: 14px; background: #082d49; color: #fff3cb; box-shadow: 0 3px 16px #001b2f99; font-weight: 700; }
+.turn-coach { position: fixed; z-index: 24; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 12px; width: max-content; max-width: 210px; border: 2px solid #ebc466; border-radius: 14px; background: #082d49; color: #fff3cb; box-shadow: 0 3px 16px #001b2f99; font-weight: 700; }
 .turn-coach button { padding: 4px 8px; min-height: 36px; background: transparent; color: #fff3cb; border: 0; }
 .next-stop, .landing-heading, .landing-hint { display: none; }
 .atmosphere-status { position: absolute; bottom: 12px; left: 12px; padding: 7px 12px; border: 2px solid #a9f6ef; border-radius: 20px; background: #103c5bed; color: #fff9d9; font-family: 'Sea Names', system-ui, sans-serif; font-size: 13px; font-weight: 700; text-transform: capitalize; pointer-events: none; }

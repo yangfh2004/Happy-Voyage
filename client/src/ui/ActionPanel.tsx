@@ -256,6 +256,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
   }
 
   const strategies = (
+    <section aria-label={t('Strategy cards', '谋略卡')}>
       <details className="strategy-cards" onToggle={(event) => { if (!event.currentTarget.open) setPreviewing(false); }}>
         <summary>{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</summary>
         {player.strategies.length === 0 && <p>{t('No strategy cards.', '没有谋略卡。')}</p>}
@@ -269,12 +270,10 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
         </div>)}
         {player.knownHoard !== null && <p>{t('Buried hoard: {n}', '埋藏的宝藏：{n}', { n: at(player.knownHoard) })}</p>}
       </details>
+    </section>
   );
   return (
     <div className={`panel actions ${state.phase === 'awaitingSpin' || spinning || state.phase === 'moving' ? 'sailing-action' : 'decision-action'}`}>
-      <div className="rival-cards">
-      <p>{state.players.filter((p) => p.id !== player.id).map((p) => t(`{p}: {n} ${p.strategies.length === 1 ? 'card' : 'cards'}`, '{p}：{n} 张谋略卡', { p: name(p), n: p.strategies.length })).join(' · ')}</p>
-      </div>
       {state.phase === 'gameOver' || trading ? body : (
         <div className="action-content">
           <Compass
@@ -287,10 +286,13 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
           <div>{body}</div>
         </div>
       )}
-      {atHelm && state.phase !== 'gameOver' && (strategyHost ? createPortal(strategies, strategyHost) : strategies)}
       {gameController.waiting && (
         <button onClick={() => gameController.skipToMyTurn()}>{room ? t('Skip animations', '跳过动画') : gameController.humanCount > 1 ? t('Skip to the next player', '跳到下一位玩家') : t('Skip to my turn', '跳到我的回合')} <kbd>K</kbd></button>
       )}
+      {atHelm && state.phase !== 'gameOver' && (strategyHost ? createPortal(strategies, strategyHost) : strategies)}
+      <div className="rival-cards">
+      <p>{state.players.filter((p) => p.id !== player.id).map((p) => t(`{p}: {n} ${p.strategies.length === 1 ? 'card' : 'cards'}`, '{p}：{n} 张谋略卡', { p: name(p), n: p.strategies.length })).join(' · ')}</p>
+      </div>
       {summary && (
         <div className="turn-summary">
           <strong>{gameController.humanCount > 1 ? t('Since your last turn, {p}', '{p}，自你上回合以来', { p: name(player) }) : t('Since your last turn', '自你上回合以来')}</strong>

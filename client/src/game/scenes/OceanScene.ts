@@ -68,6 +68,7 @@ export class OceanScene extends Phaser.Scene {
   private landingMarker?: Phaser.GameObjects.Graphics;
   private landingBadge?: Phaser.GameObjects.Text;
   private navigatePreview: NavigatePreview | null = null;
+  private framedTarget: string | null = null;
 
   constructor() {
     super('Ocean');
@@ -190,6 +191,22 @@ export class OceanScene extends Phaser.Scene {
     this.landingMarker.clear();
     const state = gameController.state;
     const target = gameController.landingTarget ?? landingTarget(state, null, this.navigatePreview);
+    if (state && this.scale?.width <= 700) {
+      const camera = this.cameras.main;
+      const key = target ? `${target.playerId}:${target.nodeId}` : null;
+      if (target && key !== this.framedTarget) {
+        const from = state.map[state.players[target.playerId].position];
+        const to = state.map[target.nodeId];
+        this.following = false;
+        camera.setZoom(Math.min(.95, (camera.width - 80) / (Math.abs(to.x - from.x) + 140), (camera.height - 80) / (Math.abs(to.y - from.y) + 140)));
+        camera.centerOn((from.x + to.x) / 2, (from.y + to.y) / 2);
+      } else if (!target && this.framedTarget) {
+        const node = state.map[state.players[state.currentPlayer].position];
+        this.following = true;
+        camera.setZoom(.95).centerOn(node.x, node.y);
+      }
+      this.framedTarget = key;
+    }
     const focus = state && this.map[target?.nodeId ?? state.pendingClaim ?? state.players[state.currentPlayer].position];
     if (focus) {
       const camera = this.cameras.main;
@@ -218,7 +235,7 @@ export class OceanScene extends Phaser.Scene {
     this.landingMarker.lineStyle(23, color, .2).strokeCircle(node.x, node.y, radius);
     this.landingMarker.lineStyle(15, 0xffffff, .95).strokeCircle(node.x, node.y, radius);
     this.landingMarker.lineStyle(10, color, 1).strokeCircle(node.x, node.y, radius);
-    this.landingBadge.setFontSize(34).setText(target.preview ? pick(getLocale(), 'Preview', '预览') : String(target.steps)).setPosition(node.x + 55, node.y - 64).setVisible(true);
+    this.landingBadge.setFontSize(Math.max(34, 16 / this.cameras.main.zoom)).setText(target.preview ? pick(getLocale(), 'Preview', '预览') : String(target.steps)).setPosition(node.x + 55, node.y - 64).setVisible(true);
   }
 
   private updatePinch() {

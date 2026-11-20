@@ -33,8 +33,9 @@ export function TurnCoach({ state, atHelm, target }: { state: GameState; atHelm:
   const stage = coachStage(state.phase, atHelm, dismissed, !!gameController.landingTarget);
   const point = stage === 'landing' ? target : stage === 'spin' ? button : null;
   if (!point) return null;
-  return <aside className="turn-coach" role="status" style={{ left: Math.max(100, Math.min(window.innerWidth - 100, point.x)), top: Math.max(52, point.y - (traveling ? 110 : 66)) }}>
-    <span>{traveling ? t("You'll land here", '你将在这里靠岸') : t('Spin to sail', '转动罗盘启航')} ↓</span>
+  const below = traveling && point.y < 160;
+  return <aside className="turn-coach" role="status" style={{ left: Math.max(110, Math.min(window.innerWidth - 110, point.x)), top: below ? point.y + 48 : Math.max(52, point.y - (traveling ? 110 : 66)) }}>
+    <span>{below && '↑ '}{traveling ? t("You'll land here", '你将在这里靠岸') : t('Spin to sail', '转动罗盘启航')}{!below && ' ↓'}</span>
     <button aria-label={t('Dismiss tip', '关闭提示')} onClick={dismiss}>✕</button>
   </aside>;
 }
