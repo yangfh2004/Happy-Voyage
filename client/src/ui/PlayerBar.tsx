@@ -1,0 +1,30 @@
+import type { GameState } from '@happy-voyage/shared';
+import { gameController } from '../game/GameController';
+import { cssColor } from './nations';
+
+/** Gold and colonies for every navigator; the current one is highlighted. */
+export function PlayerBar({ state }: { state: GameState }) {
+  return (
+    <div className="panel players">
+      <div className="round">
+        Round {Math.min(state.round, state.config.maxRounds)} / {state.config.maxRounds} · goal: {state.config.islandsToWin}{' '}
+        islands
+      </div>
+      <div className="player-list">
+        {state.players.map((p) => (
+          <div
+            key={p.id}
+            className={['player', p.id === state.currentPlayer && 'current', p.bankrupt && 'bankrupt'].filter(Boolean).join(' ')}
+          >
+            <span className="dot" style={{ background: cssColor(p.color) }} />
+            <strong>{p.name}</strong>
+            {p.isAI && <span className="tag">AI</span>}
+            <div className="stats">
+              {p.gold}g · {gameController.islandsOwnedBy(p.id)} islands
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -1,2 +1,69 @@
-# Happy-Voyage
-Remaking 90s Taiwanese classic game
+# Happy Voyage: Seven Seas Domination
+
+A modern browser remake of the late-1990s Taiwanese game **Happy Voyage (欢乐大航海)**:
+Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, trading and colonies.
+
+**Play the demo:** https://yangfh2004.github.io/Happy-Voyage/
+
+## The first playable version
+
+Single player against 1–3 AI rivals:
+
+- Roll two dice and sail your fleet around a 24-stop sea route.
+- Land on an unowned island to found a colony; rivals who land there pay you a toll.
+- Passing the home port pays a royal salary; event stops bring treasure, storms or trade winds.
+- Claim 8 islands, be the last navigator afloat, or be the richest after 30 rounds to win.
+
+Trading, shipbuilding, naval combat, special islands and multiplayer come next.
+
+## Tech stack
+
+| Part | Tech |
+| --- | --- |
+| Game rendering | Phaser 3 + TypeScript |
+| Menus and panels | React 18 overlaid on the Phaser canvas |
+| Build | Vite |
+| Server | Node.js + Express, Socket.IO for multiplayer |
+| Database | PostgreSQL via `pg` (optional, off unless `DATABASE_URL` is set) |
+| Tests | Vitest |
+
+## Project structure
+
+npm workspaces monorepo:
+
+```
+shared/   Game rules, independent of any renderer (runs in the browser now, on the server later)
+  src/types.ts     Plain serialisable state: players, map nodes, game state, events
+  src/map.ts       The sea route (add stops here)
+  src/engine.ts    GameEngine: roll -> move -> resolve landing -> claim/decline -> next turn
+  src/ai.ts        AI rival decisions
+client/   Phaser + React front end
+  src/game/GameController.ts   Owns the engine, runs AI turns, notifies React and Phaser
+  src/game/EventBus.ts         Events between React, the controller and scenes
+  src/game/scenes/             BootScene (generated placeholder art), OceanScene (sea, route, fleets)
+  src/ui/                      React overlays: setup menu, player bar, action panel, ship's log
+server/   Express + Socket.IO
+  src/index.ts     /api/health, /api/map, serves client/dist
+  src/lobby.ts     Multiplayer room skeleton
+  src/db.ts        Optional PostgreSQL pool
+```
+
+The engine never touches the screen: it changes `GameState` and emits `GameEvent`s.
+`OceanScene` animates `moved` events and reports `move-complete`, after which the
+controller calls `resolveLanding()`. Multiplayer will run the same engine on the server
+and relay its events over Socket.IO.
+
+## Running it
+
+Requires Node.js 20+.
+
+```bash
+npm install
+npm run dev          # client at http://localhost:5173
+npm test             # rules tests
+npm run typecheck
+npm run build        # production client build in client/dist
+npm start            # Express server at http://localhost:3000 (serves the built client)
+```
+
+Pushes to `main` deploy the client to GitHub Pages.
