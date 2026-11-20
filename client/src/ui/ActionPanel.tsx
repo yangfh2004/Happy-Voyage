@@ -176,7 +176,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         </div>
       )}
       <div role="status">
-        {headline && !summary && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{headline.text}</div>}
+        {headline && (!summary || headline.royal) && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{headline.text}</div>}
       </div>
       <ShortcutLegend />
       {transfersOpen && state.phase === 'awaitingBuild' && !player.isAI && (
