@@ -288,6 +288,9 @@ export class GameController {
         if (isHuman(event.playerId) && ship) this.headline = { text: `${ship.name} joined your fleet.`, tone: 'gain' };
         break;
       }
+      case 'shipSold':
+        if (isHuman(event.playerId)) this.headline = { text: `Sold ${event.shipName} for ${event.price}g.`, tone: 'gain' };
+        break;
       case 'claimOffered':
       case 'marketOffered':
       case 'buildOffered':

@@ -448,7 +448,9 @@ export class GameEngine {
     if (!this.canSellShip(shipId)) throw new Error('Cannot sell ship: market, last ship, ownership or cargo');
     const fleet = this.currentPlayer.fleet;
     const [ship] = fleet.splice(fleet.findIndex((ship) => ship.id === shipId), 1);
-    this.changeGold(this.currentPlayer, shipSalePrice(ship), 'ship sale');
+    const price = shipSalePrice(ship);
+    this.changeGold(this.currentPlayer, price, 'ship sale');
+    this.emit({ type: 'shipSold', playerId: this.currentPlayer.id, shipName: ship.name, price });
     this.log(`${this.currentPlayer.name} sells ${ship.name} at Skeleton Island.`);
   }
 
