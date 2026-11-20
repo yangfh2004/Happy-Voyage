@@ -19,6 +19,7 @@ export function keyboardShortcuts(controller: GameController) {
       const target = event.target as HTMLElement | null;
       if (target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
       const key = event.key.toLowerCase();
+      if ((key === ' ' || key === 'enter') && target?.closest?.('button, a[href], summary, [tabindex], [role="button"], [role="link"]')) return;
       const action = actions[key];
       if (!action) return;
       if (!controller.state && !['1', '2', '3'].includes(key) && !held.has(key) && !event.repeat) return;

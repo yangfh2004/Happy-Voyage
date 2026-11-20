@@ -76,4 +76,22 @@ describe('keyboard shortcuts', () => {
     keys.keydown(event('3'));
     expect(controller.setSpeed).toHaveBeenCalledWith('Instant');
   });
+
+  it('leaves Enter and Space native on focused controls, including nested hints', () => {
+    const target = { closest: (selector: string) => selector.startsWith('button,') ? {} : null };
+    for (const phase of ['awaitingRoll', 'gameOver']) {
+      controller.state = { phase };
+      for (const key of ['Enter', ' ']) {
+        const press = event(key, { target });
+        keys.keydown(press);
+        expect(press.preventDefault).not.toHaveBeenCalled();
+      }
+    }
+    expect(controller.roll).not.toHaveBeenCalled();
+    expect(controller.quit).not.toHaveBeenCalled();
+    keys.keydown(event('2', { target }));
+    keys.keydown(event('c', { target }));
+    expect(controller.setSpeed).toHaveBeenCalledWith('Fast');
+    expect(controller.claim).toHaveBeenCalledOnce();
+  });
 });
