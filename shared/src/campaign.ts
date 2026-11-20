@@ -1,3 +1,4 @@
+import { ZH, registerCampaignText, type Locale } from './i18n';
 import { NO_ROUND_LIMIT } from './modes';
 import { createNationRoster, type NationPick } from './nations';
 import type { AIDifficulty, GameConfig } from './types';
@@ -82,3 +83,15 @@ export function campaignStage(id: CampaignStageId): CampaignStage {
 export function campaignRoster(navigator: NationPick, stage: CampaignStage) {
   return createNationRoster([navigator], stage.difficulty).slice(0, 1 + stage.rivals);
 }
+
+export function stageText(id: CampaignStageId, locale: Locale): { name: string; briefing: string } {
+  const stage = CAMPAIGN_STAGES.find((candidate) => candidate.id === id)!;
+  return locale === 'zh' ? ZH.stages[id] : { name: stage.name, briefing: stage.briefing };
+}
+
+export function missionText(stageId: CampaignStageId, objective: CampaignObjective, locale: Locale): string {
+  if (locale === 'zh') return ZH.missions[objective];
+  return CAMPAIGN_STAGES.find((stage) => stage.id === stageId)!.missions.find((mission) => mission.objective === objective)!.description;
+}
+
+registerCampaignText({ stage: stageText, mission: missionText });

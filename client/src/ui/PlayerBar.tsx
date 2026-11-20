@@ -1,5 +1,7 @@
 import type { GameState } from '@happy-voyage/shared';
-import { RANKS, hasRoundLimit, requiresEveryIsland } from '@happy-voyage/shared';
+import { hasRoundLimit, nationName, playerName, rankName, requiresEveryIsland } from '@happy-voyage/shared';
+import { useT } from '../i18n';
+import { LanguageSwitch } from './LanguageSwitch';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorPortrait } from './NavigatorPortrait';
@@ -9,18 +11,24 @@ import { seatTag } from './seats';
 
 /** Gold and colonies for every navigator; the current one is highlighted. */
 export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRules: () => void; onFleet: () => void }) {
+  const { t, locale } = useT();
+  const islands = (n: number) => t(`{n} island${n === 1 ? '' : 's'}`, '{n} 座岛屿', { n });
   return (
     <div className="panel players">
       <SpeedControl />
+      <LanguageSwitch />
       <SoundControl />
       <div className="player-header">
         <div className="round">
-          Round {hasRoundLimit(state.config) ? `${Math.min(state.round, state.config.maxRounds)} / ${state.config.maxRounds}` : state.round} · goal:{' '}
-          {state.campaign ? 'king’s missions' : requiresEveryIsland(state.config, islandCount(state)) ? `all ${state.config.islandsToWin} new continents` : `${state.config.islandsToWin} islands`}
+          {t('Round {r} · goal: {goal}', '第 {r} 回合 · 目标：{goal}', {
+            r: hasRoundLimit(state.config) ? `${Math.min(state.round, state.config.maxRounds)} / ${state.config.maxRounds}` : state.round,
+            goal: state.campaign ? t('king’s missions', '国王使命') : requiresEveryIsland(state.config, islandCount(state))
+              ? t('all {n} new continents', '全部 {n} 块新大陆', { n: state.config.islandsToWin }) : islands(state.config.islandsToWin),
+          })}
         </div>
         <div className="player-controls">
-          <button onClick={onFleet}>Fleet</button>
-          <button onClick={onRules}>? Rules</button>
+          <button onClick={onFleet}>{t('Fleet', '舰队')}</button>
+          <button onClick={onRules}>{t('? Rules', '? 规则')}</button>
         </div>
       </div>
       <div className="player-list">
@@ -32,12 +40,12 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
             {p.navigator
               ? <NavigatorPortrait navigator={p.navigator} color={p.color} size={26} />
               : <span className="dot" style={{ background: cssColor(p.color) }} />}
-            <strong>{p.name}</strong>
-            <span className="tag">{gameController.room && gameController.viewerId === p.id ? 'You' : seatTag(state.players, p)}</span>
+            <strong>{playerName(p, locale)}</strong>
+            <span className="tag">{gameController.room && gameController.viewerId === p.id ? t('You', '你') : seatTag(state.players, p)}</span>
             <div className="stats">
-              {RANKS[p.rank].name} ({RANKS[p.rank].chineseName})<br />
-              {p.nation && <>{p.nation}<br /></>}
-              {gameController.displayGold(p)}g · {islands(gameController.islandsOwnedBy(p.id))} · {p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}
+              {rankName(p.rank, locale)}<br />
+              {p.nation && <>{nationName(p.nation, locale)}<br /></>}
+              {t('{g}g', '{g} 金币', { g: gameController.displayGold(p) })} · {islands(gameController.islandsOwnedBy(p.id))} · {t(`{n} ${p.fleet.length === 1 ? 'ship' : 'ships'}`, '{n} 艘船', { n: p.fleet.length })}
             </div>
           </div>
         ))}
@@ -47,4 +55,3 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
 }
 
 const islandCount = (state: GameState) => state.map.filter((node) => node.kind === 'island').length;
-const islands = (n: number) => `${n} island${n === 1 ? '' : 's'}`;

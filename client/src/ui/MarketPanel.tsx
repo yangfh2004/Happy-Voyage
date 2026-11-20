@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { cargoLoad, GOODS, marketDemand, marketPrices, quoteMarketTrade, type GameState, type Good, type MarketOrder } from '@happy-voyage/shared';
+import { cargoLoad, GOODS, goodName, shipName, marketDemand, marketPrices, quoteMarketTrade, type GameState, type Good, type MarketOrder } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
+import { useT } from '../i18n';
 
 export function MarketPanel({ state }: { state: GameState }) {
   const player = state.players[state.currentPlayer];
+  const { t, locale } = useT();
   const initialShip = player.fleet.find((ship) => cargoLoad(ship) > 0) ?? player.fleet[0];
   const [shipId, setShipId] = useState(initialShip?.id);
   const [good, setGood] = useState<Good>(() => GOODS.find((item) => (initialShip?.cargo[item] ?? 0) > 0) ?? marketDemand(state).featuredGood);
@@ -17,30 +19,30 @@ export function MarketPanel({ state }: { state: GameState }) {
     const total = quoteMarketTrade(state, trade);
     return (
       <button disabled={total === null} onClick={() => gameController.tradeAtMarket(trade)}>
-        {total === null ? label : `${label} · ${total}g`}
+        {total === null ? label : `${label} · ${total}${t('g', ' 金币')}`}
       </button>
     );
   };
 
   return (
     <section className="market" aria-labelledby="market-title">
-      <h2 id="market-title">Nightless Island</h2>
-      <p>24-hour market · Treasury {player.gold}g</p>
-      <p>In demand this round: {featuredGood}{stormRepairs && ' · Storm repairs: lumber and iron'}</p>
+      <h2 id="market-title">{t('Nightless Island', '不夜岛')}</h2>
+      <p>{t('24-hour market · Treasury {g}g', '24 小时市场 · 金库 {g} 金币', { g: player.gold })}</p>
+      <p>{t('In demand this round: {g}', '本回合热门：{g}', { g: goodName(featuredGood, locale) })}{stormRepairs && t(' · Storm repairs: lumber and iron', ' · 风暴修理：木材和铁矿')}</p>
       <div className="market-fields">
-        <label>Ship <select value={shipId ?? ''} onChange={(event) => setShipId(Number(event.target.value))}>
-          {player.fleet.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
+        <label>{t('Ship', '船只')} <select value={shipId ?? ''} onChange={(event) => setShipId(Number(event.target.value))}>
+          {player.fleet.map((candidate) => <option key={candidate.id} value={candidate.id}>{shipName(candidate.name, locale)}</option>)}
         </select></label>
-        <label>Good <select value={good} onChange={(event) => setGood(event.target.value as Good)}>
-          {GOODS.map((item) => <option key={item}>{item}</option>)}
+        <label>{t('Good', '货物')} <select value={good} onChange={(event) => setGood(event.target.value as Good)}>
+          {GOODS.map((item) => <option key={item} value={item}>{goodName(item, locale)}</option>)}
         </select></label>
-        <label>Quantity <input type="number" min="1" step="1" value={amount} onChange={(event) => setAmount(event.target.value)} /></label>
+        <label>{t('Quantity', '数量')} <input type="number" min="1" step="1" value={amount} onChange={(event) => setAmount(event.target.value)} /></label>
       </div>
-      <p>Market stock: {stock} · Aboard: {ship?.cargo[good] ?? 0}</p>
-      <p>{ship ? `Free hold: ${ship.cargoCapacity - cargoLoad(ship)}` : 'No ships available'}</p>
-      <p>Next unit: {stock > 0 ? `buy ${buy}g` : 'sold out'} · sell {sell}g</p>
-      <div className="row market-orders">{action('buy', 'Buy')}{action('sell', 'Sell')}</div>
-      <button className="primary" onClick={() => gameController.finishTrading()}>Done trading <kbd>D / Esc</kbd></button>
+      <p>{t('Market stock: {s} · Aboard: {a}', '市场库存：{s} · 船上：{a}', { s: stock, a: ship?.cargo[good] ?? 0 })}</p>
+      <p>{ship ? t('Free hold: {n}', '剩余舱位：{n}', { n: ship.cargoCapacity - cargoLoad(ship) }) : t('No ships available', '没有可用的船只')}</p>
+      <p>{t('Next unit:', '下一单位：')} {stock > 0 ? t('buy {g}g', '买入 {g} 金币', { g: buy }) : t('sold out', '已售罄')} · {t('sell {g}g', '卖出 {g} 金币', { g: sell })}</p>
+      <div className="row market-orders">{action('buy', t('Buy', '买入'))}{action('sell', t('Sell', '卖出'))}</div>
+      <button className="primary" onClick={() => gameController.finishTrading()}>{t('Done trading', '完成交易')} <kbd>D / Esc</kbd></button>
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import { tx } from '@happy-voyage/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createNationRoster, GameEngine, type ShipType } from '@happy-voyage/shared';
@@ -75,7 +76,7 @@ describe('build menu', () => {
     engine.currentPlayer.knownHoard = engine.state.hoardNode;
     vi.mocked(gameController.canUseStrategy).mockImplementation((id, target) => engine.canUseStrategy(id, target));
     const html = renderToStaticMarkup(<ActionPanel state={engine.state} />);
-    expect(html).toContain('Navigate · 导航');
+    expect(html).toContain('Navigate');
     expect(html).toContain('Reveal the buried hoard');
     expect(html).toContain('Navigate destination');
     expect(html).toContain('Rival: 3 cards');
@@ -93,7 +94,7 @@ describe('build menu', () => {
   });
   it('keeps royal announcements visible alongside the turn summary', () => {
     const { state } = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
-    gameController.headline = { text: 'King promotes you to Knight (骑士)!', tone: 'gain', royal: true };
+    gameController.headline = { text: 'King promotes you to Knight (骑士)!', message: tx('King promotes you to Knight (骑士)!', '国王将你晋升为骑士！'), tone: 'gain', royal: true };
     gameController.feedback.summary = { tolls: [], claims: [], netGold: 0 };
     const html = renderToStaticMarkup(<ActionPanel state={state} />);
     expect(html).toContain('Since your last turn');
@@ -214,7 +215,7 @@ describe('build menu', () => {
     engine.resolveLanding();
     const html = renderToStaticMarkup(<ActionPanel state={state} />);
     expect(html).toContain(`Rival&#x27;s colony at ${island.name}`);
-    expect(html).toContain(`Pay <strong>${island.toll}g</strong> toll`);
+    expect(html).toContain(`Pay ${island.toll}g toll`);
     expect(html).toContain(`${island.toll! * 2}g double toll`);
     expect(html).toContain('Defenders: 3 ships');
     expect(html).toContain('Fight <kbd>F</kbd>');

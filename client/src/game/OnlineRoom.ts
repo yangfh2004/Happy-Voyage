@@ -5,7 +5,7 @@ import type {
 
 export const ROOM_QUERY = 'room';
 const storageKey = (id: string) => `happy-voyage-room:${id}`;
-const OFFLINE = 'Could not reach the room server. The static demo supports local play only.';
+export const OFFLINE = 'Could not reach the room server. The static demo supports local play only.';
 
 export function roomLink(roomId: string | null): URL {
   const url = new URL(window.location.href);
