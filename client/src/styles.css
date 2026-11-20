@@ -55,12 +55,14 @@ button.primary { background: #0a3d62; border-color: #0a3d62; color: #fff; }
 button.primary:hover { background: #145a8d; }
 button.big { font-size: 18px; padding: 10px 22px; }
 
-.setup { width: min(520px, 92vw); display: flex; flex-direction: column; gap: 12px; }
+.setup { width: min(520px, 92vw); max-height: calc(100% - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.setup > * { flex-shrink: 0; }
 .setup label, .setup .field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
 .setup input { font: inherit; padding: 6px 10px; border-radius: 8px; border: 2px solid #8d6e63; }
 .choices { display: flex; flex-wrap: wrap; gap: 6px; font-weight: 400; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; }
 .chip.selected { background: #ffe082; box-shadow: inset 0 0 0 1px #8d6e63; }
+.speed { align-items: center; justify-content: center; margin-bottom: 6px; font-size: 13px; }
 
 .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.4); }
 
@@ -137,13 +139,15 @@ button.big { font-size: 18px; padding: 10px 22px; }
     padding: 8px 12px;
     gap: 4px 12px;
     grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-    grid-template-areas: "title subtitle" "intro intro" "name nations" "rivals nations" "rules start";
+    grid-template-areas: "title subtitle" "intro intro" "name nations" "rivals nations" "speed speed" "shortcuts shortcuts" "rules start";
   }
   .setup h1 { grid-area: title; font-size: 28px; }
   .setup p { font-size: 15px; line-height: 1.3; }
   .setup label, .setup .field { gap: 4px; }
   .setup .subtitle { grid-area: subtitle; align-self: center; }
-  .setup p:not(.subtitle) { grid-area: intro; }
+  .setup p:not(.subtitle):not(.shortcuts) { grid-area: intro; }
+  .setup > .speed { grid-area: speed; }
+  .setup > .shortcuts { grid-area: shortcuts; }
   .setup > label { grid-area: name; }
   .setup .nations { grid-area: nations; }
   .setup .rivals { grid-area: rivals; }
@@ -155,3 +159,8 @@ button.big { font-size: 18px; padding: 10px 22px; }
   .playing .overlay { padding-left: 0; }
   .actions { position: sticky; top: 8px; z-index: 1; }
 }
+kbd { display: inline-block; margin-left: 4px; padding: 0 3px; border: 1px solid currentColor; border-radius: 3px; font: 10px system-ui, sans-serif; opacity: 0.8; }
+.shortcuts { font-size: 10px; color: #6d4c41; text-align: center; margin: 6px 0 0; }
+.turn-summary { font-size: 12px; text-align: left; border-bottom: 1px solid #c9b68a; padding-bottom: 6px; margin-bottom: 6px; }
+.income, .log .income { color: #216b37; }
+.expense, .log .expense { color: #a32d25; }
