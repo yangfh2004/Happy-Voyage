@@ -103,6 +103,7 @@ it('routes recruitment and decline actions only during human recruiting visits',
     state.currentPlayer = 0;
     state.phase = 'awaitingSpin';
     p.position = state.map.find((node) => node.special === 'dragonSnake')!.id - 2;
+    state.wind.direction = 'S';
     humanTurn();
     expect(state.phase).toBe('awaitingRecruit');
   };

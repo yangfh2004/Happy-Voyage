@@ -221,7 +221,8 @@ describe('GameEngine', () => {
   });
 
   it('keeps cyclic turn order without skipping or repeating a navigator', () => {
-    const engine = new GameEngine({ players: [...twoPlayers, twoPlayers[1]], rng: spinTwo });
+    const map = createDefaultMap().map(({ next: _, ...node }) => node);
+    const engine = new GameEngine({ players: [...twoPlayers, twoPlayers[1]], map, rng: spinTwo });
     const turns: number[][] = [];
     engine.on((event, { round }) => {
       if (event.type === 'turnStarted') (turns[round - 1] ??= []).push(event.playerId);

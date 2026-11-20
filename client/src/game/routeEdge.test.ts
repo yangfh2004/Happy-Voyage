@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultMap, type MapNode } from '@happy-voyage/shared';
+import { type MapNode } from '@happy-voyage/shared';
 import { routeEdge } from './routeEdge';
 
 describe('shortcut geometry', () => {
-  const map = createDefaultMap();
+  const map = Array.from({ length: 70 }, (_, id) => ({ id, x: 5000 + id * 200, y: 5000 } as MapNode));
+  Object.assign(map[60], { x: 800, y: 2200 });
+  Object.assign(map[61], { x: 440, y: 2200 });
+  Object.assign(map[64], { x: 80, y: 2200 });
+  Object.assign(map[66], { x: 80, y: 678 });
+  Object.assign(map[67], { x: 80, y: 482 });
+  Object.assign(map[68], { x: 80, y: 286 });
+  Object.assign(map[2], { x: 600, y: 100 });
+  Object.assign(map[13], { x: 600, y: 240 });
   it('bows overlapping bottom-lane shortcuts south and return shortcuts west', () => {
     const bottom = routeEdge(map, 60, 64, true);
     const returning = routeEdge(map, 66, 68, true);

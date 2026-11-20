@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type Phaser from 'phaser';
-import type { GameState } from '@happy-voyage/shared';
+import { WORLD, type GameState } from '@happy-voyage/shared';
 import { CHART_DEPTH, drawAtmosphere } from './atmosphereArt';
 
 function graphics() {
@@ -25,6 +25,7 @@ describe('chart atmosphere', () => {
     const g = graphics();
     drawAtmosphere(g as unknown as Phaser.GameObjects.Graphics, { round: 4, market: { stock: {}, repairDemandThroughRound: 4 } } as GameState, 0);
     expect(g.fillRect).toHaveBeenCalledTimes(2);
+    expect(g.fillRect).toHaveBeenCalledWith(-WORLD.width * 4, -WORLD.height * 4, WORLD.width * 9, WORLD.height * 9);
     expect(g.fillEllipse).toHaveBeenCalled();
     expect(g.lineBetween).toHaveBeenCalledTimes(64);
   });

@@ -11,6 +11,7 @@ import { sfx } from '../sfx';
 import { CHART_DEPTH, drawAtmosphere } from '../atmosphereArt';
 import { landingTarget, sailingRoute, type MovePath, type NavigatePreview } from '../landingTarget';
 import { routeEdge } from '../routeEdge';
+import { islandTexture } from '../islandArt';
 
 const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
@@ -81,16 +82,19 @@ export class OceanScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
     const fit = () => {
       const camera = this.cameras.main;
-      camera.useBounds = false;
+      camera.useBounds = true;
       camera.setSize(this.game.canvas.parentElement!.clientWidth, this.game.canvas.parentElement!.clientHeight);
       camera.setZoom(Math.min(camera.width / WORLD.width, camera.height / WORLD.height));
       camera.centerOn(WORLD.width / 2, WORLD.height / 2);
       this.following = false;
     };
     fit();
-    this.following = this.scale.width < 700;
-    if (this.following) this.cameras.main.setZoom(0.95);
-    const zoom = (factor: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom * factor, 0.16, 2));
+    this.following = true;
+    this.cameras.main.setZoom(0.8);
+    const zoom = (factor: number) => {
+      this.following = false;
+      this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom * factor, this.minimumZoom(), 2));
+    };
     this.input.on('wheel', (_p: unknown, _o: unknown, _x: number, dy: number) => { zoom(dy > 0 ? 0.9 : 1.1); });
     this.input.on('pointerdown', () => this.updatePinch());
     this.input.on('pointerup', () => { this.pinch = null; });
@@ -108,7 +112,7 @@ export class OceanScene extends Phaser.Scene {
     });
     const onFit = () => fit();
     const onFollow = () => { this.following = true; this.cameras.main.useBounds = true; this.cameras.main.setZoom(0.95); this.syncFromState(); };
-    const onResize = () => { if (this.scale.width >= 700) fit(); else onFollow(); };
+    const onResize = () => { if (this.following) onFollow(); else fit(); };
     this.scale.on('resize', onResize);
     EventBus.on('fit-chart', onFit);
     EventBus.on('follow-ship', onFollow);
@@ -194,14 +198,14 @@ export class OceanScene extends Phaser.Scene {
     this.landingMarker.clear();
     const state = gameController.state;
     const target = gameController.landingTarget ?? landingTarget(state, null, this.navigatePreview);
-    if (state && this.scale?.width <= 700) {
+    if (state && this.scale) {
       const camera = this.cameras.main;
       const key = target ? `${target.playerId}:${target.nodeId}` : null;
       if (target && key !== this.framedTarget) {
         const from = state.map[state.players[target.playerId].position];
         const to = state.map[target.nodeId];
         this.following = false;
-        camera.setZoom(Math.min(.95, (camera.width - 80) / (Math.abs(to.x - from.x) + 140), (camera.height - 80) / (Math.abs(to.y - from.y) + 140)));
+        camera.setZoom(Phaser.Math.Clamp(Math.min(.95, (camera.width - 80) / (Math.abs(to.x - from.x) + 140), (camera.height - 80) / (Math.abs(to.y - from.y) + 140)), this.minimumZoom(), .95));
         camera.centerOn((from.x + to.x) / 2, (from.y + to.y) / 2);
       } else if (!target && this.framedTarget) {
         const node = state.map[state.players[state.currentPlayer].position];
@@ -248,14 +252,19 @@ export class OceanScene extends Phaser.Scene {
     const camera = this.cameras.main;
     if (!this.pinch) this.pinch = { distance, zoom: camera.zoom };
     this.following = false;
-    camera.setZoom(Phaser.Math.Clamp(this.pinch.zoom * distance / this.pinch.distance, 0.16, 2));
+    camera.setZoom(Phaser.Math.Clamp(this.pinch.zoom * distance / this.pinch.distance, this.minimumZoom(), 2));
+  }
+
+  private minimumZoom() {
+    const camera = this.cameras.main;
+    return camera.width && camera.height ? Math.min(camera.width / WORLD.width, camera.height / WORLD.height) : .16;
   }
 
   private drawOcean() {
     this.ocean = this.add.graphics();
     this.drawOceanBackground();
     this.regionLabels = REGIONS.map(([en, zh], i) =>
-      this.add.text(WORLD.width / 2, 24 + i * 280, getLocale() === 'zh' ? zh : en, { fontFamily: '"Sea Names", Georgia, serif', fontSize: '24px', color: '#b8dfdd' }).setOrigin(0.5).setAlpha(0.4));
+      this.add.text(WORLD.width / 2, WORLD.height * (.23 + i * .18), getLocale() === 'zh' ? zh : en, { fontFamily: '"Sea Names", Georgia, serif', fontSize: '32px', color: '#b8dfdd' }).setOrigin(0.5).setAlpha(0.4));
 
     // Drifting wave crests.
     for (let i = 0; i < 45; i++) {
@@ -276,7 +285,7 @@ export class OceanScene extends Phaser.Scene {
   }
 
   private drawOceanBackground() {
-    const [top, bottom] = this.colorBlind ? [0x315574, 0x17273e] : [0x36e3d5, 0x1169bc];
+    const [top, bottom] = this.colorBlind ? [0x315574, 0x17273e] : [0x2b9fa8, 0x124c77];
     this.ocean.clear();
     this.ocean.fillStyle(top);
     this.ocean.fillGradientStyle(top, top, bottom, bottom, 1);
@@ -310,8 +319,9 @@ export class OceanScene extends Phaser.Scene {
       const fork = exits.length > 1;
       const chosen = fork && direction ? windExit(this.map, node.id, direction) : undefined;
       if (fork) {
-        g.lineStyle(11, 0x06283d, 1).strokeCircle(node.x, node.y, 34);
-        g.lineStyle(6, 0xffd369, 1).strokeCircle(node.x, node.y, 34);
+        const radius = node.kind === 'island' ? 68 : 34;
+        g.lineStyle(11, 0x06283d, 1).strokeCircle(node.x, node.y, radius);
+        g.lineStyle(6, 0xffd369, 1).strokeCircle(node.x, node.y, radius);
       }
       for (const [index, id] of exits.entries()) {
         const shortcut = index > 0;
@@ -359,7 +369,7 @@ export class OceanScene extends Phaser.Scene {
   private drawStops() {
     for (const node of this.map) {
       if (node.kind === 'island') {
-        this.islands.set(node.id, this.add.image(node.x, node.y, 'island').setScale(1.2));
+        this.islands.set(node.id, this.add.image(node.x, node.y, islandTexture(this, node)));
       } else if (node.kind === 'port') {
         const g = this.add.graphics();
         const flag = this.add.graphics({ x: 50, y: 27 });
@@ -405,7 +415,7 @@ export class OceanScene extends Phaser.Scene {
           strokeThickness: 4,
         })
         .setOrigin(0.5);
-      text.setPosition(node.x, node.y + 35).setOrigin(0.5, 0);
+      text.setPosition(node.x, node.y + (node.kind === 'island' ? 63 : 35)).setOrigin(0.5, 0);
       this.labels.add(text);
       this.stopLabels.set(node.id, text);
       text.setInteractive({ useHandCursor: true });
@@ -423,7 +433,7 @@ export class OceanScene extends Phaser.Scene {
       const hideTooltip = () => { tooltip?.destroy(); tooltip = null; };
       text.on('pointerover', showTooltip);
       text.on('pointerout', hideTooltip);
-      this.add.zone(node.x, node.y, 60, 50).setInteractive({ useHandCursor: true }).on('pointerover', showTooltip).on('pointerout', hideTooltip);
+      this.add.zone(node.x, node.y, node.kind === 'island' ? 140 : 60, node.kind === 'island' ? 110 : 50).setInteractive({ useHandCursor: true }).on('pointerover', showTooltip).on('pointerout', hideTooltip);
     }
   }
 
@@ -516,6 +526,7 @@ export class OceanScene extends Phaser.Scene {
 
   private animateMove(move: { playerId: number; path: number[]; id: number }) {
     this.cancelMove();
+    if (this.cameras?.main) this.following = true;
     this.movement = { ...move, index: 0 };
     this.sailing.add(move.playerId);
     this.marker.clear();
