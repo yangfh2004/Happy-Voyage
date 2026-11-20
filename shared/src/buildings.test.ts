@@ -51,6 +51,55 @@ describe('colony buildings', () => {
     }
   });
 
+  it('stocks each colony once per completed round using its building levels and local yields', () => {
+    const engine = new GameEngine({
+      players: [{ name: 'Builder', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }],
+      config: { startingGold: 10_000, maxRounds: 2 },
+    });
+    const { state } = engine;
+    const [madeira, canaries, neutral] = state.map.filter((node) => node.kind === 'island');
+    state.owners[madeira.id] = 0;
+    state.owners[canaries.id] = 1;
+    const empty = { lumber: 0, iron: 0, specialties: {} };
+
+    function landAtColony(nodeId: number) {
+      engine.currentPlayer.position = nodeId;
+      state.phase = 'moving';
+      engine.resolveLanding();
+    }
+
+    landAtColony(madeira.id);
+    engine.build('lumberMill');
+    engine.build('lumberMill');
+    engine.build('ironMine');
+    engine.build('collectionField');
+    engine.finishBuilding();
+    expect(state.stockpiles[madeira.id]).toEqual(empty);
+
+    landAtColony(canaries.id);
+    engine.build('ironMine');
+    engine.build('collectionField');
+    engine.build('collectionField');
+    engine.finishBuilding();
+    expect(state.round).toBe(2);
+    expect(state.currentPlayer).toBe(1);
+    expect(state.stockpiles[madeira.id]).toEqual({ lumber: 2, iron: 1, specialties: { Wine: 1 } });
+    expect(state.stockpiles[canaries.id]).toEqual({ lumber: 0, iron: 2, specialties: { Sugar: 2 } });
+
+    landAtColony(canaries.id);
+    engine.build('collectionField');
+    engine.finishBuilding();
+    expect(state.stockpiles[canaries.id]).toEqual({ lumber: 0, iron: 2, specialties: { Sugar: 2 } });
+
+    landAtColony(madeira.id);
+    engine.build('lumberMill');
+    engine.finishBuilding();
+    expect(state.phase).toBe('gameOver');
+    expect(state.stockpiles[madeira.id]).toEqual({ lumber: 5, iron: 2, specialties: { Wine: 2 } });
+    expect(state.stockpiles[canaries.id]).toEqual({ lumber: 0, iron: 4, specialties: { Sugar: 5 } });
+    expect(state.stockpiles[neutral.id]).toEqual(empty);
+  });
+
   it('rejects wrong phases, owners, unknown kinds and insufficient gold without mutation', () => {
     const { engine, node } = visit();
     expect(() => engine.build('lumberMill')).toThrow();
@@ -81,6 +130,7 @@ describe('colony buildings', () => {
     const other = engine.state.map.find((n) => n.kind === 'island' && n.id !== node.id)!;
     engine.state.owners[other.id] = 0;
     engine.state.buildings[other.id] = { shipyard: 2 };
+    engine.state.stockpiles[other.id] = { lumber: 5, iron: 2, specialties: { Sugar: 1 } };
     engine.state.players[0].position = node.id;
     engine.state.players[0].gold = 0;
     engine.state.currentPlayer = 0;
@@ -90,6 +140,7 @@ describe('colony buildings', () => {
     expect(engine.state.players[0].bankrupt).toBe(true);
     expect(engine.state.owners[other.id]).toBeNull();
     expect(engine.state.buildings[other.id]).toEqual({});
+    expect(engine.state.stockpiles[other.id]).toEqual({ lumber: 0, iron: 0, specialties: {} });
   });
 
   it.each([400, 1400])('AI finishes with a reserve from %ig', (gold) => {

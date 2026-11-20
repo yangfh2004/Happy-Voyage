@@ -1,9 +1,9 @@
-import type { MapNode, SpecialKind, EventKind } from './types';
+import type { MapNode, SpecialKind, EventKind, Specialty } from './types';
 
 export const WORLD = { width: 1500, height: 1200 } as const;
 export const NATIONS = ['Spain', 'Netherlands', 'England', 'Portugal', 'China', 'France', 'Japan', 'Germany', 'Italy', 'Korea'] as const;
 const lands = ['Madeira', 'Canary Isles', 'Cape Verde', 'Azores', 'Hispaniola', 'Cuba', 'Yucatan', 'Veracruz', 'Cartagena', 'Guiana', 'Pernambuco', 'Bahia', 'Rio de Janeiro', 'Patagonia', 'Tierra del Fuego', 'Valparaiso', 'Callao', 'Panama', 'Gold Coast', 'Benin', 'Luanda', 'Cape of Good Hope', 'Mozambique', 'Zanzibar', 'Sofala', 'Madagascar', 'Socotra', 'Muscat', 'Goa', 'Calicut', 'Ceylon', 'Malacca', 'Sumatra', 'Java', 'Borneo', 'Moluccas', 'Luzon', 'Formosa', 'Ryukyu', 'Hokkaido'];
-const goods = ['Wine', 'Sugar', 'Cotton', 'Timber', 'Cocoa', 'Tobacco', 'Silver', 'Spices', 'Silk', 'Tea'];
+const goods: Specialty[] = ['Wine', 'Sugar', 'Cotton', 'Timber', 'Cocoa', 'Tobacco', 'Silver', 'Spices', 'Silk', 'Tea'];
 const specials: [SpecialKind, string, string][] = [
   ['skeleton', 'Skeleton Island', '骷髅岛'], ['treasure', 'Treasure Island', '金银岛'],
   ['mist', 'Mist Island', '迷雾岛'], ['revival', 'Revival Island', '复活岛'],
@@ -21,7 +21,7 @@ export function createDefaultMap(): MapNode[] {
     for (let j = 0; j < 4; j++) {
       const i = sector * 4 + j;
       const price = Math.round((100 + i * 250 / 39) / 5) * 5;
-      nodes.push({ id: 0, name: lands[i], kind: 'island', price, toll: Math.round(price * 0.35), specialty: goods[i % goods.length], x: 0, y: 0 });
+      nodes.push({ id: 0, name: lands[i], kind: 'island', price, toll: Math.round(price * 0.35), specialty: goods[i % goods.length], ironYield: 1 + i % 3, x: 0, y: 0 });
       if (j === 1 && sector < 7) {
         const [special, name, chineseName] = specials[sector];
         nodes.push({ id: 0, name, chineseName, special, kind: 'special', x: 0, y: 0 });

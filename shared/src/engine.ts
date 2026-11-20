@@ -1,5 +1,5 @@
 import { aiShouldClaim, aiBuildingChoice } from './ai';
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, buildingValue } from './buildings';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
 export { SEA_RULES } from './seaRules';
@@ -7,7 +7,7 @@ import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
 import { SHIP_TYPES, STARTING_FLEET } from './ships';
-import type { GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup, Ship, ShipType } from './types';
+import type { ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup, Ship, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
   startingGold: 1400,
@@ -31,6 +31,10 @@ export interface EngineOptions {
 }
 
 type Listener = (event: GameEvent, state: GameState) => void;
+
+function emptyStockpile(): ColonyStockpile {
+  return { lumber: 0, iron: 0, specialties: {} };
+}
 
 /**
  * The rules of the core loop, independent of any renderer:
@@ -85,6 +89,7 @@ export class GameEngine {
       nextShipId: 1,
       owners: map.map(() => null),
       buildings: map.map(() => ({})),
+      stockpiles: map.map(emptyStockpile),
       currentPlayer: 0,
       round: 1,
       phase: 'awaitingSpin',
@@ -435,6 +440,7 @@ export class GameEngine {
       this.state.owners = this.state.owners.map((o, id) => {
         if (o !== player.id) return o;
         this.state.buildings[id] = {};
+        this.state.stockpiles[id] = emptyStockpile();
         return null;
       });
       this.log(`${player.name} is bankrupt! Their colonies fall back to neutral.`);
@@ -449,6 +455,7 @@ export class GameEngine {
     const lastPosition = turnOrderPosition(this.state, this.state.currentPlayer);
     let next = this.nextActivePlayer(lastPosition + 1);
     if (next === undefined) {
+      this.produceColonyGoods();
       this.state.round += 1;
       if (this.checkVictory()) return;
       this.log(`Round ${this.state.round} begins.`);
@@ -458,6 +465,19 @@ export class GameEngine {
     this.state.currentPlayer = next;
     this.state.phase = 'awaitingSpin';
     this.emit({ type: 'turnStarted', playerId: next });
+  }
+
+  private produceColonyGoods(): void {
+    for (const { id, kind, specialty } of this.state.map) {
+      if (kind !== 'island' || this.state.owners[id] === null) continue;
+      const produced = colonyProduction(this.state, id);
+      const stockpile = this.state.stockpiles[id];
+      stockpile.lumber += produced.lumber;
+      stockpile.iron += produced.iron;
+      if (specialty && produced.specialty > 0) {
+        stockpile.specialties[specialty] = (stockpile.specialties[specialty] ?? 0) + produced.specialty;
+      }
+    }
   }
 
   private nextActivePlayer(fromPosition: number): number | undefined {
