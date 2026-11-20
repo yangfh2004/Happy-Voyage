@@ -19,7 +19,14 @@ Choose Easy, Normal, or Hard before setting sail. Difficulty changes rival decis
 - Claim 10 islands, be the last navigator afloat, or be the richest after 50 rounds to win.
 - The opening turn rotates each round. End-of-voyage wealth is cash plus 75% of each colony's cost (rounded down); a colony needs time to earn back that difference.
 
-Expanded trading, naval combat, and multiplayer come next.
+## Online rooms
+
+With Node.js 20+, run `npm ci && npm run build && npm start` from the repo root.
+Open **http://localhost:3000** in a browser, select **Host online room**, and share the invite link. Guests open it in their own browser, pick distinct nations, and join. The host can start once 2–6 people are connected; AI plays the other nations. Choose **Sprint** for the shortest match.
+
+To play from another device, use a server address both devices can reach (not `localhost`). The static demo supports local play only. Online hosting needs one always-running Node.js service serving the built client and Socket.IO on the same origin, with HTTPS and WebSocket upgrades supported by its reverse proxy. Rooms are in memory: a restart clears them, so don't run multiple replicas. No database is needed.
+
+Refreshing the invite in the same tab restores your seat; a match waits when a disconnected player is at the helm. Empty rooms eventually expire, and seats in the pre-game lobby expire after a short disconnect grace period.
 
 ## Royal campaign
 
@@ -49,7 +56,7 @@ reward for each mission; finish both without going bankrupt to clear the stage.
 npm workspaces monorepo:
 
 ```
-shared/   Game rules, independent of any renderer (runs in the browser now, on the server later)
+shared/   Game rules, independent of any renderer (runs on the server for online rooms)
   src/types.ts     Plain serialisable state: players, map nodes, game state, events
   src/map.ts       The sea route (add stops here)
   src/engine.ts    GameEngine: spin compass -> sail -> resolve landing -> claim/decline -> next turn
@@ -61,14 +68,15 @@ client/   Phaser + React front end
   src/ui/                      React overlays: setup menu, player bar, action panel, ship's log
 server/   Express + Socket.IO
   src/index.ts     /api/health, /api/map, serves client/dist
-  src/lobby.ts     Multiplayer room skeleton
+  src/lobby.ts     Online lobby, seats, invites and reconnects
+  src/roomMatch.ts Authoritative online match, including AI and timers
   src/db.ts        Optional PostgreSQL pool
 ```
 
 The engine never touches the screen: it changes `GameState` and emits `GameEvent`s.
 `OceanScene` animates `moved` events and reports `move-complete`, after which the
-controller calls `resolveLanding()`. Multiplayer will run the same engine on the server
-and relay its events over Socket.IO.
+controller calls `resolveLanding()` in local games. In online rooms the server advances the
+same engine independently of the clients and sends state and events over Socket.IO.
 
 ## Running it
 
@@ -77,7 +85,8 @@ Requires Node.js 20+.
 ```bash
 npm install
 npm run dev          # client at http://localhost:5173
-npm test             # rules tests
+npm run dev:server   # in a separate terminal for online rooms in Vite
+npm test             # rules and server tests
 npm run typecheck
 npm run build        # production client build in client/dist
 npm start            # Express server at http://localhost:3000 (serves the built client)

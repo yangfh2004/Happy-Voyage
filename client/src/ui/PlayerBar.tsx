@@ -41,7 +41,7 @@ export function PlayerBar({ state, colorBlind, paletteToggle, onRules, onFleet, 
               : <span className="dot" style={{ background: cssColor(color) }} />}
             {badge && <span className="chart-badge" aria-label={`Chart marker ${badge}`}>{badge}</span>}
             <strong>{p.name}</strong>
-            <span className="tag">{seatTag(state.players, p)}</span>
+            <span className="tag">{gameController.room && gameController.viewerId === p.id ? 'You' : seatTag(state.players, p)}</span>
             <div className="stats">
               <StatTooltip stat="rank">{RANKS[p.rank].name} ({RANKS[p.rank].chineseName})</StatTooltip><br />
               {p.nation && <>{p.nation}<br /></>}

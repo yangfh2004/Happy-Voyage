@@ -174,6 +174,7 @@ export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; pal
       <button className="primary big" onClick={start}>
         Set sail
       </button>
+      <button onClick={() => gameController.openOnline()}>Host online room</button>
     </div>
   );
 }
