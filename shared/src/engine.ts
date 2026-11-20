@@ -509,6 +509,7 @@ export class GameEngine {
       remaining -= add;
     }
     this.log(`${player.name} barters ${offer.giveQty} ${offer.give} for ${offer.receiveQty} ${offer.receive} with the natives.`);
+    this.emit({ type: 'barterTraded', playerId: player.id, offer });
     this.endTurn();
   }
 

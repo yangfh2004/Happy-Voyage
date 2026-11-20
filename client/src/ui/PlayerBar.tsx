@@ -3,6 +3,7 @@ import { RANKS, hasRoundLimit, requiresEveryIsland } from '@happy-voyage/shared'
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorPortrait } from './NavigatorPortrait';
+import { SoundControl } from './SoundControl';
 import { SpeedControl } from './SpeedControl';
 import { seatTag } from './seats';
 
@@ -11,15 +12,13 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
   return (
     <div className="panel players">
       <SpeedControl />
+      <SoundControl />
       <div className="player-header">
         <div className="round">
           Round {hasRoundLimit(state.config) ? `${Math.min(state.round, state.config.maxRounds)} / ${state.config.maxRounds}` : state.round} · goal:{' '}
           {state.campaign ? 'king’s missions' : requiresEveryIsland(state.config, islandCount(state)) ? `all ${state.config.islandsToWin} new continents` : `${state.config.islandsToWin} islands`}
         </div>
         <div className="player-controls">
-          <button className="sound" onClick={() => gameController.toggleMute()} aria-pressed={!gameController.muted}>
-            {gameController.muted ? 'Sound off' : 'Sound on'}
-          </button>
           <button onClick={onFleet}>Fleet</button>
           <button onClick={onRules}>? Rules</button>
         </div>
