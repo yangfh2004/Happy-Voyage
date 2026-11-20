@@ -5,11 +5,12 @@ import { SEA_RULES } from './seaRules';
 export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
+import { advanceMarket, createMarket, quoteMarketTrade } from './market';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad } from './ships';
 import type { Good } from './types';
 import { navigatorById, type SignatureShip } from './navigators';
-import type { ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
+import type { ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, MarketOrder, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
   startingGold: 1400,
@@ -93,6 +94,7 @@ export class GameEngine {
       buildings: map.map(() => ({})),
       stockpiles: map.map(emptyStockpile),
       docks: map.map(() => []),
+      market: createMarket(),
       currentPlayer: 0,
       round: 1,
       phase: 'awaitingSpin',
@@ -212,6 +214,12 @@ export class GameEngine {
         } else this.log(`${player.name} returns to their home port.`);
         break;
       case 'special':
+        if (node.special === 'nightless') {
+          this.state.phase = 'awaitingMarket';
+          this.log(`${player.name} arrives at the 24-hour market on ${node.name}.`);
+          this.emit({ type: 'marketOpened', playerId: player.id, nodeId: node.id });
+          return;
+        }
         this.resolveSpecial(player, node);
         break;
       case 'event':
@@ -363,6 +371,28 @@ export class GameEngine {
     this.endTurn();
   }
 
+  tradeAtMarket(order: MarketOrder): void {
+    const total = quoteMarketTrade(this.state, order);
+    if (total === null) throw new Error('Cannot fill market order');
+    const player = this.currentPlayer;
+    const { side, good, quantity, shipId } = order;
+    const ship = player.fleet.find((candidate) => candidate.id === shipId)!;
+    const buying = side === 'buy';
+    const change = buying ? quantity : -quantity;
+    const aboard = (ship.cargo[good] ?? 0) + change;
+    if (aboard > 0) ship.cargo[good] = aboard;
+    else delete ship.cargo[good];
+    this.state.market.stock[good] -= change;
+    this.changeGold(player, buying ? -total : total, 'Nightless Island market');
+    this.log(`${player.name} ${buying ? 'buys' : 'sells'} ${quantity} ${good} for ${total}g at Nightless Island.`);
+    this.emit({ ...order, type: 'marketTrade', playerId: player.id, total });
+  }
+
+  finishTrading(): void {
+    this.assertPhase('awaitingMarket');
+    this.endTurn();
+  }
+
   canBuildShip(type: ShipType): boolean {
     const player = this.currentPlayer;
     const nodeId = player.position;
@@ -397,7 +427,18 @@ export class GameEngine {
         this.build(kind);
         kind = aiBuildingChoice(this.state, this.currentPlayer);
       }
+      this.autoLoad();
       this.finishBuilding();
+      return;
+    }
+    if (this.state.phase === 'awaitingMarket') {
+      for (const ship of this.currentPlayer.fleet) {
+        for (const good of GOODS) {
+          const quantity = ship.cargo[good] ?? 0;
+          if (quantity > 0) this.tradeAtMarket({ side: 'sell', shipId: ship.id, good, quantity });
+        }
+      }
+      this.finishTrading();
       return;
     }
     if (this.state.phase === 'awaitingClaim') {
@@ -448,10 +489,6 @@ export class GameEngine {
       case 'revival':
         player.revivalProtection = true;
         this.log(`${player.name} gets full repair! Revival protection blocks ${player.name}'s next sea hazard.`);
-        break;
-      case 'nightless':
-        this.log(`The 24-hour market buys specialties from ${player.name}'s ${colonies} colonies.`);
-        this.changeGold(player, colonies * r.marketPerColony, 'specialty market');
         break;
       case 'wind': {
         const multiplier = 1 + Math.floor(this.rng() * 3);
@@ -519,6 +556,7 @@ export class GameEngine {
         break;
       }
       case 'storm': {
+        this.state.market.repairDemandThroughRound = this.state.round + 1;
         const { min, max, step } = EVENT_GOLD.storm;
         const amount = min + Math.floor(this.rng() * ((max - min) / step + 1)) * step;
         this.log(`A storm batters ${player.name}'s fleet: repairs cost ${amount}g.`);
@@ -526,6 +564,7 @@ export class GameEngine {
         break;
       }
       case 'tradeWind': {
+        for (const good of GOODS) this.state.market.stock[good] += 3;
         const amount = EVENT_GOLD.tradeWind.perColony * this.islandsOwnedBy(player.id) + EVENT_GOLD.tradeWind.base;
         this.log(`Trade winds carry ${player.name}'s goods to market: +${amount}g.`);
         this.changeGold(player, amount, 'trade');
@@ -574,6 +613,7 @@ export class GameEngine {
     let next = this.nextActivePlayer(lastPosition + 1);
     if (next === undefined) {
       this.produceColonyGoods();
+      advanceMarket(this.state.market);
       this.state.round += 1;
       if (this.checkVictory()) return;
       this.log(`Round ${this.state.round} begins.`);

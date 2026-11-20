@@ -5,6 +5,7 @@ import { keyboardShortcuts } from './keyboard';
 const controller = {
   state: { phase: 'awaitingSpin' } as { phase: string } | null,
   spinCompass: vi.fn(), claim: vi.fn(), decline: vi.fn(), quit: vi.fn(),
+  finishBuilding: vi.fn(), finishTrading: vi.fn(),
   skipToMyTurn: vi.fn(), setSpeed: vi.fn(),
 };
 let keys: ReturnType<typeof keyboardShortcuts>;
@@ -54,6 +55,14 @@ describe('keyboard shortcuts', () => {
     keys.keydown(event(' '));
     expect(controller.quit).toHaveBeenCalledTimes(2);
     expect(controller.spinCompass).not.toHaveBeenCalled();
+  });
+
+  it.each(['d', 'Escape'])('ends a market visit with %s', (key) => {
+    controller.state = { phase: 'awaitingMarket' };
+    keys.keydown(event(key));
+    expect(controller.finishTrading).toHaveBeenCalledOnce();
+    expect(controller.finishBuilding).not.toHaveBeenCalled();
+    expect(controller.decline).not.toHaveBeenCalled();
   });
 
   it('ignores editing, composition, modifier shortcuts and unrelated keys', () => {
