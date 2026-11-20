@@ -633,10 +633,11 @@ export class GameEngine {
     if (this.state.phase === 'awaitingToll') {
       for (const id of ['betray', 'mislead', 'inspire'] as StrategyId[]) {
         if (!this.canUseStrategy(id)) continue;
-        const defenders = colonyDefenders(this.state, this.currentPlayer.position).ships;
+        const { ships: defenders, owner, fromFleet } = colonyDefenders(this.state, this.currentPlayer.position);
         const boosted = id === 'inspire' ? { attackerMultiplier: STRATEGY_RULES.inspireMultiplier } : {};
         const attackers = id === 'betray' ? [...this.currentPlayer.fleet, defenders[0]] : this.currentPlayer.fleet;
-        if (aiShouldFight(this.state, this.currentPlayer) || forecastNavalBattle(attackers, id === 'inspire' ? defenders : defenders.slice(1), boosted) === 'victory') this.useStrategy(id);
+        const remainingDefenders = id === 'inspire' ? defenders : !fromFleet && defenders.length === 1 ? owner.fleet : defenders.slice(1);
+        if (aiShouldFight(this.state, this.currentPlayer) || forecastNavalBattle(attackers, remainingDefenders, boosted) === 'victory') this.useStrategy(id);
       }
       if (aiShouldFight(this.state, this.currentPlayer)) this.fight();
       else this.payToll();

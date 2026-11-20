@@ -148,6 +148,28 @@ describe('strategy cards', () => {
     expect(other.state.phase).toBe('awaitingClaim');
     expect(other.currentPlayer.strategies).toEqual([]);
   });
+  it.each(['mislead', 'betray'] as const)('AI forecasts the fallback fleet before using %s on the last docked ship', (card) => {
+    const g = game();
+    const node = rival(g);
+    const attacker = g.currentPlayer;
+    const owner = g.state.players[1];
+    attacker.fleet.splice(1);
+    attacker.fleet[0].durability = 100;
+    attacker.fleet[0].firepower = 10;
+    owner.fleet.splice(1);
+    owner.fleet[0].durability = 10000;
+    owner.fleet[0].firepower = 10000;
+    const docked = g.addShipToFleet(1, 'cargo');
+    owner.fleet.pop();
+    docked.durability = 1000;
+    docked.firepower = 1;
+    g.state.docks[node] = [docked];
+    attacker.strategies = [card];
+    g.decideForAI();
+    expect(attacker.strategies).toEqual([card]);
+    expect(g.state.docks[node]).toEqual([docked]);
+    expect(g.state.battles).toHaveLength(0);
+  });
   it('grants bottle cards while preserving the gold reward', () => {
     const g = game();
     const p = g.currentPlayer;
