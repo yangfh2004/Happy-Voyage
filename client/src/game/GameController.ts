@@ -1,4 +1,4 @@
-import { GameEngine, type Good, type BuildingKind, type GameEvent, type GameState, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
+import { GameEngine, quoteMarketTrade, type Good, type BuildingKind, type GameEvent, type GameState, type MarketOrder, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
 import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, sfx } from './sfx';
@@ -198,6 +198,16 @@ export class GameController {
     if (this.isHumanTurn('awaitingBuild')) this.engine!.finishBuilding();
   }
 
+  tradeAtMarket(order: MarketOrder): void {
+    if (this.isHumanTurn('awaitingCargoMarket') && quoteMarketTrade(this.engine!.state, order) !== null) {
+      this.engine!.tradeAtMarket(order);
+    }
+  }
+
+  finishTrading(): void {
+    if (this.isHumanTurn('awaitingCargoMarket')) this.engine!.finishTrading();
+  }
+
   canBuyUsedShip(type: ShipType): boolean {
     return this.isHumanTurn('awaitingMarket') && this.engine!.canBuyUsedShip(type);
   }
@@ -308,8 +318,17 @@ export class GameController {
       case 'marketOffered':
       case 'barterOffered':
       case 'buildOffered':
+      case 'cargoMarketOpened':
         if (!engine.currentPlayer.isAI) this.skipping = false;
         if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());
+        break;
+      case 'marketTrade':
+        if (isHuman(event.playerId)) {
+          const sold = event.side === 'sell';
+          this.headline = { text: `${sold ? 'Sold' : 'Bought'} ${event.quantity} ${event.good} for ${event.total}g.`, tone: sold ? 'gain' : 'loss' };
+          if (sold) sfx.coin();
+          else sfx.pay();
+        }
         break;
       case 'gameOver':
         if (isHuman(event.winner)) sfx.win();

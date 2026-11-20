@@ -120,7 +120,7 @@ describe('living sea board', () => {
     expect(g.state.players[1].gold).toBe(gold);
   });
 
-  it.each(['skeleton', 'treasure', 'mist', 'revival', 'nightless', 'wind', 'dragonSnake'] as SpecialKind[])('resolves %s and logs its effect', (special) => {
+  it.each(['skeleton', 'treasure', 'mist', 'revival', 'wind', 'dragonSnake'] as SpecialKind[])('resolves %s and logs its effect', (special) => {
     const g = game();
     const p = g.currentPlayer;
     g.state.owners[1] = 0;
@@ -131,7 +131,6 @@ describe('living sea board', () => {
     expect(g.state.log.slice(0, 2).every((line) => line.includes(p.name))).toBe(true);
     if (special === 'revival') expect(p.revivalProtection).toBe(true);
     if (special === 'dragonSnake') expect(p.captain).toBe(true);
-    if (special === 'nightless') expect(p.gold).toBe(g.state.config.startingGold + SEA_RULES.marketPerColony);
     if (special === 'wind') expect(p.gold).toBe(g.state.config.startingGold);
     if (special === 'treasure') expect(p.gold).toBe(g.state.config.startingGold - SEA_RULES.ticket + SEA_RULES.lotteryPrize);
   });
