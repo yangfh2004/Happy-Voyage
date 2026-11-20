@@ -31,8 +31,8 @@ export function tollDue(state: GameState, player: Player, nodeId: number, multip
   return player.captain ? Math.ceil(base / 2) : base;
 }
 
-function volley(ships: Ship[], rng: Rng): number {
-  return ships.reduce((sum, ship) => sum + Math.round(ship.firepower * (COMBAT.minRoll + rng() * COMBAT.rollSpread)), 0);
+function volley(ships: Ship[], rng: Rng, multiplier = 1): number {
+  return ships.reduce((sum, ship) => sum + Math.round(ship.firepower * multiplier * (COMBAT.minRoll + rng() * COMBAT.rollSpread)), 0);
 }
 
 /** Cannon fire lands on the most battered ship first; overflow carries to the next. Returns ships sunk. */
@@ -52,7 +52,7 @@ function absorb(line: Ship[], damage: number): Ship[] {
  * Both lines fire simultaneously each round until one side is sunk or the rounds run out.
  * Mutates ship durability; the caller removes the sunk ships from their fleets.
  */
-export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng): BattleResult {
+export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng, options: { attackerMultiplier?: number } = {}): BattleResult {
   let attackLine = [...attackers];
   let defenseLine = [...defenders];
   const attackerSunk: Ship[] = [];
@@ -60,7 +60,7 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng)
   let rounds = 0;
   while (attackLine.length && defenseLine.length && rounds < COMBAT.rounds) {
     rounds += 1;
-    const attackFire = volley(attackLine, rng);
+    const attackFire = volley(attackLine, rng, options.attackerMultiplier);
     const defenseFire = volley(defenseLine, rng);
     const lostDefenders = absorb(defenseLine, attackFire);
     const lostAttackers = absorb(attackLine, defenseFire);
@@ -75,7 +75,7 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng)
 }
 
 /** Expected result with average cannon rolls, without touching the real ships. */
-export function forecastNavalBattle(attackers: Ship[], defenders: Ship[]): BattleOutcome {
+export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], options: { attackerMultiplier?: number } = {}): BattleOutcome {
   const copy = (ships: Ship[]) => ships.map((ship) => ({ ...ship, cargo: { ...ship.cargo } }));
-  return fightNavalBattle(copy(attackers), copy(defenders), () => 0.5).outcome;
+  return fightNavalBattle(copy(attackers), copy(defenders), () => 0.5, options).outcome;
 }
