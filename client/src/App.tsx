@@ -39,8 +39,8 @@ export function App() {
         {state ? (
           <div className="hud">
             <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>Fit chart</button><button onClick={() => EventBus.emit('follow-ship')}>Follow ship</button></div>
-            <PlayerBar state={state} onRules={() => setRulesOpen(true)} onFleet={() => setFleetOpen(true)} />
             <ActionPanel state={state} />
+            <PlayerBar state={state} onRules={() => setRulesOpen(true)} onFleet={() => setFleetOpen(true)} />
             <LogPanel log={state.log} tones={gameController.feedback.logTones} />
             <RouteDetails state={state} />
           </div>
