@@ -7,13 +7,13 @@ Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, tradin
 
 ## The first playable version
 
-Single player against 1–3 AI rivals:
+Pick one of ten nations and start at its home port. The other nine nations are AI rivals.
 
-- Spin the compass to sail 2–12 stops around a 24-stop sea route. Set the game speed or skip animations and AI turns until your next decision.
+- Spin the compass to sail 2–12 stops around a 70-stop sea route. Set the game speed or skip animations and AI turns until your next decision.
 - Open **Fleet** to inspect any navigator's starting warship, cargo ship, and explorer.
 - Land on an unowned island to found a colony; rivals who land there pay you a toll.
 - Passing the home port pays a royal salary; event stops bring treasure, storms or trade winds.
-- Claim 8 islands, be the last navigator afloat, or be the richest after 30 rounds to win.
+- Claim 10 islands, be the last navigator afloat, or be the richest after 50 rounds to win.
 - The opening turn rotates each round. End-of-voyage wealth is cash plus 75% of each colony's cost (rounded down); a colony needs time to earn back that difference.
 
 Trading, shipbuilding, naval combat, special islands and multiplayer come next.

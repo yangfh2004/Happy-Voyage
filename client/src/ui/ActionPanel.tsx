@@ -100,19 +100,6 @@ export function ActionPanel({ state }: { state: GameState }) {
 
   return (
     <div className="panel actions">
-      {summary && (
-        <div className="turn-summary">
-          <strong>Since your last turn</strong>
-          {summary.tolls.map((toll, i) => (
-            <div key={i} className={toll.direction === 'received' ? 'income' : 'expense'}>
-              Toll {toll.direction}: {gold(toll.direction === 'received' ? toll.amount : -toll.amount)} {toll.direction === 'received' ? 'from' : 'to'} {toll.name}
-            </div>
-          ))}
-          {summary.claims.map((claim, i) => <div key={i}>{claim.name} claimed {claim.island}.</div>)}
-          <div>Net gold: <strong className={summary.netGold < 0 ? 'expense' : 'income'}>{gold(summary.netGold)}</strong></div>
-        </div>
-      )}
-      {headline && !summary && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{headline.text}</div>}
       {state.phase === 'gameOver' ? body : (
         <div className="action-content">
           <Compass
@@ -128,6 +115,19 @@ export function ActionPanel({ state }: { state: GameState }) {
       {gameController.waiting && (
         <button onClick={() => gameController.skipToMyTurn()}>Skip to my turn <kbd>K</kbd></button>
       )}
+      {summary && (
+        <div className="turn-summary">
+          <strong>Since your last turn</strong>
+          {summary.tolls.map((toll, i) => (
+            <div key={i} className={toll.direction === 'received' ? 'income' : 'expense'}>
+              Toll {toll.direction}: {gold(toll.direction === 'received' ? toll.amount : -toll.amount)} {toll.direction === 'received' ? 'from' : 'to'} {toll.name}
+            </div>
+          ))}
+          {summary.claims.map((claim, i) => <div key={i}>{claim.name} claimed {claim.island}.</div>)}
+          <div>Net gold: <strong className={summary.netGold < 0 ? 'expense' : 'income'}>{gold(summary.netGold)}</strong></div>
+        </div>
+      )}
+      {headline && !summary && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{headline.text}</div>}
       <ShortcutLegend />
     </div>
   );
