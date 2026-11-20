@@ -1,4 +1,4 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, SHIP_RECIPES, SHIP_TYPES, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COMBAT, forecastNavalBattle, tollDue, SHIP_RECIPES, SHIP_TYPES, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
@@ -124,6 +124,29 @@ export function ActionPanel({ state }: { state: GameState }) {
         <button className="primary" onClick={() => gameController.finishBuilding()}>Done <kbd>D / Esc</kbd></button>
       </>
     );
+  } else if (state.phase === 'awaitingToll') {
+    const island = state.map[player.position];
+    const { ships: defenders, owner, fromFleet } = colonyDefenders(state, island.id);
+    const firepower = (ships: { firepower: number }[]) => ships.reduce((sum, ship) => sum + ship.firepower, 0);
+    const hull = (ships: { durability: number }[]) => ships.reduce((sum, ship) => sum + ship.durability, 0);
+    const forecast = { victory: 'likely victory', defeat: 'likely defeat', draw: 'likely draw' }[forecastNavalBattle(player.fleet, defenders)];
+    body = (
+      <>
+        <h2>{owner.name}'s colony at {island.name}</h2>
+        <p>Pay <strong>{tollDue(state, player, island.id)}g</strong> toll, or open fire on {fromFleet ? `${owner.name}'s fleet` : 'the docked ships'}?</p>
+        <p>
+          Your fleet: {player.fleet.length} ships · {firepower(player.fleet)} firepower · {hull(player.fleet)} durability.<br />
+          Defenders: {defenders.length} ships · {firepower(defenders)} firepower · {hull(defenders)} durability ({forecast}).
+        </p>
+        <p>
+          Sink every defender within {COMBAT.rounds} volleys to take the colony. Lose every ship and you pay {tollDue(state, player, island.id, COMBAT.defeatTollMultiplier)}g double toll; otherwise both fleets sail home.
+        </p>
+        <div className="row">
+          <button className="primary" onClick={() => gameController.payToll()}>Pay toll <kbd>P</kbd></button>
+          <button onClick={() => gameController.fight()}>Fight <kbd>F</kbd></button>
+        </div>
+      </>
+    );
   } else if (state.phase === 'awaitingBarter') {
     body = <BarterPanel state={state} />;
   } else if (state.phase === 'awaitingClaim') {
@@ -133,7 +156,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         <h2>{island.name}</h2>
         <p>
           Uncharted land rich in <strong>{island.specialty}</strong>. Found a colony for <strong>{island.price}g</strong>?
-          Rivals landing here will pay you {island.toll}g.
+          Rivals landing here must pay you {island.toll}g or attack your ships.
         </p>
         <p>
           Claiming leaves you {player.gold - island.price!}g in cash. This colony adds {colonyValue(island)}g to your final score.
@@ -175,7 +198,7 @@ export function ActionPanel({ state }: { state: GameState }) {
               Toll {toll.direction}: {gold(toll.direction === 'received' ? toll.amount : -toll.amount)} {toll.direction === 'received' ? 'from' : 'to'} {toll.name}
             </div>
           ))}
-          {summary.claims.map((claim, i) => <div key={i}>{claim.name} claimed {claim.island}.</div>)}
+          {summary.claims.map((claim, i) => <div key={i}>{claim.name} {claim.captured ? `sank your defenders and captured ${claim.island}` : `claimed ${claim.island}`}.</div>)}
           <div>Net gold: <strong className={summary.netGold < 0 ? 'expense' : 'income'}>{gold(summary.netGold)}</strong></div>
         </div>
       )}

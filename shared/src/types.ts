@@ -89,7 +89,7 @@ export interface ColonyStockpile {
 }
 
 export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' |
-  'awaitingMarket' | 'awaitingBarter' | 'awaitingCargoMarket' | 'gameOver';
+  'awaitingMarket' | 'awaitingBarter' | 'awaitingCargoMarket' | 'awaitingToll' | 'gameOver';
 
 export interface MarketState {
   stock: Record<Good, number>;
@@ -108,6 +108,21 @@ export interface BarterOffer {
   giveQty: number;
   receive: Good;
   receiveQty: number;
+}
+
+export type BattleOutcome = 'victory' | 'defeat' | 'draw';
+
+/** The record of one naval battle at a rival colony. */
+export interface BattleReport {
+  nodeId: number;
+  attacker: number;
+  defender: number;
+  outcome: BattleOutcome;
+  rounds: number;
+  attackerSunk: string[];
+  defenderSunk: string[];
+  /** Double toll paid after a defeat; 0 otherwise. */
+  tollPaid: number;
 }
 
 export interface GameConfig {
@@ -140,6 +155,8 @@ export interface GameState {
   /** Island the current player may claim while phase === 'awaitingClaim'. */
   pendingClaim: number | null;
   pendingBarter: BarterOffer[] | null;
+  /** Every naval battle fought this game, oldest first. */
+  battles: BattleReport[];
   winner: number | null;
   log: string[];
 }
@@ -162,6 +179,8 @@ export type GameEvent =
   | { type: 'claimOffered'; playerId: number; nodeId: number }
   | { type: 'claimed'; playerId: number; nodeId: number }
   | { type: 'shipAdded'; playerId: number; shipId: number }
+  | { type: 'tollOffered'; playerId: number; nodeId: number }
+  | { type: 'battleFought'; report: BattleReport }
   | { type: 'tollPaid'; from: number; to: number; amount: number }
   | { type: 'goldChanged'; playerId: number; delta: number; reason: string }
   | { type: 'bankrupt'; playerId: number }

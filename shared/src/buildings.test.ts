@@ -126,6 +126,7 @@ describe('colony buildings', () => {
     engine.currentPlayer.gold = 1000;
     engine.state.phase = 'moving';
     engine.resolveLanding();
+    engine.payToll();
     expect(engine.state.players[1].gold).toBe(1000 - toll);
     const other = engine.state.map.find((n) => n.kind === 'island' && n.id !== node.id)!;
     engine.state.owners[other.id] = 0;
@@ -137,6 +138,7 @@ describe('colony buildings', () => {
     engine.state.owners[node.id] = 1;
     engine.state.phase = 'moving';
     engine.resolveLanding();
+    engine.payToll();
     expect(engine.state.players[0].bankrupt).toBe(true);
     expect(engine.state.owners[other.id]).toBeNull();
     expect(engine.state.buildings[other.id]).toEqual({});

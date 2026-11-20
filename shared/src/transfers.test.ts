@@ -106,6 +106,7 @@ describe('colony transfers', () => {
     engine.currentPlayer.position = rival.id;
     state.phase = 'moving';
     engine.resolveLanding();
+    engine.payToll();
     expect(state.players[0].bankrupt).toBe(true);
     expect(state.owners[node.id]).toBeNull();
     expect(state.docks[node.id]).toEqual([]);

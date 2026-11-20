@@ -151,6 +151,8 @@ describe('GameEngine', () => {
     engine.currentPlayer.position = 0;
     spinAndSail(engine);
     engine.resolveLanding();
+    expect(engine.state.phase).toBe('awaitingToll');
+    engine.payToll();
     const toll = engine.state.map[2].toll!;
     expect(engine.state.players[1].gold).toBe(1000 - toll);
     expect(engine.state.players[0].gold).toBe(1000 - engine.state.map[2].price! + toll);
@@ -195,6 +197,7 @@ describe('GameEngine', () => {
     engine.currentPlayer.position = 0;
     spinAndSail(engine);
     engine.resolveLanding();
+    engine.payToll();
     expect(engine.state.log).toContain(`Rival pays 10g toll to You at ${engine.state.map[2].name}.`);
   });
 

@@ -154,6 +154,7 @@ describe('living sea board', () => {
     g.state.owners[1] = 1;
     const gold = p.gold;
     land(g, 1);
+    g.payToll();
     expect(p.gold).toBe(gold - Math.ceil(g.state.map[1].toll! / 2));
     expect(p.captain).toBe(false);
   });

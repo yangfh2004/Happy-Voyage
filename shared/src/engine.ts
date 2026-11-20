@@ -1,6 +1,7 @@
-import { aiShouldClaim, aiBuildingChoice, aiBarterChoice } from './ai';
+import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight } from './ai';
+import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
 import { barterOffers, fleetQuantity } from './barter';
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, buildingValue, colonyProduction } from './buildings';
+import { BUILDINGS, buildingLevel, nextBuildingCost, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
 import { RANKS, playerMerit, foreignTaxDue } from './ranks';
@@ -12,7 +13,7 @@ import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition, REPAIR_GOLD_PE
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 import type { Good } from './types';
 import { navigatorById, type SignatureShip } from './navigators';
-import type { ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, MarketOrder, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
+import type { BattleReport, ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, MarketOrder, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
   startingGold: 1400,
@@ -46,6 +47,7 @@ function emptyStockpile(): ColonyStockpile {
  *
  *   awaitingSpin --spinCompass()--> spinning --sail()--> moving --resolveLanding()-->
  *   awaitingClaim --claim()/decline()--> (next player) awaitingSpin ... until gameOver
+ *   (a rival colony instead waits in awaitingToll for payToll() / fight())
  *
  * Renderers can animate the compass and path before the next action.
  * The same class can run on the server for multiplayer.
@@ -107,6 +109,7 @@ export class GameEngine {
       lastSpin: null,
       pendingClaim: null,
       pendingBarter: null,
+      battles: [],
       winner: null,
       log: [],
     };
@@ -249,7 +252,13 @@ export class GameEngine {
           }
           this.log(`${player.name} reaches ${node.name} but cannot afford to settle ${node.name} (${node.price}g).`);
         } else if (owner !== player.id) {
-          this.payToll(player, this.state.players[owner], node);
+          if (player.fleet.length) {
+            this.state.phase = 'awaitingToll';
+            this.emit({ type: 'tollOffered', playerId: player.id, nodeId: node.id });
+            return; // wait for payToll() / fight()
+          }
+          this.log(`${player.name} has no ships to fight with.`);
+          this.collectToll(player, this.state.players[owner], node);
         } else {
           this.log(`${player.name} inspects the colony at ${node.name}.`);
           this.state.phase = 'awaitingBuild';
@@ -299,6 +308,65 @@ export class GameEngine {
     this.assertPhase('awaitingClaim');
     this.log(`${this.currentPlayer.name} sails past ${this.node(this.state.pendingClaim!).name}.`);
     this.endTurn();
+  }
+
+  /** Pay the toll at the rival colony the fleet landed on. */
+  payToll(): void {
+    this.assertPhase('awaitingToll');
+    const player = this.currentPlayer;
+    const node = this.node(player.position);
+    this.collectToll(player, this.state.players[this.state.owners[node.id]!], node);
+    this.endTurn();
+  }
+
+  /**
+   * Attack the rival colony instead of paying: sinking every defender takes the colony,
+   * losing every ship costs the sunk ships plus double toll, and a draw sends both fleets home.
+   */
+  fight(): BattleReport {
+    this.assertPhase('awaitingToll');
+    const player = this.currentPlayer;
+    const node = this.node(player.position);
+    const { ships: defenders, owner, fromFleet } = colonyDefenders(this.state, node.id);
+    this.log(`${player.name} opens fire on ${owner.name}'s ${fromFleet ? 'fleet' : 'docked ships'} at ${node.name}!`);
+    const result = fightNavalBattle(player.fleet, defenders, this.rng);
+    const sink = (fleet: Ship[], sunk: Ship[]) => {
+      for (const ship of sunk) fleet.splice(fleet.indexOf(ship), 1);
+    };
+    sink(player.fleet, result.attackerSunk);
+    sink(defenders, result.defenderSunk);
+    const report: BattleReport = {
+      nodeId: node.id,
+      attacker: player.id,
+      defender: owner.id,
+      outcome: result.outcome,
+      rounds: result.rounds,
+      attackerSunk: result.attackerSunk.map((ship) => ship.name),
+      defenderSunk: result.defenderSunk.map((ship) => ship.name),
+      tollPaid: 0,
+    };
+    const names = (sunk: string[]) => sunk.length ? sunk.join(', ') : 'none';
+    this.log(`${result.rounds} rounds of cannon fire. Sunk: ${player.name} ${names(report.attackerSunk)}; ${owner.name} ${names(report.defenderSunk)}.`);
+    switch (result.outcome) {
+      case 'victory':
+        this.state.owners[node.id] = player.id;
+        this.log(`${player.name} sinks every defender and takes ${node.name} from ${owner.name}!`);
+        this.emit({ type: 'claimed', playerId: player.id, nodeId: node.id });
+        break;
+      case 'defeat':
+        this.log(`${player.name}'s fleet is sunk at ${node.name} and owes ${owner.name} double toll.`);
+        report.tollPaid = this.collectToll(player, owner, node, COMBAT.defeatTollMultiplier);
+        break;
+      case 'draw':
+        player.position = player.homePort;
+        if (fromFleet) owner.position = owner.homePort;
+        this.log(`Neither side yields at ${node.name}: ${player.name}${fromFleet ? ` and ${owner.name}` : ''} sail home.`);
+        break;
+    }
+    this.state.battles.push(report);
+    this.emit({ type: 'battleFought', report });
+    this.endTurn();
+    return report;
   }
 
   acceptBarter(index: number): void {
@@ -484,6 +552,11 @@ export class GameEngine {
 
   /** Let the built-in AI make the current player's pending decision. */
   decideForAI(): void {
+    if (this.state.phase === 'awaitingToll') {
+      if (aiShouldFight(this.state, this.currentPlayer)) this.fight();
+      else this.payToll();
+      return;
+    }
     if (this.state.phase === 'awaitingMarket') {
       this.finishMarket();
       return;
@@ -708,16 +781,17 @@ export class GameEngine {
     return false;
   }
 
-  private payToll(player: Player, owner: Player, node: MapNode): void {
-    const base = colonyToll(this.state, node.id);
-    const toll = player.captain ? Math.ceil(base / 2) : base;
+  /** Charges the toll (times `multiplier` after a lost battle); returns what the owner received. */
+  private collectToll(player: Player, owner: Player, node: MapNode, multiplier = 1): number {
+    const toll = tollDue(this.state, player, node.id, multiplier);
     if (player.captain) this.log(`${player.name}'s captain negotiates half the toll.`);
     player.captain = false;
     const amount = Math.min(toll, Math.max(player.gold, 0));
-    this.log(`${player.name} pays ${amount}g toll to ${owner.name} at ${node.name}.`);
+    this.log(`${player.name} pays ${amount}g ${multiplier > 1 ? 'double ' : ''}toll to ${owner.name} at ${node.name}.`);
     this.changeGold(player, -toll, `toll at ${node.name}`);
     this.changeGold(owner, amount, `toll at ${node.name}`);
     this.emit({ type: 'tollPaid', from: player.id, to: owner.id, amount });
+    return amount;
   }
 
   private payForeignTax(player: Player, host: Player | undefined, node: MapNode): void {
