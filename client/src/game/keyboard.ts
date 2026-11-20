@@ -2,13 +2,21 @@ import type { GameController } from './GameController';
 
 export function keyboardShortcuts(controller: GameController) {
   const held = new Set<string>();
+  const finishVisit = () => {
+    if (controller.state?.phase === 'awaitingCargoMarket') controller.finishTrading();
+    else controller.finishBuilding();
+  };
   const actions: Record<string, () => void> = {
     ' ': () => controller.state?.phase === 'gameOver' ? controller.quit() : controller.spinCompass(),
     enter: () => controller.state?.phase === 'gameOver' ? controller.quit() : controller.spinCompass(),
     c: () => controller.claim(),
     s: () => controller.decline(),
-    escape: () => controller.state?.phase === 'awaitingBuild' ? controller.finishBuilding() : controller.decline(),
-    d: () => controller.finishBuilding(),
+    escape: () => {
+      const phase = controller.state?.phase;
+      if (phase === 'awaitingBuild' || phase === 'awaitingCargoMarket') finishVisit();
+      else controller.decline();
+    },
+    d: finishVisit,
     p: () => controller.payToll(),
     f: () => controller.fight(),
     k: () => controller.skipToMyTurn(),

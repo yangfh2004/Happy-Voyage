@@ -137,3 +137,27 @@ describe('build menu', () => {
     expect(html).toContain('Fight <kbd>F</kbd>');
   });
 });
+
+describe('market menu', () => {
+  it('shows actionable quotes for the selected ship and the Nightless stock', () => {
+    const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
+    const player = game.currentPlayer;
+    player.position = game.state.map.find((node) => node.special === 'nightless')!.id;
+    game.state.phase = 'moving';
+    game.resolveLanding();
+    player.fleet[1].cargo.Wine = 3;
+
+    const html = renderToStaticMarkup(<ActionPanel state={game.state} />);
+    expect(html).toContain('24-hour market');
+    expect(html).toContain('Market stock: 16 · Aboard: 3');
+    expect(html).toContain('Buy · 26g');
+    expect(html).toContain('Sell · 20g');
+    expect(html).toContain('Done trading');
+
+    player.gold = 0;
+    player.fleet[1].cargo = {};
+    const empty = renderToStaticMarkup(<ActionPanel state={game.state} />);
+    expect(empty).toContain('<button disabled="">Buy</button>');
+    expect(empty).toContain('<button disabled="">Sell</button>');
+  });
+});
