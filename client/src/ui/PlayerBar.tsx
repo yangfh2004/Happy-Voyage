@@ -45,7 +45,7 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
             <div className="stats">
               {rankName(p.rank, locale)}<br />
               {p.nation && <>{nationName(p.nation, locale)}<br /></>}
-              {gameController.displayGold(p)}g · {islands(gameController.islandsOwnedBy(p.id))} · {t(`{n} ${p.fleet.length === 1 ? 'ship' : 'ships'}`, '{n} 艘船', { n: p.fleet.length })}
+              {t('{g}g', '{g} 金币', { g: gameController.displayGold(p) })} · {islands(gameController.islandsOwnedBy(p.id))} · {t(`{n} ${p.fleet.length === 1 ? 'ship' : 'ships'}`, '{n} 艘船', { n: p.fleet.length })}
             </div>
           </div>
         ))}
