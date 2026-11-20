@@ -18,23 +18,26 @@ export class TurnFeedback {
     if (!human) return;
     if (event.type === 'tollPaid' && (event.from === human.id || event.to === human.id)) {
       const received = event.to === human.id;
-      this.tolls.push({
+      if (this.baseline !== null) this.tolls.push({
         direction: received ? 'received' : 'paid',
         name: state.players[received ? event.from : event.to].name,
         amount: event.amount,
       });
       this.logTones.set(state.log.length - 1, received ? 'income' : 'expense');
     }
-    if (event.type === 'claimed' && state.players[event.playerId].isAI) {
+    if (event.type === 'claimed' && state.players[event.playerId].isAI && this.baseline !== null) {
       this.claims.push({ name: state.players[event.playerId].name, island: state.map[event.nodeId].name });
     }
     if (event.type === 'turnStarted' && event.playerId === human.id) {
       const netGold = this.baseline === null ? 0 : human.gold - this.baseline;
       this.summary = this.baseline !== null && (this.tolls.length || this.claims.length || netGold !== 0)
         ? { tolls: this.tolls, claims: this.claims, netGold } : null;
-      this.baseline = human.gold;
+      this.baseline = null;
       this.tolls = [];
       this.claims = [];
+    }
+    if (event.type === 'turnStarted' && state.players[event.playerId].isAI && this.baseline === null) {
+      this.baseline = human.gold;
     }
   }
 }
