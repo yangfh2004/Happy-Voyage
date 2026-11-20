@@ -8,9 +8,9 @@ export function colonyValue(node: MapNode): number {
 }
 
 export function seatAtTurnOrderPosition(state: GameState, position: number): number {
-  return (state.round - 1 + position) % state.players.length;
+  return position % state.players.length;
 }
 
 export function turnOrderPosition(state: GameState, playerId: number): number {
-  return (playerId + state.players.length - seatAtTurnOrderPosition(state, 0)) % state.players.length;
+  return playerId % state.players.length;
 }

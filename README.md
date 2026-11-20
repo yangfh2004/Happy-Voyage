@@ -17,7 +17,7 @@ Choose Easy, Normal, or Hard before setting sail. Difficulty changes rival decis
 - Revisit a colony to build a lumber mill, iron mine, and shipyard. Spend the colony's lumber and iron to build an Explorer (small yard), Cargo Ship (medium), or Warship (large).
 - Passing the home port pays a royal salary; event stops bring treasure, storms or trade winds.
 - Claim 10 islands, be the last navigator afloat, or be the richest after 50 rounds to win.
-- The opening turn rotates each round. End-of-voyage wealth is cash plus 75% of each colony's cost (rounded down); a colony needs time to earn back that difference.
+- Navigators take turns in fixed seat order, skipping eliminated players. End-of-voyage wealth is cash plus 75% of each colony's cost (rounded down); a colony needs time to earn back that difference.
 
 ## Online rooms
 

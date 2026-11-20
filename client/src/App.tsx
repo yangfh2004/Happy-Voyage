@@ -17,6 +17,7 @@ import { keyboardShortcuts } from './game/keyboard';
 import { FleetPanel } from './ui/FleetPanel';
 import { SeaNotifications } from './ui/SeaNotifications';
 import { TutorialPanel } from './ui/TutorialPanel';
+import { TurnIndicator } from './ui/TurnIndicator';
 import { readPreference, writePreference } from './ui/accessibilityPreferences';
 import { HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } from './ui/BoardChrome';
 import { ShortcutLegend } from './ui/ShortcutLegend';
@@ -111,7 +112,10 @@ export function App() {
       <div className="sea-map">
         <PhaserGame />
         <Atmosphere state={state} />
-        {state && <SeaNotifications notices={gameController.seaNotices} onDismiss={(id) => gameController.dismissSeaNotice(id)} />}
+        {state && <div className="board-notices">
+          <TurnIndicator state={state} notice={gameController.turnNotice} action={gameController.turnAction} />
+          <SeaNotifications notices={gameController.seaNotices} onDismiss={(id) => gameController.dismissSeaNotice(id)} />
+        </div>}
       </div>
       <div className={`overlay ${landing ? 'has-landing' : ''} ${atHelm ? 'is-your-turn' : ''}`} ref={overlay}>
         {state ? (

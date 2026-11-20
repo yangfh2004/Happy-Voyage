@@ -18,8 +18,12 @@ export type Nation = (typeof NATIONS)[number]['name'];
 export type NationPick = { name: string; nation: Nation };
 
 /** Keep human seats in pick order, then fill every other nation with an AI seat. */
-export function createNationRoster(picks: readonly NationPick[], aiDifficulty?: AIDifficulty): PlayerSetup[] {
+export function createNationRoster(picks: readonly NationPick[], options?: AIDifficulty | { difficulty?: AIDifficulty; totalPlayers?: number }): PlayerSetup[] {
   if (!picks.length) throw new Error('At least one nation must be picked');
+  const aiDifficulty = typeof options === 'string' ? options : options?.difficulty;
+  const totalPlayers = (typeof options === 'object' ? options.totalPlayers : undefined) ?? NATIONS.length;
+  if (!Number.isInteger(totalPlayers) || totalPlayers < 2 || totalPlayers > NATIONS.length) throw new Error('Total players must be an integer from 2 to 10');
+  if (totalPlayers < picks.length) throw new Error('Total players cannot be fewer than human picks');
   const chosen = new Set<Nation>();
   const humans = picks.map(({ name, nation }) => {
     const entry = NATIONS.find((entry) => entry.name === nation);
@@ -30,7 +34,7 @@ export function createNationRoster(picks: readonly NationPick[], aiDifficulty?: 
   });
   return [
     ...humans,
-    ...NATIONS.filter(({ name }) => !chosen.has(name)).map(({ name, color }) => {
+    ...NATIONS.filter(({ name }) => !chosen.has(name)).slice(0, totalPlayers - humans.length).map(({ name, color }) => {
       const navigator = navigatorForNation(name);
       return { name: navigator?.name ?? name, nation: name, navigator: navigator?.id, color, isAI: true, ...(aiDifficulty && { aiDifficulty }) };
     }),

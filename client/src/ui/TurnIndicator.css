@@ -1,0 +1,5 @@
+.board-notices { position: absolute; top: 12px; left: 12px; right: 12px; max-height: calc(100% - 76px); z-index: 21; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; }
+.board-notices .sea-notifications { position: relative; top: auto; right: auto; width: min(440px, 100%); max-height: none; min-height: 0; }
+.turn-indicator { align-self: center; flex-shrink: 0; box-sizing: border-box; max-width: 100%; overflow-wrap: anywhere; padding: 12px 22px; border: 2px solid #edbf56; border-radius: 12px; background: #092f46ed; color: #fff6dc; text-align: center; pointer-events: none; box-shadow: 0 5px 18px #001b2f80; }
+.turn-indicator strong { display: block; font-size: clamp(18px, 3vw, 28px); }
+.turn-indicator span { display: block; font-size: 16px; }
