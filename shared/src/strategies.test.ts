@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine, EVENT_GOLD } from './engine';
 import { STRATEGIES, STRATEGY_RULES } from './strategies';
+import { aiShouldClaim } from './ai';
+import type { MapNode } from './types';
 
 const players = [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }];
 function game() { return new GameEngine({ players, rng: () => 0, config: { startingStrategies: 0 } }); }
@@ -147,6 +149,24 @@ describe('strategy cards', () => {
     other.decideForAI();
     expect(other.state.phase).toBe('awaitingClaim');
     expect(other.currentPlayer.strategies).toEqual([]);
+  });
+  it('AI preserves Navigate when it would decline the claim from the destination', () => {
+    const map: MapNode[] = Array.from({ length: 40 }, (_, id) => ({
+      id, name: `Stop ${id}`, x: id, y: 0,
+      kind: id === 0 ? 'port' : id === 20 || id === 21 ? 'island' : 'event',
+      event: id >= 22 && id <= 33 ? 'pirates' : 'tradeWind',
+      price: 100,
+    }));
+    const g = new GameEngine({ players: [players[1]], map, config: { startingStrategies: 0, maxRounds: 2, islandsToWin: 2 } });
+    const player = g.currentPlayer;
+    player.gold = 120;
+    player.strategies = ['navigate'];
+    expect(aiShouldClaim(g.state, player, 20)).toBe(true);
+    expect(aiShouldClaim(g.state, { ...player, position: 20 }, 20)).toBe(false);
+    g.decideForAI();
+    expect(player.position).toBe(0);
+    expect(player.strategies).toEqual(['navigate']);
+    expect(g.state.phase).toBe('awaitingSpin');
   });
   it.each(['mislead', 'betray'] as const)('AI forecasts the fallback fleet before using %s on the last docked ship', (card) => {
     const g = game();

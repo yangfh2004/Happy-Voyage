@@ -626,7 +626,7 @@ export class GameEngine {
   decideForAI(): void {
     if (this.state.phase === 'awaitingSpin') {
       const p = this.currentPlayer;
-      const target = p.knownHoard ?? this.state.map.find((n) => n.kind === 'island' && this.state.owners[n.id] === null && aiShouldClaim(this.state, p, n.id))?.id;
+      const target = p.knownHoard ?? this.state.map.find((n) => n.kind === 'island' && this.state.owners[n.id] === null && aiShouldClaim(this.state, { ...p, position: n.id }, n.id))?.id;
       if (target !== undefined && target !== null && this.canUseStrategy('navigate', target)) { this.useStrategy('navigate', target); return; }
       if (p.knownHoard === null && this.canUseStrategy('locate')) this.useStrategy('locate');
     }
