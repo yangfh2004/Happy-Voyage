@@ -4,5 +4,5 @@ import type { Player } from '@happy-voyage/shared';
 export function seatTag(players: readonly Player[], player: Player): string {
   if (player.isAI) return 'AI';
   const humans = players.filter((p) => !p.isAI);
-  return humans.length > 1 ? `P${humans.indexOf(player) + 1}` : 'You';
+  return humans.length > 1 ? `P${humans.findIndex((p) => p.id === player.id) + 1}` : 'You';
 }
