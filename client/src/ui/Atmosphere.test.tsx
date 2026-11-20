@@ -14,6 +14,9 @@ describe('atmosphere HUD localization', () => {
     const { state } = new GameEngine({ players: createNationRoster([{ name: 'Me', nation: 'Spain' }]) });
     state.wind = { direction: 'S', turnsLeft: 3 };
     expect(renderToStaticMarkup(<Atmosphere state={state} />)).toContain('↓ South wind · Changes in 3 turns');
+    state.wind.turnsLeft = 1;
+    expect(renderToStaticMarkup(<Atmosphere state={state} />)).toContain('Changes in 1 turn<');
+    state.wind.turnsLeft = 3;
     setLocale('zh');
     expect(renderToStaticMarkup(<Atmosphere state={state} />)).toContain('↓ 南风 · 3 个回合后转向');
   });

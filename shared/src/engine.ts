@@ -1194,7 +1194,8 @@ export class GameEngine extends GameView {
       this.state.wind = { direction, turnsLeft: 2 + Math.floor(this.rng() * 3) };
       const en = { N: 'North', E: 'East', S: 'South', W: 'West' }[direction];
       const zh = { N: '北风', E: '东风', S: '南风', W: '西风' }[direction];
-      this.log(tx(`${en} wind rises. Changes in {n} turns.`, `${zh}起，{n} 个回合后转向。`, { n: this.state.wind.turnsLeft }));
+      const turns = this.state.wind.turnsLeft === 1 ? 'turn' : 'turns';
+      this.log(tx(`${en} wind rises. Changes in {n} ${turns}.`, `${zh}起，{n} 个回合后转向。`, { n: this.state.wind.turnsLeft }));
       this.emit({ type: 'windChanged', ...this.state.wind });
     }
     this.state.pendingMerchant = null;

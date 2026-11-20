@@ -10,6 +10,7 @@ import { gameController } from '../GameController';
 import { sfx } from '../sfx';
 import { CHART_DEPTH, drawAtmosphere } from '../atmosphereArt';
 import { landingTarget, sailingRoute, type MovePath, type NavigatePreview } from '../landingTarget';
+import { routeEdge } from '../routeEdge';
 
 const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
@@ -313,31 +314,41 @@ export class OceanScene extends Phaser.Scene {
         g.lineStyle(6, 0xffd369, 1).strokeCircle(node.x, node.y, 34);
       }
       for (const [index, id] of exits.entries()) {
-        const next = this.map[id];
         const shortcut = index > 0;
         const selected = id === chosen;
-        const angle = Math.atan2(next.y - node.y, next.x - node.x);
-        const dx = Math.cos(angle);
-        const dy = Math.sin(angle);
-        const length = Math.hypot(next.x - node.x, next.y - node.y);
-        const inset = Math.min(38, length / 4);
-        const start = { x: node.x + inset * dx, y: node.y + inset * dy };
-        const end = { x: next.x - inset * dx, y: next.y - inset * dy };
+        const { point, length, inset, curved } = routeEdge(this.map, node.id, id, shortcut);
+        const line = (from: number, to: number) => {
+          const segments = curved ? Math.max(1, Math.ceil((to - from) * 40)) : 1;
+          for (let i = 0; i < segments; i++) {
+            const a = point(from + (to - from) * i / segments);
+            const b = point(from + (to - from) * (i + 1) / segments);
+            g.lineBetween(a.x, a.y, b.x, b.y);
+          }
+        };
         if (shortcut || selected) {
-          g.lineStyle(selected ? 18 : 13, 0x06283d, 1).lineBetween(start.x, start.y, end.x, end.y);
+          g.lineStyle(selected ? 18 : 13, 0x06283d, 1);
+          line(0, 1);
         }
-        if (selected) g.lineStyle(12, 0x7ffff0, 1).lineBetween(start.x, start.y, end.x, end.y);
+        if (selected) {
+          g.lineStyle(12, 0x7ffff0, 1);
+          line(0, 1);
+        }
         if (shortcut) {
           g.lineStyle(7, 0xffd369, 1);
           for (let distance = inset; distance < length - inset; distance += 25) {
             const to = Math.min(distance + 16, length - inset);
-            g.lineBetween(node.x + distance * dx, node.y + distance * dy, node.x + to * dx, node.y + to * dy);
+            line((distance - inset) / (length - 2 * inset), (to - inset) / (length - 2 * inset));
           }
         } else if (!selected) {
-          g.lineStyle(4, 0xffffff, 0.35).lineBetween(start.x, start.y, end.x, end.y);
+          g.lineStyle(4, 0xffffff, 0.35);
+          line(0, 1);
         }
-        const x = node.x + length * .62 * dx;
-        const y = node.y + length * .62 * dy;
+        const { x, y } = point(.62);
+        const ahead = point(.63);
+        const behind = point(.61);
+        const angle = Math.atan2(ahead.y - behind.y, ahead.x - behind.x);
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
         const size = shortcut || selected ? 16 : 9;
         g.fillStyle(0x06283d, 1).fillTriangle(x + 5 * dx, y + 5 * dy, x - (size + 4) * dx + (size + 2) * dy, y - (size + 4) * dy - (size + 2) * dx, x - (size + 4) * dx - (size + 2) * dy, y - (size + 4) * dy + (size + 2) * dx);
         g.fillStyle(selected ? 0x7ffff0 : shortcut ? 0xffd369 : 0xffffff, shortcut || selected ? 1 : .65).fillTriangle(x, y, x - size * dx + size * .65 * dy, y - size * dy - size * .65 * dx, x - size * dx - size * .65 * dy, y - size * dy + size * .65 * dx);
