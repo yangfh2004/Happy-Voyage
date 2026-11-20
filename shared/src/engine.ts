@@ -6,7 +6,7 @@ export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
-import { SHIP_TYPES, STARTING_FLEET } from './ships';
+import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET } from './ships';
 import type { ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup, Ship, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
@@ -270,6 +270,32 @@ export class GameEngine {
   finishBuilding(): void {
     this.assertPhase('awaitingBuild');
     this.endTurn();
+  }
+
+  canBuildShip(type: ShipType): boolean {
+    const player = this.currentPlayer;
+    const nodeId = player.position;
+    if (this.state.phase !== 'awaitingBuild' || this.state.map[nodeId]?.kind !== 'island' ||
+      this.state.owners[nodeId] !== player.id || !Object.hasOwn(SHIP_RECIPES, type)) return false;
+
+    const recipe = SHIP_RECIPES[type];
+    const stock = this.state.stockpiles[nodeId];
+    return buildingLevel(this.state, nodeId, 'shipyard') >= recipe.yardLevel &&
+      stock.lumber >= recipe.lumber && stock.iron >= recipe.iron;
+  }
+
+  buildShip(type: ShipType): Ship {
+    this.assertPhase('awaitingBuild');
+    if (!this.canBuildShip(type)) throw new Error('Cannot build ship here: ownership, shipyard level, ship type or materials');
+    const player = this.currentPlayer;
+    const node = this.node(player.position);
+    const stock = this.state.stockpiles[node.id];
+    const recipe = SHIP_RECIPES[type];
+    stock.lumber -= recipe.lumber;
+    stock.iron -= recipe.iron;
+    const ship = this.addShipToFleet(player.id, type);
+    this.log(`${player.name} launches ${ship.name} at ${node.name}.`);
+    return ship;
   }
 
   /** Let the built-in AI make the current player's pending decision. */

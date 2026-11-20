@@ -7,3 +7,9 @@ export const SHIP_TYPES = {
 } as const satisfies Record<ShipType, ShipStats & { label: string }>;
 
 export const STARTING_FLEET: readonly ShipType[] = ['warship', 'cargo', 'explorer'];
+
+export const SHIP_RECIPES = {
+  explorer: { yardLevel: 1, lumber: 2, iron: 1 },
+  cargo: { yardLevel: 2, lumber: 4, iron: 2 },
+  warship: { yardLevel: 3, lumber: 6, iron: 4 },
+} as const satisfies Record<ShipType, { yardLevel: number; lumber: number; iron: number }>;

@@ -26,6 +26,7 @@ export function RulesPanel({ config, onClose }: { config: GameConfig; onClose: (
           <dt><span className="rule-icon storm">!</span> Storm Front</dt><dd>Pay {EVENT_GOLD.storm.min}–{EVENT_GOLD.storm.max}g for repairs.</dd>
           <dt><span className="rule-icon treasure">≈</span> Trade Winds</dt><dd>Earn +{EVENT_GOLD.tradeWind.base}g plus {EVENT_GOLD.tradeWind.perColony}g per colony you own.</dd>
         </dl>
+        <p><strong>Shipyards:</strong> Revisit your colony to build a lumber mill, iron mine, and shipyard. Each round, the mill and mine add materials to the colony's stockpile. Spend those materials at the yard to add a new ship to your fleet; upgrade the yard to unlock bigger ships.</p>
         <p><strong>Seven special islands:</strong> Skeleton trades scrap or charges tribute; Treasure sells lottery tickets; Mist hosts a simulated Nim duel (take 1–3, last loses); Revival repairs your fleet and blocks the next sea hazard; Nightless buys colony specialties; Wind offers random barter rates; Dragon Snake recruits a captain to halve your next toll.</p>
         <p><strong>Living seas:</strong> pirates and sea monsters cost gold; Bermuda currents move you or damage your fleet. Bottles and floating cargo reward gold, merchants buy colony goods, and wyverns carry you to a new stop whose effect is resolved. Revival blocks these hazards once.</p>
         <p>Drag to pan; pinch or scroll to zoom. Use Fit chart for the whole route, or Follow ship to return to the active fleet.</p>

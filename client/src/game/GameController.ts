@@ -1,4 +1,4 @@
-import { GameEngine, type BuildingKind, type GameEvent, type GameState, type Player, type PlayerSetup } from '@happy-voyage/shared';
+import { GameEngine, type BuildingKind, type GameEvent, type GameState, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
 import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, sfx } from './sfx';
@@ -156,6 +156,14 @@ export class GameController {
     if (this.canBuild(kind)) this.engine!.build(kind);
   }
 
+  canBuildShip(type: ShipType): boolean {
+    return this.isHumanTurn('awaitingBuild') && this.engine!.canBuildShip(type);
+  }
+
+  buildShip(type: ShipType): void {
+    if (this.canBuildShip(type)) this.engine!.buildShip(type);
+  }
+
   finishBuilding(): void {
     if (this.isHumanTurn('awaitingBuild')) this.engine!.finishBuilding();
   }
@@ -233,6 +241,11 @@ export class GameController {
         const node = engine.state.map[event.nodeId];
         if (isHuman(event.playerId)) this.headline = { text: `${node.name} is yours! Rivals now pay you ${node.toll}g here.`, tone: 'gain' };
         sfx.claim();
+        break;
+      }
+      case 'shipAdded': {
+        const ship = players[event.playerId].fleet.find((candidate) => candidate.id === event.shipId);
+        if (isHuman(event.playerId) && ship) this.headline = { text: `${ship.name} joined your fleet.`, tone: 'gain' };
         break;
       }
       case 'claimOffered':
