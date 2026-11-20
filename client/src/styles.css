@@ -1,21 +1,5 @@
 .building-option { margin-bottom: 12px; }
-.atmosphere { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.atmosphere-dawn { background: linear-gradient(145deg, #ffc57135, transparent 65%); }
-.atmosphere-dusk { background: linear-gradient(145deg, #ff9a734a, #a05cc025); }
-.atmosphere-night { background: #10265b65; }
-.atmosphere i { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #e9fffa; box-shadow: 0 0 8px #b6fff4; opacity: 0.65; animation: sea-twinkle 3s ease-in-out infinite alternate; }
-.atmosphere-night i { background: #fff5ad; box-shadow: 0 0 12px #ffeaa0; }
-.weather-rain i, .weather-storm i { width: 2px; height: 28px; border-radius: 2px; background: #d6f6ff; animation: sea-rain 0.8s linear infinite; }
-.weather-storm { background-color: #233c6655; }
-.weather-fog { background: repeating-linear-gradient(165deg, #e5ffff44 0%, #efffff88 12%, transparent 25%); }
-.weather-cloud { display: none; position: absolute; width: 240px; height: 65px; border-radius: 50%; background: #f3ffff77; box-shadow: 45px -25px 0 4px #f3ffff66, -55px -14px 0 #f3ffff55; filter: blur(4px); }
-.weather-clouds .weather-cloud, .weather-rain .weather-cloud, .weather-storm .weather-cloud { display: block; }
-.cloud-one { top: 12%; left: 10%; }
-.cloud-two { top: 48%; right: 5%; }
 .atmosphere-status { position: absolute; bottom: 12px; left: 12px; padding: 7px 12px; border: 2px solid #a9f6ef; border-radius: 20px; background: #103c5bed; color: #fff9d9; font-size: 13px; font-weight: 700; text-transform: capitalize; pointer-events: none; }
-@keyframes sea-twinkle { to { opacity: 0.15; transform: translate(8px, -3px) scale(0.5); } }
-@keyframes sea-rain { from { transform: translate(15px, -90px) rotate(18deg); } to { transform: translate(-15px, 90px) rotate(18deg); } }
-@media (prefers-reduced-motion: reduce) { .atmosphere i { animation: none; } }
 .building-option small { display: block; margin: 3px 0; }
 .sea-map { position: absolute; inset: 0; }
 .playing .sea-map { position: relative; inset: auto; min-width: 0; min-height: 0; overflow: hidden; }

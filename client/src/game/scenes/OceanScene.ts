@@ -8,6 +8,7 @@ const GOLD_REASONS_ZH: Record<string, string> = { salary: '薪俸', promotion: '
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 import { sfx } from '../sfx';
+import { CHART_DEPTH, drawAtmosphere } from '../atmosphereArt';
 
 const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
@@ -40,6 +41,7 @@ export class OceanScene extends Phaser.Scene {
   private ships = new Map<number, Phaser.GameObjects.Image>();
   private colorBlind = false;
   private ocean!: Phaser.GameObjects.Graphics;
+  private atmosphereLayer?: Phaser.GameObjects.Graphics;
   private colonyBadges = new Map<number, Phaser.GameObjects.Text>();
   private shipBadges = new Map<number, Phaser.GameObjects.Text>();
   private flags!: Phaser.GameObjects.Graphics;
@@ -60,6 +62,7 @@ export class OceanScene extends Phaser.Scene {
 
   create() {
     this.input.addPointer(1);
+    this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
     const fit = () => {
       const camera = this.cameras.main;
       camera.setSize(this.game.canvas.parentElement!.clientWidth, this.game.canvas.parentElement!.clientHeight);
@@ -95,8 +98,9 @@ export class OceanScene extends Phaser.Scene {
     this.colorBlind = readPreference('color-blind');
     this.drawOcean();
     this.drawRoute();
-    this.labels = this.add.layer();
+    this.labels = this.add.layer().setDepth(CHART_DEPTH.labels);
     this.drawStops();
+    this.atmosphereLayer = this.add.graphics().setDepth(CHART_DEPTH.atmosphere);
     // Flags and the turn ring sit above the fleets so a moored ship never hides who owns an island.
     this.flags = this.add.graphics().setDepth(11);
     this.marker = this.add.graphics().setDepth(12);
@@ -154,6 +158,7 @@ export class OceanScene extends Phaser.Scene {
 
   update() {
     this.updatePinch();
+    if (this.atmosphereLayer) drawAtmosphere(this.atmosphereLayer, gameController.state, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : this.time.now);
     this.shipBadges.forEach((badge, id) => {
       const ship = this.ships.get(id)!;
       badge.setPosition(ship.x + 12, ship.y - 13);
@@ -565,7 +570,7 @@ export class OceanScene extends Phaser.Scene {
       fontFamily: '"Sea Names", system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
       color: delta < 0 ? (this.colorBlind ? '#ffd18a' : '#ff9c9c') : (this.colorBlind ? '#a9deff' : '#9dffb0'),
       align: 'center', stroke: '#06283d', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(30);
+    }).setOrigin(0.5).setDepth(CHART_DEPTH.popup);
     const distance = 32 + Math.abs(dx) * popup.width / 2 + Math.abs(dy) * popup.height / 2;
     const clampX = (x: number) => Phaser.Math.Clamp(x, popup.width / 2 + 8, WORLD.width - popup.width / 2 - 8);
     const clampY = (y: number) => Phaser.Math.Clamp(y, popup.height / 2 + 8, WORLD.height - popup.height / 2 - 8);
