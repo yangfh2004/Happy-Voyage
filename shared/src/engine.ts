@@ -209,10 +209,7 @@ export class GameEngine {
       case 'port':
         if (node.id !== player.homePort) {
           const host = this.state.players.find((p) => p.homePort === node.id && !p.bankrupt);
-          const paid = Math.min(player.gold, SEA_RULES.foreignTax);
-          this.log(`${player.name} pays ${SEA_RULES.foreignTax}g foreign tax to ${host?.name ?? 'the crown'} at ${node.name}.`);
-          this.changeGold(player, -SEA_RULES.foreignTax, 'foreign tax');
-          if (host) this.changeGold(host, paid, 'foreign tax');
+          this.payForeignTax(player, host, node);
         } else this.log(`${player.name} returns to their home port.`);
         break;
       case 'special':
@@ -660,10 +657,32 @@ export class GameEngine {
     this.emit({ type: 'tollPaid', from: player.id, to: owner.id, amount });
   }
 
+  private payForeignTax(player: Player, host: Player | undefined, node: MapNode): void {
+    const paid = Math.min(player.gold, SEA_RULES.foreignTax);
+    let shortfall = SEA_RULES.foreignTax - paid;
+    this.log(`${player.name} pays ${paid}g foreign tax to ${host?.name ?? 'the crown'} at ${node.name} (${SEA_RULES.foreignTax}g due).`);
+    this.changeGold(player, -paid, 'foreign tax');
+    if (host) this.changeGold(host, paid, 'foreign tax');
+    const cheapestFirst = [...player.fleet].sort((a, b) => shipSalePrice(a) - shipSalePrice(b) || a.id - b.id);
+    for (const ship of cheapestFirst) {
+      if (shortfall <= 0) break;
+      const value = shipSalePrice(ship);
+      player.fleet.splice(player.fleet.indexOf(ship), 1);
+      if (host) host.fleet.push(ship);
+      shortfall -= value;
+      this.log(`${player.name}'s ${ship.name} is seized by ${host?.name ?? 'the crown'} for ${value}g toward foreign tax.`);
+    }
+    if (shortfall > 0 || player.fleet.length === 0) this.declareBankrupt(player);
+  }
+
   private changeGold(player: Player, delta: number, reason: string): void {
     player.gold += delta;
     this.emit({ type: 'goldChanged', playerId: player.id, delta, reason });
-    if (player.gold < 0 && !player.bankrupt) {
+    if (player.gold < 0) this.declareBankrupt(player);
+  }
+
+  private declareBankrupt(player: Player): void {
+    if (!player.bankrupt) {
       player.gold = 0;
       player.bankrupt = true;
       // A bankrupt navigator's colonies return to the wild.
