@@ -340,7 +340,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .playing { padding: 10px; gap: 10px; grid-template-columns: minmax(0, 1fr) 350px; grid-template-rows: 116px minmax(0, 1fr) 88px; background: linear-gradient(135deg, #10436a, #041b30); }
   .voyage-top, .voyage-bottom { display: flex; align-items: center; gap: 12px; grid-column: 1 / -1; border: 1px solid #d9b65f; border-radius: 18px; background: #06243f; color: #fff6dc; padding: 10px 14px; box-shadow: 0 3px 8px #001423; min-width: 0; }
   .voyage-top { grid-row: 1; }
-  .voyage-logo { width: 115px; flex-shrink: 0; color: #f5d381; font: bold 20px Georgia, serif; }
+  .voyage-logo { width: 115px; flex-shrink: 0; color: #f5d381; font: bold 20px 'Sea Names', Georgia, serif; }
   .voyage-logo span { display: block; }
   .voyage-seats { display: flex; gap: 6px; overflow-x: auto; min-width: 0; flex: 1; padding: 4px; scrollbar-width: none; }
   .voyage-seats::-webkit-scrollbar { display: none; }
@@ -414,7 +414,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 @media (max-width: 700px) and (orientation: portrait) {
   .playing { grid-template-columns: 1fr; grid-template-rows: 44px minmax(0, 1fr) 40px 310px; gap: 0; height: 100dvh; background: #06243f; }
   .playing .voyage-top { display: flex; grid-row: 1; grid-column: 1; align-items: center; justify-content: space-between; padding: 0 10px; background: #06243f; color: #f4d58c; border-bottom: 1px solid #b99c55; }
-  .voyage-logo { display: flex; gap: 6px; font: bold 17px Georgia, serif; }
+  .voyage-logo { display: flex; gap: 6px; font: bold 17px 'Sea Names', Georgia, serif; }
   .voyage-menu-control > span { display: none; }
   .voyage-menu-control button { font-size: 0; padding: 4px; width: 42px; height: 40px; background: transparent; color: #f4d58c; border: 0; }
   .voyage-menu-control button::after { content: '⚙'; font-size: 27px; }
