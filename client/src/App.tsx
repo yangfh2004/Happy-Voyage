@@ -90,8 +90,10 @@ export function App() {
       <div className="sea-map">
         <PhaserGame />
         <Atmosphere state={state} />
-        {state && <TurnIndicator state={state} notice={gameController.turnNotice} action={gameController.turnAction} />}
-        {state && <SeaNotifications notices={gameController.seaNotices} onDismiss={(id) => gameController.dismissSeaNotice(id)} />}
+        {state && <div className="board-notices">
+          <TurnIndicator state={state} notice={gameController.turnNotice} action={gameController.turnAction} />
+          <SeaNotifications notices={gameController.seaNotices} onDismiss={(id) => gameController.dismissSeaNotice(id)} />
+        </div>}
       </div>
       <div className="overlay" ref={overlay}>
         {state ? (
