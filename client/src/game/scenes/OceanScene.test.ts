@@ -79,6 +79,7 @@ describe('map label language and themed stop hover', () => {
     const addZone = vi.fn(() => zone);
     Object.assign(scene, { map: [node], add: { image, text: addText, zone: addZone }, textures: { exists: () => true }, labels: { add: vi.fn() }, cameras: { main: { zoom: 1, worldView: { x: 0, y: 0, width: WORLD.width, height: WORLD.height } } } });
     scene.drawStops();
+    scene.relabel(null);
     expect(image).toHaveBeenCalledWith(node.x, node.y, 'stop-special-skeleton-0');
     expect(addZone).toHaveBeenCalledWith(node.x, node.y, 140, 110);
     handlers.get('pointerover')!({ wasTouch: false });
@@ -87,6 +88,9 @@ describe('map label language and themed stop hover', () => {
       expect(content).toContain('Skeleton Island');
       expect(content).not.toMatch(/[\u3400-\u9fff]/);
     } else expect(content).toContain('骷髅岛');
+    scene.relabel(null);
+    expect(tooltip.destroy).not.toHaveBeenCalled();
+    setLocale(locale === 'en' ? 'zh' : 'en');
     scene.relabel(null);
     expect(tooltip.destroy).toHaveBeenCalledOnce();
     handlers.get('pointerout')!({ wasTouch: false });

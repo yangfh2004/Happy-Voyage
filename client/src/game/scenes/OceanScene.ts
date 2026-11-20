@@ -66,6 +66,7 @@ export class OceanScene extends Phaser.Scene {
   private navigatePreview: NavigatePreview | null = null;
   private framedTarget: string | null = null;
   private stopTooltip: Phaser.GameObjects.Text | null = null;
+  private labelLocale = getLocale();
 
   constructor() {
     super('Ocean');
@@ -428,8 +429,12 @@ export class OceanScene extends Phaser.Scene {
   }
 
   private relabel(state: GameState | null) {
-    this.stopTooltip?.destroy();
-    this.stopTooltip = null;
+    const locale = getLocale();
+    if (locale !== this.labelLocale) {
+      this.stopTooltip?.destroy();
+      this.stopTooltip = null;
+      this.labelLocale = locale;
+    }
     this.stopLabels.forEach((text, id) => text.setText(this.stopLabel(this.map[id], state)));
     this.regionLabels.forEach((text, i) => text.setText(REGIONS[i][getLocale() === 'zh' ? 1 : 0]));
   }
