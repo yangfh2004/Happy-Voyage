@@ -50,6 +50,23 @@ function humanTurn() {
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
 }
 
+it('tags only the compass movement for route dots, not later Wyvern flights', () => {
+  const moves = vi.fn();
+  EventBus.on('animate-move', moves);
+  controller.newGame(players);
+  const origin = controller.state!.players[0].position;
+  controller.spinCompass();
+  controller.finishSpin(controller.spinId);
+  expect(moves).toHaveBeenLastCalledWith(expect.objectContaining({ sailFrom: origin }));
+  controller.newGame(players);
+  const state = controller.state!;
+  state.players[0].strategies = ['navigate'];
+  controller.useStrategy('navigate', state.map.find(n => n.event === 'wyvern')!.id);
+  expect(state.phase).toBe('awaitingWyvern');
+  controller.wyvernFly(2);
+  expect(moves).toHaveBeenLastCalledWith(expect.objectContaining({ path: [2], sailFrom: undefined }));
+});
+
 it('publishes a compass target through sailing and clears it on arrival', () => {
   controller.newGame(players);
   const state = controller.state!;

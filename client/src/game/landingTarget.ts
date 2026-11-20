@@ -7,8 +7,20 @@ export interface LandingTarget {
   preview: boolean;
 }
 
-export interface MovePath { playerId: number; path: number[] }
+export interface MovePath { playerId: number; path: number[]; sailFrom?: number }
 export interface NavigatePreview { playerId: number; nodeId: number }
+
+export function sailingRoute(state: GameState | null, move?: MovePath | null): number[] {
+  if (!state?.map.length) return [];
+  const player = state.players[state.currentPlayer];
+  if (!player || player.bankrupt) return [];
+  if (state.phase === 'spinning' && state.lastSpin && Number.isInteger(state.lastSpin) && state.lastSpin > 0) {
+    return Array.from({ length: state.lastSpin + 1 }, (_, i) => (player.position + i) % state.map.length);
+  }
+  if (state.phase !== 'moving' || move?.playerId !== player.id || move.sailFrom === undefined || !move.path.length) return [];
+  const from = move.sailFrom;
+  return move.path.every((node, i) => node === (from + i + 1) % state.map.length) ? [from, ...move.path] : [];
+}
 
 export function landingTarget(state: GameState | null, move?: MovePath | null, preview?: NavigatePreview | null): LandingTarget | null {
   if (!state || !state.map.length) return null;

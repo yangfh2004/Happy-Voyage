@@ -9,7 +9,7 @@ import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 import { sfx } from '../sfx';
 import { CHART_DEPTH, drawAtmosphere } from '../atmosphereArt';
-import { landingTarget, type NavigatePreview } from '../landingTarget';
+import { landingTarget, sailingRoute, type MovePath, type NavigatePreview } from '../landingTarget';
 
 const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
@@ -63,7 +63,7 @@ export class OceanScene extends Phaser.Scene {
   private sailing = new Set<number>();
   private islands = new Map<number, Phaser.GameObjects.Image>();
   private goldPopups = new Map<Phaser.GameObjects.Text, { x: number; y: number; lane: number }>();
-  private movement: { playerId: number; path: number[]; id: number; index: number } | null = null;
+  private movement: (MovePath & { id: number; index: number }) | null = null;
   private moveTween: Phaser.Tweens.Tween | null = null;
   private landingMarker?: Phaser.GameObjects.Graphics;
   private landingBadge?: Phaser.GameObjects.Text;
@@ -219,15 +219,13 @@ export class OceanScene extends Phaser.Scene {
     const { color } = chartIdentity(state.players[target.playerId], this.colorBlind);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const pulse = reduced ? 0 : (Math.sin(this.time.now / 180) + 1) / 2;
-    if (!target.preview && target.steps) {
-      const start = state.phase === 'spinning' ? state.players[target.playerId].position : this.movement ? (this.movement.path[0] - 1 + state.map.length) % state.map.length : null;
-      if (start !== null) {
-        for (let i = 0; i < target.steps; i++) {
-          const a = state.map[(start + i) % state.map.length];
-          const b = state.map[(start + i + 1) % state.map.length];
-          const count = Math.ceil(Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y) / 18);
-          for (let j = 0; j < count; j++) this.landingMarker.fillStyle(color, .5).fillCircle(a.x + (b.x - a.x) * j / count, a.y + (b.y - a.y) * j / count, 4);
-        }
+    if (!target.preview) {
+      const route = sailingRoute(state, this.movement);
+      for (let i = 0; i < route.length - 1; i++) {
+        const a = state.map[route[i]];
+        const b = state.map[route[i + 1]];
+        const count = Math.ceil(Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y) / 18);
+        for (let j = 0; j < count; j++) this.landingMarker.fillStyle(color, .5).fillCircle(a.x + (b.x - a.x) * j / count, a.y + (b.y - a.y) * j / count, 4);
       }
     }
     const radius = 62 + pulse * 10;

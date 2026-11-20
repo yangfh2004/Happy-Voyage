@@ -1,10 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine } from '@happy-voyage/shared';
-import { landingTarget } from './landingTarget';
+import { landingTarget, sailingRoute } from './landingTarget';
 
 const game = () => new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }] });
 
 describe('landing target', () => {
+  it('draws only verified compass routes, never backward currents or Wyvern flights', () => {
+    const { state } = game();
+    expect(sailingRoute(null)).toEqual([]);
+    state.phase = 'spinning';
+    state.players[0].position = state.map.length - 1;
+    state.lastSpin = 2;
+    expect(sailingRoute(state)).toEqual([state.map.length - 1, 0, 1]);
+    state.phase = 'moving';
+    expect(sailingRoute(state, { playerId: 0, path: [0, 1], sailFrom: state.map.length - 1 })).toEqual([state.map.length - 1, 0, 1]);
+    expect(sailingRoute(state, { playerId: 0, path: [5, 4, 3] })).toEqual([]);
+    expect(sailingRoute(state, { playerId: 0, path: [5, 4, 3], sailFrom: 6 })).toEqual([]);
+    expect(sailingRoute(state, { playerId: 0, path: [50] })).toEqual([]);
+    expect(sailingRoute(state, { playerId: 0, path: [1] })).toEqual([]);
+    expect(sailingRoute(state, { playerId: 0, path: [], sailFrom: 0 })).toEqual([]);
+  });
   it('predicts a compass landing as soon as spinning starts, including route wrap', () => {
     const { state } = game();
     state.phase = 'spinning';
