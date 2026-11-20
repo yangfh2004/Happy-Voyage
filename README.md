@@ -10,6 +10,7 @@ Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, tradin
 Single player against 1–3 AI rivals:
 
 - Roll two dice and sail your fleet around a 24-stop sea route.
+- Open **Fleet** to inspect any navigator's starting warship, cargo ship, and explorer.
 - Land on an unowned island to found a colony; rivals who land there pay you a toll.
 - Passing the home port pays a royal salary; event stops bring treasure, storms or trade winds.
 - Claim 8 islands, be the last navigator afloat, or be the richest after 30 rounds to win.
