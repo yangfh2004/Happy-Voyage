@@ -18,7 +18,7 @@ export function RouteDetails({ state }: { state: GameState }) {
           return (
             <li key={stop.id}>
               <strong>{nodeName(stop, locale)}</strong>
-              {stop.kind === 'special' && <div>{locale === 'zh' ? stop.name : stop.chineseName} · {t('Special island', '特殊岛屿')}</div>}
+              {stop.kind === 'special' && <div>{t('Special island', '特殊岛屿')}</div>}
               {stop.kind === 'port' && <div>{t('{nation} home port', '{nation}母港', { nation: nationName(stop.nation ?? '', locale) })} · {(() => { const host = state.players.find((player) => player.homePort === stop.id); return host ? playerName(host, locale) : t('Crown', '王室'); })()}</div>}
               {stop.kind === 'event' && <div>{t('Sea encounter', '海上遭遇')}</div>}
               {stop.kind === 'island' && (

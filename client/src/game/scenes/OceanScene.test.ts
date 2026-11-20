@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('phaser', () => ({ default: { Scene: class {}, Math: { Clamp: (value: number, min: number, max: number) => Math.min(max, Math.max(min, value)) } } }));
 vi.mock('../EventBus', () => ({ EventBus: { emit: vi.fn() } }));
@@ -8,7 +8,8 @@ import { OceanScene } from './OceanScene';
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 import { routeEdge } from '../routeEdge';
-import { createNationRoster, GameEngine, WORLD, type GameEvent, type MapNode, type WindDirection } from '@happy-voyage/shared';
+import { createDefaultMap, createNationRoster, GameEngine, WORLD, type GameEvent, type GameState, type MapNode, type WindDirection } from '@happy-voyage/shared';
+import { setLocale } from '../../i18n';
 
 type Move = { playerId: number; path: number[]; id: number };
 type SceneHarness = {
@@ -21,6 +22,9 @@ type SceneHarness = {
   drawRoute(direction?: WindDirection): void;
   fitChart(): void;
   tokenPosition(playerId: number, nodeId: number): [number, number];
+  stopLabel(node: MapNode, state: GameState | null): string;
+  drawStops(): void;
+  relabel(state: GameState | null): void;
   onEngineEvent(event: GameEvent): void;
 };
 
@@ -47,6 +51,51 @@ beforeEach(() => {
       return tween;
     } },
   }) as unknown as SceneHarness;
+});
+
+afterEach(() => setLocale('en'));
+
+describe('map label language and themed stop hover', () => {
+  it('never renders CJK in English labels for any default stop, with and without game state', () => {
+    const { state } = new GameEngine({ players: createNationRoster([{ name: 'Captain', nation: 'Spain' }]) });
+    setLocale('en');
+    for (const node of createDefaultMap()) {
+      expect(scene.stopLabel(node, null)).not.toMatch(/[\u3400-\u9fff]/);
+      expect(scene.stopLabel(node, state)).not.toMatch(/[\u3400-\u9fff]/);
+    }
+    setLocale('zh');
+    for (const node of createDefaultMap()) expect(scene.stopLabel(node, null)).toMatch(/[\u3400-\u9fff]/);
+  });
+
+  it.each(['en', 'zh'] as const)('keeps themed islands hoverable with a localised tooltip in %s and dismisses stale language', locale => {
+    setLocale(locale);
+    const node = { ...createDefaultMap().find(node => node.special === 'skeleton')!, id: 0 };
+    const handlers = new Map<string, (pointer: { wasTouch: boolean }) => void>();
+    const text = () => ({ setOrigin: vi.fn().mockReturnThis(), setPosition: vi.fn().mockReturnThis(), setInteractive: vi.fn().mockReturnThis(), setScale: vi.fn().mockReturnThis(), setDepth: vi.fn().mockReturnThis(), setText: vi.fn(), destroy: vi.fn(), on: vi.fn().mockReturnThis(), displayWidth: 150, displayHeight: 50 });
+    const label = text(), tooltip = text();
+    const addText = vi.fn().mockReturnValueOnce(label).mockReturnValue(tooltip);
+    const zone = { setInteractive: vi.fn().mockReturnThis(), on: vi.fn((event: string, handler: (pointer: { wasTouch: boolean }) => void) => { handlers.set(event, handler); return zone; }) };
+    const image = vi.fn();
+    const addZone = vi.fn(() => zone);
+    Object.assign(scene, { map: [node], add: { image, text: addText, zone: addZone }, textures: { exists: () => true }, labels: { add: vi.fn() }, cameras: { main: { zoom: 1, worldView: { x: 0, y: 0, width: WORLD.width, height: WORLD.height } } } });
+    scene.drawStops();
+    scene.relabel(null);
+    expect(image).toHaveBeenCalledWith(node.x, node.y, 'stop-special-skeleton-0');
+    expect(addZone).toHaveBeenCalledWith(node.x, node.y, 140, 110);
+    handlers.get('pointerover')!({ wasTouch: false });
+    const content = addText.mock.calls[1][2];
+    if (locale === 'en') {
+      expect(content).toContain('Skeleton Island');
+      expect(content).not.toMatch(/[\u3400-\u9fff]/);
+    } else expect(content).toContain('骷髅岛');
+    scene.relabel(null);
+    expect(tooltip.destroy).not.toHaveBeenCalled();
+    setLocale(locale === 'en' ? 'zh' : 'en');
+    scene.relabel(null);
+    expect(tooltip.destroy).toHaveBeenCalledOnce();
+    handlers.get('pointerout')!({ wasTouch: false });
+    expect(tooltip.destroy).toHaveBeenCalledOnce();
+  });
 });
 
 describe('shared stop ship berths', () => {
