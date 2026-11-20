@@ -21,6 +21,7 @@ import { readPreference, writePreference } from './ui/accessibilityPreferences';
 import { HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } from './ui/BoardChrome';
 import { ShortcutLegend } from './ui/ShortcutLegend';
 import { TurnCoach } from './ui/TurnCoach';
+import { trapMenuFocus } from './ui/menuFocus';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
@@ -78,11 +79,10 @@ export function App() {
       window.removeEventListener('blur', shortcuts.blur);
     };
   }, [rulesOpen, fleetOpen, tutorialOpen, menuOpen]);
-  useEffect(() => {
+  const menu = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
     if (!menuOpen) return;
-    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); setMenuOpen(false); } };
-    window.addEventListener('keydown', close);
-    return () => window.removeEventListener('keydown', close);
+    if (menu.current) return trapMenuFocus(menu.current, () => setMenuOpen(false));
   }, [menuOpen]);
   useEffect(() => {
     const start = () => gameController.startSoundtrack();
@@ -127,7 +127,7 @@ export function App() {
             {!tutorialOpen && <TurnCoach state={state} atHelm={atHelm} target={chartFocus} />}
             <div className={`secondary-hud ${menuOpen ? 'is-open' : ''}`}>
             {menuOpen && <button className="menu-scrim" aria-label={t('Close menu', '关闭菜单')} onClick={() => setMenuOpen(false)} />}
-            <div id="voyage-menu" className="voyage-menu">
+            <div ref={menu} id="voyage-menu" className="voyage-menu" role={menuOpen ? 'dialog' : undefined} aria-modal={menuOpen || undefined} aria-label={t('Menu', '菜单')} tabIndex={-1}>
             <button className="menu-close" onClick={() => setMenuOpen(false)}>{t('Close menu', '关闭菜单')} ✕</button>
             <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>{t('Fit chart', '查看全图')}</button><button onClick={() => EventBus.emit('follow-ship')}>{t('Follow ship', '跟随船只')}</button></div>
             {room && (
