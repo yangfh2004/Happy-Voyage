@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createNationRoster, DEFAULT_CONFIG, NATIONS, navigatorForNation, type AIDifficulty, type Nation } from '@happy-voyage/shared';
+import { createNationRoster, DEFAULT_ISLAND_COUNT, GAME_MODES, gameMode, NATIONS, navigatorForNation, winConditionText, type AIDifficulty, type GameModeId, type Nation } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorCard } from './NavigatorCard';
@@ -20,6 +20,8 @@ const seatName = (seat: Seat) => seat.customName ?? navigatorForNation(seat.nati
 export function SetupMenu({ onRules }: { onRules: () => void }) {
   const [seats, setSeats] = useState<Seat[]>([{ customName: null, nation: NATIONS[0].name }]);
   const [active, setActive] = useState(0);
+  const [modeId, setModeId] = useState<GameModeId>(GAME_MODES[0].id);
+  const mode = gameMode(modeId);
   const [difficulty, setDifficulty] = useState<AIDifficulty>('normal');
   const seat = seats[active];
   const navigator = navigatorForNation(seat.nation)!;
@@ -44,7 +46,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
     gameController.newGame(createNationRoster(seats.map((s) => ({
       name: seatName(s).trim() || navigatorForNation(s.nation)!.name,
       nation: s.nation,
-    })), difficulty));
+    })), difficulty), mode.config);
   };
 
   return (
@@ -53,7 +55,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
       <p className="subtitle">Seven Seas Domination · 欢乐大航海</p>
       <p>
         Spin the compass, sail the route and plant your flag on new lands. Rivals pay you a toll or attack when they
-        land on your colonies. Claim {DEFAULT_CONFIG.islandsToWin} islands, be last afloat, or be richest after {DEFAULT_CONFIG.maxRounds} rounds to win.
+        land on your colonies. To win, {winConditionText(mode.config, DEFAULT_ISLAND_COUNT)}.
         The starting navigator rotates each round. Final wealth is cash plus 75% of colony costs.
       </p>
 
@@ -125,6 +127,18 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         </select>
         <small className="nation-note">Changes rival decisions, not starting resources or rules.</small>
       </label>
+
+      <div className="field modes" role="group" aria-labelledby="mode-label">
+        <span id="mode-label">Victory</span>
+        <div className="choices">
+          {GAME_MODES.map((m) => (
+            <button key={m.id} className={m.id === modeId ? 'chip selected' : 'chip'} aria-pressed={m.id === modeId} onClick={() => setModeId(m.id)}>
+              {m.name}
+            </button>
+          ))}
+        </div>
+        <small className="nation-note">{mode.description}</small>
+      </div>
 
       <button className="setup-rules" onClick={onRules}>How to play</button>
       <SpeedControl />

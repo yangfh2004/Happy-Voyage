@@ -51,9 +51,19 @@ export function ActionPanel({ state }: { state: GameState }) {
   let body;
   if (state.phase === 'gameOver') {
     const winner = state.players[state.winner!];
+    const everyContinent = state.victory === 'everyContinent';
+    const flag = winner.nation ?? winner.name;
     body = (
       <>
-        <h2>{winner.isAI ? `${winner.name} wins the seas.` : gameController.humanCount > 1 ? `Victory for ${winner.name}! The crown celebrates you.` : 'Victory! The crown celebrates you.'}</h2>
+        {everyContinent ? (
+          <div className="victory-screen" role="status">
+            <div className="victory-flag" aria-hidden="true">⚑</div>
+            <h2>{winner.isAI ? `${winner.name} rules the Seven Seas.` : gameController.humanCount > 1 ? `Victory for ${winner.name}! Every new continent flies your flag.` : 'Victory! Every new continent flies your flag.'}</h2>
+            <p className="victory-count">All {state.config.islandsToWin} new continents are colonies of {flag}.</p>
+          </div>
+        ) : (
+          <h2>{winner.isAI ? `${winner.name} wins the seas.` : gameController.humanCount > 1 ? `Victory for ${winner.name}! The crown celebrates you.` : 'Victory! The crown celebrates you.'}</h2>
+        )}
         <p>{state.log[state.log.length - 1]}</p>
         <table className="standings">
           <caption>Final standings · winner first, then afloat navigators by net worth</caption>

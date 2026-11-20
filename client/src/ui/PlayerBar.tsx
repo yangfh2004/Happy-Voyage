@@ -1,5 +1,5 @@
 import type { GameState } from '@happy-voyage/shared';
-import { RANKS } from '@happy-voyage/shared';
+import { RANKS, hasRoundLimit, requiresEveryIsland } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorPortrait } from './NavigatorPortrait';
@@ -13,8 +13,8 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
       <SpeedControl />
       <div className="player-header">
         <div className="round">
-          Round {Math.min(state.round, state.config.maxRounds)} / {state.config.maxRounds} · goal: {state.config.islandsToWin}{' '}
-          islands
+          Round {hasRoundLimit(state.config) ? `${Math.min(state.round, state.config.maxRounds)} / ${state.config.maxRounds}` : state.round} · goal:{' '}
+          {requiresEveryIsland(state.config, islandCount(state)) ? `all ${state.config.islandsToWin} new continents` : `${state.config.islandsToWin} islands`}
         </div>
         <div className="player-controls">
           <button className="sound" onClick={() => gameController.toggleMute()} aria-pressed={!gameController.muted}>
@@ -47,4 +47,5 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
   );
 }
 
+const islandCount = (state: GameState) => state.map.filter((node) => node.kind === 'island').length;
 const islands = (n: number) => `${n} island${n === 1 ? '' : 's'}`;

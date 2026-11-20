@@ -217,6 +217,21 @@ describe('market menu', () => {
     expect(empty).toContain('<button disabled="">Buy</button>');
     expect(empty).toContain('<button disabled="">Sell</button>');
   });
+  it('shows the victory screen when one navigator holds every new continent', () => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false, nation: 'Spain' }, { name: 'Rival', color: 1, isAI: true }] });
+    const { state } = engine;
+    const islands = state.map.filter((node) => node.kind === 'island');
+    for (const island of islands.slice(1)) state.owners[island.id] = 0;
+    engine.currentPlayer.gold = 10_000;
+    engine.currentPlayer.position = islands[0].id;
+    state.phase = 'moving';
+    engine.resolveLanding();
+    engine.claim();
+    Object.assign(gameController, { islandsOwnedBy: (id: number) => engine.islandsOwnedBy(id), netWorth: (id: number) => engine.netWorth(id) });
+    const html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(html).toContain('Victory! Every new continent flies your flag.');
+    expect(html).toContain('All 40 new continents are colonies of Spain.');
+  });
 });
 
 describe('hot-seat handoff', () => {
