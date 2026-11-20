@@ -1,6 +1,6 @@
 import { GameEngine } from './src/engine';
 import { createNationRoster, NATIONS } from './src/nations';
-import type { AIDifficulty, PlayerSetup } from './src/types';
+import type { GameConfig, PlayerSetup } from './src/types';
 
 function seeded(seed: number) {
   return () => {
@@ -23,7 +23,7 @@ function stats() {
   };
 }
 
-function run(name: string, fixtures: (seed: number) => PlayerSetup[][]) {
+function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?: Partial<GameConfig>) {
   const byLevel = { easy: stats(), normal: stats(), hard: stats() };
   const nationWins = Object.fromEntries(NATIONS.map(({ name }) => [name, 0]));
   const endings = { conquest: 0, survival: 0, wealth: 0 };
@@ -32,7 +32,7 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][]) {
 
   for (let seed = 0; seed < seeds; seed++) {
     for (const players of fixtures(seed)) {
-      const game = new GameEngine({ players, rng: seeded(seed + 1) });
+      const game = new GameEngine({ players, config, rng: seeded(seed + 1) });
       const { state } = game;
       const row = (id: number) => byLevel[players[id].aiDifficulty!];
       game.on((event) => {
@@ -118,3 +118,9 @@ run('10-nation Normal self-play', () => [roster.map((seat) => ({ ...seat, isAI: 
 run('10-nation mixed difficulty', (seed) => [
   roster.map((seat, index) => ({ ...seat, isAI: true, aiDifficulty: levels[(index + seed) % levels.length] })),
 ]);
+
+run('Economy stress test (custom rules)', (seed) => [
+  Array.from({ length: 3 }, (_, i) => ({
+    ...roster[(seed + i * 3) % roster.length], isAI: true, aiDifficulty: levels[(seed + i) % levels.length],
+  })),
+], { startingGold: 3500, islandsToWin: 41 });

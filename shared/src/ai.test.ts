@@ -254,4 +254,18 @@ describe('AI rival difficulty', () => {
     expect(player.strategies).toEqual(['inspire']);
     expect(state.battles[0].outcome).toBe('victory');
   });
+
+  it('Hard recruits a healthy defector in a favorable battle while Normal saves the card', () => {
+    for (const difficulty of ['hard', 'normal'] as const) {
+      const { engine, state, player } = at('island', true);
+      const defector = state.players[1].fleet[0];
+      player.aiDifficulty = difficulty;
+      player.strategies = ['betray'];
+      for (const ship of player.fleet) ship.firepower = 120;
+      engine.decideForAI();
+      expect(state.battles[0].outcome).toBe('victory');
+      expect(player.fleet.includes(defector)).toBe(difficulty === 'hard');
+      expect(player.strategies).toEqual(difficulty === 'hard' ? [] : ['betray']);
+    }
+  });
 });

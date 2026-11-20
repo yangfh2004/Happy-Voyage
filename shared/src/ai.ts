@@ -15,7 +15,7 @@ import type { BarterOffer, BuildingKind, GameState, MapNode, MarketOrder, Player
 const POLICIES = {
   easy:   { claimRisk: 0.08, reserve: 450, fleetSize: 3, development: 1 },
   normal: { claimRisk: 0.12, reserve: 400, fleetSize: 4, development: 2 },
-  hard:   { claimRisk: 0.15, reserve: 400, fleetSize: 5, development: 3 },
+  hard:   { claimRisk: 0.10, reserve: 400, fleetSize: 5, development: 3 },
 } as const;
 
 const policy = (player: Player) => POLICIES[player.aiDifficulty ?? 'normal'];
@@ -325,6 +325,12 @@ export function aiBattleStrategy(state: GameState, player: Player, canUse: (card
       best = card;
       bestQuality = quality;
     }
+  }
+  // A healthy defector is worth the card even in a battle Hard already expects to win.
+  if (!best && player.aiDifficulty === 'hard' && baseline >= 4 && canUse('betray') && player.fleet.length < policy(player).fleetSize) {
+    const { ships } = colonyDefenders(state, player.position);
+    const defector = ships[0];
+    if (defector.durability >= defector.maxDurability / 2 && battleQuality(state, player, 'betray') >= baseline) return 'betray';
   }
   return best;
 }
