@@ -1,7 +1,7 @@
+import { NATIONS } from './nations';
 import type { MapNode, SpecialKind, EventKind, Specialty } from './types';
 
 export const WORLD = { width: 1500, height: 1200 } as const;
-export const NATIONS = ['Spain', 'Netherlands', 'England', 'Portugal', 'China', 'France', 'Japan', 'Germany', 'Italy', 'Korea'] as const;
 const lands = ['Madeira', 'Canary Isles', 'Cape Verde', 'Azores', 'Hispaniola', 'Cuba', 'Yucatan', 'Veracruz', 'Cartagena', 'Guiana', 'Pernambuco', 'Bahia', 'Rio de Janeiro', 'Patagonia', 'Tierra del Fuego', 'Valparaiso', 'Callao', 'Panama', 'Gold Coast', 'Benin', 'Luanda', 'Cape of Good Hope', 'Mozambique', 'Zanzibar', 'Sofala', 'Madagascar', 'Socotra', 'Muscat', 'Goa', 'Calicut', 'Ceylon', 'Malacca', 'Sumatra', 'Java', 'Borneo', 'Moluccas', 'Luzon', 'Formosa', 'Ryukyu', 'Hokkaido'];
 const goods: Specialty[] = ['Wine', 'Sugar', 'Cotton', 'Timber', 'Cocoa', 'Tobacco', 'Silver', 'Spices', 'Silk', 'Tea'];
 const specials: [SpecialKind, string, string][] = [
@@ -16,8 +16,8 @@ const eventNames = ['Treasure Shoal', 'Tempest Passage', 'Zephyr Strait', 'Pirat
 export function createDefaultMap(): MapNode[] {
   const nodes: MapNode[] = [];
   let event = 0;
-  for (let sector = 0; sector < 10; sector++) {
-    nodes.push({ id: 0, name: `${NATIONS[sector]} Port`, nation: NATIONS[sector], kind: 'port', x: 0, y: 0 });
+  for (const [sector, { name: nation }] of NATIONS.entries()) {
+    nodes.push({ id: 0, name: `${nation} Port`, nation, kind: 'port', x: 0, y: 0 });
     for (let j = 0; j < 4; j++) {
       const i = sector * 4 + j;
       const price = Math.round((100 + i * 250 / 39) / 5) * 5;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine, SEA_RULES } from './engine';
 import { createDefaultMap } from './map';
+import { createNationRoster, type Nation } from './nations';
 import type { EventKind, SpecialKind } from './types';
 
 const players = [0, 1].map((i) => ({ name: `Captain ${i}`, color: i, isAI: true }));
@@ -12,6 +13,33 @@ function land(g: GameEngine, id: number) {
 }
 
 describe('living sea board', () => {
+  const nations = ['Spain', 'Netherlands', 'England', 'Portugal', 'China', 'France', 'Japan', 'Germany', 'Italy', 'Korea'] as const satisfies readonly Nation[];
+
+  it.each(nations)('starts a human %s voyage with all other nations at their own ports', (nation) => {
+    const g = new GameEngine({ players: createNationRoster([{ name: 'Navigator', nation }]) });
+    g.start();
+
+    expect(g.currentPlayer).toMatchObject({ name: 'Navigator', nation, isAI: false });
+    expect(g.state.phase).toBe('awaitingSpin');
+    expect(g.state.players.slice(1).map((player) => [player.nation, player.isAI])).toEqual(
+      nations.filter((other) => other !== nation).map((other) => [other, true]),
+    );
+    expect(new Set(g.state.players.map((player) => player.homePort)).size).toBe(nations.length);
+    expect(new Set(g.state.players.map((player) => player.color)).size).toBe(nations.length);
+    for (const player of g.state.players) {
+      expect(player.position).toBe(player.homePort);
+      expect(g.state.map[player.homePort]).toMatchObject({ kind: 'port', nation: player.nation, name: `${player.nation} Port` });
+    }
+  });
+
+  it('preserves multiple distinct human picks and rejects duplicate nations', () => {
+    const picks = [{ name: 'First', nation: 'Korea' }, { name: 'Second', nation: 'Portugal' }] as const;
+    const roster = createNationRoster(picks);
+    expect(roster.filter((player) => !player.isAI)).toMatchObject(picks);
+    expect(roster.slice(2).every((player) => player.isAI)).toBe(true);
+    expect(() => createNationRoster([picks[0], picks[0]])).toThrow('Nation already picked: Korea');
+  });
+
   it.each(['Spain', 'England'])('settles %s home salary only after the ship arrives', (nation) => {
     const g = new GameEngine({ players: [{ ...players[0], nation }], rng: () => 0 });
     const p = g.currentPlayer;

@@ -1,23 +1,17 @@
 import { useState } from 'react';
-import { DEFAULT_CONFIG, type PlayerSetup } from '@happy-voyage/shared';
+import { createNationRoster, DEFAULT_CONFIG, NATIONS, type Nation } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
-import { NATIONS, cssColor } from './nations';
+import { cssColor } from './nations';
 import { SpeedControl } from './SpeedControl';
 import { ShortcutLegend } from './ShortcutLegend';
 
-/** Start screen: pick a name, a nation and how many AI rivals to face. */
+/** Start screen: pick a navigator and their home nation. */
 export function SetupMenu({ onRules }: { onRules: () => void }) {
   const [name, setName] = useState('Captain');
-  const [nation, setNation] = useState(0);
-  const [rivals, setRivals] = useState(2);
+  const [nation, setNation] = useState<Nation>(NATIONS[0].name);
 
   const start = () => {
-    const others = NATIONS.filter((_, i) => i !== nation).slice(0, rivals);
-    const players: PlayerSetup[] = [
-      { name: name.trim() || 'Captain', nation: NATIONS[nation].name, color: NATIONS[nation].color, isAI: false },
-      ...others.map((n) => ({ name: n.name, nation: n.name, color: n.color, isAI: true })),
-    ];
-    gameController.newGame(players);
+    gameController.newGame(createNationRoster([{ name: name.trim() || 'Captain', nation }]));
   };
 
   return (
@@ -35,32 +29,23 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         <input value={name} maxLength={16} onChange={(e) => setName(e.target.value)} />
       </label>
 
-      <div className="field nations">
-        Nation
+      <div className="field nations" role="group" aria-labelledby="nation-label">
+        <span id="nation-label">Nation</span>
         <div className="choices">
-          {NATIONS.map((n, i) => (
+          {NATIONS.map((n) => (
             <button
               key={n.name}
-              className={i === nation ? 'chip selected' : 'chip'}
+              className={n.name === nation ? 'chip selected' : 'chip'}
+              aria-pressed={n.name === nation}
               style={{ borderColor: cssColor(n.color) }}
-              onClick={() => setNation(i)}
+              onClick={() => setNation(n.name)}
             >
               <span className="dot" style={{ background: cssColor(n.color) }} />
               {n.name}
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="field rivals">
-        AI rivals
-        <div className="choices">
-          {[1, 2, 3].map((n) => (
-            <button key={n} className={n === rivals ? 'chip selected' : 'chip'} onClick={() => setRivals(n)}>
-              {n}
-            </button>
-          ))}
-        </div>
+        <small className="nation-note">Start at {nation} Port. The other {NATIONS.length - 1} nations are AI rivals.</small>
       </div>
 
       <button className="setup-rules" onClick={onRules}>How to play</button>
