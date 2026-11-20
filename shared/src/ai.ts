@@ -25,7 +25,8 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
       const distance = position + steps;
       const next = distance % map.length;
       const node = map[next];
-      const afterSalary = cash + Math.floor(distance / map.length) * config.homeSalary;
+      const passes = Array.from({ length: steps }, (_, i) => (position + i + 1) % map.length).filter((id) => id === player.homePort).length;
+      const afterSalary = cash + passes * config.homeSalary;
       const owner = owners[next];
       if (node.event === 'storm') {
         const stormRisk = [50, 75, 100].reduce(

@@ -1,3 +1,4 @@
+@font-face { font-family: 'Sea Names'; src: url('/fonts/sea-names.ttf') format('truetype'); font-display: block; }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }
 body {
@@ -94,3 +95,27 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .standings { width: 100%; font-size: 12px; border-collapse: collapse; margin: 12px 0; }
 .standings caption { color: #6d4c41; margin-bottom: 6px; }
 .standings th, .standings td { text-align: left; padding: 5px 3px; border-bottom: 1px solid #8d6e6355; }
+
+.playing { display: grid; grid-template-columns: minmax(0, 1fr) 310px; grid-template-rows: minmax(0, 1fr); }
+.playing .phaser-container { position: relative; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+.phaser-container canvas { display: block; }
+.playing .overlay { position: relative; display: block; background: #06283d; overflow: auto; padding: 10px; }
+.playing .hud { width: 100%; }
+.chart-controls { display: flex; gap: 6px; }
+.chart-controls button { flex: 1; font-size: 12px; }
+.playing .rules-backdrop { position: fixed; z-index: 20; }
+@media (max-width: 700px) {
+  .playing { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) 285px; height: 100dvh; }
+  .playing .overlay { padding: 5px; }
+  .playing .hud { gap: 4px; }
+  .playing .panel { padding: 5px 8px; border-radius: 7px; }
+  .playing .player-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
+  .playing .player { padding: 2px; font-size: 11px; }
+  .playing .player .stats { font-size: 10px; }
+  .playing .tag { display: none; }
+  .playing .dice { font-size: 24px; }
+  .playing .log { max-height: 43px; font-size: 11px; }
+  .playing .actions p { margin: 2px 0; font-size: 12px; }
+  .playing .actions h2 { font-size: 17px; }
+  .playing .actions button.big { padding: 5px 16px; font-size: 15px; }
+}

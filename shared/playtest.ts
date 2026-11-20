@@ -60,7 +60,7 @@ for (const players of [2, 3, 4]) {
       while (game.state.phase !== 'gameOver') {
         const isChallenger = game.currentPlayer.id === seat;
         game.roll();
-        game.resolveLanding();
+        while (game.state.phase === 'moving') game.resolveLanding();
         if (game.state.phase === 'awaitingClaim') {
           const claim = (isChallenger ? policy : policies.builtIn)(game);
           if (isChallenger) {

@@ -7,6 +7,7 @@ import { PlayerBar } from './ui/PlayerBar';
 import { ActionPanel } from './ui/ActionPanel';
 import { LogPanel } from './ui/LogPanel';
 import { RulesPanel } from './ui/RulesPanel';
+import { EventBus } from './game/EventBus';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
@@ -16,11 +17,12 @@ export function App() {
   const [rulesOpen, setRulesOpen] = useState(false);
 
   return (
-    <div className="app">
+    <div className={`app ${state ? 'playing' : ''}`}>
       <PhaserGame />
       <div className="overlay">
         {state ? (
           <div className="hud">
+            <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>Fit chart</button><button onClick={() => EventBus.emit('follow-ship')}>Follow ship</button></div>
             <PlayerBar state={state} onRules={() => setRulesOpen(true)} />
             <ActionPanel state={state} />
             <LogPanel log={state.log} />

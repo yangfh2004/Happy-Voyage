@@ -1,65 +1,44 @@
-import type { MapNode, NodeKind, EventKind } from './types';
+import type { MapNode, SpecialKind, EventKind } from './types';
 
-/**
- * The default sea route: a closed loop of stops, Monopoly-style. Stop 0 is
- * the home port. To add stops, append rows here; positions are computed.
- */
-type Row =
-  | [NodeKind & 'port', string]
-  | [NodeKind & 'island', string, number, string]
-  | [NodeKind & 'event', string, EventKind];
-
-const ROUTE: Row[] = [
-  ['port', 'Royal Harbor'],
-  ['island', 'Madeira', 120, 'Wine'],
-  ['island', 'Canary Isles', 130, 'Sugar'],
-  ['event', 'Treasure Shoal', 'treasure'],
-  ['island', 'Cape Verde', 140, 'Cotton'],
-  ['island', 'Gold Coast', 160, 'Gold Dust'],
-  ['island', 'Angola', 170, 'Ivory'],
-  ['event', 'Storm Front', 'storm'],
-  ['island', 'Brazil', 190, 'Coffee'],
-  ['island', 'Caribbean', 200, 'Tobacco'],
-  ['island', 'Mexico', 210, 'Cocoa'],
-  ['event', 'Trade Winds', 'tradeWind'],
-  ['island', 'Peru', 230, 'Silver'],
-  ['island', 'Patagonia', 220, 'Furs'],
-  ['event', 'Treasure Shoal', 'treasure'],
-  ['island', 'Moluccas', 260, 'Spices'],
-  ['island', 'Java', 250, 'Coffee'],
-  ['island', 'Ceylon', 270, 'Tea'],
-  ['event', 'Storm Front', 'storm'],
-  ['island', 'Malacca', 280, 'Spices'],
-  ['island', 'India', 300, 'Silk'],
-  ['event', 'Trade Winds', 'tradeWind'],
-  ['island', 'Arabia', 290, 'Incense'],
-  ['island', 'Zanzibar', 310, 'Ivory'],
+export const WORLD = { width: 1500, height: 1200 } as const;
+export const NATIONS = ['Spain', 'Netherlands', 'England', 'Portugal', 'China', 'France', 'Japan', 'Germany', 'Italy', 'Korea'] as const;
+const lands = ['Madeira', 'Canary Isles', 'Cape Verde', 'Azores', 'Hispaniola', 'Cuba', 'Yucatan', 'Veracruz', 'Cartagena', 'Guiana', 'Pernambuco', 'Bahia', 'Rio de Janeiro', 'Patagonia', 'Tierra del Fuego', 'Valparaiso', 'Callao', 'Panama', 'Gold Coast', 'Benin', 'Luanda', 'Cape of Good Hope', 'Mozambique', 'Zanzibar', 'Sofala', 'Madagascar', 'Socotra', 'Muscat', 'Goa', 'Calicut', 'Ceylon', 'Malacca', 'Sumatra', 'Java', 'Borneo', 'Moluccas', 'Luzon', 'Formosa', 'Ryukyu', 'Hokkaido'];
+const goods = ['Wine', 'Sugar', 'Cotton', 'Timber', 'Cocoa', 'Tobacco', 'Silver', 'Spices', 'Silk', 'Tea'];
+const specials: [SpecialKind, string, string][] = [
+  ['skeleton', 'Skeleton Island', '骷髅岛'], ['treasure', 'Treasure Island', '金银岛'],
+  ['mist', 'Mist Island', '迷雾岛'], ['revival', 'Revival Island', '复活岛'],
+  ['nightless', 'Nightless Island', '不夜岛'], ['wind', 'Wind Island', '风之岛'],
+  ['dragonSnake', 'Dragon Snake Island', '龙蛇岛'],
 ];
-
-/** World size the renderer uses; nodes are laid out on a wobbly ellipse inside it. */
-export const WORLD = { width: 1280, height: 720 } as const;
+const events: EventKind[] = ['treasure', 'storm', 'tradeWind', 'pirates', 'seaMonster', 'whirlpool', 'bottle', 'floatingCargo', 'merchant', 'wyvern', 'storm', 'tradeWind', 'treasure'];
+const eventNames = ['Treasure Shoal', 'Tempest Passage', 'Zephyr Strait', 'Pirate Cove', 'Kraken Deep', 'Bermuda Triangle', 'Drifting Bottle Reef', 'Castaway Cargo Bay', 'Merchant Lane', 'Wyvern Cliffs', 'Thunderhead Reach', 'Monsoon Channel', 'Sunken Crown Shoal'];
 
 export function createDefaultMap(): MapNode[] {
-  const cx = WORLD.width / 2;
-  const cy = WORLD.height / 2 + 10;
-  return ROUTE.map((row, id) => {
-    // Start at the bottom-left and sail clockwise.
-    const theta = Math.PI * 0.75 + (id / ROUTE.length) * Math.PI * 2;
-    const wobble = 1 + 0.07 * Math.sin(id * 2.3);
-    const node: MapNode = {
-      id,
-      name: row[1],
-      kind: row[0],
-      x: Math.round(cx + 540 * wobble * Math.cos(theta)),
-      y: Math.round(cy + 270 * wobble * Math.sin(theta)),
-    };
-    if (row[0] === 'island') {
-      node.price = row[2];
-      node.toll = Math.round(row[2] * 0.4);
-      node.specialty = row[3];
-    } else if (row[0] === 'event') {
-      node.event = row[2];
+  const nodes: MapNode[] = [];
+  let event = 0;
+  for (let sector = 0; sector < 10; sector++) {
+    nodes.push({ id: 0, name: `${NATIONS[sector]} Port`, nation: NATIONS[sector], kind: 'port', x: 0, y: 0 });
+    for (let j = 0; j < 4; j++) {
+      const i = sector * 4 + j;
+      const price = Math.round((100 + i * 250 / 39) / 5) * 5;
+      nodes.push({ id: 0, name: lands[i], kind: 'island', price, toll: Math.round(price * 0.35), specialty: goods[i % goods.length], x: 0, y: 0 });
+      if (j === 1 && sector < 7) {
+        const [special, name, chineseName] = specials[sector];
+        nodes.push({ id: 0, name, chineseName, special, kind: 'special', x: 0, y: 0 });
+      }
+      if (j === 2 || (j === 3 && sector >= 7)) {
+        const kind = events[event];
+        nodes.push({ id: 0, name: eventNames[event++], event: kind, kind: 'event', x: 0, y: 0 });
+      }
     }
-    return node;
+  }
+  return nodes.map((node, id) => {
+    if (id >= 64) return { ...node, id, x: 80, y: 1070 - (id - 64) * 196 };
+    // Outbound lanes wind east and west; the western margin carries the return leg.
+    const lane = Math.floor(id / 8);
+    const column = id % 8;
+    const x = 260 + (lane % 2 === 0 ? column : 7 - column) * 160;
+    const y = 90 + lane * 140 + Math.sin(column * Math.PI / 3.5) * 12;
+    return { ...node, id, x, y };
   });
 }

@@ -5,16 +5,23 @@ import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules
 import type { GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
-  startingGold: 750,
-  homeSalary: 200,
-  islandsToWin: 8,
-  maxRounds: 30,
+  startingGold: 1400,
+  homeSalary: 400,
+  islandsToWin: 10,
+  maxRounds: 50,
 };
 
 export const EVENT_GOLD = {
   treasure: { min: 50, max: 200, step: 50 },
   storm: { min: 50, max: 100, step: 25 },
   tradeWind: { base: 50, perColony: 30 },
+} as const;
+
+export const SEA_RULES = {
+  foreignTax: 40, tribute: 35, scrap: 60, ticket: 40, lotteryPrize: 300,
+  lotteryChance: 0.25, nimStones: 12, nimPrize: 130, marketPerColony: 35,
+  barterPerColony: 25, captainPrice: 45, pirates: 80, seaMonster: 110,
+  whirlpoolLoss: 60, whirlpoolSteps: 4, bottle: 70, floatingCargo: 100, merchantPerColony: 40,
 } as const;
 
 export interface EngineOptions {
@@ -39,6 +46,7 @@ export class GameEngine {
   readonly state: GameState;
   private readonly rng: Rng;
   private readonly listeners = new Set<Listener>();
+  private relocations = 0;
 
   constructor(options: EngineOptions) {
     if (options.players.length < 1) throw new Error('At least one player is required');
@@ -52,7 +60,10 @@ export class GameEngine {
         ...p,
         id,
         gold: config.startingGold,
-        position: 0,
+        position: map.filter((n) => n.kind === 'port')[id]?.id ?? 0,
+        homePort: map.filter((n) => n.kind === 'port')[id]?.id ?? 0,
+        revivalProtection: false,
+        captain: false,
         bankrupt: false,
       })),
       owners: map.map(() => null),
@@ -97,6 +108,7 @@ export class GameEngine {
   /** Roll two dice and move the current fleet. Returns the nodes visited, in order. */
   roll(): number[] {
     this.assertPhase('awaitingRoll');
+    this.relocations = 0;
     const player = this.currentPlayer;
     const dice = rollDice(this.rng);
     this.state.lastRoll = dice;
@@ -108,7 +120,7 @@ export class GameEngine {
     for (let i = 1; i <= steps; i++) path.push((player.position + i) % size);
 
     // Each pass of (or landing on) the home port pays the royal salary.
-    const homePasses = path.filter((id) => id === 0).length;
+    const homePasses = path.filter((id) => id === player.homePort).length;
     if (homePasses > 0) this.changeGold(player, this.state.config.homeSalary * homePasses, 'royal salary');
 
     player.position = path[path.length - 1];
@@ -126,10 +138,19 @@ export class GameEngine {
 
     switch (node.kind) {
       case 'port':
-        this.log(`${player.name} is received by the court at ${node.name}.`);
+        if (node.id !== player.homePort) {
+          const host = this.state.players.find((p) => p.homePort === node.id && !p.bankrupt);
+          const paid = Math.min(player.gold, SEA_RULES.foreignTax);
+          this.log(`${player.name} pays ${SEA_RULES.foreignTax}g foreign tax to ${host?.name ?? 'the crown'} at ${node.name}.`);
+          this.changeGold(player, -SEA_RULES.foreignTax, 'foreign tax');
+          if (host) this.changeGold(host, paid, 'foreign tax');
+        } else this.log(`${player.name} returns to their home port.`);
+        break;
+      case 'special':
+        this.resolveSpecial(player, node);
         break;
       case 'event':
-        this.resolveEvent(player, node);
+        if (this.resolveEvent(player, node)) return;
         break;
       case 'island': {
         const owner = this.state.owners[node.id];
@@ -182,8 +203,109 @@ export class GameEngine {
 
   // --- internals -----------------------------------------------------------
 
-  private resolveEvent(player: Player, node: MapNode): void {
+  private resolveSpecial(player: Player, node: MapNode): void {
+    const r = SEA_RULES;
+    const colonies = this.islandsOwnedBy(player.id);
+    this.log(`${player.name} visits ${node.name} (${node.chineseName ?? ''}).`);
+    switch (node.special) {
+      case 'skeleton':
+        if (player.gold >= r.tribute) {
+          this.log(`The pirates demand tribute from ${player.name} at their second-hand ship market.`);
+          this.changeGold(player, -r.tribute, 'pirate tribute');
+        } else {
+          this.log(`The pirates buy ${player.name}'s scrap ship fittings.`);
+          this.changeGold(player, r.scrap, 'scrap sale');
+        }
+        break;
+      case 'treasure':
+        if (player.gold < r.ticket) { this.log(`${player.name} cannot afford a lottery ticket.`); break; }
+        this.changeGold(player, -r.ticket, 'lottery ticket');
+        if (this.rng() < r.lotteryChance) {
+          this.log(`${player.name}'s lottery ticket wins the grand prize!`);
+          this.changeGold(player, r.lotteryPrize, 'lottery prize');
+        } else this.log(`${player.name}'s lottery ticket wins no prize.`);
+        break;
+      case 'mist': {
+        let stones: number = r.nimStones;
+        let human = true;
+        while (stones > 0) {
+          const optimal = (stones - 1) % 4;
+          const take = human ? 1 + Math.floor(this.rng() * Math.min(3, stones)) : (optimal || 1);
+          stones -= take;
+          if (stones <= 0) break;
+          human = !human;
+        }
+        this.log(`${player.name} plays hermit Nim: take 1–3 stones, last loses. ${human ? 'The hermit wins.' : `${player.name} wins the prize!`}`);
+        if (!human) this.changeGold(player, r.nimPrize, 'Nim prize');
+        break;
+      }
+      case 'revival':
+        player.revivalProtection = true;
+        this.log(`${player.name} gets full repair! Revival protection blocks ${player.name}'s next sea hazard.`);
+        break;
+      case 'nightless':
+        this.log(`The 24-hour market buys specialties from ${player.name}'s ${colonies} colonies.`);
+        this.changeGold(player, colonies * r.marketPerColony, 'specialty market');
+        break;
+      case 'wind': {
+        const multiplier = 1 + Math.floor(this.rng() * 3);
+        this.log(`Native barter offers ${player.name} a ${multiplier}× exchange for ${colonies} colonies.`);
+        this.changeGold(player, colonies * r.barterPerColony * multiplier, 'native barter');
+        break;
+      }
+      case 'dragonSnake':
+        if (player.gold < r.captainPrice) { this.log(`${player.name} cannot afford to recruit a captain.`); break; }
+        this.changeGold(player, -r.captainPrice, 'captain recruitment');
+        player.captain = true;
+        this.log(`A captain joins ${player.name}: their next colony toll is halved.`);
+        break;
+    }
+  }
+
+  private resolveEvent(player: Player, node: MapNode): boolean {
+    if (['storm', 'pirates', 'seaMonster', 'whirlpool', 'wyvern'].includes(node.event ?? '') && player.revivalProtection) {
+      player.revivalProtection = false;
+      this.log(`Revival protection shields ${player.name} from ${node.event}.`);
+      return false;
+    }
     switch (node.event) {
+      case 'pirates':
+      case 'seaMonster':
+        this.log(`${node.event === 'pirates' ? 'Pirates raid' : 'A sea monster attacks'} ${player.name}'s fleet.`);
+        this.changeGold(player, -SEA_RULES[node.event], node.event);
+        break;
+      case 'bottle':
+      case 'floatingCargo':
+        this.log(`${player.name} recovers ${node.event === 'bottle' ? 'a bottled reward chart' : 'floating cargo'}.`);
+        this.changeGold(player, SEA_RULES[node.event], node.event);
+        break;
+      case 'merchant':
+        this.log(`A merchant buys specialties from ${player.name}.`);
+        this.changeGold(player, SEA_RULES.merchantPerColony * this.islandsOwnedBy(player.id), 'merchant');
+        break;
+      case 'whirlpool':
+      case 'wyvern': {
+        if (node.event === 'whirlpool' && this.rng() < 0.33) {
+          this.log(`Bermuda whirlpool damages ${player.name}'s fleet.`);
+          this.changeGold(player, -SEA_RULES.whirlpoolLoss, 'whirlpool');
+          break;
+        }
+        const size = this.state.map.length;
+        if (this.relocations++ >= 4) { this.log(`${player.name}'s fleet escapes the circling currents and rests.`); break; }
+        let target = Math.floor(this.rng() * size);
+        let path = [target];
+        if (node.event === 'whirlpool') {
+          const direction = this.rng() < 0.5 ? -1 : 1;
+          path = Array.from({ length: SEA_RULES.whirlpoolSteps }, (_, i) => (player.position + direction * (i + 1) + size * SEA_RULES.whirlpoolSteps) % size);
+          target = path[path.length - 1];
+        }
+        player.position = target;
+        this.log(`${node.event === 'wyvern' ? 'A wyvern carries' : 'Bermuda currents push'} ${player.name}'s fleet to ${this.node(target).name}.`);
+        const homePasses = path.filter((id) => id === player.homePort).length;
+        if (homePasses) this.changeGold(player, this.state.config.homeSalary * homePasses, 'royal salary');
+        this.emit({ type: 'moved', playerId: player.id, path });
+        return true;
+      }
       case 'treasure': {
         const { min, max, step } = EVENT_GOLD.treasure;
         const amount = min + Math.floor(this.rng() * ((max - min) / step + 1)) * step;
@@ -205,13 +327,17 @@ export class GameEngine {
         break;
       }
     }
+    return false;
   }
 
   private payToll(player: Player, owner: Player, node: MapNode): void {
-    const amount = Math.min(node.toll ?? 0, Math.max(player.gold, 0));
-    this.changeGold(player, -(node.toll ?? 0), `toll at ${node.name}`);
+    const toll = player.captain ? Math.ceil((node.toll ?? 0) / 2) : node.toll ?? 0;
+    if (player.captain) this.log(`${player.name}'s captain negotiates half the toll.`);
+    player.captain = false;
+    const amount = Math.min(toll, Math.max(player.gold, 0));
+    this.changeGold(player, -toll, `toll at ${node.name}`);
     this.changeGold(owner, amount, `toll at ${node.name}`);
-    this.log(`${player.name} pays ${node.toll}g toll to ${owner.name} at ${node.name}.`);
+    this.log(`${player.name} pays ${toll}g toll to ${owner.name} at ${node.name}.`);
     this.emit({ type: 'tollPaid', from: player.id, to: owner.id, amount });
   }
 

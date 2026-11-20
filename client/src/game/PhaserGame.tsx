@@ -7,8 +7,17 @@ export function PhaserGame() {
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const game = new Phaser.Game(createGameConfig(container.current!));
-    return () => game.destroy(true);
+    let game: Phaser.Game | undefined;
+    let disposed = false;
+    const observer = new ResizeObserver(([entry]) => {
+      game?.scale.resize(entry.contentRect.width, entry.contentRect.height);
+    });
+    void document.fonts.load('14px "Sea Names"').then(() => {
+      if (disposed) return;
+      game = new Phaser.Game(createGameConfig(container.current!));
+      observer.observe(container.current!);
+    });
+    return () => { disposed = true; observer.disconnect(); game?.destroy(true); };
   }, []);
 
   return <div ref={container} className="phaser-container" />;

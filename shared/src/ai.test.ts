@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { aiShouldClaim } from './ai';
 import { GameEngine } from './engine';
-import { createDefaultMap } from './map';
+import { forecastMap } from './testMap';
 
 function claimOffer(maxRounds = 30, islandsToWin = 8, nodeId = 17) {
   const engine = new GameEngine({
@@ -10,6 +10,7 @@ function claimOffer(maxRounds = 30, islandsToWin = 8, nodeId = 17) {
       { name: 'Captain', color: 1, isAI: false },
     ],
     config: { maxRounds, islandsToWin },
+    map: forecastMap(),
   });
   const { state, currentPlayer: player } = engine;
   const node = state.map[nodeId];
@@ -48,7 +49,7 @@ describe('AI colony decisions', () => {
   });
 
   it('counts multiple salaries on one roll when forecasting toll risk on a short route', () => {
-    const route = createDefaultMap();
+    const route = forecastMap();
     const map = [route[0], route[1], { ...route[2], toll: 100 }, { ...route[4], id: 3 }];
     const game = new GameEngine({
       players: [

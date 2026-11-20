@@ -4,7 +4,15 @@ import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 
 const STEP_MS = 200;
-const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈' };
+const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', seaMonster: 'M', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
+const SPECIAL_SYMBOL: Record<string, string> = { skeleton: '☠', treasure: '◆', mist: '☁', revival: '✚', nightless: '☾', wind: '≋', dragonSnake: '♜' };
+const PORT_FLAGS: Record<string, [number, number, number]> = {
+  Spain: [0xc62632, 0xf6c945, 0xc62632], Netherlands: [0xc62632, 0xffffff, 0x23478e],
+  England: [0xffffff, 0xc62632, 0xffffff], Portugal: [0x147549, 0xc62632, 0xc62632],
+  China: [0xc62632, 0xc62632, 0xc62632], France: [0x23478e, 0xffffff, 0xc62632],
+  Japan: [0xffffff, 0xffffff, 0xffffff], Germany: [0x202020, 0xc62632, 0xf6c945],
+  Italy: [0x147549, 0xffffff, 0xc62632], Korea: [0xffffff, 0xffffff, 0xffffff],
+};
 
 /** Small offsets so several fleets on one stop don't overlap. */
 const TOKEN_OFFSETS = [
@@ -20,11 +28,8 @@ const TOKEN_OFFSETS = [
  * reports when a move animation finishes.
  */
 export class OceanScene extends Phaser.Scene {
-  private map: MapNode[] = createDefaultMap().map((node) => ({
-    ...node,
-    x: WORLD.width / 2 + (node.x - WORLD.width / 2) * 0.9,
-    y: WORLD.height / 2 + 10 + (node.y - WORLD.height / 2 - 10) * 0.9,
-  }));
+  private map: MapNode[] = createDefaultMap();
+  private following = true;
   private ships = new Map<number, Phaser.GameObjects.Image>();
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
@@ -36,6 +41,39 @@ export class OceanScene extends Phaser.Scene {
   }
 
   create() {
+    this.input.addPointer(1);
+    const fit = () => {
+      const camera = this.cameras.main;
+      camera.setSize(this.game.canvas.parentElement!.clientWidth, this.game.canvas.parentElement!.clientHeight);
+      camera.setZoom(Math.min(camera.width / WORLD.width, camera.height / WORLD.height));
+      camera.centerOn(WORLD.width / 2, WORLD.height / 2);
+      this.following = false;
+    };
+    fit();
+    this.following = this.scale.width < 700;
+    if (this.following) this.cameras.main.setZoom(0.95);
+    const zoom = (factor: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom * factor, 0.16, 2));
+    this.input.on('wheel', (_p: unknown, _o: unknown, _x: number, dy: number) => { zoom(dy > 0 ? 0.9 : 1.1); });
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.isDown) return;
+      this.following = false;
+      const a = this.input.pointer1;
+      const b = this.input.pointer2;
+      if (a.isDown && b.isDown) {
+        const now = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
+        const before = Phaser.Math.Distance.Between(a.prevPosition.x, a.prevPosition.y, b.prevPosition.x, b.prevPosition.y);
+        if (before > 0) zoom(now / before);
+      } else {
+        this.cameras.main.scrollX -= (pointer.x - pointer.prevPosition.x) / this.cameras.main.zoom;
+        this.cameras.main.scrollY -= (pointer.y - pointer.prevPosition.y) / this.cameras.main.zoom;
+      }
+    });
+    const onFit = () => fit();
+    const onFollow = () => { this.following = true; this.cameras.main.setZoom(0.95); this.syncFromState(); };
+    const onResize = () => { if (this.scale.width >= 700) fit(); else onFollow(); };
+    this.scale.on('resize', onResize);
+    EventBus.on('fit-chart', onFit);
+    EventBus.on('follow-ship', onFollow);
     this.drawOcean();
     this.drawRoute();
     this.flags = this.add.graphics();
@@ -49,6 +87,9 @@ export class OceanScene extends Phaser.Scene {
     const onGold = (event: Extract<GameEvent, { type: 'goldChanged' }>) => this.showGold(event);
     EventBus.on('gold-changed', onGold);
     const cleanup = () => {
+      this.scale.off('resize', onResize);
+      EventBus.off('fit-chart', onFit);
+      EventBus.off('follow-ship', onFollow);
       this.goldPopups.clear();
       EventBus.off('state-changed', onState);
       EventBus.off('animate-move', onMove);
@@ -64,6 +105,9 @@ export class OceanScene extends Phaser.Scene {
     const bg = this.add.graphics();
     bg.fillGradientStyle(0x1e88c7, 0x1e88c7, 0x0a3d62, 0x0a3d62, 1);
     bg.fillRect(0, 0, WORLD.width, WORLD.height);
+    ['ATLANTIC OCEAN', 'THE AMERICAS', 'AFRICA · INDIAN OCEAN', 'ASIAN SEAS'].forEach((name, i) => {
+      this.add.text(WORLD.width / 2, 24 + i * 280, name, { fontFamily: 'Georgia', fontSize: '24px', color: '#b8dfdd' }).setOrigin(0.5).setAlpha(0.4);
+    });
 
     // Drifting wave crests.
     for (let i = 0; i < 45; i++) {
@@ -103,39 +147,54 @@ export class OceanScene extends Phaser.Scene {
   private drawStops() {
     for (const node of this.map) {
       if (node.kind === 'island') {
-        this.add.image(node.x, node.y, 'island');
+        this.add.image(node.x, node.y, 'island').setScale(1.2);
       } else if (node.kind === 'port') {
         const g = this.add.graphics();
+        const flag = this.add.graphics({ x: 50, y: 27 });
+        const nation = node.nation ?? '';
+        const stripes = PORT_FLAGS[nation] ?? [0xffffff, 0xffffff, 0xffffff];
+        const vertical = ['Portugal', 'France', 'Italy'].includes(nation);
+        stripes.forEach((color, i) => {
+          flag.fillStyle(color).fillRect(node.x - 21 + (vertical ? i * 14 : 0), node.y - 55 + (vertical ? 0 : i * 8), vertical ? 14 : 42, vertical ? 24 : 8);
+        });
+        if (nation === 'England') flag.fillStyle(0xc62632).fillRect(node.x - 4, node.y - 55, 8, 24);
+        if (nation === 'Japan' || nation === 'Korea') {
+          flag.fillStyle(0xc62632).fillCircle(node.x, node.y - 43, 7);
+          if (nation === 'Korea') flag.fillStyle(0x23478e).fillCircle(node.x, node.y - 40, 4);
+        }
+        if (nation === 'China') flag.fillStyle(0xf6c945).fillCircle(node.x - 11, node.y - 48, 4);
+        flag.lineStyle(1, 0x06283d).strokeRect(node.x - 21, node.y - 55, 42, 24);
         g.fillStyle(0x8d6e63).fillRoundedRect(node.x - 26, node.y - 22, 52, 44, 8);
         g.fillStyle(0xffd54f).fillRect(node.x - 16, node.y - 12, 32, 24);
         g.fillStyle(0x6d4c41).fillRect(node.x - 5, node.y - 2, 10, 14);
-        g.fillStyle(0xd32f2f).fillTriangle(node.x, node.y - 40, node.x, node.y - 26, node.x + 14, node.y - 33);
-        g.lineStyle(2, 0x3e2723).lineBetween(node.x, node.y - 40, node.x, node.y - 22);
+        flag.lineStyle(2, 0x3e2723).lineBetween(node.x - 21, node.y - 55, node.x - 21, node.y - 22);
+      } else if (node.kind === 'special') {
+        const colors = [0x9c4778, 0xe2b634, 0x8074ae, 0x38a58c, 0x494c9d, 0x41a9bf, 0xc65d42];
+        const index = Object.keys(SPECIAL_SYMBOL).indexOf(node.special ?? '');
+        this.add.graphics().fillStyle(colors[index] ?? 0xffffff).fillCircle(node.x, node.y, 28).lineStyle(3, 0xffedbe).strokeCircle(node.x, node.y, 28);
+        this.add.text(node.x, node.y, SPECIAL_SYMBOL[node.special ?? ''] ?? '★', { fontSize: '26px' }).setOrigin(0.5);
       } else {
         const g = this.add.graphics();
-        g.fillStyle(node.event === 'storm' ? 0x37474f : 0xffb300, 0.95).fillCircle(node.x, node.y, 18);
-        g.lineStyle(2, 0xffffff, 0.8).strokeCircle(node.x, node.y, 18);
+        g.fillStyle(node.event === 'storm' ? 0x37474f : 0xffb300, 0.95).fillCircle(node.x, node.y, 23);
+        g.lineStyle(2, 0xffffff, 0.8).strokeCircle(node.x, node.y, 23);
         this.add
           .text(node.x, node.y, EVENT_SYMBOL[node.event ?? ''] ?? '?', { fontSize: '20px', fontStyle: 'bold', color: '#fff' })
           .setOrigin(0.5);
       }
 
-      const angle = Math.atan2(node.y - WORLD.height / 2 - 10, node.x - WORLD.width / 2);
-      const label = node.kind === 'island' ? `${node.name}\n${node.price}g · toll ${node.toll}g` : node.name;
+      const label = node.kind === 'island' ? `${node.name}\n${node.price}g · ${node.toll}g` : `${node.name}${node.chineseName ? `\n${node.chineseName}` : ''}`;
       const text = this.add
         .text(0, 0, label, {
-          fontFamily: 'Georgia, serif',
-          fontSize: '13px',
+          fontFamily: 'Georgia, "Sea Names", serif',
+          fontSize: '19px',
+          wordWrap: { width: 146 },
           color: '#ffffff',
           align: 'center',
           stroke: '#06283d',
           strokeThickness: 4,
         })
         .setOrigin(0.5);
-      const dx = Math.cos(angle);
-      const dy = Math.sin(angle);
-      const distance = 36 + Math.abs(dx) * text.width / 2 + Math.abs(dy) * text.height / 2;
-      text.setPosition(node.x + dx * distance, node.y + dy * distance);
+      text.setPosition(node.x, node.y + 35).setOrigin(0.5, 0);
     }
   }
 
@@ -175,6 +234,7 @@ export class OceanScene extends Phaser.Scene {
 
     // Ring under the fleet whose turn it is.
     const current = this.ships.get(state.currentPlayer);
+    if (current && this.following && this.animatingPlayer === null) this.cameras.main.centerOn(current.x, current.y);
     if (current && state.phase !== 'gameOver') {
       this.marker.lineStyle(3, 0xffffff, 0.9).strokeCircle(current.x, current.y + 2, 20);
     }
@@ -187,6 +247,7 @@ export class OceanScene extends Phaser.Scene {
     this.marker.clear();
     for (const nodeId of path) {
       const [x, y] = this.tokenPosition(playerId, nodeId);
+      if (this.following) this.cameras.main.pan(x, y, STEP_MS);
       ship.setFlipX(x < ship.x);
       await new Promise<void>((resolve) =>
         this.tweens.add({ targets: ship, x, y, duration: STEP_MS, ease: 'Sine.easeInOut', onComplete: () => resolve() }),
