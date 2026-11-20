@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CAPTAINS, MAX_CAPTAINS, captainDescriptionText, captainName, rankName, type GameState } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { gameController } from '../game/GameController';
+import { StatTooltip } from './StatTooltip';
 
 export function RecruitPanel({ state }: { state: GameState }) {
   const [error, setError] = useState('');
@@ -15,7 +16,7 @@ export function RecruitPanel({ state }: { state: GameState }) {
   return <section aria-labelledby="recruit-title">
     <h2 id="recruit-title">{t("Dragon Snake Island · Sailors' tavern", '龙蛇岛 · 水手酒馆')}</h2>
     <p>{t('Talk to sailors and recruit one captain. Bonuses last while aboard; higher royal ranks unlock better captains.', '与水手交谈并招募一位船长。船长在船上时加成持续有效；王室官阶越高，可招募的船长越好。')}</p>
-    <p>{t('Captains aboard: {n}/{m}. Treasury: {g}g.', '船上的船长：{n}/{m}。金库：{g} 金币。', { n: player.captains.length, m: MAX_CAPTAINS, g: player.gold })}</p>
+    <p><StatTooltip stat="captains">{t('Captains aboard: {n}/{m}', '船上的船长：{n}/{m}', { n: player.captains.length, m: MAX_CAPTAINS })}</StatTooltip>{t('. ', '。')}<StatTooltip stat="gold">{t('Treasury: {g}g', '金库：{g} 金币', { g: player.gold })}</StatTooltip>{t('.', '。')}</p>
     {full && <p>{t('Crew is full. No more captains can join.', '船员已满，无法再招募船长。')}</p>}
     {error && <p role="alert">{error}</p>}
     {(state.pendingRecruits ?? []).map((id, index) => {

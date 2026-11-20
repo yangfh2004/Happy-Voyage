@@ -1,5 +1,6 @@
 import { campaignStage, missionText, stageText, type CampaignState } from '@happy-voyage/shared';
 import { useT } from '../i18n';
+import { StatTooltip } from './StatTooltip';
 
 export function CampaignPanel({ campaign }: { campaign: CampaignState }) {
   const stage = campaignStage(campaign.stage);
@@ -16,7 +17,7 @@ export function CampaignPanel({ campaign }: { campaign: CampaignState }) {
           return (
             <li key={mission.objective}>
               <span>{missionText(stage.id, mission.objective, locale)}</span>
-              <small>{complete ? t('Complete · {g}g awarded', '已完成 · 已奖励 {g} 金币', { g: mission.reward }) : t('{p} / {n} · {g}g reward', '{p} / {n} · 奖励 {g} 金币', { p: progress, n: mission.target, g: mission.reward })}</small>
+              <small><StatTooltip stat="progress">{complete ? t('Complete · {g}g awarded', '已完成 · 已奖励 {g} 金币', { g: mission.reward }) : t('{p} / {n} · {g}g reward', '{p} / {n} · 奖励 {g} 金币', { p: progress, n: mission.target, g: mission.reward })}</StatTooltip></small>
             </li>
           );
         })}

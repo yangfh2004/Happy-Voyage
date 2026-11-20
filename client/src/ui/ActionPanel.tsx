@@ -11,15 +11,16 @@ import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
-import { CAMPAIGN_STAGES, buildingDescription, buildingName, campaignStage, goodName, nationName, nodeName, playerName, shipName, shipTypeName, stageText, strategyText } from '@happy-voyage/shared';
+import { CAMPAIGN_STAGES, SPIN_COMPASS_LABEL, buildingDescription, buildingName, campaignStage, chartIdentity, goodName, nationName, nodeName, playerName, shipName, shipTypeName, stageText, strategyText } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { seatTag } from './seats';
+import { StatTooltip } from './StatTooltip';
 
 const BUILDING_SIZES = { en: ['None', 'Small', 'Medium', 'Large'], zh: ['无', '小型', '中型', '大型'] };
 
 /** What the human can do right now: spin, claim or decline, or start over. */
-export function ActionPanel({ state }: { state: GameState }) {
+export function ActionPanel({ state, colorBlind = false }: { state: GameState; colorBlind?: boolean }) {
   const { t, l, locale } = useT();
   const name = (p: { name: string; navigator?: string }) => playerName(p, locale);
   const at = (id: number) => nodeName(state.map[id], locale);
@@ -42,7 +43,7 @@ export function ActionPanel({ state }: { state: GameState }) {
   if (handoff && state.phase !== 'gameOver') {
     return (
       <div className="panel actions handoff" role="dialog" aria-label={t('Pass the device', '传递设备')}>
-        {handoff.navigator && <NavigatorPortrait navigator={handoff.navigator} color={handoff.color} size={64} />}
+        {handoff.navigator && <NavigatorPortrait navigator={handoff.navigator} color={chartIdentity(handoff, colorBlind).color} size={64} />}
         {gameController.handoffNote && (
           <div className={`headline ${gameController.handoffNote.tone}`}>
             {name(state.players[gameController.handoffNote.playerId])}{t(': ', '：')}{l(gameController.handoffNote.message, state)}
@@ -91,7 +92,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         <p>{lastLog()}</p>
         <table className="standings">
           <caption>{t('Final standings · winner first, then afloat navigators by net worth', '最终排名 · 胜者优先，其余仍在海上的航海家按身家排序')}</caption>
-          <thead><tr><th>{t('Navigator', '航海家')}</th><th>{t('Gold', '金币')}</th><th>{t('Islands', '岛屿')}</th><th>{t('Net worth', '身家')}</th><th>{t('Status', '状态')}</th></tr></thead>
+          <thead><tr><th>{t('Navigator', '航海家')}</th><th><StatTooltip stat="gold">{t('Gold', '金币')}</StatTooltip></th><th><StatTooltip stat="islands">{t('Islands', '岛屿')}</StatTooltip></th><th><StatTooltip stat="netWorth">{t('Net worth', '身家')}</StatTooltip></th><th>{t('Status', '状态')}</th></tr></thead>
           <tbody>{state.players.map((p) => ({
             ...p,
             islands: gameController.islandsOwnedBy(p.id),
@@ -118,7 +119,7 @@ export function ActionPanel({ state }: { state: GameState }) {
       <>
         <p>{t('Your turn, {p}.', '轮到你了，{p}。', { p: name(player) })}</p>
         <button className="primary big" onClick={() => gameController.spinCompass()}>
-          {t('Spin compass', '转动罗盘')} <kbd>Space / Enter</kbd>
+          {l(SPIN_COMPASS_LABEL)} <kbd>Space / Enter</kbd>
         </button>
       </>
     );
@@ -129,17 +130,17 @@ export function ActionPanel({ state }: { state: GameState }) {
   } else if (state.phase === 'awaitingMarket') {
     body = <>
       <h2>{t('Skeleton Island ship market', '骷髅岛船只市场')}</h2>
-      <p>{t('Treasury {g}g · Second-hand ships have {d}% durability.', '金库 {g} 金币 · 二手船只有 {d}% 耐久。', { g: player.gold, d: USED_SHIP_CONDITION * 100 })}</p>
+      <p><StatTooltip stat="gold">{t('Treasury {g}g', '金库 {g} 金币', { g: player.gold })}</StatTooltip> · {t('Second-hand ships have', '二手船只有')} <StatTooltip stat="durability">{t('{d}% durability', '{d}% 耐久', { d: USED_SHIP_CONDITION * 100 })}</StatTooltip>{t('.', '。')}</p>
       <h3>{t('Pirate stock', '海盗库存')}</h3>
       {state.marketStock.length === 0 && <p>{t('Sold out. New stock arrives next visit.', '已售罄。下次造访时会有新货。')}</p>}
       {state.marketStock.map((type) => <div className="building-option" key={type}>
-        <strong>{shipTypeName(type, locale)}</strong> · {Math.floor(SHIP_TYPES[type].maxDurability * USED_SHIP_CONDITION)}/{SHIP_TYPES[type].maxDurability} {t('durability', '耐久')}
+        <strong>{shipTypeName(type, locale)}</strong> · <StatTooltip stat="durability">{Math.floor(SHIP_TYPES[type].maxDurability * USED_SHIP_CONDITION)}/{SHIP_TYPES[type].maxDurability} {t('durability', '耐久')}</StatTooltip>
         <button disabled={!gameController.canBuyUsedShip(type)} onClick={() => gameController.buyUsedShip(type)}>{t('Buy {s} ({g}g)', '购买{s}（{g} 金币）', { s: shipTypeName(type, locale), g: USED_SHIP_PRICES[type] })}</button>
       </div>)}
       <h3>{t('Your fleet', '你的舰队')}</h3>
       <p>{t('Keep at least one ship. Only empty ships can be sold; unload cargo at a colony first. Sales are final.', '至少保留一艘船。只能出售空船，请先在殖民地卸货。出售后不可撤销。')}</p>
       {player.fleet.map((ship) => <div className="building-option" key={ship.id}>
-        <strong>{shipName(ship.name, locale)}</strong> · {ship.durability}/{ship.maxDurability} {t('durability', '耐久')}
+        <strong>{shipName(ship.name, locale)}</strong> · <StatTooltip stat="durability">{ship.durability}/{ship.maxDurability} {t('durability', '耐久')}</StatTooltip>
         <button disabled={!gameController.canSellShip(ship.id)} onClick={() => gameController.sellShip(ship.id)}>{t('Sell {s} ({g}g)', '出售{s}（{g} 金币）', { s: shipName(ship.name, locale), g: shipSalePrice(ship) })}</button>
       </div>)}
       <button className="primary" onClick={() => gameController.finishMarket()}>{t('Sail on', '继续航行')}</button>
@@ -150,7 +151,7 @@ export function ActionPanel({ state }: { state: GameState }) {
     body = (
       <>
         <h2>{t('Build at {n}', '在{n}建设', { n: at(nodeId) })}</h2>
-        <p>{t('Your colony · Toll {toll}g · Treasury {g}g', '你的殖民地 · 过路费 {toll} 金币 · 金库 {g} 金币', { toll: colonyToll(state, nodeId), g: player.gold })}</p>
+        <p>{t('Your colony', '你的殖民地')} · <StatTooltip stat="toll">{t('Toll {g}g', '过路费 {g} 金币', { g: colonyToll(state, nodeId) })}</StatTooltip> · <StatTooltip stat="gold">{t('Treasury {g}g', '金库 {g} 金币', { g: player.gold })}</StatTooltip></p>
         <ColonyGoods state={state} nodeId={nodeId} />
         <button onClick={() => setTransfersOpen(true)}>{t('Transfers', '调度')}</button>
         {(Object.keys(BUILDINGS) as BuildingKind[]).map((kind) => {
@@ -158,7 +159,7 @@ export function ActionPanel({ state }: { state: GameState }) {
           const cost = nextBuildingCost(state, nodeId, kind);
           return (
             <div className="building-option" key={kind}>
-              <div><strong>{buildingName(kind, locale)}</strong> · {BUILDING_SIZES[locale][level]}</div>
+              <div><strong>{buildingName(kind, locale)}</strong> · <StatTooltip stat="buildingLevel">{BUILDING_SIZES[locale][level]}</StatTooltip></div>
               <small>{buildingDescription(kind, locale)}</small>
               <button disabled={!gameController.canBuild(kind)} onClick={() => gameController.build(kind)}>
                 {cost === null ? t('Max level', '已达最高级') : level ? t('Upgrade ({g}g)', '升级（{g} 金币）', { g: cost }) : t('Build ({g}g)', '建造（{g} 金币）', { g: cost })}
@@ -202,8 +203,8 @@ export function ActionPanel({ state }: { state: GameState }) {
         <p>{fromFleet ? t("Pay {g}g toll, or open fire on {o}'s fleet?", '缴纳 {g} 金币过路费，还是向 {o} 的舰队开火？', { g: tollDue(state, player, island.id), o: name(owner) })
           : t('Pay {g}g toll, or open fire on the docked ships?', '缴纳 {g} 金币过路费，还是向停靠的船只开火？', { g: tollDue(state, player, island.id) })}</p>
         <p>
-          {t('Your fleet: {n} ships · {f} firepower · {d} durability.', '你的舰队：{n} 艘船 · 火力 {f} · 耐久 {d}。', { n: player.fleet.length, f: firepower(player.fleet), d: hull(player.fleet) })}<br />
-          {t('Defenders: {n} ships · {f} firepower · {d} durability ({forecast}).', '守军：{n} 艘船 · 火力 {f} · 耐久 {d}（{forecast}）。', { n: defenders.length, f: firepower(defenders), d: hull(defenders), forecast })}
+          {t('Your fleet:', '你的舰队：')} <StatTooltip stat="ships">{t('{n} ships', '{n} 艘船', { n: player.fleet.length })}</StatTooltip> · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(player.fleet) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(player.fleet) })}</StatTooltip>{t('.', '。')}<br />
+          {t('Defenders:', '守军：')} {t('{n} ships', '{n} 艘船', { n: defenders.length })} · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(defenders) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(defenders) })}</StatTooltip> {t('({forecast}).', '（{forecast}）。', { forecast })}
         </p>
         <p>
           {t('Sink every defender within {r} volleys to take the colony. Lose every ship and you pay {g}g double toll; otherwise both fleets sail home.',
@@ -227,9 +228,8 @@ export function ActionPanel({ state }: { state: GameState }) {
       <>
         <h2>{at(island.id)}</h2>
         <p>
-          {t('Uncharted land rich in {s}. Found a colony for {g}g? Rivals landing here must pay you {toll}g or attack your ships.',
-            '盛产{s}的未知土地。花费 {g} 金币建立殖民地？对手停靠此地时须向你缴纳 {toll} 金币，或攻击你的船只。',
-            { s: island.specialty ? goodName(island.specialty, locale) : '', g: island.price ?? 0, toll: island.toll ?? 0 })}
+          {t('Uncharted land rich in {s}. Found a colony for', '盛产{s}的未知土地。建造殖民地需花费', { s: island.specialty ? goodName(island.specialty, locale) : '' })} <StatTooltip stat="price">{t('{g}g', '{g} 金币', { g: island.price ?? 0 })}</StatTooltip>{t('?', '，要建立殖民地吗？')}{' '}
+          {t('Rivals landing here must pay you', '对手停靠此地时须向你缴纳')} <StatTooltip stat="toll">{t('{g}g', '{g} 金币', { g: island.toll ?? 0 })}</StatTooltip> {t('or attack your ships.', '，或攻击你的船只。')}
         </p>
         <p>
           {t('Claiming leaves you {g}g in cash.', '占领后你还剩 {g} 金币现金。', { g: player.gold - island.price! })}
@@ -250,9 +250,9 @@ export function ActionPanel({ state }: { state: GameState }) {
   return (
     <div className="panel actions">
       {atHelm && state.phase !== 'gameOver' && <section aria-label={t('Strategy cards', '谋略卡')}>
-        <h3>{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</h3>
+        <h3><StatTooltip stat="cards">{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</StatTooltip></h3>
         {player.strategies.length === 0 && <p>{t('No strategy cards.', '没有谋略卡。')}</p>}
-        {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
+        {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
           {state.map.map((node) => <option key={node.id} value={node.id}>{nodeName(node, locale)}</option>)}
         </select></label>}
         {player.strategies.map((id, index) => <div key={`${id}-${index}`}>

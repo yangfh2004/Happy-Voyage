@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CAPTAINS, captainDescriptionText, captainName, cargoLoad, goodName, playerName, rankName, shipName, shipTypeName, type Good, type Player } from '@happy-voyage/shared';
+import { CAPTAINS, MAX_CAPTAINS, captainDescriptionText, captainName, cargoLoad, goodName, playerName, rankName, shipName, shipTypeName, type Good, type Player } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import dialogPolyfill from 'dialog-polyfill';
 import { gameController } from '../game/GameController';
 import { seatTag } from './seats';
+import { StatTooltip } from './StatTooltip';
 
 export function FleetPanel({ players, onClose }: { players: Player[]; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -40,7 +41,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
           ))}
         </select>
       </label>
-      <h3>{t('Captains aboard ({n}/3)', '船上的船长（{n}/3）', { n: captains.length })}</h3>
+      <h3><StatTooltip stat="captains">{t('Captains aboard ({n}/{max})', '船上的船长（{n}/{max}）', { n: captains.length, max: MAX_CAPTAINS })}</StatTooltip></h3>
       {captains.length === 0 && <p>{t('No captains recruited.', '尚未招募船长。')}</p>}
       {CAPTAINS.filter((captain) => captains.includes(captain.id)).map((captain) => <p key={captain.id}><strong>{captainName(captain.id, locale)}</strong> · {captainDescriptionText(captain.id, locale)}</p>)}
       {fleet.length > 0 ? (
@@ -49,11 +50,11 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
             <thead>
               <tr>
                 <th scope="col">{t('Ship', '船只')}</th>
-                <th scope="col">{t('Durability', '耐久')}</th>
-                <th scope="col">{t('Firepower', '火力')}</th>
-                <th scope="col">{t('Cargo capacity', '载货量')}</th>
-                <th scope="col">{t('Speed', '航速')}</th>
-                <th scope="col">{t('Crew capacity', '船员容量')}</th>
+                <th scope="col"><StatTooltip stat="durability" /></th>
+                <th scope="col"><StatTooltip stat="firepower" /></th>
+                <th scope="col"><StatTooltip stat="cargoCapacity" /></th>
+                <th scope="col"><StatTooltip stat="speed" /></th>
+                <th scope="col"><StatTooltip stat="crewCapacity" /></th>
               </tr>
             </thead>
             <tbody>

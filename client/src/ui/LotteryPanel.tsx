@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { LOTTERY, lotteryOdds, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
+import { StatTooltip } from './StatTooltip';
 
 const NUMBERS = Array.from({ length: LOTTERY.balls }, (_, i) => i + 1);
 const percent = (chance: number) => `${chance >= 0.01 ? Math.round(chance * 100) : (chance * 100).toFixed(2)}%`;
@@ -25,7 +26,7 @@ export function LotteryPanel({ state }: { state: GameState }) {
           { m: LOTTERY.maxPicks, p: LOTTERY.ticketPrice, d: LOTTERY.drawn, b: LOTTERY.balls })}
       </p>
       <p className="lottery-timer" role="timer" aria-live="off">
-        {t('Draw in', '开奖倒计时')} <strong>{lottery.secondsLeft}{t('s', ' 秒')}</strong> · {t('Treasury {g}g · {n}/{m} numbers', '金库 {g} 金币 · 号码 {n}/{m}', { g: player.gold, n: lottery.picks.length, m: LOTTERY.maxPicks })}
+        {t('Draw in', '开奖倒计时')} <strong>{lottery.secondsLeft}{t('s', ' 秒')}</strong> · <StatTooltip stat="gold">{t('Treasury {g}g', '金库 {g} 金币', { g: player.gold })}</StatTooltip> · <StatTooltip stat="lotteryPicks">{t('{n}/{m} numbers', '号码 {n}/{m}', { n: lottery.picks.length, m: LOTTERY.maxPicks })}</StatTooltip>
       </p>
       <div className="lottery-grid" role="group" aria-label={t('Lottery numbers', '彩票号码')}>
         {NUMBERS.map((n) => {
@@ -37,7 +38,7 @@ export function LotteryPanel({ state }: { state: GameState }) {
       <table className="lottery-payouts">
         <caption>{t(`Prizes · odds with {n} number${lottery.picks.length > 1 ? 's' : ''}`, '奖金 · 持有 {n} 个号码时的概率', { n: Math.max(1, lottery.picks.length) })}</caption>
         <tbody>{LOTTERY.payouts.slice(1).map((prize, i) => <tr key={i}>
-          <th>{t(`{n} match${i ? 'es' : ''}`, '中 {n} 个', { n: i + 1 })}</th><td>{prize}{t('g', ' 金币')}</td><td>{percent(odds[i + 1])}</td>
+          <th>{t(`{n} match${i ? 'es' : ''}`, '中 {n} 个', { n: i + 1 })}</th><td>{prize}{t('g', ' 金币')}</td><td><StatTooltip stat="lotteryOdds">{percent(odds[i + 1])}</StatTooltip></td>
         </tr>)}</tbody>
       </table>
       <button className="primary" onClick={() => gameController.drawLottery()}>{t('Draw now', '立即开奖')} <kbd>D</kbd></button>

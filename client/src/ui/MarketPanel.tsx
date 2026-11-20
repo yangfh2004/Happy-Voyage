@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { cargoLoad, GOODS, goodName, shipName, marketDemand, marketPrices, quoteMarketTrade, type GameState, type Good, type MarketOrder } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
+import { StatTooltip } from './StatTooltip';
 
 export function MarketPanel({ state }: { state: GameState }) {
   const player = state.players[state.currentPlayer];
@@ -27,7 +28,7 @@ export function MarketPanel({ state }: { state: GameState }) {
   return (
     <section className="market" aria-labelledby="market-title">
       <h2 id="market-title">{t('Nightless Island', '不夜岛')}</h2>
-      <p>{t('24-hour market · Treasury {g}g', '24 小时市场 · 金库 {g} 金币', { g: player.gold })}</p>
+      <p>{t('24-hour market', '24 小时市场')} · <StatTooltip stat="gold">{t('Treasury {g}g', '金库 {g} 金币', { g: player.gold })}</StatTooltip></p>
       <p>{t('In demand this round: {g}', '本回合热门：{g}', { g: goodName(featuredGood, locale) })}{stormRepairs && t(' · Storm repairs: lumber and iron', ' · 风暴修理：木材和铁矿')}</p>
       <div className="market-fields">
         <label>{t('Ship', '船只')} <select value={shipId ?? ''} onChange={(event) => setShipId(Number(event.target.value))}>
@@ -38,9 +39,9 @@ export function MarketPanel({ state }: { state: GameState }) {
         </select></label>
         <label>{t('Quantity', '数量')} <input type="number" min="1" step="1" value={amount} onChange={(event) => setAmount(event.target.value)} /></label>
       </div>
-      <p>{t('Market stock: {s} · Aboard: {a}', '市场库存：{s} · 船上：{a}', { s: stock, a: ship?.cargo[good] ?? 0 })}</p>
-      <p>{ship ? t('Free hold: {n}', '剩余舱位：{n}', { n: ship.cargoCapacity - cargoLoad(ship) }) : t('No ships available', '没有可用的船只')}</p>
-      <p>{t('Next unit:', '下一单位：')} {stock > 0 ? t('buy {g}g', '买入 {g} 金币', { g: buy }) : t('sold out', '已售罄')} · {t('sell {g}g', '卖出 {g} 金币', { g: sell })}</p>
+      <p><StatTooltip stat="marketStock">{t('Market stock: {s} · Aboard: {a}', '市场库存：{s} · 船上：{a}', { s: stock, a: ship?.cargo[good] ?? 0 })}</StatTooltip></p>
+      <p>{ship ? <StatTooltip stat="freeHold">{t('Free hold: {n}', '剩余舱位：{n}', { n: ship.cargoCapacity - cargoLoad(ship) })}</StatTooltip> : t('No ships available', '没有可用的船只')}</p>
+      <p><StatTooltip stat="marketPrice">{t('Next unit:', '下一单位：')} {stock > 0 ? t('buy {g}g', '买入 {g} 金币', { g: buy }) : t('sold out', '已售罄')} · {t('sell {g}g', '卖出 {g} 金币', { g: sell })}</StatTooltip></p>
       <div className="row market-orders">{action('buy', t('Buy', '买入'))}{action('sell', t('Sell', '卖出'))}</div>
       <button className="primary" onClick={() => gameController.finishTrading()}>{t('Done trading', '完成交易')} <kbd>D / Esc</kbd></button>
     </section>

@@ -2,6 +2,7 @@ import { buildingName, colonyToll, nationName, nodeName, playerName, type Buildi
 import { useT } from '../i18n';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
+import { StatTooltip } from './StatTooltip';
 
 /** A readable key for the chart when the canvas labels are too small. */
 export function RouteDetails({ state }: { state: GameState }) {
@@ -22,10 +23,10 @@ export function RouteDetails({ state }: { state: GameState }) {
               {stop.kind === 'event' && <div>{t('Sea encounter', '海上遭遇')}</div>}
               {stop.kind === 'island' && (
                 <div>
-                  {t('{g}g · toll {toll}g', '{g} 金币 · 过路费 {toll} 金币', { g: stop.price ?? 0, toll: colonyToll(state, stop.id) })}{owner !== null && t(' · Colony of {p}', ' · {p} 的殖民地', { p: playerName(state.players[owner], locale) })}
+                  <StatTooltip stat="price">{t('{g}g', '{g} 金币', { g: stop.price ?? 0 })}</StatTooltip> · <StatTooltip stat="toll">{t('toll {g}g', '过路费 {g} 金币', { g: colonyToll(state, stop.id) })}</StatTooltip>{owner !== null && t(' · Colony of {p}', ' · {p} 的殖民地', { p: playerName(state.players[owner], locale) })}
                   {owner !== null && <ColonyGoods state={state} nodeId={stop.id} />}
                   {Object.entries(state.buildings[stop.id]).map(([kind, level]) => (
-                    <div key={kind}>{buildingName(kind as BuildingKind, locale)}{t(': ', '：')}{sizes[level]}</div>
+                    <div key={kind}>{buildingName(kind as BuildingKind, locale)}{t(': ', '：')}<StatTooltip stat="buildingLevel">{sizes[level]}</StatTooltip></div>
                   ))}
                 </div>
               )}
