@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { EVENT_GOLD, LOTTERY, NIM_MAX_TAKE, SEA_RULES, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE, type GameConfig } from '@happy-voyage/shared';
+import { EVENT_GOLD, LOTTERY, NIM_MAX_TAKE, SEA_RULES, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE, DEFAULT_ISLAND_COUNT, winConditionText, type GameConfig } from '@happy-voyage/shared';
 
-export function RulesPanel({ config, onClose }: { config: GameConfig; onClose: () => void }) {
+export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, onClose }: { config: GameConfig; islandCount?: number; onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -36,7 +36,7 @@ export function RulesPanel({ config, onClose }: { config: GameConfig; onClose: (
         <p>Drag to pan; pinch or scroll to zoom. Use Fit chart for the whole route, or Follow ship to return to the active fleet.</p>
         <p><strong>Foreign port taxes:</strong> If you cannot pay the full tax, pay all your gold, then surrender sailing ships cheapest first at their used resale value (including condition). Cargo stays aboard. Ships join the host’s fleet, or are removed by the crown. Excess ship value is not refunded. Losing your last sailing ship or still owing tax means bankruptcy; docked ships cannot pay tax.</p>
         <p><strong>Stay afloat:</strong> below 0 gold means bankruptcy. Your colonies go neutral.</p>
-        <p><strong>Win:</strong> claim {config.islandsToWin} islands, be the last navigator afloat, or have the highest net worth after {config.maxRounds} rounds.</p>
+        <p><strong>Win:</strong> {winConditionText(config, islandCount)}. Classic conquest is the original rule; Quick match and Sprint are shorter modes picked at setup.</p>
         <p>The starting navigator rotates each round. Net worth = gold + 75% of each colony's purchase price, rounded down.</p>
       </section>
     </div>

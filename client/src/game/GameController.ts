@@ -1,4 +1,4 @@
-import { GameEngine, LOTTERY, quoteMarketTrade, type Good, type BuildingKind, type GameEvent, type GameState, type LotteryDraw, type MarketOrder, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
+import { GameEngine, LOTTERY, quoteMarketTrade, type Good, type BuildingKind, type GameConfig, type GameEvent, type GameState, type LotteryDraw, type MarketOrder, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
 import type { HermitId, StrategyId } from '@happy-voyage/shared';
 import { TurnFeedback } from './TurnFeedback';
@@ -123,7 +123,7 @@ export class GameController {
     this.changed();
   }
 
-  newGame(players: PlayerSetup[]): void {
+  newGame(players: PlayerSetup[], config?: Partial<GameConfig>): void {
     this.clearTimers();
     this.skipping = false;
     this.moveId += 1;
@@ -131,7 +131,7 @@ export class GameController {
     EventBus.emit('cancel-move');
     this.headline = null;
     this.clearSeaNotices();
-    this.engine = new GameEngine({ players });
+    this.engine = new GameEngine({ players, config });
     this.feedback = new TurnFeedback();
     this.engine.on((event) => this.onEngineEvent(event));
     this.engine.start();
