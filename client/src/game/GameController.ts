@@ -3,7 +3,7 @@ import { OnlineRoom, roomLink } from './OnlineRoom';
 import { EventBus } from './EventBus';
 import type { HermitId, StrategyId } from '@happy-voyage/shared';
 import { TurnFeedback } from './TurnFeedback';
-import { isMuted, setMuted, sfx } from './sfx';
+import { isMuted, setMuted, setVolume, sfx, startSoundtrack, type SoundChannel } from './sfx';
 import type { SeaEventResult } from '@happy-voyage/shared';
 
 export interface SeaNotice {
@@ -447,6 +447,16 @@ export class GameController {
     this.changed();
   }
 
+  setVolume(channel: SoundChannel, value: number): void {
+    setVolume(channel, value);
+    this.changed();
+  }
+
+  /** Starts the soundtrack and waves; browsers only allow it from a user gesture. */
+  startSoundtrack(): void {
+    startSoundtrack();
+  }
+
   islandsOwnedBy(playerId: number): number {
     return this.view?.islandsOwnedBy(playerId) ?? 0;
   }
@@ -485,8 +495,12 @@ export class GameController {
         }
         this.seaNotices = this.seaNotices.slice(0, SEA_NOTICE_LIMIT);
         this.noticeTimers.set(id, setTimeout(() => this.dismissSeaNotice(id), SEA_NOTICE_DURATION_MS));
-        if ((event.gold ?? 0) > 0) sfx.coin();
+        const fought = event.outcome === 'victory' || event.outcome === 'defeat' || event.outcome === 'damaged' || event.outcome === 'sunk';
+        if (event.event === 'merchant' && event.outcome === 'accepted') sfx.sell();
+        else if (event.event === 'pirates' && fought) sfx.cannon();
+        else if ((event.gold ?? 0) > 0) sfx.coin();
         else if (event.outcome === 'damaged' || event.outcome === 'sunk' || event.outcome === 'defeat') sfx.storm();
+        if (event.shipsLost?.length) sfx.splash();
         break;
       }
       case 'royalAudience':
@@ -548,11 +562,23 @@ export class GameController {
       }
       case 'shipAdded': {
         const ship = players[event.playerId].fleet.find((candidate) => candidate.id === event.shipId);
-        if (isViewer(event.playerId) && ship) this.headline = { text: `${ship.name} joined your fleet.`, tone: 'gain' };
+        if (isViewer(event.playerId) && ship) {
+          this.headline = { text: `${ship.name} joined your fleet.`, tone: 'gain' };
+          sfx.bell();
+        }
         break;
       }
       case 'shipSold':
-        if (isViewer(event.playerId)) this.headline = { text: `Sold ${event.shipName} for ${event.price}g.`, tone: 'gain' };
+        if (isViewer(event.playerId)) {
+          this.headline = { text: `Sold ${event.shipName} for ${event.price}g.`, tone: 'gain' };
+          sfx.sell();
+        }
+        break;
+      case 'barterTraded':
+        if (isViewer(event.playerId)) sfx.barter();
+        break;
+      case 'cargoMoved':
+        if (isViewer(event.playerId)) sfx.cargo();
         break;
       case 'battleFought': {
         const { report } = event;
@@ -567,7 +593,8 @@ export class GameController {
             : report.outcome === 'defeat' ? { text: `You repel ${rival} at ${at} and collect ${report.tollPaid}g double toll!`, tone: 'gain' }
             : { text: `${rival} attacks ${at}; the battle is a draw and both fleets sail home.`, tone: 'loss' };
         }
-        sfx.storm();
+        const won = isViewer(report.defender) ? report.outcome === 'defeat' : report.outcome === 'victory';
+        sfx.battle(report.rounds, report.attackerSunk.length + report.defenderSunk.length, won ? 'victory' : 'loss');
         break;
       }
       case 'lotteryOpened':
@@ -618,8 +645,8 @@ export class GameController {
         if (isViewer(event.playerId)) {
           const sold = event.side === 'sell';
           this.headline = { text: `${sold ? 'Sold' : 'Bought'} ${event.quantity} ${event.good} for ${event.total}g.`, tone: sold ? 'gain' : 'loss' };
-          if (sold) sfx.coin();
-          else sfx.pay();
+          if (sold) sfx.sell();
+          else sfx.buy();
         }
         break;
       case 'gameOver':

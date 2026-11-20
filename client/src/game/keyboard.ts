@@ -28,6 +28,7 @@ export function keyboardShortcuts(controller: GameController) {
     p: () => controller.payToll(),
     f: () => controller.fight(),
     k: () => controller.skipToMyTurn(),
+    m: () => controller.toggleMute(),
     '1': () => controller.setSpeed('Normal'),
     '2': () => controller.setSpeed('Fast'),
     '3': () => controller.setSpeed('Instant'),
@@ -41,7 +42,7 @@ export function keyboardShortcuts(controller: GameController) {
       if ((key === ' ' || key === 'enter') && target?.closest?.('button, a[href], summary, [tabindex], [role="button"], [role="link"]')) return;
       const action = actions[key];
       if (!action) return;
-      if (!controller.state && !['1', '2', '3'].includes(key) && !held.has(key) && !event.repeat) return;
+      if (!controller.state && !['1', '2', '3', 'm'].includes(key) && !held.has(key) && !event.repeat) return;
       event.preventDefault();
       if (event.repeat || held.has(key)) return;
       held.add(key);
