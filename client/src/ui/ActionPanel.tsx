@@ -5,6 +5,8 @@ import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
 import { useState } from 'react';
 import { BarterPanel } from './BarterPanel';
+import { LotteryPanel } from './LotteryPanel';
+import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 import { STRATEGIES } from '@happy-voyage/shared';
@@ -126,6 +128,8 @@ export function ActionPanel({ state }: { state: GameState }) {
         <button className="primary" onClick={() => gameController.finishBuilding()}>Done <kbd>D / Esc</kbd></button>
       </>
     );
+  } else if (state.phase === 'awaitingRecruit') {
+    body = <RecruitPanel state={state} />;
   } else if (state.phase === 'awaitingToll') {
     const island = state.map[player.position];
     const { ships: defenders, owner, fromFleet } = colonyDefenders(state, island.id);
@@ -149,6 +153,8 @@ export function ActionPanel({ state }: { state: GameState }) {
         </div>
       </>
     );
+  } else if (state.phase === 'awaitingLottery') {
+    body = <LotteryPanel state={state} />;
   } else if (state.phase === 'awaitingBarter') {
     body = <BarterPanel state={state} />;
   } else if (state.phase === 'awaitingClaim') {
@@ -190,7 +196,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         </div>)}
         {player.knownHoard !== null && <p>Buried hoard: {state.map[player.knownHoard].name}</p>}
       </section>}
-      <p>{state.players.filter((p) => p.id !== player.id).map((p) => `${p.name}: ${p.strategies.length} cards`).join(' · ')}</p>
+      <p>{state.players.filter((p) => p.id !== player.id).map((p) => `${p.name}: ${p.strategies.length} ${p.strategies.length === 1 ? 'card' : 'cards'}`).join(' · ')}</p>
       {state.phase === 'gameOver' || trading ? body : (
         <div className="action-content">
           <Compass

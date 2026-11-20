@@ -47,6 +47,31 @@ function humanTurn() {
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
 }
 
+it('routes recruitment and decline actions only during human recruiting visits', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  const p = state.players[0];
+  controller.recruitCaptain(0);
+  expect(p.captains).toEqual([]);
+  const visit = () => {
+    state.currentPlayer = 0;
+    state.phase = 'awaitingSpin';
+    p.position = state.map.find((node) => node.special === 'dragonSnake')!.id - 2;
+    humanTurn();
+    expect(state.phase).toBe('awaitingRecruit');
+  };
+  visit();
+  const gold = p.gold;
+  controller.recruitCaptain(0);
+  expect(p.captains).toEqual(['ines']);
+  expect(p.gold).toBe(gold - 90);
+  expect(state.pendingRecruits).toBeNull();
+  visit();
+  controller.decline();
+  expect(state.pendingRecruits).toBeNull();
+  expect(p.captains).toEqual(['ines']);
+});
+
 it('announces a home promotion until the next human spin', () => {
   controller.newGame(players);
   const state = controller.state!;
@@ -303,4 +328,33 @@ describe('pacing', () => {
     expect(controller.waiting).toBe(false);
     expect(controller.timings.step).toBe(200);
   });
+});
+
+it('runs the Treasure Island timer for the human and draws when it runs out', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  const p = state.players[0];
+  const treasure = state.map.find((node) => node.special === 'treasure')!;
+  p.position = (treasure.id - 2 + state.map.length) % state.map.length;
+  humanTurn();
+  expect(state.phase).toBe('awaitingLottery');
+  controller.buyLotteryNumber(7);
+  expect(state.lottery!.picks).toEqual([7]);
+  const seconds = state.lottery!.secondsLeft;
+  vi.advanceTimersByTime(1000);
+  expect(state.lottery!.secondsLeft).toBe(seconds - 1);
+  vi.setSystemTime(Date.now() + 5000);
+  vi.advanceTimersByTime(250);
+  expect(state.lottery!.secondsLeft).toBe(seconds - 6);
+  vi.advanceTimersByTime((seconds - 6) * 1000);
+  expect(state.lottery!.draw).not.toBeNull();
+  expect(state.lotteryDraws).toHaveLength(1);
+  controller.finishLottery();
+  expect(state.phase).toBe('awaitingLottery');
+  vi.advanceTimersByTime(10_000);
+  expect(controller.lotteryRevealed).toBe(true);
+  expect(controller.headline?.text).toContain('Lottery');
+  controller.finishLottery();
+  expect(state.lottery).toBeNull();
+  expect(state.currentPlayer).toBe(1);
 });

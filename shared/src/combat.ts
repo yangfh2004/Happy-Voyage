@@ -1,3 +1,4 @@
+import { discountedByCaptains } from './captains';
 import type { BattleOutcome, GameState, Player, Ship } from './types';
 import type { Rng } from './compass';
 import { colonyToll } from './buildings';
@@ -26,10 +27,10 @@ export function colonyDefenders(state: GameState, nodeId: number): { ships: Ship
   return docked.length ? { ships: docked, owner, fromFleet: false } : { ships: owner.fleet, owner, fromFleet: true };
 }
 
-/** Toll the player owes at a rival colony, after their captain's discount. */
+/** Toll the player owes at a rival colony, after their captains' discounts. */
 export function tollDue(state: GameState, player: Player, nodeId: number, multiplier = 1): number {
   const base = colonyToll(state, nodeId) * multiplier;
-  return player.captain ? Math.ceil(base / 2) : base;
+  return discountedByCaptains(player, 'toll', base);
 }
 
 function volley(ships: Ship[], rng: Rng, multiplier = 1): number {

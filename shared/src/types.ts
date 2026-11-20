@@ -76,7 +76,7 @@ export interface Player extends PlayerSetup {
   bankrupt: boolean;
   homePort: number;
   revivalProtection: boolean;
-  captain: boolean;
+  captains: string[];
   fleet: Ship[];
 }
 
@@ -91,7 +91,7 @@ export interface ColonyStockpile {
 }
 
 export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' |
-  'awaitingMarket' | 'awaitingBarter' | 'awaitingCargoMarket' | 'awaitingToll' | 'gameOver';
+  'awaitingMarket' | 'awaitingBarter' | 'awaitingRecruit' | 'awaitingLottery' | 'awaitingCargoMarket' | 'awaitingToll' | 'gameOver';
 
 export interface MarketState {
   stock: Record<Good, number>;
@@ -161,6 +161,11 @@ export interface GameState {
   /** Island the current player may claim while phase === 'awaitingClaim'. */
   pendingClaim: number | null;
   pendingBarter: BarterOffer[] | null;
+  /** Treasure Island lottery the current player is playing, while phase === 'awaitingLottery'. */
+  lottery: import('./lottery').LotteryState | null;
+  /** Every Treasure Island draw this game, oldest first. */
+  lotteryDraws: import('./lottery').LotteryDraw[];
+  pendingRecruits: string[] | null;
   /** Every naval battle fought this game, oldest first. */
   battles: BattleReport[];
   winner: number | null;
@@ -175,6 +180,10 @@ export type GameEvent =
   | { type: 'shipSold'; playerId: number; shipName: string; price: number }
   | { type: 'marketOffered'; playerId: number; nodeId: number }
   | { type: 'barterOffered'; playerId: number; nodeId: number }
+  | { type: 'lotteryOpened'; playerId: number; nodeId: number }
+  | { type: 'lotteryNumberBought'; playerId: number; number: number }
+  | { type: 'lotteryDrawn'; draw: import('./lottery').LotteryDraw }
+  | { type: 'recruitsOffered'; playerId: number; nodeId: number }
   | { type: 'shipTransferred'; playerId: number; nodeId: number; shipId: number; direction: 'dock' | 'board' }
   | { type: 'cargoMoved'; playerId: number; nodeId: number; shipId: number; good: Good; qty: number; direction: 'load' | 'unload' }
   | { type: 'buildingBuilt'; playerId: number; nodeId: number; kind: BuildingKind; level: number }

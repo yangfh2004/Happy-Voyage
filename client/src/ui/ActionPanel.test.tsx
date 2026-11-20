@@ -53,6 +53,10 @@ describe('build menu', () => {
     expect(html).toContain('Reveal the buried hoard');
     expect(html).toContain('Navigate destination');
     expect(html).toContain('Rival: 3 cards');
+    engine.state.players[1].strategies = ['inspire'];
+    const singleCardHtml = renderToStaticMarkup(<ActionPanel state={engine.state} />);
+    expect(singleCardHtml).toContain('Rival: 1 card');
+    expect(singleCardHtml).not.toContain('Rival: 1 cards');
     expect(html).toContain('Buried hoard:');
     expect(html).toContain('<button>Use Locate</button>');
     engine.state.strategyUsed = true;
