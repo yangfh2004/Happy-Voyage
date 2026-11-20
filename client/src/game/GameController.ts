@@ -1,4 +1,4 @@
-import { GameEngine, type GameEvent, type GameState, type Player, type PlayerSetup } from '@happy-voyage/shared';
+import { GameEngine, type BuildingKind, type GameEvent, type GameState, type Player, type PlayerSetup } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
 import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, sfx } from './sfx';
@@ -148,6 +148,18 @@ export class GameController {
     if (this.isHumanTurn('awaitingClaim')) this.engine!.decline();
   }
 
+  canBuild(kind: BuildingKind): boolean {
+    return this.isHumanTurn('awaitingBuild') && this.engine!.canBuild(kind);
+  }
+
+  build(kind: BuildingKind): void {
+    if (this.canBuild(kind)) this.engine!.build(kind);
+  }
+
+  finishBuilding(): void {
+    if (this.isHumanTurn('awaitingBuild')) this.engine!.finishBuilding();
+  }
+
   /** A fleet's stop as the board shows it: its departure stop until it has sailed in. */
   shownPosition(player: Player): number {
     const sailing = this.departure?.playerId === player.id && this.engine?.state.phase === 'moving';
@@ -224,6 +236,7 @@ export class GameController {
         break;
       }
       case 'claimOffered':
+      case 'buildOffered':
         if (!engine.currentPlayer.isAI) this.skipping = false;
         if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());
         break;

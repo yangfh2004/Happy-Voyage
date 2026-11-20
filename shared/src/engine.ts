@@ -1,4 +1,6 @@
-import { aiShouldClaim } from './ai';
+import { aiShouldClaim, aiBuildingChoice } from './ai';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, buildingValue } from './buildings';
+import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
 export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
@@ -82,6 +84,7 @@ export class GameEngine {
       })),
       nextShipId: 1,
       owners: map.map(() => null),
+      buildings: map.map(() => ({})),
       currentPlayer: 0,
       round: 1,
       phase: 'awaitingSpin',
@@ -133,7 +136,7 @@ export class GameEngine {
   netWorth(playerId: number): number {
     const colonies = this.state.map
       .filter((n) => this.state.owners[n.id] === playerId)
-      .reduce((sum, n) => sum + colonyValue(n), 0);
+      .reduce((sum, n) => sum + colonyValue(n) + buildingValue(this.state, n.id), 0);
     return this.state.players[playerId].gold + colonies;
   }
 
@@ -210,6 +213,9 @@ export class GameEngine {
           this.payToll(player, this.state.players[owner], node);
         } else {
           this.log(`${player.name} inspects the colony at ${node.name}.`);
+          this.state.phase = 'awaitingBuild';
+          this.emit({ type: 'buildOffered', playerId: player.id, nodeId: node.id });
+          return;
         }
         break;
       }
@@ -236,8 +242,42 @@ export class GameEngine {
     this.endTurn();
   }
 
+  canBuild(kind: BuildingKind): boolean {
+    const player = this.currentPlayer;
+    const node = this.state.map[player.position];
+    const cost = nextBuildingCost(this.state, player.position, kind);
+    return this.state.phase === 'awaitingBuild' && node?.kind === 'island' &&
+      this.state.owners[player.position] === player.id && cost !== null && player.gold >= cost;
+  }
+
+  build(kind: BuildingKind): void {
+    this.assertPhase('awaitingBuild');
+    if (!this.canBuild(kind)) throw new Error('Cannot build here: ownership, cost or maximum level');
+    const player = this.currentPlayer;
+    const nodeId = player.position;
+    const level = buildingLevel(this.state, nodeId, kind) + 1;
+    this.changeGold(player, -nextBuildingCost(this.state, nodeId, kind)!, BUILDINGS[kind].label);
+    this.state.buildings[nodeId][kind] = level;
+    this.log(`${player.name} builds ${BUILDINGS[kind].label} level ${level} at ${this.node(nodeId).name}.`);
+    this.emit({ type: 'buildingBuilt', playerId: player.id, nodeId, kind, level });
+  }
+
+  finishBuilding(): void {
+    this.assertPhase('awaitingBuild');
+    this.endTurn();
+  }
+
   /** Let the built-in AI make the current player's pending decision. */
   decideForAI(): void {
+    if (this.state.phase === 'awaitingBuild') {
+      let kind = aiBuildingChoice(this.state, this.currentPlayer);
+      while (kind !== null && this.canBuild(kind)) {
+        this.build(kind);
+        kind = aiBuildingChoice(this.state, this.currentPlayer);
+      }
+      this.finishBuilding();
+      return;
+    }
     if (this.state.phase === 'awaitingClaim') {
       const player = this.currentPlayer;
       if (aiShouldClaim(this.state, player, this.state.pendingClaim!)) this.claim();
@@ -374,7 +414,8 @@ export class GameEngine {
   }
 
   private payToll(player: Player, owner: Player, node: MapNode): void {
-    const toll = player.captain ? Math.ceil((node.toll ?? 0) / 2) : node.toll ?? 0;
+    const base = colonyToll(this.state, node.id);
+    const toll = player.captain ? Math.ceil(base / 2) : base;
     if (player.captain) this.log(`${player.name}'s captain negotiates half the toll.`);
     player.captain = false;
     const amount = Math.min(toll, Math.max(player.gold, 0));
@@ -391,7 +432,11 @@ export class GameEngine {
       player.gold = 0;
       player.bankrupt = true;
       // A bankrupt navigator's colonies return to the wild.
-      this.state.owners = this.state.owners.map((o) => (o === player.id ? null : o));
+      this.state.owners = this.state.owners.map((o, id) => {
+        if (o !== player.id) return o;
+        this.state.buildings[id] = {};
+        return null;
+      });
       this.log(`${player.name} is bankrupt! Their colonies fall back to neutral.`);
       this.emit({ type: 'bankrupt', playerId: player.id });
     }
