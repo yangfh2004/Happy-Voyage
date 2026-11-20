@@ -6,7 +6,8 @@ const controller = {
   state: { phase: 'awaitingSpin' } as { phase: string } | null,
   spinCompass: vi.fn(), claim: vi.fn(), decline: vi.fn(), quit: vi.fn(),
   finishBuilding: vi.fn(), finishTrading: vi.fn(),
-  skipToMyTurn: vi.fn(), setSpeed: vi.fn(),
+  skipToMyTurn: vi.fn(), setSpeed: vi.fn(), confirmHandoff: vi.fn(),
+  awaitingHandoff: false,
 };
 let keys: ReturnType<typeof keyboardShortcuts>;
 function event(key: string, extra = {}) {
@@ -15,6 +16,7 @@ function event(key: string, extra = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   controller.state = { phase: 'awaitingSpin' };
+  controller.awaitingHandoff = false;
   keys = keyboardShortcuts(controller as unknown as GameController);
 });
 
@@ -102,5 +104,12 @@ describe('keyboard shortcuts', () => {
     keys.keydown(event('c', { target }));
     expect(controller.setSpeed).toHaveBeenCalledWith('Fast');
     expect(controller.claim).toHaveBeenCalledOnce();
+  });
+
+  it('confirms a hot-seat handoff before the next spin', () => {
+    controller.awaitingHandoff = true;
+    keys.keydown(event(' '));
+    expect(controller.confirmHandoff).toHaveBeenCalledOnce();
+    expect(controller.spinCompass).not.toHaveBeenCalled();
   });
 });
