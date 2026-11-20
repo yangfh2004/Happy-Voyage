@@ -36,6 +36,18 @@ describe('organic archipelagos', () => {
     }
     expect(shortcutWinds).toEqual(new Set(WIND_DIRECTIONS));
   });
+  it('keeps shortcuts local in distance and route order', () => {
+    const lengths = map.map((node) => Math.hypot(node.x - map[(node.id + 1) % map.length].x, node.y - map[(node.id + 1) % map.length].y)).sort((a, b) => a - b);
+    const typical = lengths[Math.floor(lengths.length / 2)];
+    for (const node of map) {
+      for (const id of successors(map, node.id).slice(1)) {
+        expect(Math.hypot(node.x - map[id].x, node.y - map[id].y)).toBeLessThanOrEqual(typical * 2.5);
+        const steps = (id - node.id + map.length) % map.length;
+        expect(steps).toBeGreaterThanOrEqual(2);
+        expect(steps).toBeLessThanOrEqual(9);
+      }
+    }
+  });
   it('keeps edges clear of other stops and a complete home-port ring', () => {
     for (const node of map) {
       expect(successors(map, node.id)[0]).toBe((node.id + 1) % map.length);

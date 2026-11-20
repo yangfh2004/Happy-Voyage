@@ -80,14 +80,7 @@ export class OceanScene extends Phaser.Scene {
   create() {
     this.input.addPointer(1);
     this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
-    const fit = () => {
-      const camera = this.cameras.main;
-      camera.useBounds = true;
-      camera.setSize(this.game.canvas.parentElement!.clientWidth, this.game.canvas.parentElement!.clientHeight);
-      camera.setZoom(Math.min(camera.width / WORLD.width, camera.height / WORLD.height));
-      camera.centerOn(WORLD.width / 2, WORLD.height / 2);
-      this.following = false;
-    };
+    const fit = () => this.fitChart();
     fit();
     this.following = true;
     this.cameras.main.setZoom(0.8);
@@ -258,6 +251,19 @@ export class OceanScene extends Phaser.Scene {
   private minimumZoom() {
     const camera = this.cameras.main;
     return camera.width && camera.height ? Math.min(camera.width / WORLD.width, camera.height / WORLD.height) : .16;
+  }
+
+  private fitChart() {
+    const camera = this.cameras.main;
+    camera.setSize(this.game.canvas.parentElement!.clientWidth, this.game.canvas.parentElement!.clientHeight);
+    const zoom = Math.min(camera.width / WORLD.width, camera.height / WORLD.height);
+    const padX = Math.max(0, (camera.width / zoom - WORLD.width) / 2);
+    const padY = Math.max(0, (camera.height / zoom - WORLD.height) / 2);
+    camera.setZoom(zoom);
+    camera.setBounds(-padX, -padY, WORLD.width + padX * 2, WORLD.height + padY * 2);
+    camera.useBounds = true;
+    camera.centerOn(WORLD.width / 2, WORLD.height / 2);
+    this.following = false;
   }
 
   private drawOcean() {

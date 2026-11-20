@@ -7,7 +7,8 @@ vi.mock('../GameController', () => ({ gameController: { timings: { step: 200 } }
 import { OceanScene } from './OceanScene';
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
-import { createNationRoster, GameEngine, WORLD, type GameEvent, type WindDirection } from '@happy-voyage/shared';
+import { routeEdge } from '../routeEdge';
+import { createNationRoster, GameEngine, WORLD, type GameEvent, type MapNode, type WindDirection } from '@happy-voyage/shared';
 
 type Move = { playerId: number; path: number[]; id: number };
 type SceneHarness = {
@@ -18,6 +19,7 @@ type SceneHarness = {
   update(): void;
   drawLandingTarget(): void;
   drawRoute(direction?: WindDirection): void;
+  fitChart(): void;
   onEngineEvent(event: GameEvent): void;
 };
 
@@ -62,9 +64,12 @@ describe('fork routes', () => {
     scene.drawRoute('S');
     expect(route.strokeCircle).toHaveBeenCalledWith(0, 0, 34);
     expect(route.lineStyle).toHaveBeenCalledWith(7, 0xffd369, 1);
-    expect(route.lineBetween).toHaveBeenCalledWith(expect.closeTo(0), 38, expect.closeTo(0), 54);
+    const edge = routeEdge(map as MapNode[], 0, 2, true);
+    const dash = edge.point(16 / 124 / 6);
+    expect(route.lineBetween).toHaveBeenCalledWith(expect.closeTo(0), 38, expect.closeTo(dash.x), expect.closeTo(dash.y));
     expect(route.lineStyle).toHaveBeenCalledWith(12, 0x7ffff0, 1);
-    expect(route.lineBetween).toHaveBeenCalledWith(expect.closeTo(0), 38, expect.closeTo(0), 162);
+    const highlight = edge.point(1 / 40);
+    expect(route.lineBetween).toHaveBeenCalledWith(expect.closeTo(0), 38, expect.closeTo(highlight.x), expect.closeTo(highlight.y));
     expect(route.fillStyle).toHaveBeenCalledWith(0x7ffff0, 1);
     route.lineBetween.mockClear();
     Object.assign(gameController, { state: { wind: { direction: 'S', turnsLeft: 2 } } });
@@ -81,6 +86,20 @@ describe('fork routes', () => {
     scene.drawRoute('N');
     expect(route.clear).toHaveBeenCalledOnce();
     expect(route.lineBetween).not.toHaveBeenCalled();
+  });
+});
+
+describe('fit chart', () => {
+  it.each([[1400, 800], [500, 900]])('centres the whole sea with balanced margins in a %s by %s panel', (width, height) => {
+    const camera = { width, height, setSize: vi.fn(), setZoom: vi.fn(), setBounds: vi.fn(), centerOn: vi.fn() };
+    Object.assign(scene, { cameras: { main: camera }, game: { canvas: { parentElement: { clientWidth: width, clientHeight: height } } } });
+    scene.fitChart();
+    const zoom = Math.min(width / WORLD.width, height / WORLD.height);
+    const padX = (width / zoom - WORLD.width) / 2;
+    const padY = (height / zoom - WORLD.height) / 2;
+    expect(camera.setZoom).toHaveBeenCalledWith(zoom);
+    expect(camera.setBounds).toHaveBeenCalledWith(-padX, -padY, WORLD.width + 2 * padX, WORLD.height + 2 * padY);
+    expect(camera.centerOn).toHaveBeenCalledWith(WORLD.width / 2, WORLD.height / 2);
   });
 });
 
