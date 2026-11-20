@@ -12,6 +12,7 @@ import { CHART_DEPTH, drawAtmosphere } from '../atmosphereArt';
 import { landingTarget, sailingRoute, type MovePath, type NavigatePreview } from '../landingTarget';
 import { routeEdge } from '../routeEdge';
 import { islandTexture } from '../islandArt';
+import { bindStopHelp, stopHelpPosition } from '../stopHelp';
 
 const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
@@ -72,6 +73,7 @@ export class OceanScene extends Phaser.Scene {
   private landingBadge?: Phaser.GameObjects.Text;
   private navigatePreview: NavigatePreview | null = null;
   private framedTarget: string | null = null;
+  private stopTooltip: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super('Ocean');
@@ -89,7 +91,11 @@ export class OceanScene extends Phaser.Scene {
       this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom * factor, this.minimumZoom(), 2));
     };
     this.input.on('wheel', (_p: unknown, _o: unknown, _x: number, dy: number) => { zoom(dy > 0 ? 0.9 : 1.1); });
-    this.input.on('pointerdown', () => this.updatePinch());
+    this.input.on('pointerdown', () => {
+      this.stopTooltip?.destroy();
+      this.stopTooltip = null;
+      this.updatePinch();
+    });
     this.input.on('pointerup', () => { this.pinch = null; });
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!pointer.isDown) return;
@@ -425,7 +431,6 @@ export class OceanScene extends Phaser.Scene {
       this.labels.add(text);
       this.stopLabels.set(node.id, text);
       text.setInteractive({ useHandCursor: true });
-      let tooltip: Phaser.GameObjects.Text | null = null;
       const showTooltip = () => {
         const locale = getLocale();
         const help = SPECIAL_HELP[node.special ?? ''];
@@ -433,13 +438,15 @@ export class OceanScene extends Phaser.Scene {
         const lines = Object.entries(buildings).filter(([, level]) => level > 0).map(([kind]) => `${buildingName(kind as BuildingKind, locale)}: ${buildingDescription(kind as BuildingKind, locale)}`);
         if (help) lines.unshift(pick(locale, ...help));
         if (!lines.length) return;
-        tooltip?.destroy();
-        tooltip = this.add.text(node.x, node.y - 80, `${nodeName(node, locale)}\n${lines.join('\n')}`, { fontFamily: '"Sea Names", sans-serif', fontSize: '15px', color: '#fff6dc', backgroundColor: '#092f46', padding: { x: 12, y: 9 }, wordWrap: { width: 240 } }).setOrigin(.5, 1).setDepth(40).setScale(1 / this.cameras.main.zoom);
+        this.stopTooltip?.destroy();
+        this.stopTooltip = this.add.text(node.x, node.y - 80, `${nodeName(node, locale)}\n${lines.join('\n')}`, { fontFamily: '"Sea Names", sans-serif', fontSize: '15px', color: '#fff6dc', backgroundColor: '#092f46', padding: { x: 12, y: 9 }, wordWrap: { width: 240 } }).setOrigin(.5, 1).setDepth(40).setScale(1 / this.cameras.main.zoom);
+        const camera = this.cameras.main;
+        const position = stopHelpPosition(this.stopTooltip, { width: this.stopTooltip.displayWidth, height: this.stopTooltip.displayHeight }, camera.worldView, 8 / camera.zoom);
+        this.stopTooltip.setPosition(position.x, position.y);
       };
-      const hideTooltip = () => { tooltip?.destroy(); tooltip = null; };
-      text.on('pointerover', showTooltip);
-      text.on('pointerout', hideTooltip);
-      this.add.zone(node.x, node.y, node.kind === 'island' ? 140 : 60, node.kind === 'island' ? 110 : 50).setInteractive({ useHandCursor: true }).on('pointerover', showTooltip).on('pointerout', hideTooltip);
+      const hideTooltip = () => { this.stopTooltip?.destroy(); this.stopTooltip = null; };
+      bindStopHelp(text, showTooltip, hideTooltip);
+      bindStopHelp(this.add.zone(node.x, node.y, node.kind === 'island' ? 140 : 60, node.kind === 'island' ? 110 : 50).setInteractive({ useHandCursor: true }), showTooltip, hideTooltip);
     }
   }
 
