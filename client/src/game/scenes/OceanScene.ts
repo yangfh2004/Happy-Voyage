@@ -20,7 +20,11 @@ const TOKEN_OFFSETS = [
  * reports when a move animation finishes.
  */
 export class OceanScene extends Phaser.Scene {
-  private map: MapNode[] = createDefaultMap();
+  private map: MapNode[] = createDefaultMap().map((node) => ({
+    ...node,
+    x: WORLD.width / 2 + (node.x - WORLD.width / 2) * 0.9,
+    y: WORLD.height / 2 + 10 + (node.y - WORLD.height / 2 - 10) * 0.9,
+  }));
   private ships = new Map<number, Phaser.GameObjects.Image>();
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
@@ -114,13 +118,10 @@ export class OceanScene extends Phaser.Scene {
           .setOrigin(0.5);
       }
 
-      const angle = Math.PI * 0.75 + (node.id / this.map.length) * Math.PI * 2;
-      const labelY = Math.abs(Math.cos(angle)) > 0.85
-        ? node.y + (node.y >= WORLD.height / 2 + 10 ? 40 : -40)
-        : WORLD.height / 2 + 10 + 320 * Math.sin(angle);
+      const angle = Math.atan2(node.y - WORLD.height / 2 - 10, node.x - WORLD.width / 2);
       const label = node.kind === 'island' ? `${node.name}\n${node.price}g · toll ${node.toll}g` : node.name;
-      this.add
-        .text(WORLD.width / 2 + 560 * Math.cos(angle), labelY, label, {
+      const text = this.add
+        .text(0, 0, label, {
           fontFamily: 'Georgia, serif',
           fontSize: '13px',
           color: '#ffffff',
@@ -129,6 +130,10 @@ export class OceanScene extends Phaser.Scene {
           strokeThickness: 4,
         })
         .setOrigin(0.5);
+      const dx = Math.cos(angle);
+      const dy = Math.sin(angle);
+      const distance = 36 + Math.abs(dx) * text.width / 2 + Math.abs(dy) * text.height / 2;
+      text.setPosition(node.x + dx * distance, node.y + dy * distance);
     }
   }
 
