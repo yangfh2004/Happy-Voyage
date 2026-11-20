@@ -6,5 +6,6 @@ export * from './navigators';
 export * from './compass';
 export * from './engine';
 export * from './ai';
-export { SHIP_RECIPES, SHIP_TYPES, GOODS, cargoLoad } from './ships';
+export * from './barter';
+export { SHIP_RECIPES, SHIP_TYPES, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 export { colonyValue, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
