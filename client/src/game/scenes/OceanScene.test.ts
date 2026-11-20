@@ -20,6 +20,7 @@ type SceneHarness = {
   drawLandingTarget(): void;
   drawRoute(direction?: WindDirection): void;
   fitChart(): void;
+  tokenPosition(playerId: number, nodeId: number): [number, number];
   onEngineEvent(event: GameEvent): void;
 };
 
@@ -46,6 +47,37 @@ beforeEach(() => {
       return tween;
     } },
   }) as unknown as SceneHarness;
+});
+
+describe('shared stop ship berths', () => {
+  it.each([1, 2, 3, 4])('keeps %s ships clear of each other and the name/price label at maximum scale and bob angle', (count) => {
+    const node = { id: 0, x: 600, y: 400 };
+    Object.assign(scene, { map: [node] });
+    const players = Array.from({ length: count }, (_, id) => ({ id, position: 0 }));
+    Object.assign(gameController, { state: { players } });
+    const angle = 5 * Math.PI / 180;
+    const width = .95 * (80 * Math.cos(angle) + 76 * Math.sin(angle));
+    const height = .95 * (76 * Math.cos(angle) + 80 * Math.sin(angle));
+    const bounds = players.map(({ id }) => {
+      const [x, y] = scene.tokenPosition(id, 0);
+      return { left: x - width / 2, right: x + width / 2, top: y - height / 2, bottom: y + height / 2 };
+    });
+    const label = { left: node.x - 77, right: node.x + 77, top: node.y + 31, bottom: node.y + 110 };
+    const overlaps = (a: typeof label, b: typeof label) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    for (const [i, ship] of bounds.entries()) {
+      expect(overlaps(ship, label)).toBe(false);
+      for (const other of bounds.slice(i + 1)) expect(overlaps(ship, other)).toBe(false);
+    }
+    Object.assign(gameController, { state: { players: [...players].reverse() } });
+    players.forEach(({ id }, i) => expect(scene.tokenPosition(id, 0)).toEqual([bounds[i].left + width / 2, bounds[i].top + height / 2]));
+  });
+
+  it('provides a berth before state is available and while sailing through an unoccupied stop', () => {
+    Object.assign(scene, { map: [{ id: 0, x: 100, y: 200 }] });
+    expect(scene.tokenPosition(3, 0)).toEqual([100, 146]);
+    Object.assign(gameController, { state: { players: [{ id: 1, position: 1 }] } });
+    expect(scene.tokenPosition(3, 0)).toEqual([100, 146]);
+  });
 });
 
 describe('fork routes', () => {

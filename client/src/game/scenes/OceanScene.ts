@@ -35,14 +35,6 @@ const PORT_FLAGS: Record<string, [number, number, number]> = {
   Italy: [0x147549, 0xffffff, 0xc62632], Korea: [0xffffff, 0xffffff, 0xffffff],
 };
 
-/** Small offsets so several fleets on one stop don't overlap. */
-const TOKEN_OFFSETS = [
-  [-30, -24],
-  [30, -24],
-  [-30, 24],
-  [30, 24],
-];
-
 /**
  * The sea: animated ocean, the route between stops, colony flags and the
  * fleets. Reads game state from the controller and never changes it; it only
@@ -697,8 +689,13 @@ export class OceanScene extends Phaser.Scene {
 
   private tokenPosition(playerId: number, nodeId: number): [number, number] {
     const node = this.map[nodeId];
-    const [dx, dy] = TOKEN_OFFSETS[playerId % TOKEN_OFFSETS.length];
-    return [node.x + dx, node.y + dy];
+    const occupants = new Set(gameController.state?.players.filter((player) => player.position === nodeId).map((player) => player.id));
+    occupants.add(playerId);
+    const ids = [...occupants].sort((a, b) => a - b);
+    const index = ids.indexOf(playerId);
+    const row = Math.floor(index / 2);
+    const rowSize = Math.min(2, ids.length - row * 2);
+    return [node.x + (index % 2 - (rowSize - 1) / 2) * 92, node.y - 54 - (Math.ceil(ids.length / 2) - row - 1) * 92];
   }
 
   private showGold({ playerId, delta, reason }: Extract<GameEvent, { type: 'goldChanged' }>) {

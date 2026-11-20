@@ -27,6 +27,8 @@ describe('nautical chart decorations', () => {
     expect(layout).toEqual(nauticalLayout(map));
     expect(map).toEqual(before);
     expect(layout.length).toBeGreaterThan(15);
+    expect(layout.find((item) => item.motif === 'rose')?.radius).toBe(260);
+    expect(layout.every((item) => item.radius >= 120)).toBe(true);
     expect(new Set(layout.map((item) => item.motif)).size).toBe(7);
     for (const x of [0, 1]) for (const y of [0, 1]) {
       expect(layout.some((item) => Math.floor(item.x / (WORLD.width / 2)) === x && Math.floor(item.y / (WORLD.height / 2)) === y)).toBe(true);
@@ -58,6 +60,10 @@ describe('nautical chart decorations', () => {
     for (const image of images) {
       expect(image.setInteractive).not.toHaveBeenCalled();
       expect(image.setDepth.mock.calls[0][0]).toBeLessThan(0);
+    }
+    for (const image of images.slice(0, nauticalLayout(map).length)) {
+      expect(image.setScale.mock.calls[0][0]).toBeGreaterThanOrEqual(1.65);
+      expect(image.setAlpha.mock.calls[0][0]).toBeGreaterThanOrEqual(.55);
     }
   });
   it('generates and disposes each motif graphics, reusing cached textures', () => {

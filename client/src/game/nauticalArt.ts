@@ -19,19 +19,23 @@ export function nauticalLayout(map: MapNode[]): SeaDecoration[] {
   }));
   const decorations: SeaDecoration[] = [];
   const place = (x: number, y: number, radius: number, motif: SeaMotif) => {
+    if (x < radius || y < radius || x + radius > WORLD.width || y + radius > WORLD.height) return;
     if (map.some((node) => Math.hypot(x - node.x, y - node.y - 35) < radius + 170)) return;
     if (edges.some((point) => Math.hypot(x - point.x, y - point.y) < radius + 38)) return;
-    if (decorations.some((other) => Math.hypot(x - other.x, y - other.y) < radius + other.radius + 65)) return;
+    if (decorations.some((other) => Math.hypot(x - other.x, y - other.y) < radius + other.radius + 35)) return;
     decorations.push({ x, y, radius, motif, angle: motif === 'rose' ? 0 : (random() - .5) * 24 });
   };
-  place(WORLD.width * .5, WORLD.height * .5, 140, 'rose');
+  place(WORLD.width * .5, WORLD.height * .5, 260, 'rose');
   const motifs: SeaMotif[] = ['whale', 'anchor', 'gulls', 'wreck', 'serpent', 'buoy'];
   let index = 0;
-  for (let y = 150; y < WORLD.height - 120; y += 300) {
-    for (let x = 150; x < WORLD.width - 120; x += 300) {
+  for (let y = 180; y < WORLD.height - 150; y += 180) {
+    for (let x = 180; x < WORLD.width - 150; x += 180) {
       const motif = motifs[index++ % motifs.length];
-      place(x + (random() - .5) * 120, y + (random() - .5) * 120, 62, motif);
+      place(x + (random() - .5) * 90, y + (random() - .5) * 90, 120, motif);
     }
+  }
+  for (let i = 0; i < 600; i++) {
+    place(120 + random() * (WORLD.width - 240), 120 + random() * (WORLD.height - 240), 120, motifs[index++ % motifs.length]);
   }
   return decorations;
 }
@@ -49,7 +53,8 @@ export function seaWaves() {
 export function addNauticalSea(scene: Phaser.Scene, map: MapNode[], reducedMotion: boolean) {
   for (const decoration of nauticalLayout(map)) {
     scene.add.image(decoration.x, decoration.y, nauticalTexture(scene, decoration.motif))
-      .setAngle(decoration.angle).setAlpha(decoration.motif === 'rose' ? .25 : .2).setDepth(-3);
+      .setAngle(decoration.angle).setScale(decoration.motif === 'rose' ? 1.7 : 1.65)
+      .setAlpha(decoration.motif === 'rose' ? .65 : .55).setDepth(-3);
   }
   for (const crest of seaWaves()) {
     const wave = scene.add.image(crest.x, crest.y, 'wave').setAlpha(crest.alpha).setScale(crest.scale).setDepth(-2);
@@ -64,8 +69,8 @@ export function nauticalTexture(scene: Phaser.Scene, motif: SeaMotif) {
   const key = `chart-${motif}`;
   if (scene.textures.exists(key)) return key;
   const g = scene.add.graphics();
-  const ink = 0xb6d7c5;
-  g.lineStyle(2, ink, 1);
+  const ink = 0xd9e8bc;
+  g.lineStyle(3, 0x174b60, 1);
   if (motif === 'rose') {
     g.strokeCircle(150, 150, 83).strokeCircle(150, 150, 90);
     for (let i = 0; i < 16; i++) {
@@ -82,6 +87,7 @@ export function nauticalTexture(scene: Phaser.Scene, motif: SeaMotif) {
   } else {
     if (motif === 'whale') {
       g.fillStyle(ink, .65).fillEllipse(58, 66, 77, 36);
+      g.strokeEllipse(58, 66, 77, 36);
       g.fillTriangle(90, 65, 121, 43, 116, 73).fillTriangle(95, 65, 120, 86, 116, 68);
       g.lineBetween(25, 64, 45, 68).strokeCircle(32, 59, 2);
       g.lineBetween(47, 43, 42, 25).lineBetween(42, 25, 30, 19).lineBetween(42, 25, 53, 15);
