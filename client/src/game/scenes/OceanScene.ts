@@ -28,6 +28,7 @@ export class OceanScene extends Phaser.Scene {
   private ships = new Map<number, Phaser.GameObjects.Image>();
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
+  private labels!: Phaser.GameObjects.Layer;
   private animatingPlayer: number | null = null;
   private goldPopups = new Map<Phaser.GameObjects.Text, { x: number; y: number; lane: number }>();
 
@@ -39,9 +40,16 @@ export class OceanScene extends Phaser.Scene {
     this.drawOcean();
     this.drawRoute();
     this.flags = this.add.graphics();
+    this.labels = this.add.layer();
     this.drawStops();
     this.marker = this.add.graphics();
 
+    const syncLabels = () => {
+      const showLabels = getComputedStyle(this.scale.parent).getPropertyValue('--chart-labels').trim() !== 'hidden';
+      this.labels.setVisible(showLabels);
+    };
+    syncLabels();
+    this.scale.on(Phaser.Scale.Events.RESIZE, syncLabels);
     const onState = () => this.syncFromState();
     const onMove = (move: { playerId: number; path: number[] }) => void this.animateMove(move);
     EventBus.on('state-changed', onState);
@@ -50,6 +58,7 @@ export class OceanScene extends Phaser.Scene {
     EventBus.on('gold-changed', onGold);
     const cleanup = () => {
       this.goldPopups.clear();
+      this.scale.off(Phaser.Scale.Events.RESIZE, syncLabels);
       EventBus.off('state-changed', onState);
       EventBus.off('animate-move', onMove);
       EventBus.off('gold-changed', onGold);
@@ -136,6 +145,7 @@ export class OceanScene extends Phaser.Scene {
       const dy = Math.sin(angle);
       const distance = 36 + Math.abs(dx) * text.width / 2 + Math.abs(dy) * text.height / 2;
       text.setPosition(node.x + dx * distance, node.y + dy * distance);
+      this.labels.add(text);
     }
   }
 

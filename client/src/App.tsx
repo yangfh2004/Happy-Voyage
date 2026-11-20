@@ -7,6 +7,7 @@ import { PlayerBar } from './ui/PlayerBar';
 import { ActionPanel } from './ui/ActionPanel';
 import { LogPanel } from './ui/LogPanel';
 import { RulesPanel } from './ui/RulesPanel';
+import { RouteDetails } from './ui/RouteDetails';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
@@ -16,8 +17,13 @@ export function App() {
   const [rulesOpen, setRulesOpen] = useState(false);
 
   return (
-    <div className="app">
-      <PhaserGame />
+    <div className={state ? 'app playing' : 'app'}>
+      <div className="chart">
+        <div className="chart-water">
+          <PhaserGame />
+        </div>
+        {state && <RouteDetails state={state} />}
+      </div>
       <div className="overlay">
         {state ? (
           <div className="hud">

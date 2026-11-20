@@ -7,8 +7,16 @@ export function PhaserGame() {
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const game = new Phaser.Game(createGameConfig(container.current!));
-    return () => game.destroy(true);
+    const parent = container.current!;
+    const game = new Phaser.Game(createGameConfig(parent));
+    const resize = new ResizeObserver(() => {
+      if (game.isBooted && game.scale.getParentBounds()) game.scale.refresh();
+    });
+    resize.observe(parent);
+    return () => {
+      resize.disconnect();
+      game.destroy(true);
+    };
   }, []);
 
   return <div ref={container} className="phaser-container" />;
