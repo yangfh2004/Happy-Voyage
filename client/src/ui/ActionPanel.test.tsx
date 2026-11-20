@@ -120,4 +120,20 @@ describe('build menu', () => {
       expect(html.match(/Stored:/g)).toHaveLength(1);
     }
   });
+
+  it('offers pay toll or fight at a rival colony with the stakes', () => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }] });
+    const { state } = engine;
+    const island = state.map.find((node) => node.kind === 'island')!;
+    state.owners[island.id] = 1;
+    engine.currentPlayer.position = island.id;
+    state.phase = 'moving';
+    engine.resolveLanding();
+    const html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(html).toContain(`Rival&#x27;s colony at ${island.name}`);
+    expect(html).toContain(`Pay <strong>${island.toll}g</strong> toll`);
+    expect(html).toContain(`${island.toll! * 2}g double toll`);
+    expect(html).toContain('Defenders: 3 ships');
+    expect(html).toContain('Fight <kbd>F</kbd>');
+  });
 });

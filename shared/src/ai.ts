@@ -1,4 +1,5 @@
 import { COMPASS_SECTORS } from './compass';
+import { colonyDefenders, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
 import type { BarterOffer } from './types';
 import { BUILDINGS, colonyToll, nextBuildingCost } from './buildings';
@@ -117,4 +118,12 @@ export function aiBuildingChoice(state: GameState, player: Player): BuildingKind
       return cost !== null && player.gold - cost >= reserve;
     })
     .sort((a, b) => nextBuildingCost(state, player.position, a)! - nextBuildingCost(state, player.position, b)!)[0] ?? null;
+}
+
+/** Fight a rival colony when an average battle wins it, or when the toll would bankrupt the fleet anyway. */
+export function aiShouldFight(state: GameState, player: Player): boolean {
+  if (!player.fleet.length) return false;
+  const nodeId = player.position;
+  if (player.gold < tollDue(state, player, nodeId)) return true;
+  return forecastNavalBattle(player.fleet, colonyDefenders(state, nodeId).ships) === 'victory';
 }

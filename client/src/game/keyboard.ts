@@ -9,6 +9,8 @@ export function keyboardShortcuts(controller: GameController) {
     s: () => controller.decline(),
     escape: () => controller.state?.phase === 'awaitingBuild' ? controller.finishBuilding() : controller.decline(),
     d: () => controller.finishBuilding(),
+    p: () => controller.payToll(),
+    f: () => controller.fight(),
     k: () => controller.skipToMyTurn(),
     '1': () => controller.setSpeed('Normal'),
     '2': () => controller.setSpeed('Fast'),

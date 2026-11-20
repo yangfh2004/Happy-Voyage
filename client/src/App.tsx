@@ -33,7 +33,7 @@ export function App() {
   const state = gameController.state;
   const overlay = useRef<HTMLDivElement>(null);
   const needsInput = state && !state.players[state.currentPlayer].isAI &&
-    (state.phase === 'awaitingSpin' || state.phase === 'awaitingClaim' || state.phase === 'awaitingBarter');
+    (state.phase === 'awaitingSpin' || state.phase === 'awaitingClaim' || state.phase === 'awaitingBarter' || state.phase === 'awaitingToll');
   const prompt = needsInput ? `${state.round}:${state.currentPlayer}:${state.phase}` : null;
   useLayoutEffect(() => {
     if (prompt && overlay.current) overlay.current.scrollTop = 0;
