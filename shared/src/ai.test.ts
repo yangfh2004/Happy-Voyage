@@ -3,6 +3,7 @@ import { aiShouldClaim, aiTravelTarget } from './ai';
 import { GameEngine } from './engine';
 import { forecastMap } from './testMap';
 import { createNationRoster } from './nations';
+import { SEA_RULES } from './seaRules';
 
 function claimOffer(maxRounds = 30, islandsToWin = 8, nodeId = 17) {
   const engine = new GameEngine({
@@ -244,6 +245,43 @@ describe('AI rival difficulty', () => {
     expect(aiTravelTarget(state, player)).toBe(choice);
   });
 
+  it('Hard navigates to buy a warship while keeping enough gold to settle more islands', () => {
+    const { engine, state, player, node } = at('island');
+    const market = state.map.find((stop) => stop.special === 'skeleton')!;
+    player.strategies = ['navigate'];
+    player.gold = 800;
+    expect(aiTravelTarget(state, player)).not.toBe(market.id);
+
+    player.gold = 1400;
+    player.position = node.id;
+    state.phase = 'awaitingSpin';
+    engine.decideForAI();
+    expect(state.phase).toBe('awaitingMarket');
+    expect(player.position).toBe(market.id);
+    engine.decideForAI();
+    expect(player.fleet.at(-1)?.type).toBe('warship');
+    expect(player.gold).toBeGreaterThanOrEqual(400);
+  });
+
+  it('Hard keeps Navigate when a normal spin already guarantees a home salary', () => {
+    const map = Array.from({ length: 20 }, (_, id) => ({ id, name: `Port ${id}`, kind: 'port' as const, x: id, y: 0 }));
+    const game = new GameEngine({ map, players: [{ name: 'Rival', color: 0, isAI: true, aiDifficulty: 'hard' }] });
+    const player = game.currentPlayer;
+    player.position = (player.homePort + map.length - 2) % map.length;
+    expect(aiTravelTarget(game.state, player)).toBeUndefined();
+  });
+
+  it('Hard wins the Mist duel and earns Navigate with no random choices', () => {
+    const { engine, state, player } = at('mist');
+    player.strategies = [];
+    const gold = player.gold;
+    engine.decideForAI();
+    expect(state.mistResults).toMatchObject([{ hermitId: 'brook', outcome: 'win', strategy: 'navigate' }]);
+    expect(player.gold).toBe(gold + SEA_RULES.nimPrize);
+    expect(player.strategies).toEqual(['navigate']);
+    expect(state.phase).toBe('awaitingSpin');
+  });
+
   it('does not burn a battle card when the fleet can win without it', () => {
     const { engine, state, player } = at('island', true);
     const rival = state.players[1];
@@ -267,5 +305,20 @@ describe('AI rival difficulty', () => {
       expect(player.fleet.includes(defector)).toBe(difficulty === 'hard');
       expect(player.strategies).toEqual(difficulty === 'hard' ? [] : ['betray']);
     }
+  });
+
+  it('Hard can disarm a major rival and still pay the toll instead of risking the fleet', () => {
+    const { engine, state, player } = at('island', true);
+    const rival = state.players[1];
+    const warship = rival.fleet[0];
+    expect(warship.type).toBe('warship');
+    const gold = player.gold;
+    player.strategies = ['mislead'];
+    for (const ship of player.fleet) ship.firepower = 1;
+    engine.decideForAI();
+    expect(rival.fleet).not.toContain(warship);
+    expect(player.strategies).toEqual([]);
+    expect(player.gold).toBeLessThan(gold);
+    expect(state.battles).toHaveLength(0);
   });
 });
