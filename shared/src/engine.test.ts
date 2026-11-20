@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine } from './engine';
 import type { Rng } from './dice';
+import { createDefaultMap } from './map';
 
 /** Rng that makes every die show `face`. */
 const fixedDice = (face: number): Rng => () => (face - 1) / 6 + 0.01;
@@ -52,6 +53,13 @@ describe('GameEngine', () => {
     engine.roll(); // 12 more steps wraps back to the home port
     expect(engine.currentPlayer.position).toBe(0);
     expect(engine.currentPlayer.gold).toBe(before + 200);
+  });
+
+  it('pays the salary for every lap on a short route', () => {
+    const map = createDefaultMap().slice(0, 4);
+    const engine = new GameEngine({ players: [twoPlayers[0]], rng: fixedDice(6), map });
+    engine.roll(); // 12 steps on a 4-stop route: home three times
+    expect(engine.currentPlayer.gold).toBe(1000 + 3 * 200);
   });
 
   it('plays an all-AI game to completion', () => {

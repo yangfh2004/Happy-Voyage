@@ -100,8 +100,9 @@ export class GameEngine {
     const path: number[] = [];
     for (let i = 1; i <= steps; i++) path.push((player.position + i) % size);
 
-    // Passing (or landing on) the home port pays the royal salary.
-    if (path.includes(0)) this.changeGold(player, this.state.config.homeSalary, 'royal salary');
+    // Each pass of (or landing on) the home port pays the royal salary.
+    const homePasses = path.filter((id) => id === 0).length;
+    if (homePasses > 0) this.changeGold(player, this.state.config.homeSalary * homePasses, 'royal salary');
 
     player.position = path[path.length - 1];
     this.state.phase = 'moving';
