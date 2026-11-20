@@ -29,6 +29,7 @@ export class OceanScene extends Phaser.Scene {
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
   private animatingPlayer: number | null = null;
+  private goldPopups = new Map<Phaser.GameObjects.Text, { x: number; y: number; lane: number }>();
 
   constructor() {
     super('Ocean');
@@ -48,6 +49,7 @@ export class OceanScene extends Phaser.Scene {
     const onGold = (event: Extract<GameEvent, { type: 'goldChanged' }>) => this.showGold(event);
     EventBus.on('gold-changed', onGold);
     const cleanup = () => {
+      this.goldPopups.clear();
       EventBus.off('state-changed', onState);
       EventBus.off('animate-move', onMove);
       EventBus.off('gold-changed', onGold);
@@ -204,10 +206,25 @@ export class OceanScene extends Phaser.Scene {
     const ship = this.ships.get(playerId);
     if (!ship) return;
     const shortReason = reason.startsWith('royal') ? 'salary' : reason.split(' ')[0];
-    const popup = this.add.text(ship.x, Math.max(100, ship.y - 30), `${delta < 0 ? '−' : '+'}${Math.abs(delta)}g\n${shortReason}`, {
+    const angle = Math.atan2(ship.y - WORLD.height / 2 - 10, ship.x - WORLD.width / 2);
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    const nearby = [...this.goldPopups.values()].filter((other) => Math.hypot(other.x - ship.x, other.y - ship.y) < 90);
+    let lane = 0;
+    while (nearby.some((other) => other.lane === lane)) lane += 1;
+    const offset = Math.ceil(lane / 2) * (lane % 2 === 1 ? 110 : -110);
+    const popup = this.add.text(0, 0, `${delta < 0 ? '−' : '+'}${Math.abs(delta)}g\n${shortReason}`, {
       fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
       color: delta < 0 ? '#ff9c9c' : '#9dffb0', align: 'center', stroke: '#06283d', strokeThickness: 4,
-    }).setOrigin(0.5, 1).setDepth(30);
-    this.tweens.add({ targets: popup, y: Math.max(65, popup.y - 48), alpha: 0, duration: 1800, onComplete: () => popup.destroy() });
+    }).setOrigin(0.5).setDepth(30);
+    const distance = 32 + Math.abs(dx) * popup.width / 2 + Math.abs(dy) * popup.height / 2;
+    const clampX = (x: number) => Phaser.Math.Clamp(x, popup.width / 2 + 8, WORLD.width - popup.width / 2 - 8);
+    const clampY = (y: number) => Phaser.Math.Clamp(y, popup.height / 2 + 8, WORLD.height - popup.height / 2 - 8);
+    popup.setPosition(clampX(ship.x + dx * distance - dy * offset), clampY(ship.y + dy * distance + dx * offset));
+    this.goldPopups.set(popup, { x: ship.x, y: ship.y, lane });
+    this.tweens.add({
+      targets: popup, x: clampX(popup.x + dx * 48), y: clampY(popup.y + dy * 48), alpha: 0, duration: 1800,
+      onComplete: () => { this.goldPopups.delete(popup); popup.destroy(); },
+    });
   }
 }
