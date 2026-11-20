@@ -173,6 +173,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
       <button className="primary big" onClick={start}>
         Set sail
       </button>
+      <button onClick={() => gameController.openOnline()}>Host online room</button>
     </div>
   );
 }

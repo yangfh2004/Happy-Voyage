@@ -4,15 +4,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { Server } from 'socket.io';
-import { createDefaultMap } from '@happy-voyage/shared';
+import { createDefaultMap, type RoomClientEvents, type RoomServerEvents } from '@happy-voyage/shared';
 import { checkDatabase } from './db';
 import { registerLobby } from './lobby';
 
-/**
- * Express + Socket.IO server. Today it serves the built client and a couple of
- * API routes; multiplayer rooms (see lobby.ts) will run GameEngine here so the
- * server is the source of truth for every match.
- */
 const PORT = Number(process.env.PORT ?? 3000);
 const here = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(here, '../../client/dist');
@@ -33,7 +28,16 @@ if (existsSync(clientDist)) {
 }
 
 const httpServer = createServer(app);
-const io = new Server(httpServer, { cors: { origin: '*' } });
+const io = new Server<RoomClientEvents, RoomServerEvents>(httpServer, {
+  maxHttpBufferSize: 8 * 1024,
+  allowRequest: (req, done) => {
+    try {
+      done(null, !req.headers.origin || new URL(req.headers.origin).host === req.headers.host);
+    } catch {
+      done(null, false);
+    }
+  },
+});
 registerLobby(io);
 
 httpServer.listen(PORT, () => {

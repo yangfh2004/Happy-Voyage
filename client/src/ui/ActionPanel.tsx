@@ -22,10 +22,12 @@ export function ActionPanel({ state }: { state: GameState }) {
   const [transfersOpen, setTransfersOpen] = useState(false);
   const [destination, setDestination] = useState(state.map[0].id);
   const player = state.players[state.currentPlayer];
+  const room = gameController.room;
+  const atHelm = !player.isAI && (!room || gameController.canHelm);
   const spinning = state.phase === 'spinning';
-  const trading = state.phase === 'awaitingCargoMarket' && !player.isAI;
+  const trading = state.phase === 'awaitingCargoMarket' && atHelm;
   const spinId = gameController.spinId;
-  const summary = !player.isAI && state.phase === 'awaitingSpin' ? gameController.feedback.summary : null;
+  const summary = atHelm && state.phase === 'awaitingSpin' ? gameController.feedback.summary : null;
   const gold = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value)}g`;
   const headline = gameController.headline;
 
@@ -67,16 +69,17 @@ export function ActionPanel({ state }: { state: GameState }) {
     const winner = state.players[state.winner!];
     const everyContinent = state.victory === 'everyContinent';
     const flag = winner.nation ?? winner.name;
+    const otherOnlineWinner = room && winner.id !== gameController.viewerId;
     body = (
       <>
         {everyContinent ? (
           <div className="victory-screen" role="status">
             <div className="victory-flag" aria-hidden="true">⚑</div>
-            <h2>{winner.isAI ? `${winner.name} rules the Seven Seas.` : gameController.humanCount > 1 ? `Victory for ${winner.name}! Every new continent flies your flag.` : 'Victory! Every new continent flies your flag.'}</h2>
+            <h2>{winner.isAI || otherOnlineWinner ? `${winner.name} rules the Seven Seas.` : !room && gameController.humanCount > 1 ? `Victory for ${winner.name}! Every new continent flies your flag.` : 'Victory! Every new continent flies your flag.'}</h2>
             <p className="victory-count">All {state.config.islandsToWin} new continents are colonies of {flag}.</p>
           </div>
         ) : (
-          <h2>{winner.isAI ? `${winner.name} wins the seas.` : gameController.humanCount > 1 ? `Victory for ${winner.name}! The crown celebrates you.` : 'Victory! The crown celebrates you.'}</h2>
+          <h2>{winner.isAI || otherOnlineWinner ? `${winner.name} wins the seas.` : !room && gameController.humanCount > 1 ? `Victory for ${winner.name}! The crown celebrates you.` : 'Victory! The crown celebrates you.'}</h2>
         )}
         <p>{state.log[state.log.length - 1]}</p>
         <table className="standings">
@@ -97,9 +100,12 @@ export function ActionPanel({ state }: { state: GameState }) {
       </>
     );
   } else if (spinning) {
-    body = <p className="waiting">{player.isAI ? `${player.name} spins the compass.` : 'Your compass is spinning.'}</p>;
+    body = <p className="waiting">{atHelm ? 'Your compass is spinning.' : `${player.name} spins the compass.`}</p>;
   } else if (player.isAI) {
     body = <p className="waiting">{player.name} is at the helm…</p>;
+  } else if (!atHelm) {
+    const connected = room?.lobby?.seats.find((seat) => seat.nation === player.nation)?.connected;
+    body = <p className="waiting">{connected === false ? `Waiting for ${player.name} to reconnect…` : `${player.name} is at the helm…`}</p>;
   } else if (state.phase === 'awaitingSpin') {
     body = (
       <>
@@ -235,7 +241,7 @@ export function ActionPanel({ state }: { state: GameState }) {
 
   return (
     <div className="panel actions">
-      {!player.isAI && state.phase !== 'gameOver' && <section aria-label="Strategy cards" style={{ fontFamily: "'Sea Names', sans-serif" }}>
+      {atHelm && state.phase !== 'gameOver' && <section aria-label="Strategy cards" style={{ fontFamily: "'Sea Names', sans-serif" }}>
         <h3>Strategy cards ({player.strategies.length}/5)</h3>
         {player.strategies.length === 0 && <p>No strategy cards.</p>}
         {player.strategies.includes('navigate') && <label>Navigate destination <select value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
@@ -262,7 +268,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         </div>
       )}
       {gameController.waiting && (
-        <button onClick={() => gameController.skipToMyTurn()}>{gameController.humanCount > 1 ? 'Skip to the next player' : 'Skip to my turn'} <kbd>K</kbd></button>
+        <button onClick={() => gameController.skipToMyTurn()}>{room ? 'Skip animations' : gameController.humanCount > 1 ? 'Skip to the next player' : 'Skip to my turn'} <kbd>K</kbd></button>
       )}
       {summary && (
         <div className="turn-summary">
@@ -280,7 +286,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         {headline && (!summary || headline.royal) && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{headline.text}</div>}
       </div>
       <ShortcutLegend />
-      {transfersOpen && state.phase === 'awaitingBuild' && !player.isAI && (
+      {transfersOpen && state.phase === 'awaitingBuild' && atHelm && (
         <TransferPanel state={state} onClose={() => setTransfersOpen(false)} />
       )}
     </div>
