@@ -146,6 +146,15 @@ export class GameController {
 
   decline(): void {
     if (this.isHumanTurn('awaitingClaim')) this.engine!.decline();
+    else this.declineBarter();
+  }
+
+  acceptBarter(index: number): void {
+    if (this.isHumanTurn('awaitingBarter')) this.engine!.acceptBarter(index);
+  }
+
+  declineBarter(): void {
+    if (this.isHumanTurn('awaitingBarter')) this.engine!.declineBarter();
   }
 
   canBuild(kind: BuildingKind): boolean {
@@ -279,6 +288,7 @@ export class GameController {
         break;
       }
       case 'claimOffered':
+      case 'barterOffered':
       case 'buildOffered':
       case 'marketOpened':
         if (!engine.currentPlayer.isAI) this.skipping = false;

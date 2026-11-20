@@ -86,7 +86,7 @@ export interface ColonyStockpile {
   specialties: Partial<Record<Specialty, number>>;
 }
 
-export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' | 'awaitingMarket' | 'gameOver';
+export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' | 'awaitingBarter' | 'awaitingMarket' | 'gameOver';
 
 export interface MarketState {
   stock: Record<Good, number>;
@@ -98,6 +98,13 @@ export interface MarketOrder {
   shipId: number;
   good: Good;
   quantity: number;
+}
+
+export interface BarterOffer {
+  give: Good;
+  giveQty: number;
+  receive: Good;
+  receiveQty: number;
 }
 
 export interface GameConfig {
@@ -127,12 +134,14 @@ export interface GameState {
   lastSpin: number | null;
   /** Island the current player may claim while phase === 'awaitingClaim'. */
   pendingClaim: number | null;
+  pendingBarter: BarterOffer[] | null;
   winner: number | null;
   log: string[];
 }
 
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
+  | { type: 'barterOffered'; playerId: number; nodeId: number }
   | { type: 'shipTransferred'; playerId: number; nodeId: number; shipId: number; direction: 'dock' | 'board' }
   | { type: 'cargoMoved'; playerId: number; nodeId: number; shipId: number; good: Good; qty: number; direction: 'load' | 'unload' }
   | { type: 'buildingBuilt'; playerId: number; nodeId: number; kind: BuildingKind; level: number }

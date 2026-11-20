@@ -70,7 +70,7 @@ for (const players of [2, 3, 4]) {
           }
           if (claim) game.claim();
           else game.decline();
-        } else if (game.state.phase === 'awaitingBuild' || game.state.phase === 'awaitingMarket') {
+        } else if (game.state.phase === 'awaitingBuild' || game.state.phase === 'awaitingBarter' || game.state.phase === 'awaitingMarket') {
           game.decideForAI();
         }
         turns++;
