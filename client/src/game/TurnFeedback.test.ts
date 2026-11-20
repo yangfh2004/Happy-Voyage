@@ -74,4 +74,15 @@ describe('turn feedback', () => {
     expect(() => feedback.observe({ type: 'turnStarted', playerId: 1 }, state)).not.toThrow();
     expect(feedback.summary).toBeNull();
   });
+
+  it('reports a rival capturing a colony in battle', () => {
+    const { feedback, state } = fixture();
+    feedback.observe({ type: 'turnStarted', playerId: 1 }, state);
+    feedback.observe({ type: 'claimed', playerId: 1, nodeId: 1 }, state);
+    feedback.observe({ type: 'battleFought', report: {
+      nodeId: 1, attacker: 1, defender: 0, outcome: 'victory', rounds: 1, attackerSunk: [], defenderSunk: ['Warship 1'], tollPaid: 0,
+    } }, state);
+    feedback.observe({ type: 'turnStarted', playerId: 0 }, state);
+    expect(feedback.summary?.claims).toEqual([{ name: 'England', island: state.map[1].name, captured: true }]);
+  });
 });

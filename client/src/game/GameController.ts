@@ -151,6 +151,14 @@ export class GameController {
     else this.declineBarter();
   }
 
+  payToll(): void {
+    if (this.isHumanTurn('awaitingToll')) this.engine!.payToll();
+  }
+
+  fight(): void {
+    if (this.isHumanTurn('awaitingToll')) this.engine!.fight();
+  }
+
   acceptBarter(index: number): void {
     if (this.isHumanTurn('awaitingBarter')) this.engine!.acceptBarter(index);
   }
@@ -323,6 +331,23 @@ export class GameController {
       case 'shipSold':
         if (isHuman(event.playerId)) this.headline = { text: `Sold ${event.shipName} for ${event.price}g.`, tone: 'gain' };
         break;
+      case 'battleFought': {
+        const { report } = event;
+        const at = engine.state.map[report.nodeId].name;
+        const rival = players[isHuman(report.attacker) ? report.defender : report.attacker].name;
+        if (isHuman(report.attacker)) {
+          this.headline = report.outcome === 'victory' ? { text: `Victory! You sink ${rival}'s defenders and take ${at}.`, tone: 'gain' }
+            : report.outcome === 'defeat' ? { text: `Defeat at ${at}: your fleet is sunk and you pay ${report.tollPaid}g double toll.`, tone: 'loss' }
+            : { text: `Stalemate at ${at}: both fleets sail home.`, tone: 'loss' };
+        } else if (isHuman(report.defender)) {
+          this.headline = report.outcome === 'victory' ? { text: `${rival} sinks your defenders and takes ${at}!`, tone: 'loss' }
+            : report.outcome === 'defeat' ? { text: `You repel ${rival} at ${at} and collect ${report.tollPaid}g double toll!`, tone: 'gain' }
+            : { text: `${rival} attacks ${at}; the battle is a draw and both fleets sail home.`, tone: 'loss' };
+        }
+        sfx.storm();
+        break;
+      }
+      case 'tollOffered':
       case 'claimOffered':
       case 'marketOffered':
       case 'barterOffered':

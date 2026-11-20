@@ -2,7 +2,7 @@ import type { GameEvent, GameState } from '@happy-voyage/shared';
 
 export interface TurnSummary {
   tolls: { direction: 'received' | 'paid'; name: string; amount: number }[];
-  claims: { name: string; island: string }[];
+  claims: { name: string; island: string; captured?: boolean }[];
   netGold: number;
 }
 
@@ -27,6 +27,11 @@ export class TurnFeedback {
     }
     if (event.type === 'claimed' && state.players[event.playerId].isAI && this.baseline !== null) {
       this.claims.push({ name: state.players[event.playerId].name, island: state.map[event.nodeId].name });
+    }
+    if (event.type === 'battleFought' && event.report.defender === human.id && event.report.outcome === 'victory') {
+      const island = state.map[event.report.nodeId].name;
+      const claim = this.claims.find((entry) => entry.island === island && !entry.captured);
+      if (claim) claim.captured = true;
     }
     if (event.type === 'turnStarted' && event.playerId === human.id) {
       const netGold = this.baseline === null ? 0 : human.gold - this.baseline;

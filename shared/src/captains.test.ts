@@ -46,6 +46,7 @@ describe('Dragon Snake captains', () => {
     for (let i = 0; i < 2; i++) {
       const before = p.gold;
       land(g, 1);
+      g.payToll();
       expect(p.gold).toBe(before - Math.ceil(g.state.map[1].toll! * 0.9));
     }
     expect(p.captains).toEqual(['ines']);
