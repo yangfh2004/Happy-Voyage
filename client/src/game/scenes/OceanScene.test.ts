@@ -13,6 +13,7 @@ type SceneHarness = {
   animateMove(move: Move): void;
   updatePacing(): void;
   cancelMove(): void;
+  syncFromState(): void;
 };
 
 let scene: SceneHarness;
@@ -23,6 +24,7 @@ let ship: { setFlipX: ReturnType<typeof vi.fn>; setPosition: ReturnType<typeof v
 beforeEach(() => {
   vi.clearAllMocks();
   gameController.timings.step = 200;
+  Object.assign(gameController, { state: null });
   completions = [];
   tweens = [];
   ship = { x: 0, setFlipX: vi.fn(), setPosition: vi.fn() };
@@ -37,6 +39,35 @@ beforeEach(() => {
       return tween;
     } },
   }) as unknown as SceneHarness;
+});
+
+describe('colony ownership', () => {
+  function graphics() {
+    return { clear: vi.fn(), lineStyle: vi.fn().mockReturnThis(), strokeCircle: vi.fn().mockReturnThis(), lineBetween: vi.fn().mockReturnThis(), fillStyle: vi.fn().mockReturnThis(), fillTriangle: vi.fn().mockReturnThis() };
+  }
+
+  it('draws contrasting owner rings and flags for claimed colonies only', () => {
+    const flags = graphics();
+    Object.assign(scene, { flags });
+    Object.assign(ship, { setAlpha: vi.fn() });
+    Object.assign(gameController, { state: {
+      owners: [null, 0], players: [{ id: 0, color: 0xe85d4a, position: 1 }], currentPlayer: 0, phase: 'gameOver',
+    } });
+    scene.syncFromState();
+    expect(flags.strokeCircle).toHaveBeenCalledTimes(2);
+    expect(flags.lineStyle).toHaveBeenCalledWith(10, 0x06283d, 1);
+    expect(flags.lineStyle).toHaveBeenCalledWith(6, 0xe85d4a, 1);
+    expect(flags.fillTriangle).toHaveBeenCalledOnce();
+  });
+
+  it.each([null, { owners: [], players: [], phase: 'gameOver' }])('clears ownership without drawing when there are no colonies (%j)', (state) => {
+    const flags = graphics();
+    Object.assign(scene, { flags, ships: new Map() });
+    Object.assign(gameController, { state });
+    scene.syncFromState();
+    expect(flags.clear).toHaveBeenCalledOnce();
+    expect(flags.strokeCircle).not.toHaveBeenCalled();
+  });
 });
 
 describe('movement pacing', () => {

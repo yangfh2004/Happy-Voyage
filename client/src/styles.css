@@ -4,12 +4,13 @@ html, body, #root { margin: 0; height: 100%; }
 body {
   background: #06283d;
   color: #2b1d0e;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Sea Names', sans-serif;
   overflow: hidden;
 }
 
 .app { position: relative; width: 100vw; height: 100vh; }
 .phaser-container { position: absolute; inset: 0; }
+.phaser-container, .phaser-container canvas { touch-action: none; overscroll-behavior: contain; }
 .route-details summary { cursor: pointer; font-weight: 600; }
 .route-stops { padding-left: 24px; max-height: 260px; overflow: auto; }
 .route-stops li { padding-block: 6px; }
@@ -40,8 +41,8 @@ body {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
-h1 { margin: 0; font-family: Georgia, serif; font-size: 40px; color: #0a3d62; }
-h2 { margin: 0 0 6px; font-family: Georgia, serif; font-size: 20px; color: #0a3d62; }
+h1 { margin: 0; font-family: Georgia, 'Sea Names', serif; font-size: 40px; color: #0a3d62; }
+h2 { margin: 0 0 6px; font-family: Georgia, 'Sea Names', serif; font-size: 20px; color: #0a3d62; }
 p { margin: 6px 0; line-height: 1.4; }
 .subtitle { margin-top: 0; color: #8d6e63; font-style: italic; }
 

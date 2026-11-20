@@ -78,7 +78,7 @@ export class OceanScene extends Phaser.Scene {
     EventBus.on('follow-ship', onFollow);
     this.drawOcean();
     this.drawRoute();
-    this.flags = this.add.graphics();
+    this.flags = this.add.graphics().setDepth(5);
     this.labels = this.add.layer();
     this.drawStops();
     this.marker = this.add.graphics();
@@ -231,7 +231,8 @@ export class OceanScene extends Phaser.Scene {
       if (owner === null) return;
       const node = this.map[nodeId];
       const color = state.players[owner].color;
-      this.flags.lineStyle(5, color, 1).strokeCircle(node.x, node.y, 27);
+      this.flags.lineStyle(10, 0x06283d, 1).strokeCircle(node.x, node.y, 28);
+      this.flags.lineStyle(6, color, 1).strokeCircle(node.x, node.y, 28);
       this.flags.lineStyle(2, 0x3e2723).lineBetween(node.x + 10, node.y - 6, node.x + 10, node.y - 30);
       this.flags.fillStyle(color).fillTriangle(node.x + 10, node.y - 30, node.x + 10, node.y - 18, node.x + 26, node.y - 24);
     });
