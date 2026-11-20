@@ -15,6 +15,7 @@ import { RANKS, playerMerit, foreignTaxDue } from './ranks';
 export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
+import { walkPath, WIND_DIRECTIONS } from './graph';
 import { GAME_MODES, hasRoundLimit } from './modes';
 import { campaignRoster, campaignStage, type CampaignObjective, type CampaignSetup, type CampaignState } from './campaign';
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
@@ -94,6 +95,7 @@ export class GameEngine extends GameView {
       if (port) usedPorts.add(port.id);
     });
     super({
+      wind: { direction: 'N', turnsLeft: 3 },
       hoardNode: null,
       strategyUsed: false,
       inspired: false,
@@ -160,6 +162,7 @@ export class GameEngine extends GameView {
       if (player.navigator !== undefined && !flagship) throw new Error(`Unknown navigator: ${player.navigator}`);
       for (const type of STARTING_FLEET) this.commissionShip(player.id, type, type === flagship?.type ? flagship : undefined);
     }
+    this.state.wind = { direction: WIND_DIRECTIONS[Math.floor(this.rng() * 4)], turnsLeft: 2 + Math.floor(this.rng() * 3) };
   }
 
   /** Subscribe to engine events; returns an unsubscribe function. */
@@ -258,9 +261,7 @@ export class GameEngine extends GameView {
     this.relocations = 0;
     const player = this.currentPlayer;
     const steps = this.state.lastSpin!;
-    const size = this.state.map.length;
-    const path: number[] = [];
-    for (let i = 1; i <= steps; i++) path.push((player.position + i) % size);
+    const path = walkPath(this.state.map, player.position, steps, this.state.wind.direction);
 
     player.position = path[path.length - 1];
     this.pendingPath = path;
@@ -1087,9 +1088,8 @@ export class GameEngine extends GameView {
           break;
         }
         if (this.relocations++ >= SEA_RULES.relocationLimit) { announce('escaped'); break; }
-        const size = this.state.map.length;
         const direction = this.rng() < 0.5 ? -1 : 1;
-        const path = Array.from({ length: SEA_RULES.whirlpoolSteps }, (_, i) => (player.position + direction * (i + 1) + size * SEA_RULES.whirlpoolSteps) % size);
+        const path = walkPath(this.state.map, player.position, direction * SEA_RULES.whirlpoolSteps, this.state.wind.direction);
         player.position = path[path.length - 1];
         this.pendingPath = path;
         announce('relocated', { destination: player.position });
@@ -1188,6 +1188,15 @@ export class GameEngine extends GameView {
   }
 
   private endTurn(): void {
+    if (--this.state.wind.turnsLeft === 0) {
+      const choices = WIND_DIRECTIONS.filter((d) => d !== this.state.wind.direction);
+      const direction = choices[Math.floor(this.rng() * choices.length)];
+      this.state.wind = { direction, turnsLeft: 2 + Math.floor(this.rng() * 3) };
+      const en = { N: 'North', E: 'East', S: 'South', W: 'West' }[direction];
+      const zh = { N: '北风', E: '东风', S: '南风', W: '西风' }[direction];
+      this.log(tx(`${en} wind rises. Changes in {n} turns.`, `${zh}起，{n} 个回合后转向。`, { n: this.state.wind.turnsLeft }));
+      this.emit({ type: 'windChanged', ...this.state.wind });
+    }
     this.state.pendingMerchant = null;
     this.state.pendingWyvern = false;
     this.state.pendingClaim = null;

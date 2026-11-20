@@ -159,7 +159,8 @@ describe('GameEngine', () => {
   });
 
   it('pays the royal salary when reaching home', () => {
-    const engine = new GameEngine({ players: [twoPlayers[0]], rng: spinTwelve });
+    const map = createDefaultMap().map(({ next: _, ...node }) => node);
+    const engine = new GameEngine({ players: [twoPlayers[0]], rng: spinTwelve, map });
     engine.currentPlayer.position = engine.state.map.length - 12;
     const before = engine.currentPlayer.gold;
     spinAndSail(engine);
@@ -170,7 +171,7 @@ describe('GameEngine', () => {
   });
 
   it('pays the salary for every lap on a short route', () => {
-    const map = createDefaultMap().slice(0, 4);
+    const map = createDefaultMap().slice(0, 4).map(({ next: _, ...node }) => node);
     const engine = new GameEngine({ players: [twoPlayers[0]], rng: spinTwelve, map });
     const before = engine.currentPlayer.gold;
     spinAndSail(engine); // 12 steps on a 4-stop route: home three times

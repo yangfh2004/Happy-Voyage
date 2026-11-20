@@ -33,7 +33,7 @@ function atMarket() {
 
 describe('Nightless Island market', () => {
   it('takes a voyage from founding a colony to selling its own production', () => {
-    const rolls = [0.3, 0.18, 0.18, 0];
+    const rolls = [0, 0.99, 0.3, 0.18, 0.18, 0, 0, 0];
     const g = new GameEngine({ players: [players[0]], map, config: { startingStrategies: 0 }, rng: () => rolls.shift()! });
     g.state.config.islandsToWin = 2; // Owning the map's only island would otherwise win at once.
     g.start();

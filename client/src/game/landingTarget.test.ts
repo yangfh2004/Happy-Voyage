@@ -24,9 +24,23 @@ describe('landing target', () => {
     const { state } = game();
     state.phase = 'spinning';
     state.players[0].position = state.map.length - 2;
+    state.wind.direction = 'N';
     state.lastSpin = 5;
     expect(landingTarget(state)).toEqual({ nodeId: state.map[3].id, playerId: 0, steps: 5, preview: false });
     expect(state.players[0].position).toBe(state.map.length - 2);
+  });
+  it('previews and verifies the same wind-selected fork as the engine', () => {
+    const engine = game();
+    const { state } = engine;
+    state.players[0].position = 1;
+    state.wind.direction = 'S';
+    engine.spinCompass();
+    state.lastSpin = 2;
+    expect(sailingRoute(state)).toEqual([1, 2, 13]);
+    expect(landingTarget(state)?.nodeId).toBe(13);
+    const path = engine.sail();
+    expect(path).toEqual([2, 13]);
+    expect(sailingRoute(state, { playerId: 0, path, sailFrom: 1 })).toEqual([1, 2, 13]);
   });
   it('uses the actual movement path, not an already-updated ship position or stale compass result', () => {
     const { state } = game();

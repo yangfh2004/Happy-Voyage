@@ -1,4 +1,5 @@
 import { COMPASS_SECTORS } from './compass';
+import { walkPath } from './graph';
 import { colonyDefenders, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
 import { captainBonus, discountedByCaptains } from './captains';
@@ -98,7 +99,6 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
   const nextRank = RANKS[player.rank + 1];
   const audience = nextRank && merit >= nextRank.merit ? nextRank.purse : (merit - player.audienceMerit) * 2;
   const repair = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
-  const size = state.map.length;
   const rivalHoldings = state.players.map((rival) => colonies(state, rival));
   const soleRival = state.players.filter((rival) => !rival.bankrupt && rival.id !== player.id).length === 1;
 
@@ -155,10 +155,10 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
 
   const spinLandings = new Map<number, Map<number, number>>();
   const spinValue = (position: number, cash: number) => {
-    const homeDistance = (player.homePort - position + size - 1) % size + 1;
     return COMPASS_SECTORS.reduce((value, { steps, odds }) => {
-      const pay = steps >= homeDistance ? salary : 0;
-      const next = state.map[(position + steps) % size];
+      const path = walkPath(state.map, position, steps, state.wind.direction);
+      const pay = path.filter((id) => id === player.homePort).length * salary;
+      const next = state.map[path.at(-1)!];
       const arrivalCash = cash + pay;
       let scores = spinLandings.get(arrivalCash);
       if (!scores) spinLandings.set(arrivalCash, scores = new Map());
@@ -207,10 +207,10 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
     if (cash < 0) return 1;
     if (turns === 0) return 0;
     return COMPASS_SECTORS.reduce((risk, { steps, odds }) => {
-      const distance = position + steps;
-      const next = distance % map.length;
+      const path = walkPath(map, position, steps, state.wind.direction);
+      const next = path.at(-1)!;
       const node = map[next];
-      const passes = Array.from({ length: steps }, (_, i) => (position + i + 1) % map.length).filter((id) => id === player.homePort).length;
+      const passes = path.filter((id) => id === player.homePort).length;
       const afterSalary = cash + passes * (config.homeSalary + RANKS[player.rank].salary + captainBonus(player, 'salary'));
       const owner = owners[next];
       const hazard = ['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'].includes(node.event ?? '');
@@ -269,7 +269,7 @@ function estimatedTolls(state: GameState, player: Player, node: MapNode): number
     const moves = roundsLeft(state) + Number(turnOrderPosition(state, rival.id) > myTurn);
     if (moves === 0) continue;
     const nextSpinOdds = COMPASS_SECTORS.reduce((chance, { steps, odds }) =>
-      chance + ((rival.position + steps) % state.map.length === node.id ? odds : 0), 0);
+      chance + (walkPath(state.map, rival.position, steps, state.wind.direction).at(-1) === node.id ? odds : 0), 0);
     tolls += Math.min(rival.gold, node.toll ?? 0) * (nextSpinOdds + (moves - 1) / state.map.length);
   }
   return tolls;

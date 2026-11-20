@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { atmosphere, buildingDescription, buildingName, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type BuildingKind, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
+import { successors, atmosphere, buildingDescription, buildingName, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type BuildingKind, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
 import { getLocale, pick, subscribeLocale } from '../../i18n';
 import { readPreference } from '../../ui/accessibilityPreferences';
 
@@ -301,17 +301,22 @@ export class OceanScene extends Phaser.Scene {
   private drawRoute() {
     const g = this.add.graphics();
     g.lineStyle(4, 0xffffff, 0.25);
-    this.map.forEach((node, i) => {
-      const next = this.map[(i + 1) % this.map.length];
-      g.lineBetween(node.x, node.y, next.x, next.y);
-      const angle = Math.atan2(next.y - node.y, next.x - node.x);
-      const x = (node.x + next.x) / 2;
-      const y = (node.y + next.y) / 2;
-      g.lineStyle(2, 0xffffff, 0.65);
-      for (const side of [-1, 1]) {
-        g.lineBetween(x, y, x - 9 * Math.cos(angle) + side * 5 * Math.sin(angle), y - 9 * Math.sin(angle) - side * 5 * Math.cos(angle));
+    this.map.forEach((node) => {
+      const exits = successors(this.map, node.id);
+      if (exits.length > 1) g.lineStyle(3, 0xffd369, 0.9).strokeCircle(node.x, node.y, 30);
+      for (const id of exits) {
+        const next = this.map[id];
+        g.lineStyle(4, exits.length > 1 ? 0xffd369 : 0xffffff, 0.35);
+        g.lineBetween(node.x, node.y, next.x, next.y);
+        const angle = Math.atan2(next.y - node.y, next.x - node.x);
+        const x = (node.x + next.x) / 2;
+        const y = (node.y + next.y) / 2;
+        g.lineStyle(2, 0xffffff, 0.65);
+        for (const side of [-1, 1]) {
+          g.lineBetween(x, y, x - 9 * Math.cos(angle) + side * 5 * Math.sin(angle), y - 9 * Math.sin(angle) - side * 5 * Math.cos(angle));
+        }
+        g.lineStyle(4, 0xffffff, 0.25);
       }
-      g.lineStyle(4, 0xffffff, 0.25);
     });
   }
 
