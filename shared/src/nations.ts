@@ -1,4 +1,5 @@
 import type { PlayerSetup } from './types';
+import { navigatorForNation } from './navigators';
 
 export const NATIONS = [
   { name: 'Spain', color: 0xd64545 },
@@ -25,12 +26,13 @@ export function createNationRoster(picks: readonly NationPick[]): PlayerSetup[] 
     if (!entry) throw new Error(`Unknown nation: ${nation}`);
     if (chosen.has(nation)) throw new Error(`Nation already picked: ${nation}`);
     chosen.add(nation);
-    return { name, nation, color: entry.color, isAI: false };
+    return { name, nation, navigator: navigatorForNation(nation)?.id, color: entry.color, isAI: false };
   });
   return [
     ...humans,
-    ...NATIONS.filter(({ name }) => !chosen.has(name)).map(({ name, color }) => (
-      { name, nation: name, color, isAI: true }
-    )),
+    ...NATIONS.filter(({ name }) => !chosen.has(name)).map(({ name, color }) => {
+      const navigator = navigatorForNation(name);
+      return { name: navigator?.name ?? name, nation: name, navigator: navigator?.id, color, isAI: true };
+    }),
   ];
 }

@@ -213,3 +213,16 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 @keyframes banner { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: none; } }
 .headline.gain { background: #fff1b8; color: #7a5200; border: 1px solid #e0b728; }
 .headline.loss { background: #fde2e1; color: #8e2b2b; border: 1px solid #d64545; }
+
+.portrait { flex-shrink: 0; vertical-align: middle; }
+.chip .portrait { margin-left: -6px; }
+.player .portrait { margin-right: 6px; }
+.navigator-card { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid #c9b68a; border-radius: 10px; background: #fff8e1; font-weight: 400; }
+.navigator-card strong { color: #0a3d62; }
+.navigator-title { font-style: italic; color: #6d4c41; font-size: 14px; }
+.signature { font-size: 13px; margin-top: 2px; }
+.cjk { font-family: system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', 'Sea Names', sans-serif; color: #8d6e63; }
+@media (max-width: 700px) {
+  .playing .player .portrait { width: 18px; height: 18px; margin-right: 3px; }
+  .navigator-card .portrait { width: 56px; height: 56px; }
+}

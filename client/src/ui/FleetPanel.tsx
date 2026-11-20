@@ -52,7 +52,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
             <tbody>
               {fleet.map((ship) => (
                 <tr key={ship.id}>
-                  <th scope="row">{ship.name}<small>{SHIP_TYPES[ship.type].label}</small></th>
+                  <th scope="row">{ship.signature && <span aria-label="Signature ship" title="Signature ship">★ </span>}{ship.name}<small>{SHIP_TYPES[ship.type].label}{ship.signature && ' · signature ship'}</small></th>
                   <td>{ship.durability}/{ship.maxDurability}</td>
                   <td>{ship.firepower}</td>
                   <td>{ship.cargoCapacity}</td>
