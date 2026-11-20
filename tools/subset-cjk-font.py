@@ -1,4 +1,4 @@
-"""Rebuild client/public/fonts/sea-names.ttf: Noto Sans SC limited to the CJK text the game ships.
+"""Rebuild client/src/assets/sea-names.ttf: Noto Sans SC limited to the CJK text the game ships.
 
 Usage: python3 tools/subset-cjk-font.py path/to/NotoSansSC[wght].ttf
 (Noto Sans SC variable font: https://github.com/google/fonts/tree/main/ofl/notosanssc)
@@ -14,5 +14,5 @@ for pattern in ('client/src/**/*.ts', 'client/src/**/*.tsx', 'shared/src/**/*.ts
         chars |= set(CJK.findall(Path(file).read_text(encoding='utf-8')))
 text = ''.join(sorted(chars))
 subprocess.run(['pyftsubset', sys.argv[1], f'--text={text}', '--layout-features=*', '--no-hinting',
-                f'--output-file={root / "client/public/fonts/sea-names.ttf"}'], check=True)
+                f'--output-file={root / "client/src/assets/sea-names.ttf"}'], check=True)
 print(f'{len(chars)} characters')

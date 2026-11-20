@@ -36,7 +36,7 @@ function cmap(font: Buffer): Set<number> {
 
 describe('bundled Chinese font', () => {
   it('has a glyph for every Chinese character the game shows', () => {
-    const covered = cmap(readFileSync(resolve(root, 'client/public/fonts/sea-names.ttf')));
+    const covered = cmap(readFileSync(resolve(root, 'client/src/assets/sea-names.ttf')));
     const files = ['client/src', 'shared/src'].flatMap((dir) =>
       readdirSync(resolve(root, dir), { recursive: true, encoding: 'utf8' }).filter((f) => /\.tsx?$/.test(f)).map((f) => `${dir}/${f}`));
     files.push('client/index.html');

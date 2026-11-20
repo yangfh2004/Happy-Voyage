@@ -19,7 +19,7 @@
 .sea-choice select { width: 100%; }
 @keyframes sea-swirl { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .sea-notice, .sea-whirlpool .sea-icon { animation: none; } }
-@font-face { font-family: 'Sea Names'; src: url('/fonts/sea-names.ttf') format('truetype'); font-display: block; }
+@font-face { font-family: 'Sea Names'; src: url('./assets/sea-names.ttf') format('truetype'); font-display: block; }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }
 body {
