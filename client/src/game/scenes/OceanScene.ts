@@ -13,6 +13,7 @@ import { landingTarget, sailingRoute, type MovePath, type NavigatePreview } from
 import { routeEdge } from '../routeEdge';
 import { islandTexture } from '../islandArt';
 import { bindStopHelp, stopHelpPosition } from '../stopHelp';
+import { addNauticalSea, shipTexture } from '../nauticalArt';
 
 const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
@@ -36,10 +37,10 @@ const PORT_FLAGS: Record<string, [number, number, number]> = {
 
 /** Small offsets so several fleets on one stop don't overlap. */
 const TOKEN_OFFSETS = [
-  [-14, -16],
-  [14, -16],
-  [-14, 12],
-  [14, 12],
+  [-30, -24],
+  [30, -24],
+  [-30, 24],
+  [30, 24],
 ];
 
 /**
@@ -143,7 +144,7 @@ export class OceanScene extends Phaser.Scene {
       this.colorBlind = enabled;
       this.drawOceanBackground();
       gameController.state?.players.forEach((player) => {
-        this.ships.get(player.id)?.setTint(chartIdentity(player, enabled).color);
+        this.ships.get(player.id)?.setTexture(shipTexture(this, chartIdentity(player, enabled).color));
       });
       this.syncFromState();
     };
@@ -273,27 +274,12 @@ export class OceanScene extends Phaser.Scene {
   }
 
   private drawOcean() {
-    this.ocean = this.add.graphics();
+    this.ocean = this.add.graphics().setDepth(-5);
     this.drawOceanBackground();
     this.regionLabels = REGIONS.map(([en, zh], i) =>
       this.add.text(WORLD.width / 2, WORLD.height * (.23 + i * .18), getLocale() === 'zh' ? zh : en, { fontFamily: '"Sea Names", Georgia, serif', fontSize: '32px', color: '#b8dfdd' }).setOrigin(0.5).setAlpha(0.4));
 
-    // Drifting wave crests.
-    for (let i = 0; i < 45; i++) {
-      const wave = this.add
-        .image(Phaser.Math.Between(0, WORLD.width), Phaser.Math.Between(0, WORLD.height), 'wave')
-        .setAlpha(Phaser.Math.FloatBetween(0.3, 0.8))
-        .setScale(Phaser.Math.FloatBetween(0.6, 1.2));
-      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.tweens.add({
-        targets: wave,
-        x: wave.x + Phaser.Math.Between(20, 50),
-        alpha: 0.1,
-        duration: Phaser.Math.Between(2500, 5000),
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-    }
+    addNauticalSea(this, this.map, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
   private drawOceanBackground() {
@@ -505,8 +491,8 @@ export class OceanScene extends Phaser.Scene {
       const { color, badge } = chartIdentity(player, this.colorBlind);
       let ship = this.ships.get(player.id);
       if (!ship) {
-        ship = this.add.image(0, 0, 'ship').setTint(color).setDepth(10);
-        ship.setScale(0.85 + Math.min(0.4, Math.max(0, ...player.fleet.map(vessel => vessel.cargoCapacity)) / 400));
+        ship = this.add.image(0, 0, shipTexture(this, color)).setDepth(10);
+        ship.setScale(0.8 + Math.min(0.15, Math.max(0, ...player.fleet.map(vessel => vessel.cargoCapacity)) / 1000));
         if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.tweens.add({ targets: ship, angle: { from: -5, to: 5 }, duration: 1500 + player.id * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         this.ships.set(player.id, ship);
       }
