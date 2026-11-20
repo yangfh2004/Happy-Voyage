@@ -33,7 +33,7 @@ describe('colony shipyards', () => {
       const gold = engine.currentPlayer.gold;
       const id = state.nextShipId;
       const ship = engine.buildShip(type);
-      expect(ship).toEqual({ ...stats, id, name: `${label} ${id}`, type, durability: stats.maxDurability });
+      expect(ship).toEqual({ ...stats, id, name: `${label} ${id}`, type, durability: stats.maxDurability, cargo: {} });
       expect(engine.currentPlayer.fleet.at(-1)).toBe(ship);
       expect(engine.currentPlayer.gold).toBe(gold);
       expect(stock).toEqual(expectedStock);

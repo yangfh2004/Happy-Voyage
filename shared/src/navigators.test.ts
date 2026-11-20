@@ -26,6 +26,7 @@ describe('navigators', () => {
     for (const player of state.players) {
       const { signatureShip } = navigatorById(player.navigator!)!;
       expect(player.fleet.map((ship) => ship.type)).toEqual(['warship', 'cargo', 'explorer']);
+      for (const ship of player.fleet) expect(ship.cargo).toEqual({});
       const flagships = player.fleet.filter((ship) => ship.signature);
       expect(flagships).toHaveLength(1);
       const [flagship] = flagships;
