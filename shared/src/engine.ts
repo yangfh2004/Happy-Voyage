@@ -49,6 +49,20 @@ export class GameEngine {
     if (options.players.length < 1) throw new Error('At least one player is required');
     const config = { ...DEFAULT_CONFIG, ...options.config };
     const map = options.map ?? createDefaultMap();
+    const ports = map.filter((node) => node.kind === 'port');
+    const usedPorts = new Set<number>();
+    const homes = options.players.map((player) => {
+      const port = ports.find((node) => node.nation === player.nation && player.nation && !usedPorts.has(node.id));
+      if (port) usedPorts.add(port.id);
+      return port?.id;
+    });
+    options.players.forEach((_, seat) => {
+      if (homes[seat] !== undefined) return;
+      const preferred = ports[seat];
+      const port = preferred && !usedPorts.has(preferred.id) ? preferred : ports.find((node) => !usedPorts.has(node.id));
+      homes[seat] = port?.id ?? 0;
+      if (port) usedPorts.add(port.id);
+    });
     this.rng = options.rng ?? Math.random;
     this.state = {
       config,
@@ -57,8 +71,8 @@ export class GameEngine {
         ...p,
         id,
         gold: config.startingGold,
-        position: map.filter((n) => n.kind === 'port')[id]?.id ?? 0,
-        homePort: map.filter((n) => n.kind === 'port')[id]?.id ?? 0,
+        position: homes[id]!,
+        homePort: homes[id]!,
         revivalProtection: false,
         captain: false,
         bankrupt: false,

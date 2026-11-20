@@ -12,6 +12,21 @@ function land(g: GameEngine, id: number) {
 }
 
 describe('living sea board', () => {
+  it('assigns chosen nations before seat fallbacks without sharing home ports', () => {
+    const g = new GameEngine({ players: [
+      { ...players[0] },
+      { ...players[1], nation: 'Spain' },
+      { ...players[0], nation: 'England' },
+      { ...players[1], nation: 'England' },
+      { ...players[0], nation: 'Atlantis' },
+    ] });
+    const homes = g.state.players.map((player) => player.homePort);
+    expect(new Set(homes).size).toBe(5);
+    expect(g.state.map[homes[1]].nation).toBe('Spain');
+    expect(g.state.map[homes[2]].nation).toBe('England');
+    expect(g.state.map[homes[0]].nation).toBe('Netherlands');
+    expect(g.state.players.every((player) => player.position === player.homePort)).toBe(true);
+  });
   it('has 70 unique stops, forty colonies, seven distinct specials and ten national ports', () => {
     const map = createDefaultMap();
     expect(map).toHaveLength(70);

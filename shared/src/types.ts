@@ -34,6 +34,7 @@ export interface MapNode {
 
 export interface PlayerSetup {
   name: string;
+  nation?: string;
   /** 0xRRGGBB, used for the ship token and colony flags. */
   color: number;
   isAI: boolean;
