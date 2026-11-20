@@ -101,6 +101,7 @@ button.big { font-size: 18px; padding: 10px 22px; }
 
 .fleet { color: inherit; width: min(570px, 94vw); max-height: 90vh; overflow: auto; padding: 20px 24px; }
 .fleet::backdrop { background: #06283dbb; }
+.fleet + .backdrop { background: #06283dbb; }
 .fleet-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .fleet-heading h2 { margin: 0; }
 .fleet select { max-width: 100%; font: inherit; }

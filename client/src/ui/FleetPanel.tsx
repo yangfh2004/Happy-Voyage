@@ -1,20 +1,35 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { SHIP_TYPES, type Player } from '@happy-voyage/shared';
+import dialogPolyfill from 'dialog-polyfill';
 
 export function FleetPanel({ players, onClose }: { players: Player[]; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
   const [playerId, setPlayerId] = useState((players.find((player) => !player.isAI) ?? players[0]).id);
   const { fleet } = players.find((player) => player.id === playerId) ?? players[0];
 
   useEffect(() => {
-    dialog.current?.showModal();
+    const element = dialog.current;
+    if (!element || element.open) return;
+    previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (typeof element.showModal !== 'function') {
+      dialogPolyfill.registerDialog(element);
+      element.classList.add('fixed');
+    }
+    element.showModal();
   }, []);
 
-  return (
-    <dialog className="panel fleet" ref={dialog} onClose={onClose} aria-labelledby="fleet-title">
+  function closePanel() {
+    onClose();
+    previousFocus.current?.focus();
+  }
+
+  return createPortal(
+    <dialog className="panel fleet" ref={dialog} onClose={closePanel} role="dialog" aria-modal="true" aria-labelledby="fleet-title">
       <div className="fleet-heading">
         <h2 id="fleet-title">Fleet</h2>
-        <form method="dialog"><button>Close</button></form>
+        <button type="button" onClick={() => dialog.current?.close()}>Close</button>
       </div>
       <label>
         Navigator{' '}
@@ -52,6 +67,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
           </table>
         </div>
       ) : <p>No ships in this fleet.</p>}
-    </dialog>
+    </dialog>,
+    document.body,
   );
 }
