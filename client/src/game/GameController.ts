@@ -7,6 +7,7 @@ import { isMuted, setMuted, sfx } from './sfx';
 export interface Headline {
   text: string;
   tone: 'gain' | 'loss';
+  royal?: boolean;
 }
 
 export const SPEEDS = {
@@ -272,6 +273,9 @@ export class GameController {
     const isHuman = (id: number) => !players[id].isAI;
     EventBus.emit('engine-event', event);
     switch (event.type) {
+      case 'royalAudience':
+        if (isHuman(event.audience.playerId)) this.headline = { text: event.audience.message, tone: 'gain', royal: true };
+        break;
       case 'compassSpun':
         this.spinSequence += 1;
         this.departure = { playerId: event.playerId, position: players[event.playerId].position };

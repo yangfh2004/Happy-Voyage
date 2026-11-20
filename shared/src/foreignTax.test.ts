@@ -17,6 +17,43 @@ function land(game: GameEngine, port: number) {
 }
 
 describe('foreign port tax', () => {
+  it.each([false, true])('discounts the amount owed before checking cash or seizing ships (AI=%s)', (isAI) => {
+    const { game, visitor, host } = setup(isAI);
+    visitor.rank = 2;
+    visitor.gold = 32;
+    const before = host.gold;
+    land(game, host.homePort);
+    expect(visitor.gold).toBe(0);
+    expect(visitor.fleet).toHaveLength(3);
+    expect(visitor.bankrupt).toBe(false);
+    expect(host.gold).toBe(before + 32);
+    expect(game.state.log.some((line) => line.includes('(32g due)'))).toBe(true);
+  });
+
+  it('seizes only enough ships to cover the discounted shortfall', () => {
+    const { game, visitor, host } = setup();
+    visitor.rank = 5;
+    visitor.gold = 0;
+    visitor.fleet.forEach((ship) => { ship.durability = ship.maxDurability * 0.24; });
+    const cheapest = [...visitor.fleet].sort((a, b) => shipSalePrice(a) - shipSalePrice(b))[0];
+    expect(shipSalePrice(cheapest)).toBe(21);
+    land(game, host.homePort);
+    expect(visitor.fleet).toHaveLength(2);
+    expect(host.fleet).toContain(cheapest);
+    expect(visitor.bankrupt).toBe(false);
+  });
+
+  it('still bankrupts a ranked visitor when the discounted debt takes their last ship', () => {
+    const { game, visitor, host } = setup();
+    visitor.rank = 5;
+    visitor.gold = 19;
+    visitor.fleet = [visitor.fleet[0]];
+    land(game, host.homePort);
+    expect(visitor.bankrupt).toBe(true);
+    expect(visitor.fleet).toHaveLength(0);
+    expect(host.fleet).toHaveLength(4);
+  });
+
   it('transfers the full tax without seizing ships when gold is sufficient', () => {
     const { game, visitor, host } = setup();
     const before = host.gold;

@@ -47,6 +47,22 @@ function humanTurn() {
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
 }
 
+it('announces a home promotion until the next human spin', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  const p = state.players[0];
+  state.owners[state.map.find((node) => node.kind === 'island')!.id] = 0;
+  p.position = (p.homePort - 2 + state.map.length) % state.map.length;
+  humanTurn();
+  expect(p.rank).toBe(1);
+  expect(controller.headline).toMatchObject({ royal: true, tone: 'gain' });
+  expect(controller.headline?.text).toContain('Knight (骑士)');
+  state.currentPlayer = 0;
+  state.phase = 'awaitingSpin';
+  controller.spinCompass();
+  expect(controller.headline).toBeNull();
+});
+
 it('offers the human build menu and guards build actions outside the visit', () => {
   controller.newGame(players);
   const state = controller.state!;

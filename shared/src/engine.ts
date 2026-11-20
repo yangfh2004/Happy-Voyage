@@ -4,6 +4,7 @@ import { barterOffers, fleetQuantity } from './barter';
 import { BUILDINGS, buildingLevel, nextBuildingCost, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
+import { RANKS, playerMerit, foreignTaxDue } from './ranks';
 export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
@@ -79,11 +80,14 @@ export class GameEngine {
     });
     this.rng = options.rng ?? Math.random;
     this.state = {
+      royalAudience: null,
       config,
       map,
       players: options.players.map((p, id) => ({
         ...p,
         id,
+        rank: 0,
+        audienceMerit: 0,
         gold: config.startingGold,
         position: homes[id]!,
         homePort: homes[id]!,
@@ -170,6 +174,7 @@ export class GameEngine {
   /** Choose the movement distance without moving the fleet yet. */
   spinCompass(): number {
     this.assertPhase('awaitingSpin');
+    this.state.royalAudience = null;
     const steps = spinCompass(this.rng);
     this.state.lastSpin = steps;
     this.state.phase = 'spinning';
@@ -205,7 +210,7 @@ export class GameEngine {
     const homePasses = this.pendingPath.filter((id) => id === player.homePort).length;
     this.pendingPath = [];
     if (homePasses > 0) {
-      const salary = this.state.config.homeSalary * homePasses;
+      const salary = (this.state.config.homeSalary + RANKS[player.rank].salary) * homePasses;
       this.log(`The crown pays ${player.name} a ${salary}g royal salary.`);
       this.changeGold(player, salary, 'royal salary');
     }
@@ -215,7 +220,7 @@ export class GameEngine {
         if (node.id !== player.homePort) {
           const host = this.state.players.find((p) => p.homePort === node.id && !p.bankrupt);
           this.payForeignTax(player, host, node);
-        } else this.log(`${player.name} returns to their home port.`);
+        } else this.royalAudience(player);
         break;
       case 'special':
         if (node.special === 'nightless') {
@@ -264,6 +269,26 @@ export class GameEngine {
       }
     }
     this.endTurn();
+  }
+
+  private royalAudience(player: Player): void {
+    const merit = playerMerit(this.state, player.id);
+    const next = RANKS[player.rank + 1];
+    const promoted = !!next && merit >= next.merit;
+    if (promoted) player.rank++;
+    const rank = RANKS[player.rank];
+    const reward = promoted ? rank.purse : Math.max(0, merit - player.audienceMerit) * 2;
+    player.audienceMerit = Math.max(player.audienceMerit, merit);
+    const nation = player.nation ?? this.node(player.homePort).nation ?? 'your homeland';
+    const message = promoted
+      ? `King of ${nation} promotes ${player.name} to ${rank.name} (${rank.chineseName})! Bonus: +${rank.salary} salary, −${Math.round(rank.taxDiscount * 100)}% foreign tax. Promotion purse: ${reward}g.`
+      : reward > 0 ? `King of ${nation} rewards ${player.name} with ${reward}g for new achievements.`
+        : `${player.name}: the king awaits greater deeds.`;
+    if (reward) this.changeGold(player, reward, promoted ? 'promotion purse' : 'royal reward');
+    this.log(message);
+    const audience = { playerId: player.id, rank: player.rank, promoted, reward, message };
+    this.state.royalAudience = audience;
+    this.emit({ type: 'royalAudience', audience });
   }
 
   /** Found a colony on the offered island. */
@@ -770,9 +795,10 @@ export class GameEngine {
   }
 
   private payForeignTax(player: Player, host: Player | undefined, node: MapNode): void {
-    const paid = Math.min(player.gold, SEA_RULES.foreignTax);
-    let shortfall = SEA_RULES.foreignTax - paid;
-    this.log(`${player.name} pays ${paid}g foreign tax to ${host?.name ?? 'the crown'} at ${node.name} (${SEA_RULES.foreignTax}g due).`);
+    const tax = foreignTaxDue(player.rank);
+    const paid = Math.min(player.gold, tax);
+    let shortfall = tax - paid;
+    this.log(`${player.name} pays ${paid}g foreign tax to ${host?.name ?? 'the crown'} at ${node.name} (${tax}g due).`);
     this.changeGold(player, -paid, 'foreign tax');
     if (host) this.changeGold(host, paid, 'foreign tax');
     const cheapestFirst = [...player.fleet].sort((a, b) => shipSalePrice(a) - shipSalePrice(b) || a.id - b.id);

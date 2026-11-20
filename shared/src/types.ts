@@ -65,6 +65,8 @@ export interface Ship extends ShipStats {
 }
 
 export interface Player extends PlayerSetup {
+  rank: number;
+  audienceMerit: number;
   id: number;
   gold: number;
   /** Index of the map node the fleet is on. */
@@ -134,6 +136,7 @@ export interface GameConfig {
 }
 
 export interface GameState {
+  royalAudience: import('./ranks').RoyalAudience | null;
   config: GameConfig;
   map: MapNode[];
   players: Player[];
@@ -160,6 +163,7 @@ export interface GameState {
 
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
+  | { type: 'royalAudience'; audience: import('./ranks').RoyalAudience }
   | { type: 'shipSold'; playerId: number; shipName: string; price: number }
   | { type: 'marketOffered'; playerId: number; nodeId: number }
   | { type: 'barterOffered'; playerId: number; nodeId: number }

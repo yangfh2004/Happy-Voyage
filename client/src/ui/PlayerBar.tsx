@@ -1,4 +1,5 @@
 import type { GameState } from '@happy-voyage/shared';
+import { RANKS } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorPortrait } from './NavigatorPortrait';
@@ -34,6 +35,7 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
             <strong>{p.name}</strong>
             <span className="tag">{p.isAI ? 'AI' : 'You'}</span>
             <div className="stats">
+              {RANKS[p.rank].name} ({RANKS[p.rank].chineseName})<br />
               {p.nation && <>{p.nation}<br /></>}
               {p.gold}g · {islands(gameController.islandsOwnedBy(p.id))} · {p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}
             </div>
