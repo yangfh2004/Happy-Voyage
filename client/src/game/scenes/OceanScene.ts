@@ -5,7 +5,7 @@ import { gameController } from '../GameController';
 import { sfx } from '../sfx';
 
 const HOP_HEIGHT = 10;
-const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', seaMonster: 'M', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
+const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
 const SPECIAL_SYMBOL: Record<string, string> = { skeleton: '☠', treasure: '◆', mist: '☁', revival: '✚', nightless: '☾', wind: '≋', dragonSnake: '♜' };
 const PORT_FLAGS: Record<string, [number, number, number]> = {
   Spain: [0xc62632, 0xf6c945, 0xc62632], Netherlands: [0xc62632, 0xffffff, 0x23478e],

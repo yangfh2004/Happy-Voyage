@@ -145,23 +145,17 @@ describe('pacing', () => {
     controller.resumeMovement();
     expect(replay).not.toHaveBeenCalled();
   });
-  it('resolves a wyvern relocation with a new move ID before advancing the turn', () => {
+  it('waits for a human wyvern destination without advancing the turn', () => {
     controller.newGame(players);
     const state = controller.state!;
     state.map[2] = { ...state.map[2], kind: 'event', event: 'wyvern' };
     controller.spinCompass();
     controller.finishSpin(controller.spinId);
-    const rollId = moveId;
-    EventBus.emit('move-complete', rollId);
-    expect(moveId).not.toBe(rollId);
-    expect(controller.shownPosition(state.players[0])).toBe(2);
-    expect(state.phase).toBe('moving');
-    expect(state.players[0].position).toBe(state.players[0].homePort);
-    EventBus.emit('move-complete', rollId);
-    expect(state.phase).toBe('moving');
     EventBus.emit('move-complete', moveId);
-    expect(state.phase).toBe('awaitingSpin');
-    expect(state.currentPlayer).toBe(1);
+    expect(state.phase).toBe('awaitingWyvern');
+    expect(state.pendingWyvern).toBe(true);
+    expect(state.currentPlayer).toBe(0);
+    expect(state.players[0].position).toBe(2);
   });
   it('defaults to Normal and persists/restores valid choices', () => {
     expect(controller.speed).toBe('Normal');

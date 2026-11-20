@@ -341,6 +341,8 @@ export class GameController {
       case 'tollOffered':
       case 'claimOffered':
       case 'marketOffered':
+      case 'merchantOffered':
+      case 'wyvernOffered':
       case 'barterOffered':
       case 'buildOffered':
       case 'cargoMarketOpened':
