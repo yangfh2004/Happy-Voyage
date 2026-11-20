@@ -12,7 +12,7 @@ export function LotteryPanel({ state }: { state: GameState }) {
   const player = state.players[state.currentPlayer];
   const { draw } = lottery;
   const odds = lotteryOdds(Math.max(1, lottery.picks.length));
-  const ballDelay = gameController.timings.step * 3;
+  const ballDelay = gameController.lotteryBallDelay;
 
   return <section aria-labelledby="lottery-title" className="lottery">
     <h2 id="lottery-title">Treasure Island lottery · 金银岛</h2>
@@ -43,11 +43,13 @@ export function LotteryPanel({ state }: { state: GameState }) {
         {draw.balls.map((n, i) => <span key={n} className={draw.matches.includes(n) ? 'ball drawn match' : 'ball drawn'}
           style={{ '--delay': `${i * ballDelay}ms` } as CSSProperties}>{n}</span>)}
       </div>
+      {!gameController.lotteryRevealed ? <p className="lottery-result" aria-live="polite">Drawing from the jar…</p> : <>
       <p>Your numbers: {draw.picks.length ? draw.picks.map((n) => <span key={n} className={draw.matches.includes(n) ? 'ball small match' : 'ball small'}>{n}</span>) : 'none'}</p>
       <p className="lottery-result">
         {draw.matches.length} match{draw.matches.length === 1 ? '' : 'es'} · spent {draw.spent}g · {draw.prize ? <strong>won {draw.prize}g!</strong> : 'no prize'}
       </p>
       <button className="primary" onClick={() => gameController.finishLottery()}>Sail on <kbd>D</kbd></button>
+      </>}
     </>}
   </section>;
 }

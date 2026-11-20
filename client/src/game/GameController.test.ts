@@ -317,9 +317,16 @@ it('runs the Treasure Island timer for the human and draws when it runs out', ()
   const seconds = state.lottery!.secondsLeft;
   vi.advanceTimersByTime(1000);
   expect(state.lottery!.secondsLeft).toBe(seconds - 1);
-  vi.advanceTimersByTime(seconds * 1000);
+  vi.setSystemTime(Date.now() + 5000);
+  vi.advanceTimersByTime(250);
+  expect(state.lottery!.secondsLeft).toBe(seconds - 6);
+  vi.advanceTimersByTime((seconds - 6) * 1000);
   expect(state.lottery!.draw).not.toBeNull();
   expect(state.lotteryDraws).toHaveLength(1);
+  controller.finishLottery();
+  expect(state.phase).toBe('awaitingLottery');
+  vi.advanceTimersByTime(10_000);
+  expect(controller.lotteryRevealed).toBe(true);
   expect(controller.headline?.text).toContain('Lottery');
   controller.finishLottery();
   expect(state.lottery).toBeNull();

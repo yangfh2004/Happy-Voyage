@@ -34,6 +34,9 @@ function savedSpeed(): GameSpeed {
  * A multiplayer version would replace this with a socket client that relays
  * the same engine events from the server.
  */
+/** Length of one ball's drop animation (matches `ball-drop` in styles.css). */
+export const LOTTERY_BALL_DROP_MS = 450;
+
 export class GameController {
   private engine: GameEngine | null = null;
   private version = 0;
@@ -46,6 +49,9 @@ export class GameController {
   private spinSequence = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private lotteryClock: ReturnType<typeof setInterval> | undefined;
+  private lotteryReveal: ReturnType<typeof setTimeout> | undefined;
+  /** False while the drawn balls are still dropping into the jar; the result and Sail on wait for it. */
+  lotteryRevealed = true;
   private pending: (() => void) | null = null;
   private pendingSince = 0;
   /** Where the sailing fleet set out from, so text views don't reveal its destination early. */
@@ -184,7 +190,7 @@ export class GameController {
   }
 
   finishLottery(): void {
-    if (this.isHumanTurn('awaitingLottery') && this.engine!.state.lottery?.draw) this.engine!.finishLottery();
+    if (this.isHumanTurn('awaitingLottery') && this.engine!.state.lottery?.draw && this.lotteryRevealed) this.engine!.finishLottery();
   }
 
   canBuild(kind: BuildingKind): boolean {
@@ -362,11 +368,15 @@ export class GameController {
       case 'lotteryOpened':
         if (isHuman(event.playerId)) {
           clearInterval(this.lotteryClock);
+          let lastTick = Date.now();
           this.lotteryClock = setInterval(() => {
             if (this.engine !== engine || engine.state.phase !== 'awaitingLottery') return clearInterval(this.lotteryClock);
-            engine.advanceLotteryClock(1);
+            const elapsed = Math.floor((Date.now() - lastTick) / 1000);
+            if (elapsed < 1) return;
+            lastTick += elapsed * 1000;
+            engine.advanceLotteryClock(elapsed);
             this.changed();
-          }, 1000);
+          }, 250);
         }
         if (!engine.currentPlayer.isAI) this.skipping = false;
         if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());
@@ -376,10 +386,16 @@ export class GameController {
         const { draw } = event;
         if (isHuman(draw.playerId)) {
           const matched = `${draw.matches.length} match${draw.matches.length === 1 ? '' : 'es'}`;
-          this.headline = draw.prize
-            ? { text: `Lottery: ${matched}! You win ${draw.prize}g.`, tone: 'gain' }
-            : { text: `Lottery: ${draw.picks.length ? matched : 'no numbers bought'}. No prize this time.`, tone: 'loss' };
-          if (draw.prize) sfx.win();
+          this.lotteryRevealed = false;
+          clearTimeout(this.lotteryReveal);
+          this.lotteryReveal = setTimeout(() => {
+            this.lotteryRevealed = true;
+            this.headline = draw.prize
+              ? { text: `Lottery: ${matched}! You win ${draw.prize}g.`, tone: 'gain' }
+              : { text: `Lottery: ${draw.picks.length ? matched : 'no numbers bought'}. No prize this time.`, tone: 'loss' };
+            if (draw.prize) sfx.win();
+            this.changed();
+          }, (draw.balls.length - 1) * this.lotteryBallDelay + LOTTERY_BALL_DROP_MS);
         }
         break;
       }
@@ -430,9 +446,16 @@ export class GameController {
     }, Math.max(0, this.timings.ai - (Date.now() - this.pendingSince)));
   }
 
+  /** Delay between balls leaving the jar in the lottery reveal. */
+  get lotteryBallDelay(): number {
+    return this.timings.step * 3;
+  }
+
   private clearTimers(): void {
     clearTimeout(this.timer);
     clearInterval(this.lotteryClock);
+    clearTimeout(this.lotteryReveal);
+    this.lotteryRevealed = true;
     this.pending = null;
   }
 
