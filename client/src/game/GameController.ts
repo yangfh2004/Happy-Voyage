@@ -1,6 +1,6 @@
 import { GameEngine, quoteMarketTrade, type Good, type BuildingKind, type GameEvent, type GameState, type MarketOrder, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
-import type { StrategyId } from '@happy-voyage/shared';
+import type { HermitId, StrategyId } from '@happy-voyage/shared';
 import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, sfx } from './sfx';
 
@@ -209,6 +209,18 @@ export class GameController {
 
   finishLottery(): void {
     if (this.isHumanTurn('awaitingLottery') && this.engine!.state.lottery?.draw && this.lotteryRevealed) this.engine!.finishLottery();
+  }
+
+  challengeHermit(id: HermitId): void {
+    if (this.isHumanTurn('awaitingMistDuel') && !this.engine!.state.mistDuel?.hermitId) this.engine!.challengeHermit(id);
+  }
+
+  takeMistStones(count: number): void {
+    if (this.isHumanTurn('awaitingMistDuel') && this.engine!.canTakeMistStones(count)) this.engine!.takeMistStones(count);
+  }
+
+  leaveMistIsland(): void {
+    if (this.isHumanTurn('awaitingMistDuel') && this.engine!.canLeaveMistIsland()) this.engine!.leaveMistIsland();
   }
 
   canBuild(kind: BuildingKind): boolean {
@@ -420,11 +432,15 @@ export class GameController {
         }
         break;
       }
+      case 'mistDuelResolved':
+        if (isHuman(event.result.playerId) && event.result.outcome === 'win') sfx.win();
+        break;
       case 'tollOffered':
       case 'claimOffered':
       case 'marketOffered':
       case 'barterOffered':
       case 'recruitsOffered':
+      case 'mistOffered':
       case 'buildOffered':
       case 'cargoMarketOpened':
         if (!engine.currentPlayer.isAI) this.skipping = false;

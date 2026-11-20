@@ -71,6 +71,7 @@ for (const players of [2, 3, 4]) {
           if (claim) game.claim();
           else game.decline();
         } else if (game.state.phase === 'awaitingBuild' || game.state.phase === 'awaitingBarter' || game.state.phase === 'awaitingLottery' ||
+          game.state.phase === 'awaitingMistDuel' ||
           game.state.phase === 'awaitingMarket' || game.state.phase === 'awaitingCargoMarket') {
           game.decideForAI();
         }

@@ -126,7 +126,8 @@ describe('living sea board', () => {
     const p = g.currentPlayer;
     g.state.owners[1] = 0;
     land(g, g.state.map.find((n) => n.special === special)!.id);
-    expect(g.state.phase).toBe(special === 'skeleton' ? 'awaitingMarket' : special === 'treasure' ? 'awaitingLottery' : special === 'dragonSnake' ? 'awaitingRecruit' : 'awaitingSpin');
+    expect(g.state.phase).toBe(special === 'skeleton' ? 'awaitingMarket' : special === 'treasure' ? 'awaitingLottery' :
+      special === 'mist' ? 'awaitingMistDuel' : special === 'dragonSnake' ? 'awaitingRecruit' : 'awaitingSpin');
     expect(g.state.log.length).toBeGreaterThan(0);
     expect(g.state.log.some((line) => /\b[Yy]our\b|\bYou win/.test(line))).toBe(false);
     expect(g.state.log.slice(0, 2).every((line) => line.includes(p.name))).toBe(true);
@@ -188,13 +189,6 @@ describe('living sea board', () => {
     expect(p.gold).toBe(g.state.config.startingGold);
     expect(p.revivalProtection).toBe(false);
     expect(g.state.phase).toBe('awaitingSpin');
-  });
-
-  it.each([[0.1, false], [0.99, true]] as const)('simulates Nim with rng %s', (rng, wins) => {
-    const g = game(rng);
-    const p = g.currentPlayer;
-    land(g, g.state.map.find((n) => n.special === 'mist')!.id);
-    expect(p.gold).toBe(g.state.config.startingGold + (wins ? SEA_RULES.nimPrize : 0));
   });
 
   it('bounds wyvern chains even on an all-event route', () => {

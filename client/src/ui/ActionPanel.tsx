@@ -6,6 +6,7 @@ import { ShortcutLegend } from './ShortcutLegend';
 import { useState } from 'react';
 import { BarterPanel } from './BarterPanel';
 import { LotteryPanel } from './LotteryPanel';
+import { MistPanel } from './MistPanel';
 import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
@@ -155,6 +156,8 @@ export function ActionPanel({ state }: { state: GameState }) {
     );
   } else if (state.phase === 'awaitingLottery') {
     body = <LotteryPanel state={state} />;
+  } else if (state.phase === 'awaitingMistDuel') {
+    body = <MistPanel state={state} />;
   } else if (state.phase === 'awaitingBarter') {
     body = <BarterPanel state={state} />;
   } else if (state.phase === 'awaitingClaim') {
