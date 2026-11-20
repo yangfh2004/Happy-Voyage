@@ -3,7 +3,7 @@
 A modern browser remake of the late-1990s Taiwanese game **Happy Voyage (欢乐大航海)**:
 Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, trading and colonies.
 
-**Play the demo:** https://yangfh2004.github.io/Happy-Voyage/
+**Play the demo:** https://yangfh2004.github.io/Happy-Voyage/ (live once GitHub Pages is enabled with Source: GitHub Actions)
 
 ## The first playable version
 
@@ -66,4 +66,5 @@ npm run build        # production client build in client/dist
 npm start            # Express server at http://localhost:3000 (serves the built client)
 ```
 
-Pushes to `main` deploy the client to GitHub Pages.
+Pushes to `main` deploy the client to GitHub Pages; the deploy is skipped until Pages is enabled
+in the repository settings (Settings > Pages > Source: GitHub Actions).
