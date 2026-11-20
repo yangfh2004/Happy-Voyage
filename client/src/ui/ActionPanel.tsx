@@ -1,11 +1,14 @@
 import { colonyValue, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
+import { ShortcutLegend } from './ShortcutLegend';
 
 const DIE_FACES = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
 /** What the human can do right now: roll, claim or decline, or start over. */
 export function ActionPanel({ state }: { state: GameState }) {
   const player = state.players[state.currentPlayer];
+  const summary = !player.isAI && state.phase === 'awaitingRoll' ? gameController.feedback.summary : null;
+  const gold = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value)}g`;
   const dice = state.lastRoll && (
     <div className="dice" aria-label={`Rolled ${state.lastRoll[0]} and ${state.lastRoll[1]}`}>
       {DIE_FACES[state.lastRoll[0]]} {DIE_FACES[state.lastRoll[1]]}
@@ -32,7 +35,7 @@ export function ActionPanel({ state }: { state: GameState }) {
           ))}</tbody>
         </table>
         <button className="primary" onClick={() => gameController.quit()}>
-          New voyage
+          New voyage <kbd>Enter / Space</kbd>
         </button>
       </>
     );
@@ -43,7 +46,7 @@ export function ActionPanel({ state }: { state: GameState }) {
       <>
         <p>Your turn, {player.name}.</p>
         <button className="primary big" onClick={() => gameController.roll()}>
-          Roll dice
+          Roll dice <kbd>Space / Enter</kbd>
         </button>
       </>
     );
@@ -61,9 +64,9 @@ export function ActionPanel({ state }: { state: GameState }) {
         </p>
         <div className="row">
           <button className="primary" onClick={() => gameController.claim()}>
-            Claim ({island.price}g)
+            Claim ({island.price}g) <kbd>C</kbd>
           </button>
-          <button onClick={() => gameController.decline()}>Sail on</button>
+          <button onClick={() => gameController.decline()}>Sail on <kbd>S / Esc</kbd></button>
         </div>
       </>
     );
@@ -73,8 +76,24 @@ export function ActionPanel({ state }: { state: GameState }) {
 
   return (
     <div className="panel actions">
+      {summary && (
+        <div className="turn-summary">
+          <strong>Since your last turn</strong>
+          {summary.tolls.map((toll, i) => (
+            <div key={i} className={toll.direction === 'received' ? 'income' : 'expense'}>
+              Toll {toll.direction}: {gold(toll.direction === 'received' ? toll.amount : -toll.amount)} {toll.direction === 'received' ? 'from' : 'to'} {toll.name}
+            </div>
+          ))}
+          {summary.claims.map((claim, i) => <div key={i}>{claim.name} claimed {claim.island}.</div>)}
+          <div>Net gold: <strong className={summary.netGold < 0 ? 'expense' : 'income'}>{gold(summary.netGold)}</strong></div>
+        </div>
+      )}
       {dice}
       {body}
+      {gameController.waiting && (
+        <button onClick={() => gameController.skipToMyTurn()}>Skip to my turn <kbd>K</kbd></button>
+      )}
+      <ShortcutLegend />
     </div>
   );
 }

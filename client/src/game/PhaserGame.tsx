@@ -9,15 +9,19 @@ export function PhaserGame() {
   useEffect(() => {
     let game: Phaser.Game | undefined;
     let disposed = false;
+    let resizeFrame = 0;
     const observer = new ResizeObserver(([entry]) => {
-      game?.scale.resize(entry.contentRect.width, entry.contentRect.height);
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        if (game?.isBooted) game.scale.resize(entry.contentRect.width, entry.contentRect.height);
+      });
     });
     void document.fonts.load('14px "Sea Names"').then(() => {
       if (disposed) return;
       game = new Phaser.Game(createGameConfig(container.current!));
       observer.observe(container.current!);
     });
-    return () => { disposed = true; observer.disconnect(); game?.destroy(true); };
+    return () => { disposed = true; observer.disconnect(); cancelAnimationFrame(resizeFrame); game?.destroy(true); };
   }, []);
 
   return <div ref={container} className="phaser-container" />;
