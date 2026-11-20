@@ -63,7 +63,20 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
         // Easy takes the first safe opportunity; stronger rivals compare costs and local traffic.
         return (wyvern ? 150 : 0) + (easy ? 300 : 360 - (node.price ?? 0) * 0.25 + Math.min(250, estimatedTolls(state, player, node)) * 0.5);
       }
-      if (owner !== null && owner !== player.id && hard && canWin && battleQuality(state, arrival) >= 4) return 9_000;
+      if (hard && owner !== null && owner !== player.id && player.fleet.length > 0) {
+        const quality = battleQuality(state, arrival);
+        if (canWin && quality >= 4) return 9_000;
+        // Favor a reliable capture once neutral land runs out or a rival builds up a valuable colony.
+        if (quality === 5) return 200 + Math.min(220, colonyToll(state, node.id));
+      }
+      if (hard && owner === player.id && roundsLeft(state) >= 4) {
+        const stock = state.stockpiles[node.id];
+        const specialty = node.specialty ? Math.min(freeCargo(player), stock.specialties[node.specialty] ?? 0) : 0;
+        const level = buildingLevel(state, node.id, 'shipyard');
+        const canLaunch = player.fleet.length < policy(player).fleetSize && Object.values(SHIP_RECIPES).some((recipe) =>
+          level >= recipe.yardLevel && stock.lumber >= recipe.lumber && stock.iron >= recipe.iron);
+        return specialty * 8 + (canLaunch ? 240 : 0);
+      }
     }
     if (node.id === player.knownHoard) return 425;
     if (!wyvern && !hard) return 0;
@@ -183,7 +196,7 @@ export function aiShouldClaim(state: GameState, player: Player, nodeId: number):
   const cash = player.gold - price;
   if (bankruptcyOdds(state, player, cash, owned + 1) > policy(player).claimRisk) return false;
   const neutralIslands = state.map.filter((stop) => stop.kind === 'island' && state.owners[stop.id] === null).length;
-  if (turnsLeft + 1 >= leftToWin && neutralIslands >= leftToWin) return true;
+  if (turnsLeft + 1 >= leftToWin && (neutralIslands >= leftToWin || player.aiDifficulty === 'hard')) return true;
   return estimatedTolls(state, player, node) >= price - colonyValue(node);
 }
 

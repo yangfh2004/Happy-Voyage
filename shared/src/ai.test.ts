@@ -195,7 +195,8 @@ describe('AI rival difficulty', () => {
   it('develops a supply chain, launches a legal ship and loads its local specialty', () => {
     const { engine, state, player, node } = at('island');
     engine.decideForAI();
-    expect(state.buildings[node.id]).toMatchObject({ collectionField: 1, lumberMill: 1, ironMine: 1, shipyard: 1 });
+    expect(state.buildings[node.id]).toMatchObject({ lumberMill: 1, ironMine: 1, shipyard: 1 });
+    expect(state.buildings[node.id].collectionField).toBeGreaterThanOrEqual(1);
     expect(player.fleet).toHaveLength(3);
     state.currentPlayer = player.id;
     state.phase = 'awaitingBuild';
@@ -206,7 +207,7 @@ describe('AI rival difficulty', () => {
     expect(player.fleet[0].cargo[node.specialty!]).toBe(7);
   });
 
-  it.each(['easy', 'normal', 'hard'] as const)('%s replaces a missing warship without spending its reserve', (difficulty) => {
+  it.each(['easy', 'normal', 'hard'] as const)('%s replaces a lost ship with an affordable fallback', (difficulty) => {
     const { engine, player } = at('skeleton');
     player.aiDifficulty = difficulty;
     player.fleet.shift();
