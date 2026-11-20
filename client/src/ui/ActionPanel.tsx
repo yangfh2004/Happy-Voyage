@@ -75,6 +75,9 @@ export function ActionPanel({ state }: { state: GameState }) {
     <div className="panel actions">
       {dice}
       {body}
+      {gameController.waiting && (
+        <button onClick={() => gameController.skipToMyTurn()}>Skip to my turn</button>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DEFAULT_CONFIG, type PlayerSetup } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { NATIONS, cssColor } from './nations';
+import { SpeedControl } from './SpeedControl';
 
 /** Start screen: pick a name, a nation and how many AI rivals to face. */
 export function SetupMenu({ onRules }: { onRules: () => void }) {
@@ -62,6 +63,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
       </div>
 
       <button className="setup-rules" onClick={onRules}>How to play</button>
+      <SpeedControl />
       <button className="primary big" onClick={start}>
         Set sail
       </button>

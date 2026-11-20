@@ -3,7 +3,6 @@ import { createDefaultMap, WORLD, type MapNode, type GameEvent } from '@happy-vo
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 
-const STEP_MS = 200;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈' };
 
 /** Small offsets so several fleets on one stop don't overlap. */
@@ -31,6 +30,8 @@ export class OceanScene extends Phaser.Scene {
   private labels!: Phaser.GameObjects.Layer;
   private animatingPlayer: number | null = null;
   private goldPopups = new Map<Phaser.GameObjects.Text, { x: number; y: number; lane: number }>();
+  private movement: { playerId: number; path: number[]; id: number; index: number } | null = null;
+  private moveTween: Phaser.Tweens.Tween | null = null;
 
   constructor() {
     super('Ocean');
@@ -51,17 +52,24 @@ export class OceanScene extends Phaser.Scene {
     syncLabels();
     this.scale.on(Phaser.Scale.Events.RESIZE, syncLabels);
     const onState = () => this.syncFromState();
-    const onMove = (move: { playerId: number; path: number[] }) => void this.animateMove(move);
+    const onMove = (move: { playerId: number; path: number[]; id: number }) => this.animateMove(move);
+    const onPacing = () => this.updatePacing();
+    const onCancel = () => this.cancelMove();
     EventBus.on('state-changed', onState);
     EventBus.on('animate-move', onMove);
     const onGold = (event: Extract<GameEvent, { type: 'goldChanged' }>) => this.showGold(event);
     EventBus.on('gold-changed', onGold);
+    EventBus.on('pacing-changed', onPacing);
+    EventBus.on('cancel-move', onCancel);
     const cleanup = () => {
       this.goldPopups.clear();
       this.scale.off(Phaser.Scale.Events.RESIZE, syncLabels);
+      this.cancelMove();
       EventBus.off('state-changed', onState);
       EventBus.off('animate-move', onMove);
       EventBus.off('gold-changed', onGold);
+      EventBus.off('pacing-changed', onPacing);
+      EventBus.off('cancel-move', onCancel);
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
@@ -190,20 +198,68 @@ export class OceanScene extends Phaser.Scene {
     }
   }
 
-  private async animateMove({ playerId, path }: { playerId: number; path: number[] }) {
-    const ship = this.ships.get(playerId);
-    if (!ship) return;
-    this.animatingPlayer = playerId;
-    this.marker.clear();
-    for (const nodeId of path) {
-      const [x, y] = this.tokenPosition(playerId, nodeId);
-      ship.setFlipX(x < ship.x);
-      await new Promise<void>((resolve) =>
-        this.tweens.add({ targets: ship, x, y, duration: STEP_MS, ease: 'Sine.easeInOut', onComplete: () => resolve() }),
-      );
-    }
+  private cancelMove() {
+    this.moveTween?.stop();
+    this.moveTween = null;
+    this.movement = null;
     this.animatingPlayer = null;
-    EventBus.emit('move-complete');
+  }
+
+  private animateMove(move: { playerId: number; path: number[]; id: number }) {
+    this.cancelMove();
+    this.movement = { ...move, index: 0 };
+    this.animatingPlayer = move.playerId;
+    this.marker.clear();
+    this.nextStep();
+  }
+
+  private updatePacing() {
+    if (!this.movement) return;
+    if (gameController.timings.step === 0) {
+      this.moveTween?.stop();
+      this.moveTween = null;
+      const move = this.movement;
+      queueMicrotask(() => {
+        if (this.movement === move) this.finishMove();
+      });
+    } else {
+      this.moveTween?.setTimeScale(200 / gameController.timings.step);
+    }
+  }
+
+  private nextStep() {
+    const move = this.movement;
+    if (!move) return;
+    if (gameController.timings.step === 0 || move.index >= move.path.length) {
+      this.updatePacing();
+      if (gameController.timings.step !== 0) this.finishMove();
+      return;
+    }
+    const ship = this.ships.get(move.playerId);
+    if (!ship) { this.finishMove(); return; }
+    const [x, y] = this.tokenPosition(move.playerId, move.path[move.index++]);
+    ship.setFlipX(x < ship.x);
+    this.moveTween = this.tweens.add({
+      targets: ship, x, y, duration: 200, ease: 'Sine.easeInOut',
+      onComplete: () => {
+        if (this.movement !== move) return;
+        this.moveTween = null;
+        this.nextStep();
+      },
+    });
+    this.updatePacing();
+  }
+
+  private finishMove() {
+    const move = this.movement;
+    if (!move) return;
+    const destination = move.path[move.path.length - 1];
+    if (destination !== undefined) {
+      const [x, y] = this.tokenPosition(move.playerId, destination);
+      this.ships.get(move.playerId)?.setPosition(x, y);
+    }
+    this.cancelMove();
+    EventBus.emit('move-complete', move.id);
   }
 
   private tokenPosition(playerId: number, nodeId: number): [number, number] {
