@@ -142,7 +142,7 @@ export function App() {
             )}
             {state.campaign && <CampaignPanel campaign={state.campaign} />}
             <PlayerBar state={state} colorBlind={colorBlind} paletteToggle={paletteToggle} onRules={() => { setMenuOpen(false); setRulesOpen(true); }} onFleet={() => { setMenuOpen(false); setFleetOpen(true); }} onTutorial={() => { setMenuOpen(false); setTutorialRequested(true); }} />
-            <div className="mobile-log"><LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} /></div>
+            <div className="mobile-log"><LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} limit={3} /></div>
             <RouteDetails state={state} />
             <div className="menu-shortcuts"><ShortcutLegend /></div>
             </div>

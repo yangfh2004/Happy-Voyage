@@ -470,7 +470,8 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .menu-scrim { display: block; position: fixed; inset: 0; z-index: 30; background: #00182c99; border: 0; border-radius: 0; }
   .playing .voyage-menu { display: flex; flex-direction: column; gap: 8px; position: fixed; z-index: 31; inset: 52px 8px 12px; overflow: auto; padding: 12px; border: 2px solid #d4ad50; border-radius: 18px; background: #f8f0dc; }
   .menu-close { display: block; min-height: 44px; }
-  .playing .mobile-log { display: none; }
+  .playing .mobile-log { display: block; }
+  .playing .mobile-log .log { max-height: 100px; overflow-y: auto; font-size: 12px; }
   .strategy-cards { margin-top: 4px; }
   .strategy-cards summary { padding: 7px; }
   @keyframes mobile-sheet { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
