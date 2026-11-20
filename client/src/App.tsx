@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { DEFAULT_CONFIG } from '@happy-voyage/shared';
 import { PhaserGame } from './game/PhaserGame';
 import { gameController } from './game/GameController';
@@ -31,11 +31,18 @@ export function App() {
   // Re-render whenever the controller reports a state change.
   useSyncExternalStore(gameController.subscribe, gameController.getVersion);
   const state = gameController.state;
+  const overlay = useRef<HTMLDivElement>(null);
+  const needsInput = state && !state.players[state.currentPlayer].isAI &&
+    (state.phase === 'awaitingSpin' || state.phase === 'awaitingClaim');
+  const prompt = needsInput ? `${state.round}:${state.currentPlayer}:${state.phase}` : null;
+  useLayoutEffect(() => {
+    if (prompt && overlay.current) overlay.current.scrollTop = 0;
+  }, [prompt]);
 
   return (
     <div className={`app ${state ? 'playing' : ''}`}>
       <PhaserGame />
-      <div className="overlay">
+      <div className="overlay" ref={overlay}>
         {state ? (
           <div className="hud">
             <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>Fit chart</button><button onClick={() => EventBus.emit('follow-ship')}>Follow ship</button></div>
