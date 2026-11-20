@@ -1,4 +1,4 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COMBAT, forecastNavalBattle, tollDue, SHIP_RECIPES, SHIP_TYPES, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COMBAT, forecastColonyBattle, tollDue, SHIP_RECIPES, SHIP_TYPES, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
@@ -131,7 +131,7 @@ export function ActionPanel({ state }: { state: GameState }) {
     const { ships: defenders, owner, fromFleet } = colonyDefenders(state, island.id);
     const firepower = (ships: { firepower: number }[]) => ships.reduce((sum, ship) => sum + ship.firepower, 0);
     const hull = (ships: { durability: number }[]) => ships.reduce((sum, ship) => sum + ship.durability, 0);
-    const forecast = { victory: 'likely victory', defeat: 'likely defeat', draw: 'likely draw' }[forecastNavalBattle(player.fleet, defenders)];
+    const forecast = { victory: 'likely victory', defeat: 'likely defeat', draw: 'likely draw' }[forecastColonyBattle(state, player)];
     body = (
       <>
         <h2>{owner.name}'s colony at {island.name}</h2>

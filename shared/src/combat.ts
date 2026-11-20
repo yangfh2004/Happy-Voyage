@@ -1,6 +1,7 @@
 import type { BattleOutcome, GameState, Player, Ship } from './types';
 import type { Rng } from './compass';
 import { colonyToll } from './buildings';
+import { STRATEGY_RULES } from './strategies';
 
 export const COMBAT = {
   /** Volleys exchanged before an undecided battle is called a draw. */
@@ -78,4 +79,10 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng,
 export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], options: { attackerMultiplier?: number } = {}): BattleOutcome {
   const copy = (ships: Ship[]) => ships.map((ship) => ({ ...ship, cargo: { ...ship.cargo } }));
   return fightNavalBattle(copy(attackers), copy(defenders), () => 0.5, options).outcome;
+}
+
+export function forecastColonyBattle(state: GameState, player: Player): BattleOutcome {
+  return forecastNavalBattle(player.fleet, colonyDefenders(state, player.position).ships, {
+    attackerMultiplier: state.inspired ? STRATEGY_RULES.inspireMultiplier : 1,
+  });
 }
