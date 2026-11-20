@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
+import { atmosphere, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
 import { getLocale, subscribeLocale } from '../../i18n';
 import { readPreference } from '../../ui/accessibilityPreferences';
 
@@ -184,7 +184,7 @@ export class OceanScene extends Phaser.Scene {
         .image(Phaser.Math.Between(0, WORLD.width), Phaser.Math.Between(0, WORLD.height), 'wave')
         .setAlpha(Phaser.Math.FloatBetween(0.3, 0.8))
         .setScale(Phaser.Math.FloatBetween(0.6, 1.2));
-      this.tweens.add({
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.tweens.add({
         targets: wave,
         x: wave.x + Phaser.Math.Between(20, 50),
         alpha: 0.1,
@@ -197,7 +197,7 @@ export class OceanScene extends Phaser.Scene {
   }
 
   private drawOceanBackground() {
-    const [top, bottom] = this.colorBlind ? [0x315574, 0x17273e] : [0x1e88c7, 0x0a3d62];
+    const [top, bottom] = this.colorBlind ? [0x315574, 0x17273e] : [0x36e3d5, 0x1169bc];
     this.ocean.clear();
     this.ocean.fillStyle(top);
     this.ocean.fillGradientStyle(top, top, bottom, bottom, 1);
@@ -344,6 +344,8 @@ export class OceanScene extends Phaser.Scene {
       let ship = this.ships.get(player.id);
       if (!ship) {
         ship = this.add.image(0, 0, 'ship').setTint(color).setDepth(10);
+        ship.setScale(0.85 + Math.min(0.4, Math.max(0, ...player.fleet.map(vessel => vessel.cargoCapacity)) / 400));
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.tweens.add({ targets: ship, angle: { from: -5, to: 5 }, duration: 1500 + player.id * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         this.ships.set(player.id, ship);
       }
       ship.setAlpha(player.bankrupt ? 0.25 : 1);
@@ -352,6 +354,10 @@ export class OceanScene extends Phaser.Scene {
         ship.setPosition(x, y);
       }
       this.syncBadge(this.shipBadges, player.id, player.bankrupt ? null : badge, ship.x + 12, ship.y - 13, 14);
+      if (atmosphere(state).phase === 'night' && !player.bankrupt) {
+        this.flags.fillStyle(0xffdc7d, 0.14).fillCircle(ship.x, ship.y, 22);
+        this.flags.fillStyle(0xffef9d, 0.85).fillCircle(ship.x, ship.y + 6, 3);
+      }
     }
 
     // Ring under the fleet whose turn it is.

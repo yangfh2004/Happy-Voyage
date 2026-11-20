@@ -86,6 +86,7 @@ describe('colony ownership', () => {
     Object.assign(scene, { flags });
     Object.assign(ship, { setAlpha: vi.fn() });
     Object.assign(gameController, { state: {
+      round: 1, market: { stock: {}, repairDemandThroughRound: 0 },
       owners: [null, 0], players: [{ id: 0, color: 0xe85d4a, position: 1 }], currentPlayer: 0, phase: 'gameOver',
     } });
     scene.syncFromState();

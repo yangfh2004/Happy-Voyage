@@ -130,17 +130,24 @@ export function NavigatorPortrait({ navigator, color, size = 48 }: { navigator: 
   if (!info || !look) return null;
   return (
     <svg className="portrait" width={size} height={size} viewBox="0 0 64 64" role="img" aria-label={getLocale() === 'zh' ? `${navigatorName(info.id, 'zh')}的肖像` : `${info.name} portrait`}>
-      <circle cx="32" cy="32" r="31" fill={cssColor(color)} stroke="#5d4037" strokeWidth="2" />
+      <circle cx="32" cy="32" r="31" fill={cssColor(color)} stroke="#ffda7a" strokeWidth="2" />
       <clipPath id={clipId}><circle cx="32" cy="32" r="30" /></clipPath>
       <g clipPath={`url(#${clipId})`}>
+        <ellipse cx="25" cy="17" rx="28" ry="22" fill="#ffffff" opacity="0.24" />
         <HairShape hair={look.hair === 'long' ? 'long' : 'none'} color={look.hairColor} />
         <path d="M6 66 Q8 47 32 45 Q56 47 58 66Z" fill={look.coat} />
         <path d="M26 45 L32 53 L38 45Z" fill="#f5ecd7" />
         <rect x="28" y="38" width="8" height="8" fill={look.skin} />
-        <ellipse cx="32" cy="30" rx="12" ry="14" fill={look.skin} />
+        <ellipse cx="32" cy="30" rx="16" ry="16" fill={look.skin} />
         <HairShape hair={look.hair === 'long' ? 'short' : look.hair} color={look.hairColor} />
-        <circle cx="27" cy="29" r="1.6" fill="#2b1d0e" />
-        <circle cx="37" cy="29" r="1.6" fill="#2b1d0e" />
+        <ellipse cx="25.5" cy="29" rx="4" ry="5" fill="#fffdf5" />
+        <ellipse cx="38.5" cy="29" rx="4" ry="5" fill="#fffdf5" />
+        <ellipse cx="26" cy="30" rx="2.8" ry="3.8" fill="#243c50" />
+        <ellipse cx="38" cy="30" rx="2.8" ry="3.8" fill="#243c50" />
+        <circle cx="27" cy="28" r="1.2" fill="white" />
+        <circle cx="39" cy="28" r="1.2" fill="white" />
+        <ellipse cx="21" cy="35" rx="3.5" ry="2" fill="#f08c86" opacity="0.6" />
+        <ellipse cx="43" cy="35" rx="3.5" ry="2" fill="#f08c86" opacity="0.6" />
         <path d="M28 38 Q32 41 36 38" fill="none" stroke="#7a3b2e" strokeWidth="1.5" strokeLinecap="round" />
         {navigator === 'juliana' && <><circle cx="24" cy="34" r="2" fill="#f19c9c" opacity="0.7" /><circle cx="40" cy="34" r="2" fill="#f19c9c" opacity="0.7" /></>}
         <BeardShape beard={look.beard} color={look.hairColor} />

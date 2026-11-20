@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { DEFAULT_CONFIG, playerName } from '@happy-voyage/shared';
 import { PhaserGame } from './game/PhaserGame';
+import { Atmosphere } from './ui/Atmosphere';
 import { gameController } from './game/GameController';
 import { SetupMenu } from './ui/SetupMenu';
 import { useLocale, useT } from './i18n';
@@ -87,6 +88,7 @@ export function App() {
     <div className={`app ${state ? 'playing' : ''}`}>
       <div className="sea-map">
         <PhaserGame />
+        <Atmosphere state={state} />
         {state && <SeaNotifications notices={gameController.seaNotices} onDismiss={(id) => gameController.dismissSeaNotice(id)} />}
       </div>
       <div className="overlay" ref={overlay}>
