@@ -6,7 +6,7 @@ import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { HERMITS, NIM_MAX_TAKE, hermitStoneTake, type HermitId, type MistResult } from './mist';
 import { CAPTAINS, MAX_CAPTAINS, captainBonus, discountedByCaptains, recruitOffers, aiRecruitChoice } from './captains';
-import { BUILDINGS, buildingLevel, nextBuildingCost, buildingValue, colonyProduction } from './buildings';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
 import { seaEventText } from './seaEvents';
@@ -16,7 +16,8 @@ import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
 import { GAME_MODES, hasRoundLimit } from './modes';
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
-import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
+import { seatAtTurnOrderPosition, turnOrderPosition, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
+import { GameView } from './gameView';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 import type { Good, SeaEventResult, Specialty } from './types';
 import { navigatorById, type SignatureShip } from './navigators';
@@ -34,7 +35,6 @@ export const EVENT_GOLD = {
   storm: { min: 50, max: 100, step: 25 },
   tradeWind: { base: 50, perColony: 30 },
 } as const;
-
 
 export interface EngineOptions {
   players: PlayerSetup[];
@@ -59,8 +59,7 @@ function emptyStockpile(): ColonyStockpile {
  * Renderers can animate the compass and path before the next action.
  * The same class can run on the server for multiplayer.
  */
-export class GameEngine {
-  readonly state: GameState;
+export class GameEngine extends GameView {
   private readonly rng: Rng;
   private readonly listeners = new Set<Listener>();
   private relocations = 0;
@@ -87,8 +86,7 @@ export class GameEngine {
       homes[seat] = port?.id ?? 0;
       if (port) usedPorts.add(port.id);
     });
-    this.rng = options.rng ?? Math.random;
-    this.state = {
+    super({
       hoardNode: null,
       strategyUsed: false,
       inspired: false,
@@ -134,7 +132,8 @@ export class GameEngine {
       winner: null,
       victory: null,
       log: [],
-    };
+    });
+    this.rng = options.rng ?? Math.random;
     this.buryHoard();
     for (const player of this.state.players) {
       const pool = Object.keys(STRATEGIES) as StrategyId[];
@@ -157,10 +156,6 @@ export class GameEngine {
     return () => this.listeners.delete(listener);
   }
 
-  get currentPlayer(): Player {
-    return this.state.players[this.state.currentPlayer];
-  }
-
   private buryHoard(previous?: number): void {
     const nodes = this.state.map.filter((n) => n.event === 'treasure' && n.id !== previous);
     this.state.hoardNode = nodes.length ? nodes[Math.floor(this.rng() * nodes.length)].id : null;
@@ -178,18 +173,6 @@ export class GameEngine {
     this.log(`${player.name} gains ${STRATEGIES[card].name} (${source}).`);
     this.emit({ type: 'strategyGained', playerId, card, source });
     return true;
-  }
-
-  canUseStrategy(id: StrategyId, target?: number): boolean {
-    const card = STRATEGIES[id];
-    if (!card || this.state.strategyUsed || this.currentPlayer.bankrupt || !this.currentPlayer.strategies.includes(id) || !card.phases.includes(this.state.phase)) return false;
-    if (id === 'navigate') return Number.isInteger(target) && this.state.map.some((n) => n.id === target);
-    if (id === 'locate') return this.state.hoardNode !== null;
-    const owner = this.state.owners[this.currentPlayer.position];
-    if (owner === null || owner === undefined || owner === this.currentPlayer.id) return false;
-    if (id === 'inspire') return this.currentPlayer.fleet.length > 0;
-    const defenders = colonyDefenders(this.state, this.currentPlayer.position);
-    return defenders.ships.length > (defenders.fromFleet ? 1 : 0);
   }
 
   private readonly strategyHandlers: Record<StrategyId, (target?: number) => void> = {
@@ -223,10 +206,6 @@ export class GameEngine {
     this.emit({ type: 'turnStarted', playerId: this.currentPlayer.id });
   }
 
-  islandsOwnedBy(playerId: number): number {
-    return this.state.owners.filter((o) => o === playerId).length;
-  }
-
   /** Commission a ship for setup or after a game rule has authorized construction. */
   addShipToFleet(playerId: number, type: ShipType): Ship {
     return this.commissionShip(playerId, type);
@@ -247,14 +226,6 @@ export class GameEngine {
     player.fleet.push(ship);
     this.emit({ type: 'shipAdded', playerId, shipId: id });
     return ship;
-  }
-
-  /** Gold plus the end-of-voyage value of every colony. */
-  netWorth(playerId: number): number {
-    const colonies = this.state.map
-      .filter((n) => this.state.owners[n.id] === playerId)
-      .reduce((sum, n) => sum + colonyValue(n) + buildingValue(this.state, n.id), 0);
-    return this.state.players[playerId].gold + colonies;
   }
 
   /** Choose the movement distance without moving the fleet yet. */
@@ -502,13 +473,6 @@ export class GameEngine {
     this.endTurn();
   }
 
-  canBuyLotteryNumber(number: number): boolean {
-    const lottery = this.state.lottery;
-    return this.state.phase === 'awaitingLottery' && !!lottery && !lottery.draw && lottery.secondsLeft > 0 &&
-      Number.isInteger(number) && number >= 1 && number <= LOTTERY.balls && !lottery.picks.includes(number) &&
-      lottery.picks.length < LOTTERY.maxPicks && this.currentPlayer.gold >= LOTTERY.ticketPrice;
-  }
-
   buyLotteryNumber(number: number): void {
     if (!this.canBuyLotteryNumber(number)) throw new Error('Cannot buy lottery number: timer, number, limit or gold');
     const lottery = this.state.lottery!;
@@ -564,12 +528,6 @@ export class GameEngine {
     this.emit({ type: 'mistDuelUpdated', playerId: this.currentPlayer.id });
   }
 
-  canTakeMistStones(count: number): boolean {
-    const duel = this.state.mistDuel;
-    return this.state.phase === 'awaitingMistDuel' && !!duel?.hermitId && !duel.result &&
-      Number.isInteger(count) && count >= 1 && count <= Math.min(NIM_MAX_TAKE, duel.stonesLeft);
-  }
-
   takeMistStones(count: number): void {
     if (!this.canTakeMistStones(count)) throw new Error('Cannot take that many stones');
     const duel = this.state.mistDuel!;
@@ -599,11 +557,6 @@ export class GameEngine {
     duel.result = result;
     this.state.mistResults.push(result);
     this.emit({ type: 'mistDuelResolved', result });
-  }
-
-  canLeaveMistIsland(): boolean {
-    const duel = this.state.mistDuel;
-    return this.state.phase === 'awaitingMistDuel' && !!duel && (duel.hermitId === null || duel.result !== null);
   }
 
   leaveMistIsland(): void {
@@ -696,14 +649,6 @@ export class GameEngine {
     return total;
   }
 
-  canBuild(kind: BuildingKind): boolean {
-    const player = this.currentPlayer;
-    const node = this.state.map[player.position];
-    const cost = nextBuildingCost(this.state, player.position, kind);
-    return this.state.phase === 'awaitingBuild' && node?.kind === 'island' &&
-      this.state.owners[player.position] === player.id && cost !== null && player.gold >= cost;
-  }
-
   build(kind: BuildingKind): void {
     this.assertPhase('awaitingBuild');
     if (!this.canBuild(kind)) throw new Error('Cannot build here: ownership, cost or maximum level');
@@ -741,18 +686,6 @@ export class GameEngine {
   finishTrading(): void {
     this.assertPhase('awaitingCargoMarket');
     this.endTurn();
-  }
-
-  canBuildShip(type: ShipType): boolean {
-    const player = this.currentPlayer;
-    const nodeId = player.position;
-    if (this.state.phase !== 'awaitingBuild' || this.state.map[nodeId]?.kind !== 'island' ||
-      this.state.owners[nodeId] !== player.id || !Object.hasOwn(SHIP_RECIPES, type)) return false;
-
-    const recipe = SHIP_RECIPES[type];
-    const stock = this.state.stockpiles[nodeId];
-    return buildingLevel(this.state, nodeId, 'shipyard') >= recipe.yardLevel &&
-      stock.lumber >= recipe.lumber && stock.iron >= recipe.iron;
   }
 
   buildShip(type: ShipType): Ship {
@@ -872,15 +805,6 @@ export class GameEngine {
 
   // --- internals -----------------------------------------------------------
 
-  private atMarket(): boolean {
-    return this.state.phase === 'awaitingMarket' && !this.currentPlayer.bankrupt &&
-      this.node(this.currentPlayer.position)?.special === 'skeleton';
-  }
-
-  canBuyUsedShip(type: ShipType): boolean {
-    return this.atMarket() && this.state.marketStock.includes(type) && this.currentPlayer.gold >= USED_SHIP_PRICES[type];
-  }
-
   buyUsedShip(type: ShipType): Ship {
     if (!this.canBuyUsedShip(type)) throw new Error('Cannot buy ship: market, stock or gold');
     this.state.marketStock.splice(this.state.marketStock.indexOf(type), 1);
@@ -889,11 +813,6 @@ export class GameEngine {
     ship.durability = Math.floor(ship.maxDurability * USED_SHIP_CONDITION);
     this.log(`${this.currentPlayer.name} buys ${ship.name} at Skeleton Island.`);
     return ship;
-  }
-
-  canSellShip(shipId: number): boolean {
-    return this.atMarket() && this.currentPlayer.fleet.length > 1 &&
-      this.currentPlayer.fleet.some((ship) => ship.id === shipId && cargoLoad(ship) === 0);
   }
 
   sellShip(shipId: number): void {
