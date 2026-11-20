@@ -46,6 +46,12 @@ describe('victory modes', () => {
     expect(g.islandsOwnedBy(0)).toBe(39);
     expect(g.state.phase).toBe('awaitingSpin');
     expect(g.state.victory).toBeNull();
+    g.state.round = 5_000;
+    g.spinCompass();
+    g.sail();
+    while (g.state.phase === 'moving') g.resolveLanding();
+    if (g.state.phase === 'awaitingClaim') g.decline();
+    expect(g.state.victory).toBeNull();
   });
 
   it('keeps the shorter modes as options', () => {

@@ -12,7 +12,7 @@ import { RANKS, playerMerit, foreignTaxDue } from './ranks';
 export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
-import { GAME_MODES } from './modes';
+import { GAME_MODES, hasRoundLimit } from './modes';
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
@@ -1255,7 +1255,7 @@ export class GameEngine {
       winner = players[0];
       victory = 'lastAfloat';
       reason = 'outlasted the sea';
-    } else if (this.state.round > config.maxRounds) {
+    } else if (hasRoundLimit(config) && this.state.round > config.maxRounds) {
       winner = alive.reduce((a, b) => (this.netWorth(b.id) > this.netWorth(a.id) ? b : a));
       victory = 'richest';
       reason = `is the richest navigator after ${config.maxRounds} rounds`;
