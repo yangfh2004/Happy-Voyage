@@ -402,8 +402,9 @@ export class GameController {
       case 'turnStarted':
         if (!engine.currentPlayer.isAI) this.skipping = false;
         if (engine.currentPlayer.isAI) this.later(() => {
+          const round = engine.state.round;
           engine.decideForAI();
-          if (engine.state.phase === 'awaitingSpin' && engine.currentPlayer.id === event.playerId) this.beginSpin(engine);
+          if (engine.state.phase === 'awaitingSpin' && engine.currentPlayer.id === event.playerId && engine.state.round === round) this.beginSpin(engine);
         });
         break;
       case 'tollPaid': {

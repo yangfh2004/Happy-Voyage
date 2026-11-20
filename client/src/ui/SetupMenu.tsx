@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createNationRoster, DEFAULT_CONFIG, NATIONS, navigatorForNation, type Nation } from '@happy-voyage/shared';
+import { createNationRoster, DEFAULT_CONFIG, NATIONS, navigatorForNation, type AIDifficulty, type Nation } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorCard } from './NavigatorCard';
@@ -11,12 +11,13 @@ import { ShortcutLegend } from './ShortcutLegend';
 export function SetupMenu({ onRules }: { onRules: () => void }) {
   const [customName, setCustomName] = useState<string | null>(null);
   const [nation, setNation] = useState<Nation>(NATIONS[0].name);
+  const [difficulty, setDifficulty] = useState<AIDifficulty>('normal');
   const navigator = navigatorForNation(nation)!;
   const color = NATIONS.find((n) => n.name === nation)!.color;
   const name = customName ?? navigator.name;
 
   const start = () => {
-    gameController.newGame(createNationRoster([{ name: name.trim() || navigator.name, nation }]));
+    gameController.newGame(createNationRoster([{ name: name.trim() || navigator.name, nation }], difficulty));
   };
 
   return (
@@ -29,7 +30,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         The starting navigator rotates each round. Final wealth is cash plus 75% of colony costs.
       </p>
 
-      <label>
+      <label className="setup-name">
         Navigator name
         <input value={name} maxLength={16} onChange={(e) => setCustomName(e.target.value)} />
       </label>
@@ -53,6 +54,16 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         <NavigatorCard navigator={navigator} color={color} />
         <small className="nation-note">Start at {nation} Port. The other {NATIONS.length - 1} nations are AI rivals.</small>
       </div>
+
+      <label className="setup-difficulty">
+        Rival difficulty
+        <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as AIDifficulty)}>
+          <option value="easy">Easy</option>
+          <option value="normal">Normal</option>
+          <option value="hard">Hard</option>
+        </select>
+        <small className="nation-note">Changes rival decisions, not starting resources or rules.</small>
+      </label>
 
       <button className="setup-rules" onClick={onRules}>How to play</button>
       <SpeedControl />

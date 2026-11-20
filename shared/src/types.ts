@@ -34,6 +34,8 @@ export interface MapNode {
   event?: EventKind;
 }
 
+export type AIDifficulty = 'easy' | 'normal' | 'hard';
+
 export interface PlayerSetup {
   name: string;
   nation?: string;
@@ -42,6 +44,8 @@ export interface PlayerSetup {
   /** 0xRRGGBB, used for the ship token and colony flags. */
   color: number;
   isAI: boolean;
+  /** Rival policy only; all seats use the same economy and rules. Defaults to Normal. */
+  aiDifficulty?: AIDifficulty;
 }
 
 export type ShipType = 'warship' | 'cargo' | 'explorer';
