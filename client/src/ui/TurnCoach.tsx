@@ -10,6 +10,15 @@ export function coachStage(phase: GameState['phase'], atHelm: boolean, dismissed
   return hasTarget && (phase === 'spinning' || phase === 'moving') ? 'landing' : null;
 }
 
+export function landingCoachPlacement(point: { x: number; y: number }, map: { left: number; right: number; top: number; bottom: number }) {
+  const below = point.y - map.top < 110;
+  return {
+    below,
+    left: Math.max(map.left + 110, Math.min(map.right - 110, point.x)),
+    top: Math.max(map.top + 8, Math.min(map.bottom - 70, below ? point.y + 48 : point.y - 110)),
+  };
+}
+
 export function TurnCoach({ state, atHelm, target }: { state: GameState; atHelm: boolean; target: { x: number; y: number } | null }) {
   const { t } = useT();
   const [dismissed, setDismissed] = useState(() => readPreference('coach-dismissed'));
@@ -33,8 +42,10 @@ export function TurnCoach({ state, atHelm, target }: { state: GameState; atHelm:
   const stage = coachStage(state.phase, atHelm, dismissed, !!gameController.landingTarget);
   const point = stage === 'landing' ? target : stage === 'spin' ? button : null;
   if (!point) return null;
-  const below = traveling && point.y < 160;
-  return <aside className="turn-coach" role="status" style={{ left: Math.max(110, Math.min(window.innerWidth - 110, point.x)), top: below ? point.y + 48 : Math.max(52, point.y - (traveling ? 110 : 66)) }}>
+  const map = document.querySelector('.sea-map')?.getBoundingClientRect();
+  const placement = traveling && map ? landingCoachPlacement(point, map) : { below: false, left: Math.max(110, Math.min(window.innerWidth - 110, point.x)), top: Math.max(52, point.y - 66) };
+  const { below, left, top } = placement;
+  return <aside className="turn-coach" role="status" style={{ left, top }}>
     <span>{below && '↑ '}{traveling ? t("You'll land here", '你将在这里靠岸') : t('Spin to sail', '转动罗盘启航')}{!below && ' ↓'}</span>
     <button aria-label={t('Dismiss tip', '关闭提示')} onClick={dismiss}>✕</button>
   </aside>;
