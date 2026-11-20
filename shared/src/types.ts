@@ -26,8 +26,10 @@ export interface MapNode {
   price?: number;
   /** Islands only: toll a rival pays when landing on the colony. */
   toll?: number;
-  /** Islands only: the local specialty (traded in a later version). */
-  specialty?: string;
+  /** Islands only: the local specialty produced by a collection field. */
+  specialty?: Specialty;
+  /** Islands only: units of iron produced per round per mine level (default 1). */
+  ironYield?: number;
   /** Event stops only. */
   event?: EventKind;
 }
@@ -70,6 +72,14 @@ export interface Player extends PlayerSetup {
 }
 
 export type BuildingKind = 'lumberMill' | 'ironMine' | 'shipyard' | 'repairYard' | 'collectionField';
+export type Specialty = 'Wine' | 'Sugar' | 'Cotton' | 'Timber' | 'Cocoa' | 'Tobacco' | 'Silver' | 'Spices' | 'Silk' | 'Tea';
+
+export interface ColonyStockpile {
+  lumber: number;
+  iron: number;
+  specialties: Partial<Record<Specialty, number>>;
+}
+
 export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' | 'gameOver';
 
 export interface GameConfig {
@@ -90,6 +100,7 @@ export interface GameState {
   /** owners[nodeId] = owning player id, or null when neutral / not an island. */
   owners: (number | null)[];
   buildings: Partial<Record<BuildingKind, number>>[];
+  stockpiles: ColonyStockpile[];
   currentPlayer: number;
   round: number;
   phase: Phase;

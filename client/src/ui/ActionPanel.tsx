@@ -1,5 +1,6 @@
 import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, type BuildingKind, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
+import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
 
@@ -55,6 +56,7 @@ export function ActionPanel({ state }: { state: GameState }) {
       <>
         <h2>Build at {state.map[nodeId].name}</h2>
         <p>Your colony · Toll {colonyToll(state, nodeId)}g · Treasury {player.gold}g</p>
+        <ColonyGoods state={state} nodeId={nodeId} />
         {(Object.keys(BUILDINGS) as BuildingKind[]).map((kind) => {
           const building = BUILDINGS[kind];
           const level = buildingLevel(state, nodeId, kind);
