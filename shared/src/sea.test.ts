@@ -125,7 +125,7 @@ describe('living sea board', () => {
     const p = g.currentPlayer;
     g.state.owners[1] = 0;
     land(g, g.state.map.find((n) => n.special === special)!.id);
-    expect(g.state.phase).toBe('awaitingSpin');
+    expect(g.state.phase).toBe(special === 'skeleton' ? 'awaitingMarket' : 'awaitingSpin');
     expect(g.state.log.length).toBeGreaterThan(0);
     expect(g.state.log.some((line) => /\b[Yy]our\b|\bYou win/.test(line))).toBe(false);
     expect(g.state.log.slice(0, 2).every((line) => line.includes(p.name))).toBe(true);

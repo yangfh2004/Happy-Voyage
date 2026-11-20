@@ -6,6 +6,8 @@ vi.mock('../game/GameController', () => ({ gameController: {
   spinId: 0, feedback: {}, headline: null, timings: { spin: 0 }, waiting: false,
   canBuild: () => false,
   canBuildShip: vi.fn(() => false),
+  canBuyUsedShip: vi.fn(() => false),
+  canSellShip: vi.fn(() => false),
   shownPosition: (player: { position: number }) => player.position,
 } }));
 vi.mock('./Compass', () => ({ Compass: () => null }));
@@ -16,6 +18,29 @@ import { TransferContents } from './TransferPanel';
 import { gameController } from '../game/GameController';
 
 describe('build menu', () => {
+  it('shows market stock, prices, worn condition and empty or unavailable trades', () => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
+    const { state } = engine;
+    engine.currentPlayer.position = state.map.find((node) => node.special === 'skeleton')!.id;
+    state.phase = 'moving';
+    engine.resolveLanding();
+    vi.mocked(gameController.canBuyUsedShip).mockImplementation((type) => engine.canBuyUsedShip(type));
+    vi.mocked(gameController.canSellShip).mockImplementation((id) => engine.canSellShip(id));
+    let html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(html).toContain('Skeleton Island ship market');
+    expect(html).toContain('Buy Explorer (180g)');
+    expect(html).toContain('48/80 durability');
+    expect(html).toContain('Sell Warship 1 (225g)');
+    state.marketStock = [];
+    engine.currentPlayer.fleet.splice(1);
+    engine.currentPlayer.gold = 0;
+    html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(html).toContain('Sold out.');
+    expect(html).toContain('<button disabled="">Sell Warship 1');
+    state.marketStock = ['explorer'];
+    html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(html).toContain('<button disabled="">Buy Explorer');
+  });
   it('shows empty, upgraded and maxed buildings with costs and disabled actions', () => {
     const { state } = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
     const node = state.map.find((n) => n.kind === 'island')!;

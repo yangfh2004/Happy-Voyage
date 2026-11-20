@@ -188,6 +188,26 @@ export class GameController {
     if (this.isHumanTurn('awaitingBuild')) this.engine!.finishBuilding();
   }
 
+  canBuyUsedShip(type: ShipType): boolean {
+    return this.isHumanTurn('awaitingMarket') && this.engine!.canBuyUsedShip(type);
+  }
+
+  buyUsedShip(type: ShipType): void {
+    if (this.canBuyUsedShip(type)) this.engine!.buyUsedShip(type);
+  }
+
+  canSellShip(shipId: number): boolean {
+    return this.isHumanTurn('awaitingMarket') && this.engine!.canSellShip(shipId);
+  }
+
+  sellShip(shipId: number): void {
+    if (this.canSellShip(shipId)) this.engine!.sellShip(shipId);
+  }
+
+  finishMarket(): void {
+    if (this.isHumanTurn('awaitingMarket')) this.engine!.finishMarket();
+  }
+
   /** A fleet's stop as the board shows it: its departure stop until it has sailed in. */
   shownPosition(player: Player): number {
     const sailing = this.departure?.playerId === player.id && this.engine?.state.phase === 'moving';
@@ -269,6 +289,7 @@ export class GameController {
         break;
       }
       case 'claimOffered':
+      case 'marketOffered':
       case 'buildOffered':
         if (!engine.currentPlayer.isAI) this.skipping = false;
         if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());

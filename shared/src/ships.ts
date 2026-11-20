@@ -14,6 +14,13 @@ export const SHIP_TYPES = {
 
 export const STARTING_FLEET: readonly ShipType[] = ['warship', 'cargo', 'explorer'];
 
+export const USED_SHIP_PRICES: Record<ShipType, number> = { explorer: 180, cargo: 300, warship: 450 };
+export const USED_SHIP_CONDITION = 0.6;
+
+export function shipSalePrice(ship: Ship): number {
+  return Math.floor(USED_SHIP_PRICES[ship.type] * 0.5 * Math.max(0, Math.min(1, ship.durability / ship.maxDurability)));
+}
+
 export const SHIP_RECIPES = {
   explorer: { yardLevel: 1, lumber: 2, iron: 1 },
   cargo: { yardLevel: 2, lumber: 4, iron: 2 },
