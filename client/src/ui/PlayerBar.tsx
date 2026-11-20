@@ -3,13 +3,13 @@ import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 
 /** Gold and colonies for every navigator; the current one is highlighted. */
-export function PlayerBar({ state }: { state: GameState }) {
+export function PlayerBar({ state, onRules }: { state: GameState; onRules: () => void }) {
   return (
     <div className="panel players">
-      <div className="round">
+      <div className="player-header"><div className="round">
         Round {Math.min(state.round, state.config.maxRounds)} / {state.config.maxRounds} · goal: {state.config.islandsToWin}{' '}
         islands
-      </div>
+      </div><button className="rules-toggle" onClick={onRules}>? Rules</button></div>
       <div className="player-list">
         {state.players.map((p) => (
           <div
@@ -18,7 +18,7 @@ export function PlayerBar({ state }: { state: GameState }) {
           >
             <span className="dot" style={{ background: cssColor(p.color) }} />
             <strong>{p.name}</strong>
-            {p.isAI && <span className="tag">AI</span>}
+            <span className="tag">{p.isAI ? 'AI' : 'You'}</span>
             <div className="stats">
               {p.gold}g · {gameController.islandsOwnedBy(p.id)} islands
             </div>
