@@ -36,6 +36,8 @@ function savedSpeed(): GameSpeed {
  */
 /** Length of one ball's drop animation (matches `ball-drop` in styles.css). */
 export const LOTTERY_BALL_DROP_MS = 450;
+/** Fallback slack if the last ball's animationend never arrives (e.g. reduced motion, hidden tab). */
+const LOTTERY_REVEAL_GRACE_MS = 500;
 
 export class GameController {
   private engine: GameEngine | null = null;
@@ -483,15 +485,21 @@ export class GameController {
       clearTimeout(this.lotteryReveal);
       this.lotteryRevealed = false;
       this.lotteryHeld = { draw, logCut: engine.state.log.length - 1, events: [] };
-      this.lotteryReveal = setTimeout(() => this.revealLottery(engine), this.lotteryRevealDelay);
+      this.lotteryReveal = setTimeout(() => this.revealLottery(engine), this.lotteryRevealDelay + LOTTERY_REVEAL_GRACE_MS);
     }
     this.lotteryHeld.events.push(event);
     return true;
   }
 
+  /** The lottery panel's last ball finished dropping into the jar. */
+  lotteryBallsLanded(): void {
+    if (this.engine) this.revealLottery(this.engine);
+  }
+
   private revealLottery(engine: GameEngine): void {
     const held = this.lotteryHeld;
     if (!held || this.engine !== engine) return;
+    clearTimeout(this.lotteryReveal);
     this.lotteryHeld = null;
     this.lotteryShown = held.draw;
     this.lotteryRevealed = true;

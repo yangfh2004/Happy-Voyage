@@ -382,6 +382,8 @@ it('keeps the lottery prize, log line and toast hidden until the last ball lands
   expect(toasts).toHaveLength(0);
   expect(controller.headline?.text ?? '').not.toContain('Lottery');
   vi.advanceTimersByTime(controller.lotteryRevealDelay);
+  expect(controller.lotteryRevealed).toBe(false);
+  controller.lotteryBallsLanded();
   expect(controller.lotteryRevealed).toBe(true);
   expect(controller.displayGold(p)).toBe(before + prize);
   expect(controller.visibleLog(state).at(-1)).toContain('Treasure Island draws');
@@ -402,5 +404,19 @@ it('shows the lottery result at once at Instant speed', () => {
   expect(controller.lotteryRevealed).toBe(true);
   expect(controller.displayGold(p)).toBe(p.gold);
   expect(controller.visibleLog(state)).toBe(state.log);
+  expect(controller.headline?.text).toContain('Lottery');
+});
+
+it('reveals a held lottery result on a fallback timer if the last ball never reports landing', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  const treasure = state.map.find((node) => node.special === 'treasure')!;
+  state.players[0].position = (treasure.id - 2 + state.map.length) % state.map.length;
+  humanTurn();
+  controller.buyLotteryNumber(1);
+  controller.drawLottery();
+  expect(controller.lotteryRevealed).toBe(false);
+  vi.advanceTimersByTime(controller.lotteryRevealDelay + 500);
+  expect(controller.lotteryRevealed).toBe(true);
   expect(controller.headline?.text).toContain('Lottery');
 });
