@@ -7,7 +7,8 @@ vi.mock('../GameController', () => ({ gameController: { timings: { step: 200 } }
 import { OceanScene } from './OceanScene';
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
-import { createNationRoster, GameEngine, type GameEvent, type WindDirection } from '@happy-voyage/shared';
+import { routeEdge } from '../routeEdge';
+import { createNationRoster, GameEngine, WORLD, type GameEvent, type MapNode, type WindDirection } from '@happy-voyage/shared';
 
 type Move = { playerId: number; path: number[]; id: number };
 type SceneHarness = {
@@ -18,6 +19,7 @@ type SceneHarness = {
   update(): void;
   drawLandingTarget(): void;
   drawRoute(direction?: WindDirection): void;
+  fitChart(): void;
   onEngineEvent(event: GameEvent): void;
 };
 
@@ -62,9 +64,12 @@ describe('fork routes', () => {
     scene.drawRoute('S');
     expect(route.strokeCircle).toHaveBeenCalledWith(0, 0, 34);
     expect(route.lineStyle).toHaveBeenCalledWith(7, 0xffd369, 1);
-    expect(route.lineBetween).toHaveBeenCalledWith(expect.closeTo(0), 38, expect.closeTo(0), 54);
+    const edge = routeEdge(map as MapNode[], 0, 2, true);
+    const dash = edge.point(16 / 124 / 6);
+    expect(route.lineBetween).toHaveBeenCalledWith(expect.closeTo(0), 38, expect.closeTo(dash.x), expect.closeTo(dash.y));
     expect(route.lineStyle).toHaveBeenCalledWith(12, 0x7ffff0, 1);
-    expect(route.lineBetween).toHaveBeenCalledWith(expect.closeTo(0), 38, expect.closeTo(0), 162);
+    const highlight = edge.point(1 / 40);
+    expect(route.lineBetween).toHaveBeenCalledWith(expect.closeTo(0), 38, expect.closeTo(highlight.x), expect.closeTo(highlight.y));
     expect(route.fillStyle).toHaveBeenCalledWith(0x7ffff0, 1);
     route.lineBetween.mockClear();
     Object.assign(gameController, { state: { wind: { direction: 'S', turnsLeft: 2 } } });
@@ -84,7 +89,40 @@ describe('fork routes', () => {
   });
 });
 
+describe('fit chart', () => {
+  it.each([[1400, 800], [500, 900]])('centres the whole sea with balanced margins in a %s by %s panel', (width, height) => {
+    const camera = { width, height, setSize: vi.fn(), setZoom: vi.fn(), setBounds: vi.fn(), centerOn: vi.fn() };
+    Object.assign(scene, { cameras: { main: camera }, game: { canvas: { parentElement: { clientWidth: width, clientHeight: height } } } });
+    scene.fitChart();
+    const zoom = Math.min(width / WORLD.width, height / WORLD.height);
+    const padX = (width / zoom - WORLD.width) / 2;
+    const padY = (height / zoom - WORLD.height) / 2;
+    expect(camera.setZoom).toHaveBeenCalledWith(zoom);
+    expect(camera.setBounds).toHaveBeenCalledWith(-padX, -padY, WORLD.width + 2 * padX, WORLD.height + 2 * padY);
+    expect(camera.centerOn).toHaveBeenCalledWith(WORLD.width / 2, WORLD.height / 2);
+  });
+});
+
 describe('landing highlight', () => {
+  it('frames long desktop previews, then follows the active fleet again', () => {
+    const { state } = new GameEngine({ players: createNationRoster([{ name: 'Captain', nation: 'Spain' }]) });
+    const camera = { width: 1100, height: 700, zoom: .8, worldView: { x: 0, y: 0 }, setZoom: vi.fn().mockReturnThis(), centerOn: vi.fn().mockReturnThis() };
+    const graphics = { clear: vi.fn(), lineStyle: vi.fn().mockReturnThis(), strokeCircle: vi.fn().mockReturnThis() };
+    const badge = { setFontSize: vi.fn().mockReturnThis(), setText: vi.fn().mockReturnThis(), setPosition: vi.fn().mockReturnThis(), setVisible: vi.fn().mockReturnThis() };
+    Object.assign(gameController, { state, landingTarget: { nodeId: 34, playerId: 0, steps: 2, preview: true } });
+    Object.assign(scene, { scale: { width: 1100 }, landingMarker: graphics, landingBadge: badge, cameras: { main: camera }, time: { now: 0 }, game: { canvas: { getBoundingClientRect: () => ({ left: 0, top: 0 }) } } });
+    vi.stubGlobal('window', { matchMedia: () => ({ matches: true }) });
+    scene.drawLandingTarget();
+    expect(camera.setZoom.mock.calls[0][0]).toBeGreaterThanOrEqual(Math.min(1100 / WORLD.width, 700 / WORLD.height));
+    const from = state.map[state.players[0].position];
+    expect(camera.centerOn).toHaveBeenCalledWith((from.x + state.map[34].x) / 2, (from.y + state.map[34].y) / 2);
+    Object.assign(gameController, { landingTarget: null });
+    scene.drawLandingTarget();
+    expect(camera.setZoom).toHaveBeenLastCalledWith(.95);
+    expect(camera.centerOn).toHaveBeenLastCalledWith(from.x, from.y);
+    vi.unstubAllGlobals();
+  });
+
   it('draws a large layered glow and badge, projects the target and clears after arrival', () => {
     const { state } = new GameEngine({ players: createNationRoster([{ name: 'Captain', nation: 'Spain' }]) });
     const node = state.map[5];
@@ -107,6 +145,20 @@ describe('landing highlight', () => {
 });
 
 describe('pinch zoom', () => {
+  it('clamps zoom between the complete organic sea and close detail', () => {
+    const a = { isDown: true, x: 100, y: 100 };
+    const b = { isDown: true, x: 200, y: 100 };
+    const camera = { width: 1100, height: 700, zoom: .8, setZoom: vi.fn((value: number) => { camera.zoom = value; }) };
+    Object.assign(scene, { input: { pointer1: a, pointer2: b }, cameras: { main: camera } });
+    scene.update();
+    b.x = 101;
+    scene.update();
+    expect(camera.zoom).toBe(Math.min(1100 / WORLD.width, 700 / WORLD.height));
+    b.x = 2000;
+    scene.update();
+    expect(camera.zoom).toBe(2);
+  });
+
   it('uses the current two-finger distance once per frame without compounding ratios', () => {
     const a = { isDown: true, x: 100, y: 100 };
     const b = { isDown: true, x: 200, y: 100 };

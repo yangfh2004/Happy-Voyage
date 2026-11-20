@@ -1,9 +1,6 @@
 import Phaser from 'phaser';
 
-/**
- * Generates the placeholder art procedurally so the demo needs no asset files.
- * Swap these for real sprites later with `this.load.image(...)` in preload().
- */
+/** Generates shared ship, coin and wave icons. */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
@@ -23,21 +20,6 @@ export class BootScene extends Phaser.Scene {
     g.fillStyle(0x244962).fillCircle(18, 40, 2).fillCircle(28, 40, 2).fillCircle(38, 40, 2);
     g.fillStyle(0xffffff).fillTriangle(28, 3, 43, 7, 28, 11);
     g.generateTexture('ship', 56, 56);
-    g.clear();
-
-    // Island: sand ring with green interior.
-    g.fillStyle(0x88f4e6, 0.45).fillEllipse(36, 44, 72, 43);
-    g.lineStyle(2, 0xe5fffa, 0.85).strokeEllipse(36, 44, 68, 38);
-    g.fillStyle(0xe7ad57).fillEllipse(36, 43, 59, 34);
-    g.fillStyle(0xffe7a0).fillEllipse(36, 39, 60, 32);
-    g.fillStyle(0x27b969).fillEllipse(34, 33, 44, 28);
-    g.fillStyle(0x73e47b).fillEllipse(28, 29, 28, 21);
-    g.lineStyle(5, 0xa9703e).lineBetween(43, 37, 40, 14);
-    g.lineStyle(2, 0xf4c77e).lineBetween(44, 36, 41, 15);
-    g.fillStyle(0x148950).fillEllipse(31, 13, 24, 9).fillEllipse(49, 13, 24, 9);
-    g.fillStyle(0x35cf69).fillEllipse(35, 8, 11, 20).fillEllipse(47, 8, 11, 20);
-    g.fillStyle(0xffc76a).fillCircle(41, 17, 3);
-    g.generateTexture('island', 72, 66);
     g.clear();
 
     // Gold coin for tolls and treasure.

@@ -1,7 +1,22 @@
 import { NATIONS } from './nations';
 import type { MapNode, SpecialKind, EventKind, Specialty } from './types';
 
-export const WORLD = { width: 1500, height: 1200 } as const;
+export const WORLD = { width: 3400, height: 2600 } as const;
+export const MIN_NODE_SPACING = 175;
+
+/** Fixed archipelagos, grouped by nation in route order. */
+const archipelagos: [number, number][][] = [
+  [[1484, 355], [1596, 572], [1821, 564], [1719, 395], [1619, 191], [1835, 202], [1966, 359]],
+  [[2275, 565], [2329, 385], [2546, 309], [2698, 465], [2494, 514], [2434, 745], [2640, 695]],
+  [[2734, 883], [2900, 746], [3106, 839], [3169, 1043], [2958, 981], [2764, 1118], [2988, 1217]],
+  [[2999, 1399], [2803, 1455], [2961, 1620], [3166, 1543], [3139, 1754], [2920, 1835], [2766, 1679]],
+  [[2518, 1824], [2295, 1866], [2452, 2033], [2643, 1970], [2618, 2226], [2410, 2286], [2000, 1965]],
+  [[1909, 2177], [1873, 2373], [1634, 2445], [1689, 2207], [1705, 2012], [1498, 2072], [1488, 2276]],
+  [[1123, 2230], [1117, 1979], [995, 1845], [928, 2069], [881, 2286], [709, 2141], [776, 1943]],
+  [[570, 1778], [377, 1774], [229, 1558], [476, 1600], [693, 1589], [593, 1397], [390, 1387]],
+  [[411, 1204], [252, 1066], [271, 850], [466, 990], [905, 1148], [664, 941], [528, 765]],
+  [[668, 523], [789, 716], [1013, 754], [1126, 554], [928, 535], [840, 327], [1045, 341]],
+];
 const lands = ['Madeira', 'Canary Isles', 'Cape Verde', 'Azores', 'Hispaniola', 'Cuba', 'Yucatan', 'Veracruz', 'Cartagena', 'Guiana', 'Pernambuco', 'Bahia', 'Rio de Janeiro', 'Patagonia', 'Tierra del Fuego', 'Valparaiso', 'Callao', 'Panama', 'Gold Coast', 'Benin', 'Luanda', 'Cape of Good Hope', 'Mozambique', 'Zanzibar', 'Sofala', 'Madagascar', 'Socotra', 'Muscat', 'Goa', 'Calicut', 'Ceylon', 'Malacca', 'Sumatra', 'Java', 'Borneo', 'Moluccas', 'Luzon', 'Formosa', 'Ryukyu', 'Hokkaido'];
 const goods: Specialty[] = ['Wine', 'Sugar', 'Cotton', 'Timber', 'Cocoa', 'Tobacco', 'Silver', 'Spices', 'Silk', 'Tea'];
 const specials: [SpecialKind, string, string][] = [
@@ -33,20 +48,11 @@ export function createDefaultMap(): MapNode[] {
     }
   }
   const map: MapNode[] = nodes.map((node, id) => {
-    if (id >= 64) return { ...node, id, x: 80, y: 1070 - (id - 64) * 196 };
-    // Outbound lanes wind east and west; the western margin carries the return leg.
-    const lane = Math.floor(id / 8);
-    const column = id % 8;
-    const x = 260 + (lane % 2 === 0 ? column : 7 - column) * 160;
-    const y = 90 + lane * 140 + Math.sin(column * Math.PI / 3.5) * 12;
+    const [x, y] = archipelagos[Math.floor(id / 7)][id % 7];
     return { ...node, id, x, y };
   });
-  for (const id of [2, 12, 18, 28, 34, 44, 50, 60]) {
-    const lane = Math.floor(id / 8);
-    const target = lane < 7 ? (lane + 1) * 8 + 7 - id % 8 : 64;
+  for (const [id, target] of [[2, 7], [12, 19], [18, 20], [28, 31], [34, 38], [44, 53], [50, 53], [60, 64], [66, 69]]) {
     map[id].next = [(id + 1) % map.length, target];
   }
-  // A return-leg fork offers a northbound shortcut while retaining the homeward course.
-  map[66].next = [67, 68];
   return map;
 }

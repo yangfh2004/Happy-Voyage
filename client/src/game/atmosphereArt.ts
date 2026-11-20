@@ -7,8 +7,8 @@ export function drawAtmosphere(g: Phaser.GameObjects.Graphics, state: GameState 
   const { phase, weather } = atmosphere(state);
   g.clear();
   const tint = { dawn: [0xffc571, 0.13], day: [0xffffff, 0], dusk: [0xca718e, 0.2], night: [0x10265b, 0.4] }[phase];
-  g.fillStyle(tint[0], tint[1]).fillRect(0, 0, WORLD.width, WORLD.height);
-  if (weather === 'storm') g.fillStyle(0x233c66, 0.3).fillRect(0, 0, WORLD.width, WORLD.height);
+  g.fillStyle(tint[0], tint[1]).fillRect(-WORLD.width * 4, -WORLD.height * 4, WORLD.width * 9, WORLD.height * 9);
+  if (weather === 'storm') g.fillStyle(0x233c66, 0.3).fillRect(-WORLD.width * 4, -WORLD.height * 4, WORLD.width * 9, WORLD.height * 9);
   if (weather === 'clouds' || weather === 'rain' || weather === 'storm' || weather === 'fog') {
     for (let i = 0; i < 8; i++) {
       const x = (i * 337 + 80) % WORLD.width;
