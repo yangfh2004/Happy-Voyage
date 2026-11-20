@@ -1,9 +1,24 @@
 import { COMPASS_SECTORS } from './compass';
+import { GOOD_VALUES, fleetQuantity } from './barter';
+import type { BarterOffer } from './types';
 import { BUILDINGS, colonyToll, nextBuildingCost } from './buildings';
 import type { BuildingKind } from './types';
 import { colonyValue, turnOrderPosition } from './rules';
 import { SEA_RULES } from './seaRules';
 import type { GameState, MapNode, Player } from './types';
+
+export function aiBarterChoice(player: Player, offers: BarterOffer[]): number | null {
+  let best: number | null = null;
+  let profit = 0;
+  offers.forEach((offer, index) => {
+    const gain = offer.receiveQty * GOOD_VALUES[offer.receive] - offer.giveQty * GOOD_VALUES[offer.give];
+    if (fleetQuantity(player, offer.give) >= offer.giveQty && gain > profit) {
+      best = index;
+      profit = gain;
+    }
+  });
+  return best;
+}
 
 /** Forecast the next two moves without knowing the compass results. */
 function bankruptcyOdds(state: GameState, player: Player, gold: number, coloniesAfterClaim: number): number {

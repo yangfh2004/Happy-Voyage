@@ -1,4 +1,5 @@
-import { aiShouldClaim, aiBuildingChoice } from './ai';
+import { aiShouldClaim, aiBuildingChoice, aiBarterChoice } from './ai';
+import { barterOffers, fleetQuantity } from './barter';
 import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
@@ -98,6 +99,7 @@ export class GameEngine {
       phase: 'awaitingSpin',
       lastSpin: null,
       pendingClaim: null,
+      pendingBarter: null,
       winner: null,
       log: [],
     };
@@ -213,6 +215,7 @@ export class GameEngine {
         break;
       case 'special':
         this.resolveSpecial(player, node);
+        if (this.state.pendingBarter) return;
         break;
       case 'event':
         if (this.resolveEvent(player, node)) return;
@@ -257,6 +260,36 @@ export class GameEngine {
   decline(): void {
     this.assertPhase('awaitingClaim');
     this.log(`${this.currentPlayer.name} sails past ${this.node(this.state.pendingClaim!).name}.`);
+    this.endTurn();
+  }
+
+  acceptBarter(index: number): void {
+    this.assertPhase('awaitingBarter');
+    const offer = Number.isInteger(index) ? this.state.pendingBarter?.[index] : undefined;
+    if (!offer) throw new Error('Unknown barter offer');
+    const player = this.currentPlayer;
+    if (fleetQuantity(player, offer.give) < offer.giveQty) throw new Error('Not enough cargo for barter');
+    const space = player.fleet.reduce((sum, ship) => sum + ship.cargoCapacity - cargoLoad(ship), 0);
+    if (space + offer.giveQty < offer.receiveQty) throw new Error('Not enough cargo capacity');
+    let remaining = offer.giveQty;
+    for (const ship of player.fleet) {
+      const take = Math.min(remaining, ship.cargo[offer.give] ?? 0);
+      ship.cargo[offer.give] = (ship.cargo[offer.give] ?? 0) - take;
+      remaining -= take;
+    }
+    remaining = offer.receiveQty;
+    for (const ship of player.fleet) {
+      const add = Math.min(remaining, ship.cargoCapacity - cargoLoad(ship));
+      ship.cargo[offer.receive] = (ship.cargo[offer.receive] ?? 0) + add;
+      remaining -= add;
+    }
+    this.log(`${player.name} barters ${offer.giveQty} ${offer.give} for ${offer.receiveQty} ${offer.receive} with the natives.`);
+    this.endTurn();
+  }
+
+  declineBarter(): void {
+    this.assertPhase('awaitingBarter');
+    this.log(`${this.currentPlayer.name} declines native barter.`);
     this.endTurn();
   }
 
@@ -391,6 +424,12 @@ export class GameEngine {
 
   /** Let the built-in AI make the current player's pending decision. */
   decideForAI(): void {
+    if (this.state.phase === 'awaitingBarter') {
+      const choice = aiBarterChoice(this.currentPlayer, this.state.pendingBarter!);
+      if (choice === null) this.declineBarter();
+      else this.acceptBarter(choice);
+      return;
+    }
     if (this.state.phase === 'awaitingBuild') {
       let kind = aiBuildingChoice(this.state, this.currentPlayer);
       while (kind !== null && this.canBuild(kind)) {
@@ -454,9 +493,14 @@ export class GameEngine {
         this.changeGold(player, colonies * r.marketPerColony, 'specialty market');
         break;
       case 'wind': {
-        const multiplier = 1 + Math.floor(this.rng() * 3);
-        this.log(`Native barter offers ${player.name} a ${multiplier}× exchange for ${colonies} colonies.`);
-        this.changeGold(player, colonies * r.barterPerColony * multiplier, 'native barter');
+        const offers = barterOffers(player, this.rng);
+        if (!offers.length) {
+          this.log(`The natives have no use for ${player.name}'s cargo. No barter today.`);
+          break;
+        }
+        this.state.pendingBarter = offers;
+        this.state.phase = 'awaitingBarter';
+        this.emit({ type: 'barterOffered', playerId: player.id, nodeId: node.id });
         break;
       }
       case 'dragonSnake':
@@ -568,6 +612,7 @@ export class GameEngine {
 
   private endTurn(): void {
     this.state.pendingClaim = null;
+    this.state.pendingBarter = null;
     if (this.checkVictory()) return;
 
     const lastPosition = turnOrderPosition(this.state, this.state.currentPlayer);
