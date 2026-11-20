@@ -4,6 +4,7 @@ import { STRATEGIES, STRATEGY_RULES, type StrategyId } from './strategies';
 import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
 import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
+import { HERMITS, NIM_MAX_TAKE, hermitStoneTake, type HermitId, type MistResult } from './mist';
 import { CAPTAINS, MAX_CAPTAINS, captainBonus, discountedByCaptains, recruitOffers, aiRecruitChoice } from './captains';
 import { BUILDINGS, buildingLevel, nextBuildingCost, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
@@ -124,6 +125,8 @@ export class GameEngine {
       pendingWyvern: false,
       lottery: null,
       lotteryDraws: [],
+      mistDuel: null,
+      mistResults: [],
       pendingRecruits: null,
       battles: [],
       winner: null,
@@ -316,7 +319,7 @@ export class GameEngine {
           this.emit({ type: 'marketOffered', playerId: player.id, nodeId: node.id });
           return;
         }
-        if (this.state.pendingBarter || this.state.pendingRecruits || this.state.lottery) return;
+        if (this.state.pendingBarter || this.state.pendingRecruits || this.state.lottery || this.state.mistDuel) return;
         break;
       case 'event':
         if (this.resolveEvent(player, node)) return;
@@ -548,6 +551,64 @@ export class GameEngine {
     this.endTurn();
   }
 
+  challengeHermit(id: HermitId): void {
+    this.assertPhase('awaitingMistDuel');
+    const duel = this.state.mistDuel!;
+    if (duel.hermitId !== null || !HERMITS.some((hermit) => hermit.id === id)) {
+      throw new Error('Cannot challenge this hermit');
+    }
+    duel.hermitId = id;
+    this.emit({ type: 'mistDuelUpdated', playerId: this.currentPlayer.id });
+  }
+
+  canTakeMistStones(count: number): boolean {
+    const duel = this.state.mistDuel;
+    return this.state.phase === 'awaitingMistDuel' && !!duel?.hermitId && !duel.result &&
+      Number.isInteger(count) && count >= 1 && count <= Math.min(NIM_MAX_TAKE, duel.stonesLeft);
+  }
+
+  takeMistStones(count: number): void {
+    if (!this.canTakeMistStones(count)) throw new Error('Cannot take that many stones');
+    const duel = this.state.mistDuel!;
+    const player = this.currentPlayer;
+    const hermit = HERMITS.find((candidate) => candidate.id === duel.hermitId)!;
+    duel.stonesLeft -= count;
+    const hermitTake = duel.stonesLeft ? hermitStoneTake(hermit.id, duel.stonesLeft) : null;
+    duel.stonesLeft -= hermitTake ?? 0;
+    duel.lastTurn = { playerTake: count, hermitTake };
+    if (duel.stonesLeft > 0) {
+      this.emit({ type: 'mistDuelUpdated', playerId: player.id });
+      return;
+    }
+
+    const won = hermitTake !== null;
+    this.log(won ? `${player.name} wins the Mist Island duel: ${hermit.name} takes the last stone.`
+      : `${player.name} loses the Mist Island duel to ${hermit.name} by taking the last stone.`);
+    let strategy: StrategyId | null = null;
+    if (won) {
+      this.changeGold(player, SEA_RULES.nimPrize, 'Nim prize');
+      if (this.gainStrategy(player.id, 'hermit Nim', hermit.reward)) strategy = hermit.reward;
+    }
+    const result: MistResult = {
+      round: this.state.round, playerId: player.id, nodeId: duel.nodeId, hermitId: hermit.id,
+      outcome: won ? 'win' : 'loss', strategy,
+    };
+    duel.result = result;
+    this.state.mistResults.push(result);
+    this.emit({ type: 'mistDuelResolved', result });
+  }
+
+  canLeaveMistIsland(): boolean {
+    const duel = this.state.mistDuel;
+    return this.state.phase === 'awaitingMistDuel' && !!duel && (duel.hermitId === null || duel.result !== null);
+  }
+
+  leaveMistIsland(): void {
+    if (!this.canLeaveMistIsland()) throw new Error('Cannot leave an active Mist Island duel');
+    if (!this.state.mistDuel!.result) this.log(`${this.currentPlayer.name} declines the Mist Island challenge.`);
+    this.endTurn();
+  }
+
   declineBarter(): void {
     this.assertPhase('awaitingBarter');
     this.log(`${this.currentPlayer.name} declines native barter.`);
@@ -764,6 +825,13 @@ export class GameEngine {
       this.finishLottery();
       return;
     }
+    if (this.state.phase === 'awaitingMistDuel') {
+      const duel = this.state.mistDuel!;
+      if (!duel.hermitId) this.challengeHermit(HERMITS[Math.floor(this.rng() * HERMITS.length)].id);
+      while (!duel.result) this.takeMistStones(1 + Math.floor(this.rng() * Math.min(NIM_MAX_TAKE, duel.stonesLeft)));
+      this.leaveMistIsland();
+      return;
+    }
     if (this.state.phase === 'awaitingBuild') {
       const player = this.currentPlayer;
       let kind = aiBuildingChoice(this.state, this.currentPlayer);
@@ -861,23 +929,11 @@ export class GameEngine {
         this.log(`${player.name} may buy lottery numbers at ${LOTTERY.ticketPrice}g each before the draw in ${LOTTERY.timerSeconds}s.`);
         this.emit({ type: 'lotteryOpened', playerId: player.id, nodeId: node.id });
         break;
-      case 'mist': {
-        let stones: number = r.nimStones;
-        let human = true;
-        while (stones > 0) {
-          const optimal = (stones - 1) % 4;
-          const take = human ? 1 + Math.floor(this.rng() * Math.min(3, stones)) : (optimal || 1);
-          stones -= take;
-          if (stones <= 0) break;
-          human = !human;
-        }
-        this.log(`${player.name} plays hermit Nim: take 1–3 stones, last loses. ${human ? 'The hermit wins.' : `${player.name} wins the prize!`}`);
-        if (!human) {
-          this.changeGold(player, r.nimPrize, 'Nim prize');
-          this.gainStrategy(player.id, 'hermit Nim');
-        }
+      case 'mist':
+        this.state.mistDuel = { nodeId: node.id, hermitId: null, stonesLeft: r.nimStones, lastTurn: null, result: null };
+        this.state.phase = 'awaitingMistDuel';
+        this.emit({ type: 'mistOffered', playerId: player.id, nodeId: node.id });
         break;
-      }
       case 'revival': {
         const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
         const points = Math.min(damage, Math.floor(Math.max(0, player.gold) / REPAIR_GOLD_PER_POINT));
@@ -1177,6 +1233,7 @@ export class GameEngine {
     this.state.pendingClaim = null;
     this.state.pendingBarter = null;
     this.state.lottery = null;
+    this.state.mistDuel = null;
     this.state.pendingRecruits = null;
     if (this.checkVictory()) return;
 

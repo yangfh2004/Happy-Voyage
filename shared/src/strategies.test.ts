@@ -200,18 +200,6 @@ describe('strategy cards', () => {
     expect(p.strategies).toHaveLength(1);
     expect(p.gold).toBeGreaterThan(gold);
   });
-  it('grants a card and gold on a hermit Nim win, but none on a loss', () => {
-    for (const roll of [0, 0.999]) {
-      const g = new GameEngine({ players, rng: () => roll, config: { startingStrategies: 0 } });
-      const p = g.currentPlayer;
-      const gold = p.gold;
-      p.position = g.state.map.find((n) => n.special === 'mist')!.id;
-      g.state.phase = 'moving';
-      g.resolveLanding();
-      expect(p.strategies).toHaveLength(roll ? 1 : 0);
-      expect(p.gold - gold).toBe(roll ? 130 : 0);
-    }
-  });
   it('AI navigates to its known hoard and uses battle cards before fighting', () => {
     const g = game();
     const p = g.currentPlayer;
