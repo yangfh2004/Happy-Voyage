@@ -4,7 +4,7 @@ import { GameEngine, LOTTERY } from '@happy-voyage/shared';
 import { LotteryPanel } from './LotteryPanel';
 
 vi.mock('../game/GameController', () => ({ gameController: {
-  lotteryBallDelay: 0, lotteryRevealed: true, canBuyLotteryNumber: vi.fn((n: number) => n !== 20),
+  lotteryBallDelay: 0, lotteryRevealed: true, lotteryBallsLanded: vi.fn(), canBuyLotteryNumber: vi.fn((n: number) => n !== 20),
   buyLotteryNumber: vi.fn(), drawLottery: vi.fn(), finishLottery: vi.fn(),
 } }));
 

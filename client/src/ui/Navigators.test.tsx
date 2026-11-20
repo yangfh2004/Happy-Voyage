@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createNationRoster, GameEngine } from '@happy-voyage/shared';
 
 vi.mock('../game/GameController', () => ({ gameController: {
-  muted: false, islandsOwnedBy: () => 0, newGame: vi.fn(),
+  muted: false, islandsOwnedBy: () => 0, newGame: vi.fn(), displayGold: (p: { gold: number }) => p.gold,
 } }));
 vi.mock('./SpeedControl', () => ({ SpeedControl: () => null }));
 vi.mock('dialog-polyfill', () => ({ default: {} }));
