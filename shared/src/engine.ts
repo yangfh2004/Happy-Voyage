@@ -1,6 +1,7 @@
-import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight } from './ai';
+import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight, aiLotteryPickCount } from './ai';
 import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
 import { barterOffers, fleetQuantity } from './barter';
+import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { BUILDINGS, buildingLevel, nextBuildingCost, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
@@ -109,6 +110,8 @@ export class GameEngine {
       lastSpin: null,
       pendingClaim: null,
       pendingBarter: null,
+      lottery: null,
+      lotteryDraws: [],
       battles: [],
       winner: null,
       log: [],
@@ -236,7 +239,7 @@ export class GameEngine {
           this.emit({ type: 'marketOffered', playerId: player.id, nodeId: node.id });
           return;
         }
-        if (this.state.pendingBarter) return;
+        if (this.state.pendingBarter || this.state.lottery) return;
         break;
       case 'event':
         if (this.resolveEvent(player, node)) return;
@@ -390,6 +393,58 @@ export class GameEngine {
       remaining -= add;
     }
     this.log(`${player.name} barters ${offer.giveQty} ${offer.give} for ${offer.receiveQty} ${offer.receive} with the natives.`);
+    this.endTurn();
+  }
+
+  canBuyLotteryNumber(number: number): boolean {
+    const lottery = this.state.lottery;
+    return this.state.phase === 'awaitingLottery' && !!lottery && !lottery.draw && lottery.secondsLeft > 0 &&
+      Number.isInteger(number) && number >= 1 && number <= LOTTERY.balls && !lottery.picks.includes(number) &&
+      lottery.picks.length < LOTTERY.maxPicks && this.currentPlayer.gold >= LOTTERY.ticketPrice;
+  }
+
+  buyLotteryNumber(number: number): void {
+    if (!this.canBuyLotteryNumber(number)) throw new Error('Cannot buy lottery number: timer, number, limit or gold');
+    const lottery = this.state.lottery!;
+    this.changeGold(this.currentPlayer, -LOTTERY.ticketPrice, 'lottery number');
+    lottery.picks = [...lottery.picks, number].sort((a, b) => a - b);
+    this.emit({ type: 'lotteryNumberBought', playerId: this.currentPlayer.id, number });
+  }
+
+  /** Run the lottery timer down; the draw happens when it reaches zero. Returns the seconds left. */
+  advanceLotteryClock(seconds: number): number {
+    this.assertPhase('awaitingLottery');
+    const lottery = this.state.lottery!;
+    if (lottery.draw) return 0;
+    lottery.secondsLeft = Math.max(0, lottery.secondsLeft - Math.max(0, seconds));
+    if (lottery.secondsLeft === 0) this.drawLottery();
+    return lottery.secondsLeft;
+  }
+
+  /** Draw the balls from the jar (when the timer runs out, or early once the player is done buying). */
+  drawLottery(): LotteryDraw {
+    this.assertPhase('awaitingLottery');
+    const lottery = this.state.lottery!;
+    if (lottery.draw) throw new Error('Lottery already drawn');
+    const player = this.currentPlayer;
+    const balls = drawLotteryBalls(this.rng);
+    const matches = lotteryMatches(lottery.picks, balls);
+    const draw: LotteryDraw = {
+      round: this.state.round, playerId: player.id, nodeId: lottery.nodeId, picks: [...lottery.picks], balls, matches,
+      spent: lottery.picks.length * LOTTERY.ticketPrice, prize: LOTTERY.payouts[matches.length],
+    };
+    lottery.secondsLeft = 0;
+    lottery.draw = draw;
+    this.state.lotteryDraws.push(draw);
+    this.log(`Treasure Island draws ${balls.join(', ')}. ${player.name} holds ${draw.picks.length ? draw.picks.join(', ') : 'no numbers'}: ${matches.length} match${matches.length === 1 ? '' : 'es'}${draw.prize ? `, winning ${draw.prize}g!` : '.'}`);
+    if (draw.prize) this.changeGold(player, draw.prize, 'lottery prize');
+    this.emit({ type: 'lotteryDrawn', draw });
+    return draw;
+  }
+
+  finishLottery(): void {
+    this.assertPhase('awaitingLottery');
+    if (!this.state.lottery?.draw) throw new Error('Lottery not drawn yet');
     this.endTurn();
   }
 
@@ -567,6 +622,19 @@ export class GameEngine {
       else this.acceptBarter(choice);
       return;
     }
+    if (this.state.phase === 'awaitingLottery') {
+      const lottery = this.state.lottery!;
+      if (!lottery.draw) {
+        let picks = aiLotteryPickCount(this.currentPlayer.gold);
+        while (picks-- > 0) {
+          const open = Array.from({ length: LOTTERY.balls }, (_, i) => i + 1).filter((n) => !lottery.picks.includes(n));
+          this.buyLotteryNumber(open[Math.floor(this.rng() * open.length)]);
+        }
+        this.drawLottery();
+      }
+      this.finishLottery();
+      return;
+    }
     if (this.state.phase === 'awaitingBuild') {
       let kind = aiBuildingChoice(this.state, this.currentPlayer);
       while (kind !== null && this.canBuild(kind)) {
@@ -650,12 +718,11 @@ export class GameEngine {
         }
         break;
       case 'treasure':
-        if (player.gold < r.ticket) { this.log(`${player.name} cannot afford a lottery ticket.`); break; }
-        this.changeGold(player, -r.ticket, 'lottery ticket');
-        if (this.rng() < r.lotteryChance) {
-          this.log(`${player.name}'s lottery ticket wins the grand prize!`);
-          this.changeGold(player, r.lotteryPrize, 'lottery prize');
-        } else this.log(`${player.name}'s lottery ticket wins no prize.`);
+        if (player.gold < LOTTERY.ticketPrice) { this.log(`${player.name} cannot afford a lottery number.`); break; }
+        this.state.lottery = { playerId: player.id, nodeId: node.id, picks: [], secondsLeft: LOTTERY.timerSeconds, draw: null };
+        this.state.phase = 'awaitingLottery';
+        this.log(`${player.name} may buy lottery numbers at ${LOTTERY.ticketPrice}g each before the draw in ${LOTTERY.timerSeconds}s.`);
+        this.emit({ type: 'lotteryOpened', playerId: player.id, nodeId: node.id });
         break;
       case 'mist': {
         let stones: number = r.nimStones;
@@ -839,6 +906,7 @@ export class GameEngine {
   private endTurn(): void {
     this.state.pendingClaim = null;
     this.state.pendingBarter = null;
+    this.state.lottery = null;
     if (this.checkVictory()) return;
 
     const lastPosition = turnOrderPosition(this.state, this.state.currentPlayer);

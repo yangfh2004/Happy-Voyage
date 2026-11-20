@@ -74,7 +74,7 @@ describe('AI colony decisions', () => {
     expect(aiShouldClaim(state, player, 1)).toBe(true);
   });
 
-  it.each(['port', 'pirates', 'seaMonster', 'whirlpool', 'skeleton', 'treasure', 'dragonSnake'] as const)('reserves cash for reachable %s costs before a subsequent toll', (stop) => {
+  it.each(['port', 'pirates', 'seaMonster', 'whirlpool', 'skeleton', 'dragonSnake'] as const)('reserves cash for reachable %s costs before a subsequent toll', (stop) => {
     const { state, player, node } = claimOffer(30, 8, 1);
     state.config.homeSalary = 0;
     player.gold = node.price! + 50;
