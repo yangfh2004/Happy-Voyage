@@ -4,14 +4,14 @@ export function SpeedControl() {
   return (
     <div className="choices speed" role="group" aria-label="Game speed">
       <span>Speed</span>
-      {(Object.keys(SPEEDS) as GameSpeed[]).map((speed) => (
+      {(Object.keys(SPEEDS) as GameSpeed[]).map((speed, i) => (
         <button
           key={speed}
           className={gameController.speed === speed ? 'chip selected' : 'chip'}
           aria-pressed={gameController.speed === speed}
           onClick={() => gameController.setSpeed(speed)}
         >
-          {speed}
+          {speed} <kbd>{i + 1}</kbd>
         </button>
       ))}
     </div>

@@ -1,5 +1,6 @@
 import { GameEngine, type GameEvent, type GameState, type PlayerSetup } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
+import { TurnFeedback } from './TurnFeedback';
 
 export const SPEEDS = {
   Normal: { ai: 700, step: 200 },
@@ -30,6 +31,7 @@ export class GameController {
   private version = 0;
   private readonly subscribers = new Set<() => void>();
   speed = savedSpeed();
+  feedback = new TurnFeedback();
   private skipping = false;
   private moveId = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -79,6 +81,7 @@ export class GameController {
     this.moveId += 1;
     EventBus.emit('cancel-move');
     this.engine = new GameEngine({ players });
+    this.feedback = new TurnFeedback();
     this.engine.on((event) => this.onEngineEvent(event));
     this.engine.start();
     this.changed();
@@ -91,6 +94,7 @@ export class GameController {
     this.moveId += 1;
     EventBus.emit('cancel-move');
     this.engine = null;
+    this.feedback = new TurnFeedback();
     this.changed();
   }
 
@@ -124,6 +128,7 @@ export class GameController {
 
   private onEngineEvent(event: GameEvent): void {
     const engine = this.engine!;
+    this.feedback.observe(event, engine.state);
     switch (event.type) {
       case 'goldChanged':
         EventBus.emit('gold-changed', event);

@@ -156,3 +156,8 @@ button.big { font-size: 18px; padding: 10px 22px; }
   .playing .overlay { padding-left: 0; }
   .actions { position: sticky; top: 8px; z-index: 1; }
 }
+kbd { display: inline-block; margin-left: 4px; padding: 0 3px; border: 1px solid currentColor; border-radius: 3px; font: 10px system-ui, sans-serif; opacity: 0.8; }
+.shortcuts { font-size: 10px; color: #6d4c41; text-align: center; margin: 6px 0 0; }
+.turn-summary { font-size: 12px; text-align: left; border-bottom: 1px solid #c9b68a; padding-bottom: 6px; margin-bottom: 6px; }
+.income, .log .income { color: #216b37; }
+.expense, .log .expense { color: #a32d25; }
