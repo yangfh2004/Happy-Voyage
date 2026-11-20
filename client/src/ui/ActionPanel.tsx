@@ -29,10 +29,12 @@ export function ActionPanel({ state }: { state: GameState }) {
   const [transfersOpen, setTransfersOpen] = useState(false);
   const [destination, setDestination] = useState(state.map[0].id);
   const player = state.players[state.currentPlayer];
+  const room = gameController.room;
+  const atHelm = !player.isAI && (!room || gameController.canHelm);
   const spinning = state.phase === 'spinning';
-  const trading = state.phase === 'awaitingCargoMarket' && !player.isAI;
+  const trading = state.phase === 'awaitingCargoMarket' && atHelm;
   const spinId = gameController.spinId;
-  const summary = !player.isAI && state.phase === 'awaitingSpin' ? gameController.feedback.summary : null;
+  const summary = atHelm && state.phase === 'awaitingSpin' ? gameController.feedback.summary : null;
   const gold = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value)}${t('g', ' 金币')}`;
   const headline = gameController.headline;
 
@@ -74,16 +76,17 @@ export function ActionPanel({ state }: { state: GameState }) {
     const winner = state.players[state.winner!];
     const everyContinent = state.victory === 'everyContinent';
     const flag = winner.nation ? nationName(winner.nation, locale) : name(winner);
+    const otherOnlineWinner = room && winner.id !== gameController.viewerId;
     body = (
       <>
         {everyContinent ? (
           <div className="victory-screen" role="status">
             <div className="victory-flag" aria-hidden="true">⚑</div>
-            <h2>{winner.isAI ? t('{p} rules the Seven Seas.', '{p} 称霸七海。', { p: name(winner) }) : gameController.humanCount > 1 ? t('Victory for {p}! Every new continent flies your flag.', '{p} 获胜！每块新大陆都飘扬着你的旗帜。', { p: name(winner) }) : t('Victory! Every new continent flies your flag.', '胜利！每块新大陆都飘扬着你的旗帜。')}</h2>
+            <h2>{winner.isAI || otherOnlineWinner ? t('{p} rules the Seven Seas.', '{p} 称霸七海。', { p: name(winner) }) : !room && gameController.humanCount > 1 ? t('Victory for {p}! Every new continent flies your flag.', '{p} 获胜！每块新大陆都飘扬着你的旗帜。', { p: name(winner) }) : t('Victory! Every new continent flies your flag.', '胜利！每块新大陆都飘扬着你的旗帜。')}</h2>
             <p className="victory-count">{t('All {n} new continents are colonies of {flag}.', '全部 {n} 块新大陆都是{flag}的殖民地。', { n: state.config.islandsToWin, flag })}</p>
           </div>
         ) : (
-          <h2>{winner.isAI ? t('{p} wins the seas.', '{p} 赢得了大海。', { p: name(winner) }) : gameController.humanCount > 1 ? t('Victory for {p}! The crown celebrates you.', '{p} 获胜！王室为你庆贺。', { p: name(winner) }) : t('Victory! The crown celebrates you.', '胜利！王室为你庆贺。')}</h2>
+          <h2>{winner.isAI || otherOnlineWinner ? t('{p} wins the seas.', '{p} 赢得了大海。', { p: name(winner) }) : !room && gameController.humanCount > 1 ? t('Victory for {p}! The crown celebrates you.', '{p} 获胜！王室为你庆贺。', { p: name(winner) }) : t('Victory! The crown celebrates you.', '胜利！王室为你庆贺。')}</h2>
         )}
         <p>{lastLog()}</p>
         <table className="standings">
@@ -104,9 +107,12 @@ export function ActionPanel({ state }: { state: GameState }) {
       </>
     );
   } else if (spinning) {
-    body = <p className="waiting">{player.isAI ? t('{p} spins the compass.', '{p} 正在转动罗盘。', { p: name(player) }) : t('Your compass is spinning.', '你的罗盘正在转动。')}</p>;
+    body = <p className="waiting">{atHelm ? t('Your compass is spinning.', '你的罗盘正在转动。') : t('{p} spins the compass.', '{p} 正在转动罗盘。', { p: name(player) })}</p>;
   } else if (player.isAI) {
     body = <p className="waiting">{t('{p} is at the helm…', '{p} 正在掌舵……', { p: name(player) })}</p>;
+  } else if (!atHelm) {
+    const connected = room?.lobby?.seats.find((seat) => seat.nation === player.nation)?.connected;
+    body = <p className="waiting">{connected === false ? t('Waiting for {p} to reconnect…', '正在等待 {p} 重新连接……', { p: name(player) }) : t('{p} is at the helm…', '{p} 正在掌舵……', { p: name(player) })}</p>;
   } else if (state.phase === 'awaitingSpin') {
     body = (
       <>
@@ -243,7 +249,7 @@ export function ActionPanel({ state }: { state: GameState }) {
 
   return (
     <div className="panel actions">
-      {!player.isAI && state.phase !== 'gameOver' && <section aria-label={t('Strategy cards', '谋略卡')}>
+      {atHelm && state.phase !== 'gameOver' && <section aria-label={t('Strategy cards', '谋略卡')}>
         <h3>{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</h3>
         {player.strategies.length === 0 && <p>{t('No strategy cards.', '没有谋略卡。')}</p>}
         {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
@@ -270,7 +276,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         </div>
       )}
       {gameController.waiting && (
-        <button onClick={() => gameController.skipToMyTurn()}>{gameController.humanCount > 1 ? t('Skip to the next player', '跳到下一位玩家') : t('Skip to my turn', '跳到我的回合')} <kbd>K</kbd></button>
+        <button onClick={() => gameController.skipToMyTurn()}>{room ? t('Skip animations', '跳过动画') : gameController.humanCount > 1 ? t('Skip to the next player', '跳到下一位玩家') : t('Skip to my turn', '跳到我的回合')} <kbd>K</kbd></button>
       )}
       {summary && (
         <div className="turn-summary">
@@ -288,7 +294,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         {headline && (!summary || headline.royal) && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{l(headline.message, state)}</div>}
       </div>
       <ShortcutLegend />
-      {transfersOpen && state.phase === 'awaitingBuild' && !player.isAI && (
+      {transfersOpen && state.phase === 'awaitingBuild' && atHelm && (
         <TransferPanel state={state} onClose={() => setTransfersOpen(false)} />
       )}
     </div>

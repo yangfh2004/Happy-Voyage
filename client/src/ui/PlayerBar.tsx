@@ -42,7 +42,7 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
               ? <NavigatorPortrait navigator={p.navigator} color={p.color} size={26} />
               : <span className="dot" style={{ background: cssColor(p.color) }} />}
             <strong>{playerName(p, locale)}</strong>
-            <span className="tag">{seatTag(state.players, p)}</span>
+            <span className="tag">{gameController.room && gameController.viewerId === p.id ? t('You', '你') : seatTag(state.players, p)}</span>
             <div className="stats">
               {rankName(p.rank, locale)}<br />
               {p.nation && <>{nationName(p.nation, locale)}<br /></>}

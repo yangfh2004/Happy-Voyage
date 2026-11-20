@@ -7,6 +7,8 @@ export * from './nations';
 export * from './navigators';
 export * from './compass';
 export * from './engine';
+export * from './gameView';
+export * from './online';
 export * from './modes';
 export * from './campaign';
 export * from './ai';

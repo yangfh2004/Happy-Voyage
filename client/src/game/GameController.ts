@@ -1,4 +1,5 @@
-import { CAMPAIGN_STAGES, GameEngine, LOTTERY, NATIONS, quoteMarketTrade, type Good, type BuildingKind, type CampaignSetup, type EngineOptions, type GameConfig, type GameEvent, type GameState, type LotteryDraw, type MarketOrder, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
+import { CAMPAIGN_STAGES, GameEngine, GameView, LOTTERY, NATIONS, ONLINE_PACING, quoteMarketTrade, type Good, type BuildingKind, type CampaignSetup, type EngineOptions, type GameConfig, type GameEvent, type GameState, type LotteryDraw, type MarketOrder, type Player, type PlayerSetup, type RoomAction, type RoomSnapshot, type ShipType } from '@happy-voyage/shared';
+import { OnlineRoom, roomLink } from './OnlineRoom';
 import { EventBus } from './EventBus';
 import { localize, ref, tx, type Text } from '@happy-voyage/shared';
 import type { HermitId, StrategyId } from '@happy-voyage/shared';
@@ -42,14 +43,6 @@ function savedSpeed(): GameSpeed {
   return 'Normal';
 }
 
-/**
- * Owns the rules engine for a single-player match and wires it to the UI:
- * - React subscribes via `subscribe` / `getVersion` (useSyncExternalStore).
- * - Phaser scenes listen on EventBus for redraws and move animations.
- * - AI rivals act automatically on their turns.
- * A multiplayer version would replace this with a socket client that relays
- * the same engine events from the server.
- */
 /** Length of one ball's drop animation (matches `ball-drop` in styles.css). */
 export const LOTTERY_BALL_DROP_MS = 450;
 /** Fallback slack if the last ball's animationend never arrives (e.g. reduced motion, hidden tab). */
@@ -57,6 +50,8 @@ const LOTTERY_REVEAL_GRACE_MS = 500;
 
 export class GameController {
   private engine: GameEngine | null = null;
+  private onlineView: GameView | null = null;
+  room: OnlineRoom | null = null;
   private version = 0;
   private readonly subscribers = new Set<() => void>();
   speed = savedSpeed();
@@ -90,8 +85,9 @@ export class GameController {
 
   constructor() {
     EventBus.on('move-complete', (id: number) => {
-      if (id === this.moveId && this.engine?.state.phase === 'moving') {
-        this.pendingMove = null;
+      if (id !== this.moveId) return;
+      this.pendingMove = null;
+      if (this.engine?.state.phase === 'moving') {
         this.departure = { playerId: this.engine.currentPlayer.id, position: this.engine.currentPlayer.position };
         this.engine.resolveLanding();
       }
@@ -103,11 +99,18 @@ export class GameController {
   }
 
   get state(): GameState | null {
-    return this.engine?.state ?? null;
+    return this.view?.state ?? null;
+  }
+
+  private get view(): GameView | null {
+    return this.engine ?? this.onlineView;
   }
 
   get timings() {
-    return SPEEDS[this.skipping ? 'Instant' : this.speed];
+    const local = SPEEDS[this.skipping ? 'Instant' : this.speed];
+    if (!this.room) return local;
+    const online = this.view?.currentPlayer.isAI ? ONLINE_PACING.rival : ONLINE_PACING.human;
+    return { ...local, spin: Math.min(local.spin, online.spin), step: Math.min(local.step, online.step) };
   }
 
   get spinId(): number {
@@ -115,8 +118,14 @@ export class GameController {
   }
 
   get waiting(): boolean {
-    return !!this.engine && this.engine.state.phase !== 'gameOver' &&
-      (this.engine.state.phase === 'spinning' || this.engine.state.phase === 'moving' || this.engine.currentPlayer.isAI);
+    return !!this.view && this.view.state.phase !== 'gameOver' &&
+      (this.view.state.phase === 'spinning' || this.view.state.phase === 'moving' || this.view.currentPlayer.isAI);
+  }
+
+  get canHelm(): boolean {
+    const player = this.view?.currentPlayer;
+    return !!player && !player.isAI && !this.awaitingHandoff &&
+      (!this.room || (this.room.ready && !this.room.lobby?.failed && this.viewerId === player.id));
   }
 
   setSpeed(speed: GameSpeed): void {
@@ -136,6 +145,34 @@ export class GameController {
     if (this.timings.spin === 0) this.finishSpin(this.spinId);
     EventBus.emit('pacing-changed');
     this.changed();
+  }
+
+  openOnline(invite: string | null = null): void {
+    if (this.room || this.engine) return;
+    const room = new OnlineRoom(invite, () => {
+      if (this.room === room) this.changed();
+    }, (snapshot) => {
+      if (this.room === room) this.receiveGame(snapshot);
+    });
+    this.room = room;
+    room.reconnect();
+    this.changed();
+  }
+
+  private receiveGame(snapshot: RoomSnapshot): void {
+    if (this.state?.phase === 'moving' && snapshot.state.phase !== 'moving' && this.pendingMove) {
+      this.pendingMove = null;
+      EventBus.emit('cancel-move');
+    }
+    this.viewerId = snapshot.playerId;
+    this.onlineView = new GameView(snapshot.state, snapshot.hasHoard);
+    for (const event of snapshot.events) this.onEngineEvent(event);
+    this.changed();
+  }
+
+  private perform(action: RoomAction, local: () => unknown): void {
+    if (this.room) this.room.act(action);
+    else local();
   }
 
   newGame(players: PlayerSetup[], config?: Partial<GameConfig>): void {
@@ -176,6 +213,13 @@ export class GameController {
 
   /** Back to the setup menu. */
   quit(): void {
+    const room = this.room;
+    this.room = null;
+    this.onlineView = null;
+    if (room) {
+      room.close();
+      window.history.replaceState(null, '', roomLink(null));
+    }
     this.clearTimers();
     this.clearSeaNotices();
     this.skipping = false;
@@ -186,13 +230,14 @@ export class GameController {
     this.viewerId = null;
     this.handoffTo = null;
     this.handoffNote = null;
+    this.headline = null;
     this.feedback = new TurnFeedback();
     this.changed();
   }
 
-  /** How many seats are played by people on this device. */
+  /** How many seats are played by people in the match. */
   get humanCount(): number {
-    return this.engine?.state.players.filter((player) => !player.isAI).length ?? 0;
+    return this.state?.players.filter((player) => !player.isAI).length ?? 0;
   }
 
   /** True while the seat at the helm still has to take the device. */
@@ -210,7 +255,7 @@ export class GameController {
 
   /** Human actions; ignored when it is not the human's move. */
   spinCompass(): void {
-    if (this.isHumanTurn('awaitingSpin')) this.beginSpin(this.engine!);
+    if (this.isHumanTurn('awaitingSpin')) this.perform(['spinCompass'], () => this.beginSpin(this.engine!));
   }
 
   finishSpin(id: number): void {
@@ -227,26 +272,26 @@ export class GameController {
   }
 
   claim(): void {
-    if (this.isHumanTurn('awaitingClaim')) this.engine!.claim();
+    if (this.isHumanTurn('awaitingClaim')) this.perform(['claim'], () => this.engine!.claim());
   }
 
   decline(): void {
-    if (this.isHumanTurn('awaitingClaim')) this.engine!.decline();
+    if (this.isHumanTurn('awaitingClaim')) this.perform(['decline'], () => this.engine!.decline());
     else if (this.isHumanTurn('awaitingMerchant')) this.declineMerchant();
     else if (this.isHumanTurn('awaitingRecruit')) this.declineRecruit();
     else this.declineBarter();
   }
 
   acceptMerchant(): void {
-    if (this.isHumanTurn('awaitingMerchant')) this.engine!.acceptMerchant();
+    if (this.isHumanTurn('awaitingMerchant')) this.perform(['acceptMerchant'], () => this.engine!.acceptMerchant());
   }
 
   declineMerchant(): void {
-    if (this.isHumanTurn('awaitingMerchant')) this.engine!.declineMerchant();
+    if (this.isHumanTurn('awaitingMerchant')) this.perform(['declineMerchant'], () => this.engine!.declineMerchant());
   }
 
   wyvernFly(nodeId: number): void {
-    if (this.isHumanTurn('awaitingWyvern')) this.engine!.wyvernFly(nodeId);
+    if (this.isHumanTurn('awaitingWyvern')) this.perform(['wyvernFly', nodeId], () => this.engine!.wyvernFly(nodeId));
   }
 
   dismissSeaNotice(id: number): void {
@@ -263,142 +308,142 @@ export class GameController {
   }
 
   payToll(): void {
-    if (this.isHumanTurn('awaitingToll')) this.engine!.payToll();
+    if (this.isHumanTurn('awaitingToll')) this.perform(['payToll'], () => this.engine!.payToll());
   }
 
   canUseStrategy(id: StrategyId, target?: number): boolean {
-    return !!this.engine && !this.engine.currentPlayer.isAI && !this.awaitingHandoff && this.engine.canUseStrategy(id, target);
+    return this.canHelm && (this.view?.canUseStrategy(id, target) ?? false);
   }
 
   useStrategy(id: StrategyId, target?: number): void {
-    if (this.canUseStrategy(id, target)) this.engine!.useStrategy(id, target);
+    if (this.canUseStrategy(id, target)) this.perform(target === undefined ? ['useStrategy', id] : ['useStrategy', id, target], () => this.engine!.useStrategy(id, target));
   }
 
   fight(): void {
-    if (this.isHumanTurn('awaitingToll')) this.engine!.fight();
+    if (this.isHumanTurn('awaitingToll')) this.perform(['fight'], () => this.engine!.fight());
   }
 
   acceptBarter(index: number): void {
-    if (this.isHumanTurn('awaitingBarter')) this.engine!.acceptBarter(index);
+    if (this.isHumanTurn('awaitingBarter')) this.perform(['acceptBarter', index], () => this.engine!.acceptBarter(index));
   }
 
   recruitCaptain(index: number): void {
-    if (this.isHumanTurn('awaitingRecruit')) this.engine!.recruitCaptain(index);
+    if (this.isHumanTurn('awaitingRecruit')) this.perform(['recruitCaptain', index], () => this.engine!.recruitCaptain(index));
   }
 
   declineRecruit(): void {
-    if (this.isHumanTurn('awaitingRecruit')) this.engine!.declineRecruit();
+    if (this.isHumanTurn('awaitingRecruit')) this.perform(['declineRecruit'], () => this.engine!.declineRecruit());
   }
 
   declineBarter(): void {
-    if (this.isHumanTurn('awaitingBarter')) this.engine!.declineBarter();
+    if (this.isHumanTurn('awaitingBarter')) this.perform(['declineBarter'], () => this.engine!.declineBarter());
   }
 
   canBuyLotteryNumber(number: number): boolean {
-    return this.isHumanTurn('awaitingLottery') && this.engine!.canBuyLotteryNumber(number);
+    return this.isHumanTurn('awaitingLottery') && this.view!.canBuyLotteryNumber(number);
   }
 
   buyLotteryNumber(number: number): void {
     if (this.canBuyLotteryNumber(number)) {
-      this.engine!.buyLotteryNumber(number);
-      this.changed();
+      this.perform(['buyLotteryNumber', number], () => this.engine!.buyLotteryNumber(number));
+      if (!this.room) this.changed();
     }
   }
 
   /** Draw the balls now instead of waiting for the timer. */
   drawLottery(): void {
-    if (this.isHumanTurn('awaitingLottery') && !this.engine!.state.lottery?.draw) this.engine!.drawLottery();
+    if (this.isHumanTurn('awaitingLottery') && !this.state?.lottery?.draw) this.perform(['drawLottery'], () => this.engine!.drawLottery());
   }
 
   finishLottery(): void {
-    if (this.isHumanTurn('awaitingLottery') && this.engine!.state.lottery?.draw && this.lotteryRevealed) this.engine!.finishLottery();
+    if (this.isHumanTurn('awaitingLottery') && this.state?.lottery?.draw && this.lotteryRevealed) this.perform(['finishLottery'], () => this.engine!.finishLottery());
   }
 
   challengeHermit(id: HermitId): void {
-    if (this.isHumanTurn('awaitingMistDuel') && !this.engine!.state.mistDuel?.hermitId) this.engine!.challengeHermit(id);
+    if (this.isHumanTurn('awaitingMistDuel') && !this.state?.mistDuel?.hermitId) this.perform(['challengeHermit', id], () => this.engine!.challengeHermit(id));
   }
 
   takeMistStones(count: number): void {
-    if (this.isHumanTurn('awaitingMistDuel') && this.engine!.canTakeMistStones(count)) this.engine!.takeMistStones(count);
+    if (this.isHumanTurn('awaitingMistDuel') && this.view!.canTakeMistStones(count)) this.perform(['takeMistStones', count], () => this.engine!.takeMistStones(count));
   }
 
   leaveMistIsland(): void {
-    if (this.isHumanTurn('awaitingMistDuel') && this.engine!.canLeaveMistIsland()) this.engine!.leaveMistIsland();
+    if (this.isHumanTurn('awaitingMistDuel') && this.view!.canLeaveMistIsland()) this.perform(['leaveMistIsland'], () => this.engine!.leaveMistIsland());
   }
 
   canBuild(kind: BuildingKind): boolean {
-    return this.isHumanTurn('awaitingBuild') && this.engine!.canBuild(kind);
+    return this.isHumanTurn('awaitingBuild') && this.view!.canBuild(kind);
   }
 
   dockShip(shipId: number): void {
-    if (this.isHumanTurn('awaitingBuild')) this.engine!.dockShip(shipId);
+    if (this.isHumanTurn('awaitingBuild')) this.perform(['dockShip', shipId], () => this.engine!.dockShip(shipId));
   }
 
   boardShip(shipId: number): void {
-    if (this.isHumanTurn('awaitingBuild')) this.engine!.boardShip(shipId);
+    if (this.isHumanTurn('awaitingBuild')) this.perform(['boardShip', shipId], () => this.engine!.boardShip(shipId));
   }
 
   loadCargo(shipId: number, good: Good, qty: number): void {
-    if (this.isHumanTurn('awaitingBuild')) this.engine!.loadCargo(shipId, good, qty);
+    if (this.isHumanTurn('awaitingBuild')) this.perform(['loadCargo', shipId, good, qty], () => this.engine!.loadCargo(shipId, good, qty));
   }
 
   unloadCargo(shipId: number, good: Good, qty: number): void {
-    if (this.isHumanTurn('awaitingBuild')) this.engine!.unloadCargo(shipId, good, qty);
+    if (this.isHumanTurn('awaitingBuild')) this.perform(['unloadCargo', shipId, good, qty], () => this.engine!.unloadCargo(shipId, good, qty));
   }
 
   autoLoad(): void {
-    if (this.isHumanTurn('awaitingBuild')) this.engine!.autoLoad();
+    if (this.isHumanTurn('awaitingBuild')) this.perform(['autoLoad'], () => this.engine!.autoLoad());
   }
 
   build(kind: BuildingKind): void {
-    if (this.canBuild(kind)) this.engine!.build(kind);
+    if (this.canBuild(kind)) this.perform(['build', kind], () => this.engine!.build(kind));
   }
 
   canBuildShip(type: ShipType): boolean {
-    return this.isHumanTurn('awaitingBuild') && this.engine!.canBuildShip(type);
+    return this.isHumanTurn('awaitingBuild') && this.view!.canBuildShip(type);
   }
 
   buildShip(type: ShipType): void {
-    if (this.canBuildShip(type)) this.engine!.buildShip(type);
+    if (this.canBuildShip(type)) this.perform(['buildShip', type], () => this.engine!.buildShip(type));
   }
 
   finishBuilding(): void {
-    if (this.isHumanTurn('awaitingBuild')) this.engine!.finishBuilding();
+    if (this.isHumanTurn('awaitingBuild')) this.perform(['finishBuilding'], () => this.engine!.finishBuilding());
   }
 
   tradeAtMarket(order: MarketOrder): void {
-    if (this.isHumanTurn('awaitingCargoMarket') && quoteMarketTrade(this.engine!.state, order) !== null) {
-      this.engine!.tradeAtMarket(order);
+    if (this.isHumanTurn('awaitingCargoMarket') && quoteMarketTrade(this.view!.state, order) !== null) {
+      this.perform(['tradeAtMarket', order], () => this.engine!.tradeAtMarket(order));
     }
   }
 
   finishTrading(): void {
-    if (this.isHumanTurn('awaitingCargoMarket')) this.engine!.finishTrading();
+    if (this.isHumanTurn('awaitingCargoMarket')) this.perform(['finishTrading'], () => this.engine!.finishTrading());
   }
 
   canBuyUsedShip(type: ShipType): boolean {
-    return this.isHumanTurn('awaitingMarket') && this.engine!.canBuyUsedShip(type);
+    return this.isHumanTurn('awaitingMarket') && this.view!.canBuyUsedShip(type);
   }
 
   buyUsedShip(type: ShipType): void {
-    if (this.canBuyUsedShip(type)) this.engine!.buyUsedShip(type);
+    if (this.canBuyUsedShip(type)) this.perform(['buyUsedShip', type], () => this.engine!.buyUsedShip(type));
   }
 
   canSellShip(shipId: number): boolean {
-    return this.isHumanTurn('awaitingMarket') && this.engine!.canSellShip(shipId);
+    return this.isHumanTurn('awaitingMarket') && this.view!.canSellShip(shipId);
   }
 
   sellShip(shipId: number): void {
-    if (this.canSellShip(shipId)) this.engine!.sellShip(shipId);
+    if (this.canSellShip(shipId)) this.perform(['sellShip', shipId], () => this.engine!.sellShip(shipId));
   }
 
   finishMarket(): void {
-    if (this.isHumanTurn('awaitingMarket')) this.engine!.finishMarket();
+    if (this.isHumanTurn('awaitingMarket')) this.perform(['finishMarket'], () => this.engine!.finishMarket());
   }
 
   /** A fleet's stop as the board shows it: its departure stop until it has sailed in. */
   shownPosition(player: Player): number {
-    const sailing = this.departure?.playerId === player.id && this.engine?.state.phase === 'moving';
+    const sailing = this.departure?.playerId === player.id && this.state?.phase === 'moving';
     return sailing ? this.departure!.position : player.position;
   }
 
@@ -412,11 +457,11 @@ export class GameController {
   }
 
   islandsOwnedBy(playerId: number): number {
-    return this.engine?.islandsOwnedBy(playerId) ?? 0;
+    return this.view?.islandsOwnedBy(playerId) ?? 0;
   }
 
   netWorth(playerId: number): number {
-    return this.engine?.netWorth(playerId) ?? 0;
+    return this.view?.netWorth(playerId) ?? 0;
   }
 
   subscribe = (callback: () => void): (() => void) => {
@@ -427,10 +472,12 @@ export class GameController {
   getVersion = (): number => this.version;
 
   private onEngineEvent(event: GameEvent): void {
-    const engine = this.engine!;
-    if (this.holdsLotteryResult(event, engine)) return;
-    this.feedback.observe(event, engine.state);
-    const players = engine.state.players;
+    const engine = this.engine;
+    const view = this.view!;
+    const { state } = view;
+    if (this.holdsLotteryResult(event, view)) return;
+    this.feedback.observe(event, state);
+    const players = state.players;
     const isHuman = (id: number) => !players[id].isAI;
     const isViewer = (id: number) => id === this.viewerId;
     EventBus.emit('engine-event', event);
@@ -439,7 +486,7 @@ export class GameController {
         const id = ++this.noticeId;
         this.seaNotices = [{
           id, event, playerName: players[event.playerId].name, playerId: event.playerId, destinationId: event.destination,
-          destination: event.destination === undefined ? undefined : engine.state.map[event.destination].name,
+          destination: event.destination === undefined ? undefined : state.map[event.destination].name,
         }, ...this.seaNotices];
         for (const notice of this.seaNotices.slice(SEA_NOTICE_LIMIT)) {
           clearTimeout(this.noticeTimers.get(notice.id));
@@ -455,7 +502,7 @@ export class GameController {
         if (isViewer(event.audience.playerId)) this.headline = this.makeHeadline(event.audience.text ?? tx(event.audience.message, event.audience.message), 'gain', true);
         break;
       case 'campaignMissionCompleted':
-        this.headline = this.makeHeadline(tx('King’s mission complete: {m}. +{g}g', '国王使命完成：{m}。+{g} 金币', { m: ref.mission(engine.state.campaign!.stage, event.mission.objective), g: event.mission.reward }), 'gain', true);
+        this.headline = this.makeHeadline(tx('King’s mission complete: {m}. +{g}g', '国王使命完成：{m}。+{g} 金币', { m: ref.mission(this.state!.campaign!.stage, event.mission.objective), g: event.mission.reward }), 'gain', true);
         sfx.coin();
         break;
       case 'compassSpun':
@@ -474,16 +521,16 @@ export class GameController {
         this.resumeMovement();
         break;
       case 'turnStarted':
-        if (!engine.currentPlayer.isAI) {
+        if (isHuman(event.playerId) && (engine || isViewer(event.playerId))) {
           this.skipping = false;
-          if (event.playerId !== this.viewerId) {
+          if (engine && event.playerId !== this.viewerId) {
             this.handoffNote = this.headline && this.viewerId !== null && this.humanCount > 1 ? { ...this.headline, playerId: this.viewerId } : null;
             this.headline = null;
             this.viewerId = event.playerId;
             if (this.humanCount > 1) this.handoffTo = event.playerId;
           }
         }
-        if (engine.currentPlayer.isAI) this.later(() => {
+        if (engine?.currentPlayer.isAI) this.later(() => {
           const round = engine.state.round;
           engine.decideForAI();
           if (engine.state.phase === 'awaitingSpin' && engine.currentPlayer.id === event.playerId && engine.state.round === round) this.beginSpin(engine);
@@ -503,7 +550,7 @@ export class GameController {
         break;
       }
       case 'claimed': {
-        const node = engine.state.map[event.nodeId];
+        const node = state.map[event.nodeId];
         if (isViewer(event.playerId)) this.headline = this.makeHeadline(tx('{n} is yours! Rivals now pay you {g}g here.', '{n}归你了！对手今后在此须向你缴纳 {g} 金币。', { n: ref.node(node.id), g: node.toll ?? 0 }), 'gain');
         sfx.claim();
         break;
@@ -532,7 +579,7 @@ export class GameController {
         break;
       }
       case 'lotteryOpened':
-        if (isHuman(event.playerId)) {
+        if (engine && isHuman(event.playerId)) {
           clearInterval(this.lotteryClock);
           let lastTick = Date.now();
           this.lotteryClock = setInterval(() => {
@@ -544,8 +591,8 @@ export class GameController {
             this.changed();
           }, 250);
         }
-        if (!engine.currentPlayer.isAI) this.skipping = false;
-        if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());
+        if (this.canHelm) this.skipping = false;
+        if (engine?.currentPlayer.isAI) this.later(() => engine.decideForAI());
         break;
       case 'lotteryDrawn': {
         clearInterval(this.lotteryClock);
@@ -572,8 +619,8 @@ export class GameController {
       case 'mistOffered':
       case 'buildOffered':
       case 'cargoMarketOpened':
-        if (!engine.currentPlayer.isAI) this.skipping = false;
-        if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());
+        if (this.canHelm) this.skipping = false;
+        if (engine?.currentPlayer.isAI) this.later(() => engine.decideForAI());
         break;
       case 'marketTrade':
         if (isViewer(event.playerId)) {
@@ -592,11 +639,11 @@ export class GameController {
         this.clearTimers();
         break;
     }
-    this.changed();
+    if (engine) this.changed();
   }
 
   private isHumanTurn(phase: GameState['phase']): boolean {
-    return !!this.engine && this.engine.state.phase === phase && !this.engine.currentPlayer.isAI && !this.awaitingHandoff;
+    return this.state?.phase === phase && this.canHelm;
   }
 
   private later(action: () => void): void {
@@ -642,16 +689,17 @@ export class GameController {
     return player.gold - (this.lotteryHeld?.draw.playerId === player.id ? this.lotteryHeld.draw.prize : 0);
   }
 
-  private holdsLotteryResult(event: GameEvent, engine: GameEngine): boolean {
-    const draw = engine.state.lottery?.draw;
+  private holdsLotteryResult(event: GameEvent, view: GameView): boolean {
+    const draw = view.state.lottery?.draw;
     const result = event.type === 'lotteryDrawn' || (event.type === 'goldChanged' && event.reason === 'lottery prize');
-    if (!draw || !result || this.lotteryShown === draw || engine.state.players[draw.playerId].isAI || this.lotteryRevealDelay === 0) return false;
+    if (!draw || !result || this.lotteryShown === draw || view.state.players[draw.playerId].isAI ||
+        (this.room && draw.playerId !== this.viewerId) || this.lotteryRevealDelay === 0) return false;
     if (this.lotteryHeld?.draw !== draw) {
       clearInterval(this.lotteryClock);
       clearTimeout(this.lotteryReveal);
       this.lotteryRevealed = false;
-      this.lotteryHeld = { draw, logCut: engine.state.log.length - 1, events: [] };
-      this.lotteryReveal = setTimeout(() => this.revealLottery(engine), this.lotteryRevealDelay + LOTTERY_REVEAL_GRACE_MS);
+      this.lotteryHeld = { draw, logCut: view.state.log.length - 1, events: [] };
+      this.lotteryReveal = setTimeout(() => this.revealLottery(view), this.lotteryRevealDelay + LOTTERY_REVEAL_GRACE_MS);
     }
     this.lotteryHeld.events.push(event);
     return true;
@@ -659,12 +707,12 @@ export class GameController {
 
   /** The lottery panel's last ball finished dropping into the jar. */
   lotteryBallsLanded(): void {
-    if (this.engine) this.revealLottery(this.engine);
+    if (this.view) this.revealLottery(this.view);
   }
 
-  private revealLottery(engine: GameEngine): void {
+  private revealLottery(view: GameView): void {
     const held = this.lotteryHeld;
-    if (!held || this.engine !== engine) return;
+    if (!held || this.view !== view) return;
     clearTimeout(this.lotteryReveal);
     this.lotteryHeld = null;
     this.lotteryShown = held.draw;

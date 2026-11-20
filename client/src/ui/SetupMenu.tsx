@@ -176,6 +176,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
       <button className="primary big" onClick={start}>
         {t('Set sail', '扬帆起航')}
       </button>
+      <button onClick={() => gameController.openOnline()}>{t('Host online room', '创建在线房间')}</button>
     </div>
   );
 }
