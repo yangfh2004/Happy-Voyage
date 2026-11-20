@@ -1,8 +1,10 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, type BuildingKind, type GameState } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, SHIP_RECIPES, SHIP_TYPES, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
+
+const BUILDING_SIZES = ['None', 'Small', 'Medium', 'Large'];
 
 /** What the human can do right now: spin, claim or decline, or start over. */
 export function ActionPanel({ state }: { state: GameState }) {
@@ -52,6 +54,7 @@ export function ActionPanel({ state }: { state: GameState }) {
     );
   } else if (state.phase === 'awaitingBuild') {
     const nodeId = player.position;
+    const yardLevel = buildingLevel(state, nodeId, 'shipyard');
     body = (
       <>
         <h2>Build at {state.map[nodeId].name}</h2>
@@ -63,7 +66,7 @@ export function ActionPanel({ state }: { state: GameState }) {
           const cost = nextBuildingCost(state, nodeId, kind);
           return (
             <div className="building-option" key={kind}>
-              <div><strong>{building.label}</strong> · {building.chineseName} · {['None', 'Small', 'Medium', 'Large'][level]}</div>
+              <div><strong>{building.label}</strong> · {building.chineseName} · {BUILDING_SIZES[level]}</div>
               <small>{building.description}</small>
               <button disabled={!gameController.canBuild(kind)} onClick={() => gameController.build(kind)}>
                 {cost === null ? 'Max level' : `${level ? 'Upgrade' : 'Build'} (${cost}g)`}
@@ -71,6 +74,26 @@ export function ActionPanel({ state }: { state: GameState }) {
             </div>
           );
         })}
+        <section aria-labelledby="shipbuilding-heading">
+          <h3 id="shipbuilding-heading">Shipbuilding</h3>
+          {yardLevel === 0 ? <p>Build a shipyard to launch ships.</p> :
+            (Object.keys(SHIP_RECIPES) as ShipType[]).map((type) => {
+              const recipe = SHIP_RECIPES[type];
+              const ship = SHIP_TYPES[type];
+              const canBuild = gameController.canBuildShip(type);
+              return (
+                <div className="building-option" key={type}>
+                  <div><strong>{ship.label}</strong> · {recipe.lumber} lumber · {recipe.iron} iron</div>
+                  {!canBuild && <small>{yardLevel < recipe.yardLevel
+                    ? `Requires a ${BUILDING_SIZES[recipe.yardLevel].toLowerCase()} shipyard.`
+                    : 'Not enough materials.'}</small>}
+                  <button disabled={!canBuild} onClick={() => gameController.buildShip(type)}>
+                    Build {ship.label}
+                  </button>
+                </div>
+              );
+            })}
+        </section>
         <button className="primary" onClick={() => gameController.finishBuilding()}>Done <kbd>D / Esc</kbd></button>
       </>
     );
@@ -127,7 +150,9 @@ export function ActionPanel({ state }: { state: GameState }) {
           <div>Net gold: <strong className={summary.netGold < 0 ? 'expense' : 'income'}>{gold(summary.netGold)}</strong></div>
         </div>
       )}
-      {headline && !summary && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{headline.text}</div>}
+      <div role="status">
+        {headline && !summary && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{headline.text}</div>}
+      </div>
       <ShortcutLegend />
     </div>
   );
