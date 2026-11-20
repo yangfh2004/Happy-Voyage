@@ -30,16 +30,19 @@ describe('AI colony decisions', () => {
       if (target.id === 1) continue;
       target.kind = 'island';
       delete target.event;
-      target.toll = 45;
+      target.toll = 20;
       state.owners[target.id] = 1;
     }
-    const hazard = state.map[8];
-    state.owners[8] = null;
-    if (stop === 'port') hazard.kind = 'port';
-    else if (stop === 'pirates' || stop === 'seaMonster' || stop === 'whirlpool') {
-      hazard.kind = 'event'; hazard.event = stop;
-    } else {
-      hazard.kind = 'special'; hazard.special = stop;
+    expect(aiShouldClaim(state, player, node.id)).toBe(true);
+    for (const id of [7, 8, 9]) {
+      const hazard = state.map[id];
+      state.owners[id] = null;
+      if (stop === 'port') hazard.kind = 'port';
+      else if (stop === 'pirates' || stop === 'seaMonster' || stop === 'whirlpool') {
+        hazard.kind = 'event'; hazard.event = stop;
+      } else {
+        hazard.kind = 'special'; hazard.special = stop;
+      }
     }
     expect(aiShouldClaim(state, player, node.id)).toBe(false);
     player.gold += 500;
