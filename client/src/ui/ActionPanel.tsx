@@ -4,6 +4,7 @@ import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { BarterPanel } from './BarterPanel';
 import { LotteryPanel } from './LotteryPanel';
 import { MistPanel } from './MistPanel';
@@ -21,7 +22,7 @@ import { EventBus } from '../game/EventBus';
 const BUILDING_SIZES = { en: ['None', 'Small', 'Medium', 'Large'], zh: ['无', '小型', '中型', '大型'] };
 
 /** What the human can do right now: spin, claim or decline, or start over. */
-export function ActionPanel({ state, colorBlind = false }: { state: GameState; colorBlind?: boolean }) {
+export function ActionPanel({ state, colorBlind = false, strategyHost }: { state: GameState; colorBlind?: boolean; strategyHost?: HTMLElement | null }) {
   const { t, l, locale } = useT();
   const name = (p: { name: string; navigator?: string }) => playerName(p, locale);
   const at = (id: number) => nodeName(state.map[id], locale);
@@ -286,7 +287,7 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
           <div>{body}</div>
         </div>
       )}
-      {atHelm && state.phase !== 'gameOver' && strategies}
+      {atHelm && state.phase !== 'gameOver' && (strategyHost ? createPortal(strategies, strategyHost) : strategies)}
       {gameController.waiting && (
         <button onClick={() => gameController.skipToMyTurn()}>{room ? t('Skip animations', '跳过动画') : gameController.humanCount > 1 ? t('Skip to the next player', '跳到下一位玩家') : t('Skip to my turn', '跳到我的回合')} <kbd>K</kbd></button>
       )}

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { atmosphere, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
+import { atmosphere, buildingDescription, buildingName, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type BuildingKind, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
 import { getLocale, pick, subscribeLocale } from '../../i18n';
 import { readPreference } from '../../ui/accessibilityPreferences';
 
@@ -14,6 +14,15 @@ import { landingTarget, type NavigatePreview } from '../landingTarget';
 const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
 const SPECIAL_SYMBOL: Record<string, string> = { skeleton: '☠', treasure: '◆', mist: '☁', revival: '✚', nightless: '☾', wind: '≋', dragonSnake: '♜' };
+const SPECIAL_HELP: Record<string, [string, string]> = {
+  skeleton: ['Trade used ships after tribute or scrap trading.', '缴纳贡金或交易废料后买卖二手船。'],
+  treasure: ['Buy lottery numbers and match the draw to win gold.', '购买彩票号码，匹配开奖赢取金币。'],
+  mist: ['Duel a hermit to learn a strategy card.', '与隐士对决，学习谋略卡。'],
+  revival: ['Pay for fleet repairs and block the next sea hazard.', '付费修理舰队，并抵挡下一次海上灾难。'],
+  nightless: ['Buy and sell cargo at changing market prices.', '按变化的市场价格买卖货物。'],
+  wind: ['Exchange fleet cargo for more valuable native goods.', '用船上货物交换更有价值的当地特产。'],
+  dragonSnake: ['Recruit a captain for royal benefits and discounts.', '招募船长，获得王室福利和折扣。'],
+};
 const PORT_FLAGS: Record<string, [number, number, number]> = {
   Spain: [0xc62632, 0xf6c945, 0xc62632], Netherlands: [0xc62632, 0xffffff, 0x23478e],
   England: [0xffffff, 0xc62632, 0xffffff], Portugal: [0x147549, 0xc62632, 0xc62632],
@@ -181,14 +190,35 @@ export class OceanScene extends Phaser.Scene {
     this.landingMarker.clear();
     const state = gameController.state;
     const target = gameController.landingTarget ?? landingTarget(state, null, this.navigatePreview);
+    const focus = state && this.map[target?.nodeId ?? state.pendingClaim ?? state.players[state.currentPlayer].position];
+    if (focus) {
+      const camera = this.cameras.main;
+      const rect = this.game.canvas.getBoundingClientRect();
+      const point = { x: (focus.x - camera.worldView.x) * camera.zoom, y: (focus.y - camera.worldView.y) * camera.zoom };
+      EventBus.emit('chart-focus', { x: Math.round(rect.left + point.x), y: Math.round(rect.top + point.y), bottom: point.y > camera.height / 2 });
+    } else EventBus.emit('chart-focus', null);
     if (!state || !target) { this.landingBadge.setVisible(false); return; }
     const node = state.map.find((stop) => stop.id === target.nodeId)!;
     const { color } = chartIdentity(state.players[target.playerId], this.colorBlind);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const pulse = reduced ? 0 : (Math.sin(this.time.now / 180) + 1) / 2;
-    this.landingMarker.lineStyle(8, 0xffffff, 0.9).strokeCircle(node.x, node.y, 34 + pulse * 8);
-    this.landingMarker.lineStyle(5, color, 1).strokeCircle(node.x, node.y, 34 + pulse * 8);
-    this.landingBadge.setText(target.preview ? pick(getLocale(), 'Preview', '预览') : String(target.steps)).setPosition(node.x + 32, node.y - 40).setVisible(true);
+    if (!target.preview && target.steps) {
+      const start = state.phase === 'spinning' ? state.players[target.playerId].position : this.movement ? (this.movement.path[0] - 1 + state.map.length) % state.map.length : null;
+      if (start !== null) {
+        for (let i = 0; i < target.steps; i++) {
+          const a = state.map[(start + i) % state.map.length];
+          const b = state.map[(start + i + 1) % state.map.length];
+          const count = Math.ceil(Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y) / 18);
+          for (let j = 0; j < count; j++) this.landingMarker.fillStyle(color, .5).fillCircle(a.x + (b.x - a.x) * j / count, a.y + (b.y - a.y) * j / count, 4);
+        }
+      }
+    }
+    const radius = 62 + pulse * 10;
+    this.landingMarker.lineStyle(32, color, .12).strokeCircle(node.x, node.y, radius);
+    this.landingMarker.lineStyle(23, color, .2).strokeCircle(node.x, node.y, radius);
+    this.landingMarker.lineStyle(15, 0xffffff, .95).strokeCircle(node.x, node.y, radius);
+    this.landingMarker.lineStyle(10, color, 1).strokeCircle(node.x, node.y, radius);
+    this.landingBadge.setFontSize(34).setText(target.preview ? pick(getLocale(), 'Preview', '预览') : String(target.steps)).setPosition(node.x + 55, node.y - 64).setVisible(true);
   }
 
   private updatePinch() {
@@ -322,6 +352,22 @@ export class OceanScene extends Phaser.Scene {
       text.setPosition(node.x, node.y + 35).setOrigin(0.5, 0);
       this.labels.add(text);
       this.stopLabels.set(node.id, text);
+      text.setInteractive({ useHandCursor: true });
+      let tooltip: Phaser.GameObjects.Text | null = null;
+      const showTooltip = () => {
+        const locale = getLocale();
+        const help = SPECIAL_HELP[node.special ?? ''];
+        const buildings = gameController.state?.buildings[node.id] ?? {};
+        const lines = Object.entries(buildings).filter(([, level]) => level > 0).map(([kind]) => `${buildingName(kind as BuildingKind, locale)}: ${buildingDescription(kind as BuildingKind, locale)}`);
+        if (help) lines.unshift(pick(locale, ...help));
+        if (!lines.length) return;
+        tooltip?.destroy();
+        tooltip = this.add.text(node.x, node.y - 80, `${nodeName(node, locale)}\n${lines.join('\n')}`, { fontFamily: '"Sea Names", sans-serif', fontSize: '15px', color: '#fff6dc', backgroundColor: '#092f46', padding: { x: 12, y: 9 }, wordWrap: { width: 240 } }).setOrigin(.5, 1).setDepth(40).setScale(1 / this.cameras.main.zoom);
+      };
+      const hideTooltip = () => { tooltip?.destroy(); tooltip = null; };
+      text.on('pointerover', showTooltip);
+      text.on('pointerout', hideTooltip);
+      this.add.zone(node.x, node.y, 60, 50).setInteractive({ useHandCursor: true }).on('pointerover', showTooltip).on('pointerout', hideTooltip);
     }
   }
 

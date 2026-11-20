@@ -20,12 +20,20 @@ import { TutorialPanel } from './ui/TutorialPanel';
 import { readPreference, writePreference } from './ui/accessibilityPreferences';
 import { HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } from './ui/BoardChrome';
 import { ShortcutLegend } from './ui/ShortcutLegend';
+import { TurnCoach } from './ui/TurnCoach';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [fleetOpen, setFleetOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [strategyHost, setStrategyHost] = useState<HTMLDivElement | null>(null);
+  const [chartFocus, setChartFocus] = useState<{ x: number; y: number; bottom: boolean } | null>(null);
+  useEffect(() => {
+    const update = (focus: typeof chartFocus) => setChartFocus(old => JSON.stringify(old) === JSON.stringify(focus) ? old : focus);
+    EventBus.on('chart-focus', update);
+    return () => { EventBus.off('chart-focus', update); };
+  }, []);
   const [tutorialDismissed, setTutorialDismissed] = useState(() => readPreference('tutorial-dismissed'));
   const [tutorialRequested, setTutorialRequested] = useState(false);
   const [colorBlind, setColorBlind] = useState(() => readPreference('color-blind'));
@@ -105,16 +113,18 @@ export function App() {
         <Atmosphere state={state} />
         {state && <SeaNotifications notices={gameController.seaNotices} onDismiss={(id) => gameController.dismissSeaNotice(id)} />}
       </div>
-      <div className="overlay" ref={overlay}>
+      <div className={`overlay ${landing ? 'has-landing' : ''} ${atHelm ? 'is-your-turn' : ''}`} ref={overlay}>
         {state ? (
           <div className="hud">
             <HelmCard state={state} colorBlind={colorBlind} atHelm={atHelm} />
             <NextStop state={state} />
             {landing && <p className="landing-hint">⚓ {t('Choose an action on the card', '请在卡片上选择行动')}</p>}
-            <section ref={actionSurface} className={landing ? 'landing-placement' : 'turn-action-panel'}>
+            <section ref={actionSurface} className={landing ? `landing-placement ${chartFocus?.bottom ? 'landing-top' : ''}` : 'turn-action-panel'}>
             {landing && <LandingHeading state={state} />}
-            <ActionPanel state={state} colorBlind={colorBlind} />
+            <ActionPanel state={state} colorBlind={colorBlind} strategyHost={landing ? strategyHost : null} />
             </section>
+            <div ref={setStrategyHost} className="strategy-host" />
+            {!tutorialOpen && <TurnCoach state={state} atHelm={atHelm} target={chartFocus} />}
             <div className={`secondary-hud ${menuOpen ? 'is-open' : ''}`}>
             {menuOpen && <button className="menu-scrim" aria-label={t('Close menu', '关闭菜单')} onClick={() => setMenuOpen(false)} />}
             <div id="voyage-menu" className="voyage-menu">

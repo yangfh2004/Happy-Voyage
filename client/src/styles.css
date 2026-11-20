@@ -5,6 +5,9 @@
 .secondary-hud, .voyage-menu { display: contents; }
 .menu-shortcuts { display: none; }
 .resource-icon { width: 18px; height: 18px; vertical-align: middle; }
+.mobile-sound, .seat-number { display: none; }
+.turn-coach { position: fixed; z-index: 24; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 8px 12px; max-width: 210px; border: 2px solid #ebc466; border-radius: 14px; background: #082d49; color: #fff3cb; box-shadow: 0 3px 16px #001b2f99; font-weight: 700; }
+.turn-coach button { padding: 4px 8px; min-height: 36px; background: transparent; color: #fff3cb; border: 0; }
 .next-stop, .landing-heading, .landing-hint { display: none; }
 .atmosphere-status { position: absolute; bottom: 12px; left: 12px; padding: 7px 12px; border: 2px solid #a9f6ef; border-radius: 20px; background: #103c5bed; color: #fff9d9; font-family: 'Sea Names', system-ui, sans-serif; font-size: 13px; font-weight: 700; text-transform: capitalize; pointer-events: none; }
 .building-option small { display: block; margin: 3px 0; }
@@ -390,7 +393,8 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .next-stop small { font-weight: 800; letter-spacing: .1em; color: #87672a; }
   .next-stop strong { font-size: 20px; }
   .landing-hint { display: block; padding: 20px 10px; border: 2px dashed #b59751; border-radius: 14px; text-align: center; color: #174365; font-weight: 650; }
-  .landing-placement { position: fixed; z-index: 15; left: 24px; bottom: 122px; width: calc(100vw - 412px); max-height: min(420px, calc(100vh - 280px)); overflow-y: auto; overscroll-behavior: contain; border: 2px solid #ddb953; border-radius: 20px; padding: 14px 20px; background: linear-gradient(#fffdf4, #f3ecd9); box-shadow: 0 8px 28px #001b35aa; animation: landfall .25s ease-out; }
+  .landing-placement { position: fixed; z-index: 15; left: 24px; bottom: 122px; width: calc(100vw - 412px); max-height: calc((100vh - 344px) / 2); overflow-y: auto; overscroll-behavior: contain; border: 2px solid #ddb953; border-radius: 20px; padding: 10px 16px; background: linear-gradient(#fffdf4, #f3ecd9); box-shadow: 0 8px 28px #001b35aa; animation: landfall .25s ease-out; }
+  .landing-placement.landing-top { top: 150px; bottom: auto; }
   .landing-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid #cfbc8c; padding-bottom: 8px; margin-bottom: 8px; }
   .landing-heading small { color: #8b6426; letter-spacing: .1em; font-weight: 800; }
   .landing-heading h2 { font-size: 24px; margin: 4px 0; }
@@ -405,3 +409,68 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   @keyframes landfall { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
   @media (prefers-reduced-motion: reduce) { .landing-placement { animation: none; } }
 }
+
+@media (max-width: 700px) and (orientation: portrait) {
+  .playing { grid-template-columns: 1fr; grid-template-rows: 44px minmax(0, 1fr) 40px 310px; gap: 0; height: 100dvh; background: #06243f; }
+  .playing .voyage-top { display: flex; grid-row: 1; grid-column: 1; align-items: center; justify-content: space-between; padding: 0 10px; background: #06243f; color: #f4d58c; border-bottom: 1px solid #b99c55; }
+  .voyage-logo { display: flex; gap: 6px; font: bold 17px Georgia, serif; }
+  .voyage-menu-control > span { display: none; }
+  .voyage-menu-control button { font-size: 0; padding: 4px; width: 42px; height: 40px; background: transparent; color: #f4d58c; border: 0; }
+  .voyage-menu-control button::after { content: '⚙'; font-size: 27px; }
+  .mobile-sound { display: block; margin-left: auto; }
+  .mobile-sound .sound-control { margin: 0; }
+  .mobile-sound label { display: none; }
+  .mobile-sound kbd, .voyage-chip > .current-label { display: none; }
+  .mobile-sound .sound { font-size: 0; background: transparent; border: 0; height: 40px; }
+  .mobile-sound .sound::after { content: '♫'; font-size: 24px; color: #f4d58c; }
+  .mobile-sound .muted .sound::after { content: '♩'; opacity: .5; }
+  .playing .sea-map { grid-row: 2; grid-column: 1; border: 0; }
+  .voyage-seats { position: fixed; bottom: 310px; left: 0; height: 40px; width: 100%; display: flex; overflow-x: auto; scrollbar-width: none; background: #06243f; z-index: 5; border-top: 1px solid #c9a352; }
+  .voyage-chip { flex: 0 0 112px; padding: 3px 8px; border-right: 1px solid #b89b51; font-size: 11px; }
+  .voyage-chip.active { background: #205279; color: #ffe19a; }
+  .voyage-chip > .portrait, .voyage-chip small, .current-label { display: none; }
+  .voyage-chip strong, .voyage-chip > span { display: block; white-space: nowrap; }
+  .seat-number { display: inline; }
+  .playing .overlay { grid-row: 4; grid-column: 1; padding: 10px 12px 72px; border: 2px solid #c3a157; border-radius: 20px 20px 0 0; background: linear-gradient(#fff9e6, #ebe0c3); overflow: auto; }
+  .playing .overlay.is-your-turn { animation: mobile-sheet .3s ease-out; }
+  .playing .hud { gap: 6px; }
+  .helm-card { display: grid; grid-template-columns: 68px 1fr; gap: 2px 10px; text-align: left; }
+  .helm-card > h2:first-child { grid-column: 2; font-size: 11px; margin: 0; color: #80672e; }
+  .helm-portrait { grid-column: 1; grid-row: 1 / 4; }
+  .helm-portrait .portrait { width: 64px; height: 64px; border: 2px solid #b98a2b; border-radius: 50%; }
+  .helm-card h2 { font-size: 21px; margin: 0; }
+  .helm-card dl { display: flex; gap: 16px; margin: 2px 0; font-size: 12px; }
+  .helm-card dl > div { display: flex; gap: 5px; }
+  .helm-card dl > div:last-child { display: none; }
+  .helm-card dd { margin: 0; font-weight: bold; }
+  .next-stop { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border: 2px dashed #b59751; border-radius: 12px; color: #17415d; }
+  .next-stop > span { font-size: 26px; }
+  .next-stop > div { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .next-stop small { width: 100%; font-size: 10px; }
+  .playing .actions { border: 0; background: transparent; padding: 0; box-shadow: none; }
+  .playing .actions .rival-cards, .playing .actions > .shortcuts, .playing .decision-action .compass { display: none; }
+  .playing .compass svg { width: 54px; height: 54px; }
+  .playing .action-content { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .playing .actions .primary { color: #fff9e9; background: linear-gradient(#369740, #135b26); border: 2px solid #bda258; border-radius: 16px; min-height: 48px; }
+  .playing .turn-action-panel .actions .primary.big { position: fixed; z-index: 16; bottom: max(12px, env(safe-area-inset-bottom)); left: 20px; width: calc(100% - 40px); min-height: 54px; font-size: 20px; box-shadow: 0 0 0 12px #ebe0c3; }
+  .playing .landing-placement { position: static; animation: mobile-sheet .25s ease-out; }
+  .playing .overlay.has-landing { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .has-landing .helm-card { display: none; }
+  .landing-heading { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid #c3a157; padding-bottom: 5px; }
+  .landing-heading h2 { font-size: 20px; margin: 2px 0; }
+  .landing-heading small { font-size: 10px; color: #80672e; }
+  .landing-heading > div:last-child { text-align: right; font-size: 11px; }
+  .playing .landing-placement .action-content { display: block; }
+  .playing .landing-placement .action-content h2 { display: none; }
+  .playing .landing-placement button:not(.stat-trigger) { min-height: 44px; }
+  .playing .secondary-hud { display: none; }
+  .playing .secondary-hud.is-open { display: block; }
+  .menu-scrim { display: block; position: fixed; inset: 0; z-index: 30; background: #00182c99; border: 0; border-radius: 0; }
+  .playing .voyage-menu { display: flex; flex-direction: column; gap: 8px; position: fixed; z-index: 31; inset: 52px 8px 12px; overflow: auto; padding: 12px; border: 2px solid #d4ad50; border-radius: 18px; background: #f8f0dc; }
+  .menu-close { display: block; min-height: 44px; }
+  .playing .mobile-log { display: none; }
+  .strategy-cards { margin-top: 4px; }
+  .strategy-cards summary { padding: 7px; }
+  @keyframes mobile-sheet { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+@media (prefers-reduced-motion: reduce) { .playing .overlay.is-your-turn, .playing .landing-placement { animation: none; } }

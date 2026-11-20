@@ -4,6 +4,7 @@ import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { cssColor } from './nations';
 import { LogPanel } from './LogPanel';
+import { SoundControl } from './SoundControl';
 
 function ResourceIcon({ ship = false }: { ship?: boolean }) {
   return <svg className="resource-icon" viewBox="0 0 24 24" aria-hidden="true">{ship ? <><path d="M3 16h18l-4 5H7Z" fill="#91bfdd" /><path d="M12 2v14H5Zm2 2 6 10h-6Z" fill="#fff4d5" stroke="#947439" /></> : <><circle cx="12" cy="12" r="10" fill="#edbd45" stroke="#9c6b13" /><path d="M15 7h-5a3 3 0 0 0 0 5h4a3 3 0 0 1 0 5H8m4-13v16" fill="none" stroke="#855313" strokeWidth="2" /></>}</svg>;
@@ -17,13 +18,14 @@ export function VoyageTopBar({ state, colorBlind, onMenu, menuOpen }: { state: G
   const { t, locale } = useT();
   return <header className="voyage-top">
     <div className="voyage-logo">⚓ <span>{t('HAPPY VOYAGE', '欢乐大航海')}</span></div>
+    <div className="mobile-sound"><SoundControl /></div>
     <div className="voyage-seats">
       {state.players.map((p) => {
         const { color, badge } = chartIdentity(p, colorBlind);
         return <div key={p.id} className={`voyage-chip ${p.id === state.currentPlayer ? 'active' : ''} ${p.bankrupt ? 'bankrupt' : ''}`} style={{ borderColor: cssColor(color) }}>
           {p.id === state.currentPlayer && <span className="current-label">♛ {t('CURRENT TURN', '当前回合')}</span>}
           {p.navigator && <NavigatorPortrait navigator={p.navigator} color={color} size={30} />}
-          <strong>{badge && `${badge} · `}{playerName(p, locale)}</strong>
+          <strong><span className="seat-number">{p.id + 1} </span>{badge && `${badge} · `}{playerName(p, locale)}</strong>
           <span aria-label={t('Gold and ships', '金币与船只')}><ResourceIcon /> {gameController.displayGold(p)} · <ResourceIcon ship /> {p.fleet.length}</span>
           <small>{p.bankrupt ? t('Bankrupt', '破产') : p.isAI ? t('AI', '电脑') : t('Player', '玩家')}</small>
         </div>;
