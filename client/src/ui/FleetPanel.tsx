@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SHIP_TYPES, type Player } from '@happy-voyage/shared';
+import { SHIP_TYPES, cargoLoad, type Player } from '@happy-voyage/shared';
 import dialogPolyfill from 'dialog-polyfill';
 
 export function FleetPanel({ players, onClose }: { players: Player[]; onClose: () => void }) {
@@ -55,7 +55,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
                   <th scope="row">{ship.name}<small>{SHIP_TYPES[ship.type].label}</small></th>
                   <td>{ship.durability}/{ship.maxDurability}</td>
                   <td>{ship.firepower}</td>
-                  <td>{ship.cargoCapacity}</td>
+                  <td>{cargoLoad(ship)}/{ship.cargoCapacity}<small>{Object.entries(ship.cargo).filter(([, qty]) => qty > 0).map(([good, qty]) => `${qty} ${good}`).join(' · ') || 'Empty'}</small></td>
                   <td>{ship.speed}</td>
                   <td>{ship.crewCapacity}</td>
                 </tr>

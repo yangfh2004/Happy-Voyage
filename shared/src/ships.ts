@@ -1,4 +1,10 @@
-import type { ShipStats, ShipType } from './types';
+import type { Ship, ShipStats, ShipType } from './types';
+
+export function cargoLoad(ship: Ship): number {
+  return Object.values(ship.cargo).reduce((sum, qty) => sum + (qty ?? 0), 0);
+}
+
+export const GOODS = ['lumber', 'iron', 'Wine', 'Sugar', 'Cotton', 'Timber', 'Cocoa', 'Tobacco', 'Silver', 'Spices', 'Silk', 'Tea'] as const;
 
 export const SHIP_TYPES = {
   warship: { label: 'Warship', maxDurability: 120, firepower: 30, cargoCapacity: 25, speed: 4, crewCapacity: 60 },

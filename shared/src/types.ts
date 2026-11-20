@@ -53,6 +53,7 @@ export interface ShipStats {
 }
 
 export interface Ship extends ShipStats {
+  cargo: Partial<Record<Good, number>>;
   id: number;
   name: string;
   type: ShipType;
@@ -73,6 +74,7 @@ export interface Player extends PlayerSetup {
 
 export type BuildingKind = 'lumberMill' | 'ironMine' | 'shipyard' | 'repairYard' | 'collectionField';
 export type Specialty = 'Wine' | 'Sugar' | 'Cotton' | 'Timber' | 'Cocoa' | 'Tobacco' | 'Silver' | 'Spices' | 'Silk' | 'Tea';
+export type Good = 'lumber' | 'iron' | Specialty;
 
 export interface ColonyStockpile {
   lumber: number;
@@ -101,6 +103,7 @@ export interface GameState {
   owners: (number | null)[];
   buildings: Partial<Record<BuildingKind, number>>[];
   stockpiles: ColonyStockpile[];
+  docks: Ship[][];
   currentPlayer: number;
   round: number;
   phase: Phase;
@@ -113,6 +116,8 @@ export interface GameState {
 
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
+  | { type: 'shipTransferred'; playerId: number; nodeId: number; shipId: number; direction: 'dock' | 'board' }
+  | { type: 'cargoMoved'; playerId: number; nodeId: number; shipId: number; good: Good; qty: number; direction: 'load' | 'unload' }
   | { type: 'buildingBuilt'; playerId: number; nodeId: number; kind: BuildingKind; level: number }
   | { type: 'buildOffered'; playerId: number; nodeId: number }
   | { type: 'turnStarted'; playerId: number }

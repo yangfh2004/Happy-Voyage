@@ -8,8 +8,10 @@ vi.mock('../game/GameController', () => ({ gameController: {
   shownPosition: (player: { position: number }) => player.position,
 } }));
 vi.mock('./Compass', () => ({ Compass: () => null }));
+vi.mock('dialog-polyfill', () => ({ default: { registerDialog: vi.fn() } }));
 import { ActionPanel } from './ActionPanel';
 import { RouteDetails } from './RouteDetails';
+import { TransferContents } from './TransferPanel';
 
 describe('build menu', () => {
   it('shows empty, upgraded and maxed buildings with costs and disabled actions', () => {
@@ -28,6 +30,28 @@ describe('build menu', () => {
     expect(html).toContain('Upgrade (300g)');
     expect(html).toContain('Max level');
     expect(html).toContain('Done');
+    expect(html).toContain('Transfers');
+  });
+
+  it('shows transfer stock, cargo, docked ships and the minimum fleet restriction', () => {
+    const { state, currentPlayer: player } = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
+    const node = state.map.find((n) => n.kind === 'island')!;
+    player.position = node.id;
+    state.owners[node.id] = 0;
+    state.phase = 'awaitingBuild';
+    let html = renderToStaticMarkup(<TransferContents state={state} />);
+    expect(html).toContain('No docked ships.');
+    expect(html).toContain('AUTO load specialties');
+    state.docks[node.id].push(...player.fleet.splice(1));
+    player.fleet[0].cargo = { Wine: 3 };
+    state.stockpiles[node.id].iron = 7;
+    html = renderToStaticMarkup(<TransferContents state={state} />);
+    expect(html).toContain('Board Cargo Ship');
+    expect(html).toContain('Cargo 3/25');
+    expect(html).toContain('Unload Wine from');
+    expect(html).toContain('iron: 7');
+    expect(html).toMatch(/disabled="">Dock/);
+    expect(html).toContain('Load onto ship');
   });
 
   it('shows the same stockpile and production rates in the build menu and route details', () => {

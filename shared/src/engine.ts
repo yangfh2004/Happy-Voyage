@@ -6,7 +6,8 @@ export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
-import { SHIP_TYPES, STARTING_FLEET } from './ships';
+import { SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad } from './ships';
+import type { Good } from './types';
 import type { ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup, Ship, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
@@ -90,6 +91,7 @@ export class GameEngine {
       owners: map.map(() => null),
       buildings: map.map(() => ({})),
       stockpiles: map.map(emptyStockpile),
+      docks: map.map(() => []),
       currentPlayer: 0,
       round: 1,
       phase: 'awaitingSpin',
@@ -131,7 +133,7 @@ export class GameEngine {
 
     const id = this.state.nextShipId++;
     const { label, ...stats } = SHIP_TYPES[type];
-    const ship = { ...stats, id, type, name: `${label} ${id}`, durability: stats.maxDurability };
+    const ship = { ...stats, id, type, name: `${label} ${id}`, durability: stats.maxDurability, cargo: {} };
     player.fleet.push(ship);
     this.emit({ type: 'shipAdded', playerId, shipId: id });
     return ship;
@@ -245,6 +247,84 @@ export class GameEngine {
     this.assertPhase('awaitingClaim');
     this.log(`${this.currentPlayer.name} sails past ${this.node(this.state.pendingClaim!).name}.`);
     this.endTurn();
+  }
+
+  private transferColony(): number {
+    this.assertPhase('awaitingBuild');
+    const { position, id } = this.currentPlayer;
+    if (this.state.map[position]?.kind !== 'island' || this.state.owners[position] !== id) {
+      throw new Error('Transfers require your own colony');
+    }
+    return position;
+  }
+
+  dockShip(shipId: number): void {
+    this.transferShip(shipId, 'dock');
+  }
+
+  boardShip(shipId: number): void {
+    this.transferShip(shipId, 'board');
+  }
+
+  private transferShip(shipId: number, direction: 'dock' | 'board'): void {
+    const nodeId = this.transferColony();
+    const player = this.currentPlayer;
+    const dock = this.state.docks[nodeId];
+    const source = direction === 'dock' ? player.fleet : dock;
+    const target = direction === 'dock' ? dock : player.fleet;
+    const index = source.findIndex((ship) => ship.id === shipId);
+    if (index < 0) throw new Error('Ship not available here');
+    if (direction === 'dock' && source.length <= 1) throw new Error('Fleet must keep at least one ship');
+    const [ship] = source.splice(index, 1);
+    target.push(ship);
+    this.log(`${player.name} ${direction === 'dock' ? 'docks' : 'boards'} ${ship.name} at ${this.node(nodeId).name}.`);
+    this.emit({ type: 'shipTransferred', playerId: player.id, nodeId, shipId, direction });
+  }
+
+  loadCargo(shipId: number, good: Good, qty: number): void {
+    this.moveCargo(shipId, good, qty, 'load');
+  }
+
+  unloadCargo(shipId: number, good: Good, qty: number): void {
+    this.moveCargo(shipId, good, qty, 'unload');
+  }
+
+  private moveCargo(shipId: number, good: Good, qty: number, direction: 'load' | 'unload'): void {
+    const nodeId = this.transferColony();
+    if (!GOODS.includes(good)) throw new Error('Unknown good');
+    if (!Number.isSafeInteger(qty) || qty <= 0) throw new Error('Quantity must be a positive integer');
+    const player = this.currentPlayer;
+    const ship = player.fleet.find((candidate) => candidate.id === shipId);
+    if (!ship) throw new Error('Ship must be in the fleet');
+    const stock = this.state.stockpiles[nodeId];
+    const stored = good === 'lumber' || good === 'iron' ? stock[good] : (stock.specialties[good] ?? 0);
+    const aboard = ship.cargo[good] ?? 0;
+    if (direction === 'load' ? qty > stored || qty > ship.cargoCapacity - cargoLoad(ship) : qty > aboard) {
+      throw new Error('Insufficient stock, cargo or capacity');
+    }
+    const delta = direction === 'load' ? qty : -qty;
+    ship.cargo[good] = aboard + delta;
+    if (good === 'lumber' || good === 'iron') stock[good] = stored - delta;
+    else stock.specialties[good] = stored - delta;
+    this.log(`${player.name} ${direction === 'load' ? 'loads' : 'unloads'} ${qty} ${good} ${direction === 'load' ? 'onto' : 'from'} ${ship.name}.`);
+    this.emit({ type: 'cargoMoved', playerId: player.id, nodeId, shipId, good, qty, direction });
+  }
+
+  autoLoad(): number {
+    const nodeId = this.transferColony();
+    let total = 0;
+    for (const ship of this.currentPlayer.fleet) {
+      for (const good of GOODS) {
+        if (good === 'lumber' || good === 'iron') continue;
+        const qty = Math.min(this.state.stockpiles[nodeId].specialties[good] ?? 0, ship.cargoCapacity - cargoLoad(ship));
+        if (qty > 0) {
+          this.loadCargo(ship.id, good, qty);
+          total += qty;
+        }
+      }
+    }
+    this.log(`AUTO loaded ${total} specialty units.`);
+    return total;
   }
 
   canBuild(kind: BuildingKind): boolean {
@@ -441,6 +521,7 @@ export class GameEngine {
         if (o !== player.id) return o;
         this.state.buildings[id] = {};
         this.state.stockpiles[id] = emptyStockpile();
+        this.state.docks[id] = [];
         return null;
       });
       this.log(`${player.name} is bankrupt! Their colonies fall back to neutral.`);

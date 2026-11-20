@@ -3,9 +3,12 @@ import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
+import { useState } from 'react';
+import { TransferPanel } from './TransferPanel';
 
 /** What the human can do right now: spin, claim or decline, or start over. */
 export function ActionPanel({ state }: { state: GameState }) {
+  const [transfersOpen, setTransfersOpen] = useState(false);
   const player = state.players[state.currentPlayer];
   const spinning = state.phase === 'spinning';
   const spinId = gameController.spinId;
@@ -57,6 +60,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         <h2>Build at {state.map[nodeId].name}</h2>
         <p>Your colony · Toll {colonyToll(state, nodeId)}g · Treasury {player.gold}g</p>
         <ColonyGoods state={state} nodeId={nodeId} />
+        <button onClick={() => setTransfersOpen(true)}>Transfers</button>
         {(Object.keys(BUILDINGS) as BuildingKind[]).map((kind) => {
           const building = BUILDINGS[kind];
           const level = buildingLevel(state, nodeId, kind);
@@ -129,6 +133,9 @@ export function ActionPanel({ state }: { state: GameState }) {
         <button onClick={() => gameController.skipToMyTurn()}>Skip to my turn <kbd>K</kbd></button>
       )}
       <ShortcutLegend />
+      {transfersOpen && state.phase === 'awaitingBuild' && !player.isAI && (
+        <TransferPanel state={state} onClose={() => setTransfersOpen(false)} />
+      )}
     </div>
   );
 }

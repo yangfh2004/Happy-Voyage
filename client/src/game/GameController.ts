@@ -1,4 +1,4 @@
-import { GameEngine, type BuildingKind, type GameEvent, type GameState, type Player, type PlayerSetup } from '@happy-voyage/shared';
+import { GameEngine, type Good, type BuildingKind, type GameEvent, type GameState, type Player, type PlayerSetup } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
 import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, sfx } from './sfx';
@@ -150,6 +150,26 @@ export class GameController {
 
   canBuild(kind: BuildingKind): boolean {
     return this.isHumanTurn('awaitingBuild') && this.engine!.canBuild(kind);
+  }
+
+  dockShip(shipId: number): void {
+    if (this.isHumanTurn('awaitingBuild')) this.engine!.dockShip(shipId);
+  }
+
+  boardShip(shipId: number): void {
+    if (this.isHumanTurn('awaitingBuild')) this.engine!.boardShip(shipId);
+  }
+
+  loadCargo(shipId: number, good: Good, qty: number): void {
+    if (this.isHumanTurn('awaitingBuild')) this.engine!.loadCargo(shipId, good, qty);
+  }
+
+  unloadCargo(shipId: number, good: Good, qty: number): void {
+    if (this.isHumanTurn('awaitingBuild')) this.engine!.unloadCargo(shipId, good, qty);
+  }
+
+  autoLoad(): void {
+    if (this.isHumanTurn('awaitingBuild')) this.engine!.autoLoad();
   }
 
   build(kind: BuildingKind): void {
