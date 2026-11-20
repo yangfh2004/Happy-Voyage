@@ -60,6 +60,10 @@ class GameController {
     return this.engine?.islandsOwnedBy(playerId) ?? 0;
   }
 
+  netWorth(playerId: number): number {
+    return this.engine?.netWorth(playerId) ?? 0;
+  }
+
   subscribe = (callback: () => void): (() => void) => {
     this.subscribers.add(callback);
     return () => this.subscribers.delete(callback);

@@ -13,6 +13,7 @@ Single player against 1–3 AI rivals:
 - Land on an unowned island to found a colony; rivals who land there pay you a toll.
 - Passing the home port pays a royal salary; event stops bring treasure, storms or trade winds.
 - Claim 8 islands, be the last navigator afloat, or be the richest after 30 rounds to win.
+- The opening turn rotates each round. End-of-voyage wealth is cash plus 75% of each colony's cost (rounded down); a colony needs time to earn back that difference.
 
 Trading, shipbuilding, naval combat, special islands and multiplayer come next.
 
@@ -64,6 +65,7 @@ npm test             # rules tests
 npm run typecheck
 npm run build        # production client build in client/dist
 npm start            # Express server at http://localhost:3000 (serves the built client)
+npm exec -- vite-node shared/playtest.ts 6000  # seeded AI and strategy playtests (games per matchup)
 ```
 
 Pushes to `main` publish the built client to the `demo` branch (served by the link above) and to
