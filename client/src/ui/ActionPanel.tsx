@@ -5,6 +5,7 @@ import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
 import { useState } from 'react';
 import { BarterPanel } from './BarterPanel';
+import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 
@@ -124,6 +125,8 @@ export function ActionPanel({ state }: { state: GameState }) {
         <button className="primary" onClick={() => gameController.finishBuilding()}>Done <kbd>D / Esc</kbd></button>
       </>
     );
+  } else if (state.phase === 'awaitingRecruit') {
+    body = <RecruitPanel state={state} />;
   } else if (state.phase === 'awaitingBarter') {
     body = <BarterPanel state={state} />;
   } else if (state.phase === 'awaitingClaim') {

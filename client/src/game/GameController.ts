@@ -147,11 +147,20 @@ export class GameController {
 
   decline(): void {
     if (this.isHumanTurn('awaitingClaim')) this.engine!.decline();
+    else if (this.isHumanTurn('awaitingRecruit')) this.declineRecruit();
     else this.declineBarter();
   }
 
   acceptBarter(index: number): void {
     if (this.isHumanTurn('awaitingBarter')) this.engine!.acceptBarter(index);
+  }
+
+  recruitCaptain(index: number): void {
+    if (this.isHumanTurn('awaitingRecruit')) this.engine!.recruitCaptain(index);
+  }
+
+  declineRecruit(): void {
+    if (this.isHumanTurn('awaitingRecruit')) this.engine!.declineRecruit();
   }
 
   declineBarter(): void {
@@ -317,6 +326,7 @@ export class GameController {
       case 'claimOffered':
       case 'marketOffered':
       case 'barterOffered':
+      case 'recruitsOffered':
       case 'buildOffered':
       case 'cargoMarketOpened':
         if (!engine.currentPlayer.isAI) this.skipping = false;
