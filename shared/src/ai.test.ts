@@ -22,6 +22,29 @@ function claimOffer(maxRounds = 30, islandsToWin = 8, nodeId = 17) {
 }
 
 describe('AI colony decisions', () => {
+  it.each(['port', 'pirates', 'seaMonster', 'whirlpool', 'skeleton', 'treasure', 'dragonSnake'] as const)('reserves cash for reachable %s costs before a subsequent toll', (stop) => {
+    const { state, player, node } = claimOffer(30, 8, 1);
+    state.config.homeSalary = 0;
+    player.gold = node.price! + 50;
+    for (const target of state.map) {
+      if (target.id === 1) continue;
+      target.kind = 'island';
+      delete target.event;
+      target.toll = 45;
+      state.owners[target.id] = 1;
+    }
+    const hazard = state.map[8];
+    state.owners[8] = null;
+    if (stop === 'port') hazard.kind = 'port';
+    else if (stop === 'pirates' || stop === 'seaMonster' || stop === 'whirlpool') {
+      hazard.kind = 'event'; hazard.event = stop;
+    } else {
+      hazard.kind = 'special'; hazard.special = stop;
+    }
+    expect(aiShouldClaim(state, player, node.id)).toBe(false);
+    player.gold += 500;
+    expect(aiShouldClaim(state, player, node.id)).toBe(true);
+  });
   it('saves cash for a likely toll rather than using a flat reserve', () => {
     const { engine, state, node } = claimOffer();
     state.owners[23] = 1; // Six steps land before salary and cost 124g.
