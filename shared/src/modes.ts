@@ -46,6 +46,11 @@ export function hasRoundLimit(config: Pick<GameConfig, 'maxRounds'>): boolean {
   return config.maxRounds < NO_ROUND_LIMIT;
 }
 
+/** Rounds still to play; an unlimited game always has NO_ROUND_LIMIT left. */
+export function roundsLeft(config: Pick<GameConfig, 'maxRounds'>, round: number): number {
+  return hasRoundLimit(config) ? Math.max(0, config.maxRounds - round) : NO_ROUND_LIMIT;
+}
+
 /** True when the island goal is every new continent on the map. */
 export function requiresEveryIsland(config: Pick<GameConfig, 'islandsToWin'>, islandCount: number): boolean {
   return config.islandsToWin >= islandCount;

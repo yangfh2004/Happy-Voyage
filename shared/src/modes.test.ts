@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { aiShouldClaim } from './ai';
 import { DEFAULT_CONFIG, GameEngine } from './engine';
 import { DEFAULT_ISLAND_COUNT, GAME_MODES, gameMode, winConditionText } from './modes';
 import type { GameConfig } from './types';
@@ -52,6 +53,11 @@ describe('victory modes', () => {
     while (g.state.phase === 'moving') g.resolveLanding();
     if (g.state.phase === 'awaitingClaim') g.decline();
     expect(g.state.victory).toBeNull();
+    const player = g.state.players[0];
+    const neutral = g.state.map.find((node) => node.kind === 'island' && g.state.owners[node.id] === null)!;
+    g.state.owners[g.state.map.findIndex((node, i) => node.kind === 'island' && i !== neutral.id)] = null;
+    player.gold = 10_000;
+    expect(() => aiShouldClaim(g.state, player, neutral.id)).not.toThrow();
   });
 
   it('keeps the shorter modes as options', () => {

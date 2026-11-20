@@ -10,6 +10,7 @@ import { SEA_RULES } from './seaRules';
 import { LOTTERY, expectedLotteryPrize } from './lottery';
 import { RANKS, foreignTaxDue } from './ranks';
 import { shipSalePrice } from './ships';
+import { roundsLeft } from './modes';
 import type { GameState, MapNode, Player, Ship } from './types';
 
 /** Gold an AI keeps back before buying lottery numbers. */
@@ -49,7 +50,7 @@ export function aiWyvernTarget(state: GameState, player: Player): number {
 /** Forecast the next two moves without knowing the compass results. */
 function bankruptcyOdds(state: GameState, player: Player, gold: number, coloniesAfterClaim: number): number {
   const { map, owners, config } = state;
-  const horizon = Math.min(2, config.maxRounds - state.round);
+  const horizon = Math.min(2, roundsLeft(config, state.round));
   const tradeIncome = 50 + 30 * coloniesAfterClaim;
   function forecast(position: number, cash: number, turns: number, protectedFromHazards: boolean, fleet: Ship[]): number {
     if (cash < 0) return 1;
@@ -114,7 +115,7 @@ function estimatedTolls(state: GameState, player: Player, node: MapNode): number
   let tolls = 0;
   for (const rival of state.players) {
     if (rival.bankrupt || rival.id === player.id) continue;
-    const moves = state.config.maxRounds - state.round + Number(turnOrderPosition(state, rival.id) > myTurn);
+    const moves = roundsLeft(state.config, state.round) + Number(turnOrderPosition(state, rival.id) > myTurn);
     if (moves === 0) continue;
     const nextSpinOdds = COMPASS_SECTORS.reduce((chance, { steps, odds }) =>
       chance + ((rival.position + steps) % state.map.length === node.id ? odds : 0), 0);
@@ -132,7 +133,7 @@ export function aiShouldClaim(state: GameState, player: Player, nodeId: number):
   const leftToWin = state.config.islandsToWin - owned;
   if (leftToWin <= 1) return true;
 
-  const turnsLeft = state.config.maxRounds - state.round;
+  const turnsLeft = roundsLeft(state.config, state.round);
   const cash = player.gold - price;
   if (bankruptcyOdds(state, player, cash, owned + 1) > 0.12) return false;
   const neutralIslands = state.map.filter((stop) => stop.kind === 'island' && state.owners[stop.id] === null).length;
