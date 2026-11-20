@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import type { GameEvent } from '@happy-voyage/shared';
 
 vi.mock('./EventBus', () => {
   const listeners = new Map<string, ((...args: unknown[]) => void)[]>();
@@ -356,4 +357,50 @@ it('runs the Treasure Island timer for the human and draws when it runs out', ()
   controller.finishLottery();
   expect(state.lottery).toBeNull();
   expect(state.currentPlayer).toBe(1);
+});
+
+it('keeps the lottery prize, log line and toast hidden until the last ball lands', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  const p = state.players[0];
+  const treasure = state.map.find((node) => node.special === 'treasure')!;
+  p.position = (treasure.id - 2 + state.map.length) % state.map.length;
+  humanTurn();
+  expect(state.phase).toBe('awaitingLottery');
+  for (let n = 1; n <= 5; n++) controller.buyLotteryNumber(n);
+  const before = controller.displayGold(p);
+  const logBefore = controller.visibleLog(state).length;
+  const toasts: GameEvent[] = [];
+  const onGold = (event: GameEvent) => toasts.push(event);
+  EventBus.on('gold-changed', onGold);
+  controller.drawLottery();
+  const { prize } = state.lottery!.draw!;
+  expect(prize).toBeGreaterThan(0);
+  expect(p.gold).toBe(before + prize);
+  expect(controller.displayGold(p)).toBe(before);
+  expect(controller.visibleLog(state)).toHaveLength(logBefore);
+  expect(toasts).toHaveLength(0);
+  expect(controller.headline?.text ?? '').not.toContain('Lottery');
+  vi.advanceTimersByTime(controller.lotteryRevealDelay);
+  expect(controller.lotteryRevealed).toBe(true);
+  expect(controller.displayGold(p)).toBe(before + prize);
+  expect(controller.visibleLog(state).at(-1)).toContain('Treasure Island draws');
+  expect(toasts).toEqual([expect.objectContaining({ type: 'goldChanged', reason: 'lottery prize', delta: prize })]);
+  expect(controller.headline?.text).toContain(`You win ${prize}g`);
+});
+
+it('shows the lottery result at once at Instant speed', () => {
+  controller.newGame(players);
+  controller.setSpeed('Instant');
+  const state = controller.state!;
+  const p = state.players[0];
+  const treasure = state.map.find((node) => node.special === 'treasure')!;
+  p.position = (treasure.id - 2 + state.map.length) % state.map.length;
+  humanTurn();
+  controller.buyLotteryNumber(1);
+  controller.drawLottery();
+  expect(controller.lotteryRevealed).toBe(true);
+  expect(controller.displayGold(p)).toBe(p.gold);
+  expect(controller.visibleLog(state)).toBe(state.log);
+  expect(controller.headline?.text).toContain('Lottery');
 });
