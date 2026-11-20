@@ -6,7 +6,7 @@ import { SEA_RULES } from './seaRules';
 export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
-import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
+import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 import type { Good } from './types';
 import { navigatorById, type SignatureShip } from './navigators';
@@ -124,6 +124,7 @@ export class GameEngine {
   /** Start the first turn (separate from the constructor so listeners can attach first). */
   start(): void {
     this.log(`Round 1: ${this.currentPlayer.name} sets sail first.`);
+    this.repairDockedShips();
     this.emit({ type: 'turnStarted', playerId: this.currentPlayer.id });
   }
 
@@ -535,10 +536,24 @@ export class GameEngine {
         if (!human) this.changeGold(player, r.nimPrize, 'Nim prize');
         break;
       }
-      case 'revival':
+      case 'revival': {
+        const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
+        const points = Math.min(damage, Math.floor(Math.max(0, player.gold) / REPAIR_GOLD_PER_POINT));
+        let remaining = points;
+        for (const ship of player.fleet) {
+          const repaired = Math.min(remaining, ship.maxDurability - ship.durability);
+          ship.durability += repaired;
+          remaining -= repaired;
+        }
+        if (damage === 0) this.log(`${player.name}'s fleet already sound: no repair fee.`);
+        else {
+          this.changeGold(player, -points * REPAIR_GOLD_PER_POINT, 'revival repairs');
+          this.log(`Revival repairs ${player.name}'s fleet: restored ${points}/${damage} durability for ${points * REPAIR_GOLD_PER_POINT}g.${points < damage ? ' Insufficient gold; partial repairs in fleet order.' : ' Fleet fully repaired.'}`);
+        }
         player.revivalProtection = true;
-        this.log(`${player.name} gets full repair! Revival protection blocks ${player.name}'s next sea hazard.`);
+        this.log(`Revival protection blocks ${player.name}'s next sea hazard.`);
         break;
+      }
       case 'nightless':
         this.log(`The 24-hour market buys specialties from ${player.name}'s ${colonies} colonies.`);
         this.changeGold(player, colonies * r.marketPerColony, 'specialty market');
@@ -572,6 +587,7 @@ export class GameEngine {
     switch (node.event) {
       case 'pirates':
       case 'seaMonster':
+        this.damageFleet(player);
         this.log(`${node.event === 'pirates' ? 'Pirates raid' : 'A sea monster attacks'} ${player.name}'s fleet.`);
         this.changeGold(player, -SEA_RULES[node.event], node.event);
         break;
@@ -588,6 +604,7 @@ export class GameEngine {
       case 'wyvern': {
         if (node.event === 'whirlpool' && this.rng() < 0.33) {
           this.log(`Bermuda whirlpool damages ${player.name}'s fleet.`);
+          this.damageFleet(player);
           this.changeGold(player, -SEA_RULES.whirlpoolLoss, 'whirlpool');
           break;
         }
@@ -614,6 +631,7 @@ export class GameEngine {
         break;
       }
       case 'storm': {
+        this.damageFleet(player);
         const { min, max, step } = EVENT_GOLD.storm;
         const amount = min + Math.floor(this.rng() * ((max - min) / step + 1)) * step;
         this.log(`A storm batters ${player.name}'s fleet: repairs cost ${amount}g.`);
@@ -678,7 +696,27 @@ export class GameEngine {
 
     this.state.currentPlayer = next;
     this.state.phase = 'awaitingSpin';
+    this.repairDockedShips();
     this.emit({ type: 'turnStarted', playerId: next });
+  }
+
+  private damageFleet(player: Player): void {
+    for (const ship of player.fleet) {
+      ship.durability = Math.max(0, ship.durability - SEA_HAZARD_DAMAGE);
+    }
+    this.log(`${player.name}'s ships each lose up to ${SEA_HAZARD_DAMAGE} durability (minimum 0; ships are not sunk).`);
+  }
+
+  private repairDockedShips(): void {
+    for (const node of this.state.map) {
+      if (this.state.owners[node.id] !== this.currentPlayer.id || !buildingLevel(this.state, node.id, 'repairYard')) continue;
+      let repaired = 0;
+      for (const ship of this.state.docks[node.id]) {
+        repaired += ship.maxDurability - ship.durability;
+        ship.durability = ship.maxDurability;
+      }
+      if (repaired > 0) this.log(`${this.currentPlayer.name}'s repair yard at ${node.name} restores ${repaired} docked ship durability for free.`);
+    }
   }
 
   private produceColonyGoods(): void {
