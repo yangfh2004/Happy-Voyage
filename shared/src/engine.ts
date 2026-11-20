@@ -40,6 +40,8 @@ export class GameEngine {
   readonly state: GameState;
   private readonly rng: Rng;
   private readonly listeners = new Set<Listener>();
+  /** Stops sailed by the current roll, settled in resolveLanding(). */
+  private pendingPath: number[] = [];
 
   constructor(options: EngineOptions) {
     if (options.players.length < 1) throw new Error('At least one player is required');
@@ -133,14 +135,11 @@ export class GameEngine {
     const path: number[] = [];
     for (let i = 1; i <= steps; i++) path.push((player.position + i) % size);
 
-    // Each pass of (or landing on) the home port pays the royal salary.
-    const homePasses = path.filter((id) => id === 0).length;
-    if (homePasses > 0) this.changeGold(player, this.state.config.homeSalary * homePasses, 'royal salary');
-
     player.position = path[path.length - 1];
+    this.pendingPath = path;
     this.state.phase = 'moving';
+    this.log(`${player.name} spins ${steps}.`);
     this.emit({ type: 'moved', playerId: player.id, path });
-    this.log(`${player.name} spins ${steps} and sails to ${this.node(player.position).name}.`);
     return path;
   }
 
@@ -149,6 +148,15 @@ export class GameEngine {
     this.assertPhase('moving');
     const player = this.currentPlayer;
     const node = this.node(player.position);
+
+    // Each pass of (or landing on) the home port pays the royal salary, once the fleet has sailed.
+    const homePasses = this.pendingPath.filter((id) => id === 0).length;
+    this.pendingPath = [];
+    if (homePasses > 0) {
+      const salary = this.state.config.homeSalary * homePasses;
+      this.log(`The crown pays ${player.name} a ${salary}g royal salary.`);
+      this.changeGold(player, salary, 'royal salary');
+    }
 
     switch (node.kind) {
       case 'port':
@@ -166,7 +174,7 @@ export class GameEngine {
             this.emit({ type: 'claimOffered', playerId: player.id, nodeId: node.id });
             return; // wait for claim() / decline()
           }
-          this.log(`${player.name} cannot afford to settle ${node.name} (${node.price}g).`);
+          this.log(`${player.name} reaches ${node.name} but cannot afford to settle ${node.name} (${node.price}g).`);
         } else if (owner !== player.id) {
           this.payToll(player, this.state.players[owner], node);
         } else {
@@ -235,9 +243,9 @@ export class GameEngine {
 
   private payToll(player: Player, owner: Player, node: MapNode): void {
     const amount = Math.min(node.toll ?? 0, Math.max(player.gold, 0));
+    this.log(`${player.name} pays ${amount}g toll to ${owner.name} at ${node.name}.`);
     this.changeGold(player, -(node.toll ?? 0), `toll at ${node.name}`);
     this.changeGold(owner, amount, `toll at ${node.name}`);
-    this.log(`${player.name} pays ${node.toll}g toll to ${owner.name} at ${node.name}.`);
     this.emit({ type: 'tollPaid', from: player.id, to: owner.id, amount });
   }
 

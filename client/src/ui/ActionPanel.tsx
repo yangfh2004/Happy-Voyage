@@ -10,6 +10,7 @@ export function ActionPanel({ state }: { state: GameState }) {
   const spinId = gameController.spinId;
   const summary = !player.isAI && state.phase === 'awaitingSpin' ? gameController.feedback.summary : null;
   const gold = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value)}g`;
+  const headline = gameController.headline;
 
   let body;
   if (state.phase === 'gameOver') {
@@ -86,6 +87,7 @@ export function ActionPanel({ state }: { state: GameState }) {
           <div>Net gold: <strong className={summary.netGold < 0 ? 'expense' : 'income'}>{gold(summary.netGold)}</strong></div>
         </div>
       )}
+      {headline && !summary && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{headline.text}</div>}
       {state.phase === 'gameOver' ? body : (
         <div className="action-content">
           <Compass

@@ -29,7 +29,7 @@ beforeEach(() => {
   scene = Object.assign(new OceanScene(), {
     ships: new Map([[0, ship]]),
     marker: { clear: vi.fn() },
-    tweens: { add: (options: { onComplete(): void }) => {
+    tweens: { addCounter: (options: { onComplete(): void }) => {
       completions.push(options.onComplete);
       const tween = { stop: vi.fn(), setTimeScale: vi.fn() };
       tweens.push(tween);

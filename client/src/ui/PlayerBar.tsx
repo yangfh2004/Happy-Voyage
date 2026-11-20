@@ -14,6 +14,9 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
           islands
         </div>
         <div className="player-controls">
+          <button className="sound" onClick={() => gameController.toggleMute()} aria-pressed={!gameController.muted}>
+            {gameController.muted ? 'Sound off' : 'Sound on'}
+          </button>
           <button onClick={onFleet}>Fleet</button>
           <button onClick={onRules}>? Rules</button>
         </div>
@@ -28,7 +31,7 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
             <strong>{p.name}</strong>
             <span className="tag">{p.isAI ? 'AI' : 'You'}</span>
             <div className="stats">
-              {p.gold}g · {gameController.islandsOwnedBy(p.id)} islands · {p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}
+              {p.gold}g · {islands(gameController.islandsOwnedBy(p.id))} · {p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}
             </div>
           </div>
         ))}
@@ -36,3 +39,5 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
     </div>
   );
 }
+
+const islands = (n: number) => `${n} island${n === 1 ? '' : 's'}`;

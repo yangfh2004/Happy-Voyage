@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
-import { createDefaultMap, WORLD, type MapNode, type GameEvent } from '@happy-voyage/shared';
+import { createDefaultMap, WORLD, type GameEvent, type MapNode } from '@happy-voyage/shared';
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
+import { sfx } from '../sfx';
 
+const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈' };
 
 /** Small offsets so several fleets on one stop don't overlap. */
@@ -28,7 +30,9 @@ export class OceanScene extends Phaser.Scene {
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
   private labels!: Phaser.GameObjects.Layer;
-  private animatingPlayer: number | null = null;
+  /** Fleets whose move is being shown; their sprites are not snapped to the state position. */
+  private sailing = new Set<number>();
+  private islands = new Map<number, Phaser.GameObjects.Image>();
   private goldPopups = new Map<Phaser.GameObjects.Text, { x: number; y: number; lane: number }>();
   private movement: { playerId: number; path: number[]; id: number; index: number } | null = null;
   private moveTween: Phaser.Tweens.Tween | null = null;
@@ -40,10 +44,11 @@ export class OceanScene extends Phaser.Scene {
   create() {
     this.drawOcean();
     this.drawRoute();
-    this.flags = this.add.graphics();
     this.labels = this.add.layer();
     this.drawStops();
-    this.marker = this.add.graphics();
+    // Flags and the turn ring sit above the fleets so a moored ship never hides who owns an island.
+    this.flags = this.add.graphics().setDepth(11);
+    this.marker = this.add.graphics().setDepth(12);
 
     const syncLabels = () => {
       const showLabels = getComputedStyle(this.scale.parent).getPropertyValue('--chart-labels').trim() !== 'hidden';
@@ -55,12 +60,14 @@ export class OceanScene extends Phaser.Scene {
     const onMove = (move: { playerId: number; path: number[]; id: number }) => this.animateMove(move);
     const onPacing = () => this.updatePacing();
     const onCancel = () => this.cancelMove();
+    const onEngine = (event: GameEvent) => this.onEngineEvent(event);
     EventBus.on('state-changed', onState);
     EventBus.on('animate-move', onMove);
     const onGold = (event: Extract<GameEvent, { type: 'goldChanged' }>) => this.showGold(event);
     EventBus.on('gold-changed', onGold);
     EventBus.on('pacing-changed', onPacing);
     EventBus.on('cancel-move', onCancel);
+    EventBus.on('engine-event', onEngine);
     const cleanup = () => {
       this.goldPopups.clear();
       this.scale.off(Phaser.Scale.Events.RESIZE, syncLabels);
@@ -70,6 +77,7 @@ export class OceanScene extends Phaser.Scene {
       EventBus.off('gold-changed', onGold);
       EventBus.off('pacing-changed', onPacing);
       EventBus.off('cancel-move', onCancel);
+      EventBus.off('engine-event', onEngine);
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
@@ -120,7 +128,7 @@ export class OceanScene extends Phaser.Scene {
   private drawStops() {
     for (const node of this.map) {
       if (node.kind === 'island') {
-        this.add.image(node.x, node.y, 'island');
+        this.islands.set(node.id, this.add.image(node.x, node.y, 'island'));
       } else if (node.kind === 'port') {
         const g = this.add.graphics();
         g.fillStyle(0x8d6e63).fillRoundedRect(node.x - 26, node.y - 22, 52, 44, 8);
@@ -164,6 +172,7 @@ export class OceanScene extends Phaser.Scene {
     if (!state) {
       this.ships.forEach((ship) => ship.destroy());
       this.ships.clear();
+      this.sailing.clear();
       return;
     }
 
@@ -185,7 +194,7 @@ export class OceanScene extends Phaser.Scene {
         this.ships.set(player.id, ship);
       }
       ship.setAlpha(player.bankrupt ? 0.25 : 1);
-      if (this.animatingPlayer !== player.id) {
+      if (!this.sailing.has(player.id)) {
         const [x, y] = this.tokenPosition(player.id, player.position);
         ship.setPosition(x, y);
       }
@@ -193,7 +202,7 @@ export class OceanScene extends Phaser.Scene {
 
     // Ring under the fleet whose turn it is.
     const current = this.ships.get(state.currentPlayer);
-    if (current && state.phase !== 'gameOver') {
+    if (current && state.phase !== 'gameOver' && this.sailing.size === 0) {
       this.marker.lineStyle(3, 0xffffff, 0.9).strokeCircle(current.x, current.y + 2, 20);
     }
   }
@@ -202,13 +211,13 @@ export class OceanScene extends Phaser.Scene {
     this.moveTween?.stop();
     this.moveTween = null;
     this.movement = null;
-    this.animatingPlayer = null;
+    this.sailing.clear();
   }
 
   private animateMove(move: { playerId: number; path: number[]; id: number }) {
     this.cancelMove();
     this.movement = { ...move, index: 0 };
-    this.animatingPlayer = move.playerId;
+    this.sailing.add(move.playerId);
     this.marker.clear();
     this.nextStep();
   }
@@ -238,14 +247,11 @@ export class OceanScene extends Phaser.Scene {
     const ship = this.ships.get(move.playerId);
     if (!ship) { this.finishMove(); return; }
     const [x, y] = this.tokenPosition(move.playerId, move.path[move.index++]);
-    ship.setFlipX(x < ship.x);
-    this.moveTween = this.tweens.add({
-      targets: ship, x, y, duration: 200, ease: 'Sine.easeInOut',
-      onComplete: () => {
-        if (this.movement !== move) return;
-        this.moveTween = null;
-        this.nextStep();
-      },
+    this.moveTween = this.hop(ship, x, y, () => {
+      if (this.movement !== move) return;
+      this.moveTween = null;
+      sfx.step();
+      this.nextStep();
     });
     this.updatePacing();
   }
@@ -260,6 +266,106 @@ export class OceanScene extends Phaser.Scene {
     }
     this.cancelMove();
     EventBus.emit('move-complete', move.id);
+  }
+
+  /** One step along the route: a little arc, like a ship riding a swell. */
+  private hop(ship: Phaser.GameObjects.Image, x: number, y: number, onComplete: () => void): Phaser.Tweens.Tween {
+    const fromX = ship.x;
+    const fromY = ship.y;
+    ship.setFlipX(x < fromX);
+    return this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 200,
+      ease: 'Sine.easeInOut',
+      onUpdate: (tween) => {
+        const t = tween.getValue() ?? 0;
+        ship.setPosition(fromX + (x - fromX) * t, fromY + (y - fromY) * t - Math.sin(Math.PI * t) * HOP_HEIGHT);
+      },
+      onComplete,
+    });
+  }
+
+  // --- board effects for engine events --------------------------------------
+
+  private onEngineEvent(event: GameEvent) {
+    const state = gameController.state;
+    if (!state) return;
+    switch (event.type) {
+      case 'tollPaid': {
+        const payer = this.ships.get(event.from);
+        const island = this.map[state.players[event.from].position];
+        if (!payer) break;
+        this.coinBurst(payer.x, payer.y, island.x, island.y, 6, () => this.bounce(island.id));
+        break;
+      }
+      case 'claimed': {
+        const node = this.map[event.nodeId];
+        const color = state.players[event.playerId].color;
+        this.bounce(node.id);
+        this.confetti(node.x, node.y, color);
+        break;
+      }
+      case 'goldChanged': {
+        // The amounts themselves are shown by showGold; this adds the jingle of coins or the jolt of a storm.
+        const ship = this.ships.get(event.playerId);
+        if (!ship) break;
+        if (event.reason === 'royal salary') {
+          const home = this.map[0];
+          this.coinBurst(home.x, home.y, ship.x, ship.y, 4);
+        } else if (event.reason === 'treasure' || event.reason === 'trade') this.coinBurst(ship.x, ship.y + 20, ship.x, ship.y, 4);
+        else if (event.reason === 'storm repairs') this.cameras.main.shake(250, 0.004);
+        break;
+      }
+    }
+  }
+
+  /** Coins arcing from one point to another; `onArrive` runs when the first lands. */
+  private coinBurst(fromX: number, fromY: number, toX: number, toY: number, count: number, onArrive?: () => void) {
+    for (let i = 0; i < count; i++) {
+      const coin = this.add.image(fromX, fromY, 'coin').setDepth(25);
+      const lift = 50 + Math.random() * 30;
+      const spread = (Math.random() - 0.5) * 30;
+      this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        delay: i * 60,
+        duration: 450,
+        ease: 'Quad.easeIn',
+        onUpdate: (tween) => {
+          const t = tween.getValue() ?? 0;
+          coin.setPosition(fromX + (toX - fromX) * t + spread * Math.sin(Math.PI * t), fromY + (toY - fromY) * t - Math.sin(Math.PI * t) * lift);
+        },
+        onComplete: () => {
+          coin.destroy();
+          if (i === 0) onArrive?.();
+        },
+      });
+    }
+  }
+
+  private bounce(nodeId: number) {
+    const island = this.islands.get(nodeId);
+    if (!island) return;
+    this.tweens.add({ targets: island, scale: 1.3, duration: 140, yoyo: true, ease: 'Quad.easeOut' });
+  }
+
+  private confetti(x: number, y: number, color: number) {
+    const colors = [color, 0xffd54f, 0xffffff];
+    for (let i = 0; i < 18; i++) {
+      const angle = (i / 18) * Math.PI * 2;
+      const bit = this.add.rectangle(x, y, 6, 4, colors[i % colors.length]).setDepth(25);
+      this.tweens.add({
+        targets: bit,
+        x: x + Math.cos(angle) * Phaser.Math.Between(40, 70),
+        y: y + Math.sin(angle) * Phaser.Math.Between(30, 60),
+        angle: Phaser.Math.Between(-360, 360),
+        alpha: 0,
+        duration: 800,
+        ease: 'Cubic.easeOut',
+        onComplete: () => bit.destroy(),
+      });
+    }
   }
 
   private tokenPosition(playerId: number, nodeId: number): [number, number] {

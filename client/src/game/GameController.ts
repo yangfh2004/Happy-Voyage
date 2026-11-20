@@ -1,6 +1,13 @@
-import { GameEngine, type GameEvent, type GameState, type PlayerSetup } from '@happy-voyage/shared';
+import { GameEngine, type GameEvent, type GameState, type Player, type PlayerSetup } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
 import { TurnFeedback } from './TurnFeedback';
+import { isMuted, setMuted, sfx } from './sfx';
+
+/** A moment worth celebrating (or groaning at) for the human, shown until their next roll. */
+export interface Headline {
+  text: string;
+  tone: 'gain' | 'loss';
+}
 
 export const SPEEDS = {
   Normal: { ai: 700, step: 200, spin: 1400 },
@@ -38,6 +45,9 @@ export class GameController {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private pending: (() => void) | null = null;
   private pendingSince = 0;
+  /** Where the sailing fleet set out from, so text views don't reveal its destination early. */
+  private departure: { playerId: number; position: number } | null = null;
+  headline: Headline | null = null;
 
   constructor() {
     EventBus.on('move-complete', (id: number) => {
@@ -86,6 +96,7 @@ export class GameController {
     this.skipping = false;
     this.moveId += 1;
     EventBus.emit('cancel-move');
+    this.headline = null;
     this.engine = new GameEngine({ players });
     this.feedback = new TurnFeedback();
     this.engine.on((event) => this.onEngineEvent(event));
@@ -126,6 +137,21 @@ export class GameController {
     if (this.isHumanTurn('awaitingClaim')) this.engine!.decline();
   }
 
+  /** A fleet's stop as the board shows it: its departure stop until it has sailed in. */
+  shownPosition(player: Player): number {
+    const sailing = this.departure?.playerId === player.id && this.engine?.state.phase === 'moving';
+    return sailing ? this.departure!.position : player.position;
+  }
+
+  get muted(): boolean {
+    return isMuted();
+  }
+
+  toggleMute(): void {
+    setMuted(!isMuted());
+    this.changed();
+  }
+
   islandsOwnedBy(playerId: number): number {
     return this.engine?.islandsOwnedBy(playerId) ?? 0;
   }
@@ -144,12 +170,20 @@ export class GameController {
   private onEngineEvent(event: GameEvent): void {
     const engine = this.engine!;
     this.feedback.observe(event, engine.state);
+    const players = engine.state.players;
+    const isHuman = (id: number) => !players[id].isAI;
+    EventBus.emit('engine-event', event);
     switch (event.type) {
-      case 'goldChanged':
-        EventBus.emit('gold-changed', event);
-        break;
       case 'compassSpun':
         this.spinSequence += 1;
+        this.departure = { playerId: event.playerId, position: players[event.playerId].position };
+        if (isHuman(event.playerId)) this.headline = null;
+        sfx.spin();
+        break;
+      case 'goldChanged':
+        EventBus.emit('gold-changed', event);
+        if (event.reason === 'royal salary' || event.reason === 'treasure' || event.reason === 'trade') sfx.coin();
+        else if (event.reason === 'storm repairs') sfx.storm();
         break;
       case 'moved':
         EventBus.emit('animate-move', { playerId: event.playerId, path: event.path, id: ++this.moveId });
@@ -158,11 +192,31 @@ export class GameController {
         if (!engine.currentPlayer.isAI) this.skipping = false;
         if (engine.currentPlayer.isAI) this.later(() => this.beginSpin(engine));
         break;
+      case 'tollPaid': {
+        const at = engine.state.map[players[event.from].position].name;
+        if (isHuman(event.to)) {
+          this.headline = { text: `${players[event.from].name} pays you ${event.amount}g toll at ${at}!`, tone: 'gain' };
+          sfx.coin();
+        } else if (isHuman(event.from)) {
+          this.headline = { text: `You pay ${players[event.to].name} ${event.amount}g toll at ${at}.`, tone: 'loss' };
+          sfx.pay();
+        } else {
+          sfx.coin();
+        }
+        break;
+      }
+      case 'claimed': {
+        const node = engine.state.map[event.nodeId];
+        if (isHuman(event.playerId)) this.headline = { text: `${node.name} is yours! Rivals now pay you ${node.toll}g here.`, tone: 'gain' };
+        sfx.claim();
+        break;
+      }
       case 'claimOffered':
         if (!engine.currentPlayer.isAI) this.skipping = false;
         if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());
         break;
       case 'gameOver':
+        if (isHuman(event.winner)) sfx.win();
         this.skipping = false;
         this.clearTimers();
         break;

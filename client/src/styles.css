@@ -200,3 +200,11 @@ kbd { display: inline-block; margin-left: 4px; padding: 0 3px; border: 1px solid
 .turn-summary { font-size: 12px; text-align: left; border-bottom: 1px solid #c9b68a; padding-bottom: 6px; margin-bottom: 6px; }
 .income, .log .income { color: #216b37; }
 .expense, .log .expense { color: #a32d25; }
+
+button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
+.subtitle { font-family: system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif; }
+
+.headline { margin: -2px 0 6px; padding: 4px 10px; border-radius: 8px; font-weight: 700; animation: banner 0.3s ease-out; }
+@keyframes banner { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: none; } }
+.headline.gain { background: #fff1b8; color: #7a5200; border: 1px solid #e0b728; }
+.headline.loss { background: #fde2e1; color: #8e2b2b; border: 1px solid #d64545; }
