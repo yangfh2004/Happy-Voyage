@@ -1,4 +1,4 @@
-import { localize, tx, type Text } from './i18n';
+import { ZH, localize, tx, type Locale, type Text } from './i18n';
 import { createDefaultMap } from './map';
 import type { GameConfig } from './types';
 
@@ -70,3 +70,9 @@ export function winConditionTx(config: Pick<GameConfig, 'islandsToWin' | 'maxRou
     ? tx('{goal}, be the last navigator afloat, or have the highest net worth after {r} rounds', '{goal}、成为最后一位仍在海上的航海家，或在 {r} 回合后拥有最高身家', { goal, r: config.maxRounds })
     : tx('{goal} or be the last navigator afloat', '{goal}，或成为最后一位仍在海上的航海家', { goal });
 }
+
+export function modeText(id: GameModeId, locale: Locale): { name: string; description: string } {
+  const mode = GAME_MODES.find((candidate) => candidate.id === id)!;
+  return locale === 'zh' ? ZH.modes[id] : { name: mode.name, description: mode.description };
+}
+

@@ -44,6 +44,15 @@ export function tx(en: string, zh: string, params?: Record<string, TextParam>): 
   return params ? { en, zh, params } : { en, zh };
 }
 
+/** Campaign wording lives beside the stages (campaign.ts), which registers it here to avoid an import cycle. */
+const campaignText = {
+  stage: (id: CampaignStageId, _locale: Locale): { name: string } => ({ name: id }),
+  mission: (_stage: CampaignStageId, objective: CampaignObjective, _locale: Locale): string => objective,
+};
+export function registerCampaignText(text: typeof campaignText): void {
+  Object.assign(campaignText, text);
+}
+
 export const ref = {
   player: (id: number): NameRef => ({ ref: 'player', id }),
   node: (id: number): NameRef => ({ ref: 'node', id }),
@@ -95,8 +104,8 @@ function localizeParam(locale: Locale, value: TextParam, state?: NameState | nul
     case 'rank': return rankName(value.id, locale);
     case 'captain': return captainName(value.id, locale);
     case 'hermit': return hermitName(value.id, locale);
-    case 'stage': return stageText(value.id, locale).name;
-    case 'mission': return missionText(value.stage, value.objective, locale);
+    case 'stage': return campaignText.stage(value.id, locale).name;
+    case 'mission': return campaignText.mission(value.stage, value.objective, locale);
     case 'event': return seaEventName(value.id, locale);
     case 'list': return join(value.items);
   }
@@ -109,8 +118,6 @@ import { BUILDINGS } from './buildings';
 import { CAPTAINS } from './captains';
 import { HERMITS } from './mist';
 import { SHIP_TYPES } from './ships';
-import { CAMPAIGN_STAGES } from './campaign';
-import { GAME_MODES } from './modes';
 import { SEA_EVENT_NAMES } from './seaEvents';
 
 const EN_NAMES = { strategy: (id: StrategyId) => STRATEGIES[id].name };
@@ -264,19 +271,4 @@ export function hermitName(id: string, locale: Locale): string {
 
 export function seaEventName(event: EventKind, locale: Locale): string {
   return locale === 'zh' ? ZH.events[event] : SEA_EVENT_NAMES[event];
-}
-
-export function modeText(id: GameModeId, locale: Locale): { name: string; description: string } {
-  const mode = GAME_MODES.find((candidate) => candidate.id === id)!;
-  return locale === 'zh' ? ZH.modes[id] : { name: mode.name, description: mode.description };
-}
-
-export function stageText(id: CampaignStageId, locale: Locale): { name: string; briefing: string } {
-  const stage = CAMPAIGN_STAGES.find((candidate) => candidate.id === id)!;
-  return locale === 'zh' ? ZH.stages[id] : { name: stage.name, briefing: stage.briefing };
-}
-
-export function missionText(stageId: CampaignStageId, objective: CampaignObjective, locale: Locale): string {
-  if (locale === 'zh') return ZH.missions[objective];
-  return CAMPAIGN_STAGES.find((stage) => stage.id === stageId)!.missions.find((mission) => mission.objective === objective)!.description;
 }

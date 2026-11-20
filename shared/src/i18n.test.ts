@@ -32,7 +32,12 @@ describe('i18n', () => {
       players: NATIONS.slice(0, 4).map((nation, color) => ({ name: nation.name, nation: nation.name, color, isAI: true })),
       config: { maxRounds: 40 }, rng: () => ((seed = (seed * 16807) % 2147483647) / 2147483647),
     });
-    for (let step = 0; step < 6000 && engine.state.phase !== 'gameOver'; step++) engine.decideForAI();
+    for (let step = 0; step < 6000 && engine.state.phase !== 'gameOver'; step++) {
+      if (engine.state.phase === 'awaitingSpin') engine.decideForAI();
+      if (engine.state.phase === 'awaitingSpin') { engine.spinCompass(); engine.sail(); }
+      else if (engine.state.phase === 'moving') engine.resolveLanding();
+      else engine.decideForAI();
+    }
     expect(engine.state.log.length).toBeGreaterThan(100);
     const texts = engine.state.logText ?? [];
     expect(texts.length).toBe(engine.state.log.length);
