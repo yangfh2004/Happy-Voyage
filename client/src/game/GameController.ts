@@ -34,6 +34,7 @@ export class GameController {
   feedback = new TurnFeedback();
   private skipping = false;
   private moveId = 0;
+  private pendingMove: { playerId: number; path: number[]; id: number } | null = null;
   private spinSequence = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private pending: (() => void) | null = null;
@@ -41,7 +42,10 @@ export class GameController {
 
   constructor() {
     EventBus.on('move-complete', (id: number) => {
-      if (id === this.moveId && this.engine?.state.phase === 'moving') this.engine.resolveLanding();
+      if (id === this.moveId && this.engine?.state.phase === 'moving') {
+        this.pendingMove = null;
+        this.engine.resolveLanding();
+      }
     });
   }
 
@@ -85,6 +89,7 @@ export class GameController {
     this.clearTimers();
     this.skipping = false;
     this.moveId += 1;
+    this.pendingMove = null;
     EventBus.emit('cancel-move');
     this.engine = new GameEngine({ players });
     this.feedback = new TurnFeedback();
@@ -98,6 +103,7 @@ export class GameController {
     this.clearTimers();
     this.skipping = false;
     this.moveId += 1;
+    this.pendingMove = null;
     EventBus.emit('cancel-move');
     this.engine = null;
     this.feedback = new TurnFeedback();
@@ -111,6 +117,10 @@ export class GameController {
 
   finishSpin(id: number): void {
     if (id === this.spinId && this.engine?.state.phase === 'spinning') this.engine.sail();
+  }
+
+  resumeMovement(): void {
+    if (this.pendingMove) EventBus.emit('animate-move', this.pendingMove);
   }
 
   private beginSpin(engine: GameEngine): void {
@@ -152,7 +162,8 @@ export class GameController {
         this.spinSequence += 1;
         break;
       case 'moved':
-        EventBus.emit('animate-move', { playerId: event.playerId, path: event.path, id: ++this.moveId });
+        this.pendingMove = { playerId: event.playerId, path: event.path, id: ++this.moveId };
+        this.resumeMovement();
         break;
       case 'turnStarted':
         if (!engine.currentPlayer.isAI) this.skipping = false;

@@ -116,6 +116,7 @@ export class OceanScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
 
     this.syncFromState();
+    gameController.resumeMovement();
   }
 
   private drawOcean() {

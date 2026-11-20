@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import { createGameConfig } from './config';
+import { waitForSeaFont } from './chartStartup';
 
 /** Mounts the Phaser canvas into a React-managed div. */
 export function PhaserGame() {
@@ -16,7 +17,7 @@ export function PhaserGame() {
         if (game?.isBooted) game.scale.resize(entry.contentRect.width, entry.contentRect.height);
       });
     });
-    void document.fonts.load('14px "Sea Names"').then(() => {
+    void waitForSeaFont(() => document.fonts.load('14px "Sea Names"')).then(() => {
       if (disposed) return;
       game = new Phaser.Game(createGameConfig(container.current!));
       observer.observe(container.current!);

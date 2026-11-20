@@ -48,6 +48,33 @@ function humanTurn() {
 }
 
 describe('pacing', () => {
+  it('replays a move lost before scene startup and clears it after landing', () => {
+    controller.newGame(players);
+    controller.spinCompass();
+    controller.finishSpin(controller.spinId);
+    const replay = vi.fn();
+    EventBus.on('animate-move', replay);
+    controller.resumeMovement();
+    expect(replay).toHaveBeenCalledWith(expect.objectContaining({ id: moveId, path: [1, 2] }));
+    EventBus.emit('move-complete', moveId);
+    replay.mockClear();
+    controller.resumeMovement();
+    expect(replay).not.toHaveBeenCalled();
+    expect(controller.state?.phase).toBe('awaitingClaim');
+  });
+
+  it('does not replay a previous voyage after restarting or quitting', () => {
+    controller.newGame(players);
+    controller.spinCompass();
+    controller.finishSpin(controller.spinId);
+    controller.newGame(players);
+    const replay = vi.fn();
+    EventBus.on('animate-move', replay);
+    controller.resumeMovement();
+    controller.quit();
+    controller.resumeMovement();
+    expect(replay).not.toHaveBeenCalled();
+  });
   it('resolves a wyvern relocation with a new move ID before advancing the turn', () => {
     controller.newGame(players);
     const state = controller.state!;
