@@ -1,4 +1,10 @@
 .building-option { margin-bottom: 12px; }
+.voyage-top, .voyage-bottom, .helm-card, .menu-close, .menu-scrim { display: none; }
+.strategy-cards { margin-top: 14px; text-align: left; }
+.strategy-cards summary { cursor: pointer; padding: 12px; font-weight: 700; border: 1px solid #cba654; border-radius: 10px; }
+.secondary-hud, .voyage-menu { display: contents; }
+.menu-shortcuts { display: none; }
+.resource-icon { width: 18px; height: 18px; vertical-align: middle; }
 .atmosphere-status { position: absolute; bottom: 12px; left: 12px; padding: 7px 12px; border: 2px solid #a9f6ef; border-radius: 20px; background: #103c5bed; color: #fff9d9; font-family: 'Sea Names', system-ui, sans-serif; font-size: 13px; font-weight: 700; text-transform: capitalize; pointer-events: none; }
 .building-option small { display: block; margin: 3px 0; }
 .sea-map { position: absolute; inset: 0; }
@@ -324,3 +330,56 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   background: radial-gradient(circle at 30% 25%, #d4f1b8, #408957 68%, #275841);
   box-shadow: 0 2px 3px #2b1d0e33; }
 .mist-stone.taken { background: transparent; border: 1px dashed #a38f76; box-shadow: none; }
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .playing { padding: 10px; gap: 10px; grid-template-columns: minmax(0, 1fr) 350px; grid-template-rows: 116px minmax(0, 1fr) 88px; background: linear-gradient(135deg, #10436a, #041b30); }
+  .voyage-top, .voyage-bottom { display: flex; align-items: center; gap: 12px; grid-column: 1 / -1; border: 1px solid #d9b65f; border-radius: 18px; background: #06243f; color: #fff6dc; padding: 10px 14px; box-shadow: 0 3px 8px #001423; min-width: 0; }
+  .voyage-top { grid-row: 1; }
+  .voyage-logo { width: 115px; flex-shrink: 0; color: #f5d381; font: bold 20px Georgia, serif; }
+  .voyage-logo span { display: block; }
+  .voyage-seats { display: flex; gap: 6px; overflow-x: auto; min-width: 0; flex: 1; padding: 4px; }
+  .voyage-chip { position: relative; display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 2px 4px; flex: 0 0 110px; padding: 16px 6px 5px; border: 2px solid; border-radius: 12px; font-size: 11px; background: #103450; }
+  .voyage-chip strong { overflow: hidden; text-overflow: ellipsis; }
+  .voyage-chip > span:not(.current-label), .voyage-chip small { grid-column: 1 / -1; }
+  .voyage-chip small { color: #f8e2a3; }
+  .voyage-chip.active { border-color: #ffce54 !important; box-shadow: 0 0 9px #ffc74c99; }
+  .voyage-chip.bankrupt { opacity: .45; }
+  .current-label { position: absolute; top: 0; left: 0; width: 100%; text-align: center; border-radius: 9px 9px 0 0; background: #f3c24f; color: #14283b; font-size: 9px; font-weight: 800; }
+  .voyage-menu-control { display: grid; gap: 6px; justify-items: end; font-size: 12px; }
+  .voyage-menu-control button { min-height: 44px; color: #fff6dc; background: #204c70; border-color: #c5a65f; }
+  .playing .sea-map { grid-column: 1; grid-row: 2; border: 2px solid #91bac6; border-radius: 20px; box-shadow: 0 3px 12px #001c30; }
+  .playing .overlay { grid-column: 2; grid-row: 2; border: 2px solid #d9b65f; border-radius: 20px; padding: 12px; background: linear-gradient(#fffdf4, #ece9dc); }
+  .playing .hud { gap: 8px; }
+  .helm-card { display: block; text-align: center; }
+  .helm-card h2 { font-family: 'Sea Names', system-ui, sans-serif; font-size: 19px; }
+  .helm-portrait { display: inline-flex; border: 3px solid #d2a33c; border-radius: 50%; padding: 3px; background: #0d527c; margin: 4px; }
+  .helm-portrait .portrait { margin: 0; }
+  .helm-card dl { margin: 8px 0; }
+  .helm-card dl > div { display: flex; justify-content: space-between; padding: 5px 3px; border-bottom: 1px solid #c9c4b3; }
+  .helm-card dt { font-weight: 700; }
+  .helm-card dd { margin: 0; }
+  .playing .actions { border: 0; background: transparent; box-shadow: none; border-radius: 0; padding: 0; }
+  .playing .actions .primary { background: linear-gradient(#399b35, #12611c); border: 2px solid #d1a72e; border-radius: 16px; color: white; box-shadow: 0 3px 0 #214721; font-weight: 750; min-height: 52px; }
+  .playing .actions .big { width: 100%; padding: 12px 8px; font-size: 19px; }
+  .playing .actions button { min-height: 44px; }
+  .playing .action-content { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+  .playing .compass svg { width: 80px; height: 80px; }
+  .playing .decision-action .compass { display: none; }
+  .playing .decision-action p { font-size: 14px; margin: 5px 0; }
+  .playing .actions > .shortcuts, .playing .rival-cards { display: none; }
+  .menu-shortcuts { display: block; }
+  .voyage-bottom { grid-row: 3; }
+  .voyage-bottom > strong { flex: 0 0 110px; color: #edce81; font-size: 14px; }
+  .voyage-bottom .log { flex: 1; min-width: 0; background: transparent; color: #fff5da; border: 0; padding: 0; box-shadow: none; font-size: 12px; }
+  .voyage-bottom .log > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .voyage-bottom .log > div::before { content: '• '; color: #e8c66b; }
+  .voyage-bottom .log .latest { color: #f6d37a; }
+  .voyage-bottom > button { min-width: 140px; min-height: 52px; border-radius: 16px; color: white; background: linear-gradient(#287bc0, #124b83); border-color: #75b5e2; font-weight: 750; }
+  .voyage-bottom > button:disabled { opacity: .45; cursor: not-allowed; }
+  .playing .secondary-hud { display: none; }
+  .playing .secondary-hud.is-open { display: block; }
+  .menu-scrim { display: block; position: fixed; inset: 0; border: 0; border-radius: 0; background: #00182c99; z-index: 30; }
+  .playing .voyage-menu { display: flex; flex-direction: column; gap: 10px; position: fixed; z-index: 31; top: 90px; right: 18px; width: 440px; max-height: calc(100vh - 110px); overflow: auto; padding: 18px; border: 2px solid #d4ad50; border-radius: 18px; background: #f8f0dc; box-shadow: 0 10px 40px #001424; }
+  .menu-close { display: block; align-self: flex-end; min-height: 44px; }
+  .playing .mobile-log { display: none; }
+}

@@ -2,9 +2,9 @@ import type { GameState, Text } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 
 /** The ship's log: the most recent events, newest first, in the chosen language. */
-export function LogPanel({ log, state, tones }: { log: Text[]; state: GameState; tones: Map<number, 'income' | 'expense'> }) {
+export function LogPanel({ log, state, tones, limit = 6 }: { log: Text[]; state: GameState; tones: Map<number, 'income' | 'expense'>; limit?: number }) {
   const { l } = useT();
-  const recent = log.slice(-6).reverse();
+  const recent = log.slice(-limit).reverse();
   return (
     <div className="panel log">
       {recent.map((line, i) => (

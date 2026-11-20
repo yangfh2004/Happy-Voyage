@@ -18,11 +18,14 @@ import { FleetPanel } from './ui/FleetPanel';
 import { SeaNotifications } from './ui/SeaNotifications';
 import { TutorialPanel } from './ui/TutorialPanel';
 import { readPreference, writePreference } from './ui/accessibilityPreferences';
+import { HelmCard, VoyageBottomBar, VoyageTopBar } from './ui/BoardChrome';
+import { ShortcutLegend } from './ui/ShortcutLegend';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [fleetOpen, setFleetOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [tutorialDismissed, setTutorialDismissed] = useState(() => readPreference('tutorial-dismissed'));
   const [tutorialRequested, setTutorialRequested] = useState(false);
   const [colorBlind, setColorBlind] = useState(() => readPreference('color-blind'));
@@ -32,6 +35,7 @@ export function App() {
   const { t, locale } = useT();
   const state = gameController.state;
   const room = gameController.room;
+  const atHelm = !!state && !state.players[state.currentPlayer].isAI && (!room || gameController.canHelm) && !gameController.awaitingHandoff && state.phase !== 'gameOver';
   const tutorialOpen = !!state && (!tutorialDismissed || tutorialRequested);
   function dismissTutorial() {
     writePreference('tutorial-dismissed', true);
@@ -54,7 +58,7 @@ export function App() {
   const paletteToggle = <button type="button" className="palette-toggle" aria-pressed={colorBlind} onClick={toggleColorBlind}>{t('Color-blind mode', '色觉无障碍模式')}</button>;
 
   useEffect(() => {
-    if (rulesOpen || fleetOpen || tutorialOpen) return;
+    if (rulesOpen || fleetOpen || tutorialOpen || menuOpen) return;
     const shortcuts = keyboardShortcuts(gameController);
     window.addEventListener('keydown', shortcuts.keydown);
     window.addEventListener('keyup', shortcuts.keyup);
@@ -64,7 +68,13 @@ export function App() {
       window.removeEventListener('keyup', shortcuts.keyup);
       window.removeEventListener('blur', shortcuts.blur);
     };
-  }, [rulesOpen, fleetOpen, tutorialOpen]);
+  }, [rulesOpen, fleetOpen, tutorialOpen, menuOpen]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); setMenuOpen(false); } };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [menuOpen]);
   useEffect(() => {
     const start = () => gameController.startSoundtrack();
     window.addEventListener('pointerdown', start, { once: true });
@@ -86,6 +96,7 @@ export function App() {
 
   return (
     <div className={`app ${state ? 'playing' : ''}`}>
+      {state && <VoyageTopBar state={state} colorBlind={colorBlind} menuOpen={menuOpen} onMenu={() => setMenuOpen(!menuOpen)} />}
       <div className="sea-map">
         <PhaserGame />
         <Atmosphere state={state} />
@@ -94,6 +105,12 @@ export function App() {
       <div className="overlay" ref={overlay}>
         {state ? (
           <div className="hud">
+            <HelmCard state={state} colorBlind={colorBlind} atHelm={atHelm} />
+            <ActionPanel state={state} colorBlind={colorBlind} />
+            <div className={`secondary-hud ${menuOpen ? 'is-open' : ''}`}>
+            {menuOpen && <button className="menu-scrim" aria-label={t('Close menu', '关闭菜单')} onClick={() => setMenuOpen(false)} />}
+            <div id="voyage-menu" className="voyage-menu">
+            <button className="menu-close" onClick={() => setMenuOpen(false)}>{t('Close menu', '关闭菜单')} ✕</button>
             <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>{t('Fit chart', '查看全图')}</button><button onClick={() => EventBus.emit('follow-ship')}>{t('Follow ship', '跟随船只')}</button></div>
             {room && (
               <div className="panel room-status">
@@ -105,11 +122,13 @@ export function App() {
                 }}>{t('Leave room', '离开房间')}</button>}
               </div>
             )}
-            <ActionPanel state={state} colorBlind={colorBlind} />
             {state.campaign && <CampaignPanel campaign={state.campaign} />}
-            <PlayerBar state={state} colorBlind={colorBlind} paletteToggle={paletteToggle} onRules={() => setRulesOpen(true)} onFleet={() => setFleetOpen(true)} onTutorial={() => setTutorialRequested(true)} />
-            <LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} />
+            <PlayerBar state={state} colorBlind={colorBlind} paletteToggle={paletteToggle} onRules={() => { setMenuOpen(false); setRulesOpen(true); }} onFleet={() => { setMenuOpen(false); setFleetOpen(true); }} onTutorial={() => { setMenuOpen(false); setTutorialRequested(true); }} />
+            <div className="mobile-log"><LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} /></div>
             <RouteDetails state={state} />
+            <div className="menu-shortcuts"><ShortcutLegend /></div>
+            </div>
+            </div>
           </div>
         ) : room ? <OnlineMenu room={room} /> : (
           <SetupMenu onRules={() => setRulesOpen(true)} paletteToggle={paletteToggle} />
@@ -118,6 +137,7 @@ export function App() {
         {tutorialOpen && <TutorialPanel onClose={dismissTutorial} />}
         {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} islandCount={state?.map.filter((node) => node.kind === 'island').length} campaign={state?.campaign} onClose={() => setRulesOpen(false)} />}
       </div>
+      {state && <VoyageBottomBar state={state} atHelm={atHelm} />}
     </div>
   );
 }

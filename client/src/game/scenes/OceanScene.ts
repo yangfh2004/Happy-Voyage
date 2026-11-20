@@ -65,6 +65,7 @@ export class OceanScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
     const fit = () => {
       const camera = this.cameras.main;
+      camera.useBounds = false;
       camera.setSize(this.game.canvas.parentElement!.clientWidth, this.game.canvas.parentElement!.clientHeight);
       camera.setZoom(Math.min(camera.width / WORLD.width, camera.height / WORLD.height));
       camera.centerOn(WORLD.width / 2, WORLD.height / 2);
@@ -90,7 +91,7 @@ export class OceanScene extends Phaser.Scene {
       }
     });
     const onFit = () => fit();
-    const onFollow = () => { this.following = true; this.cameras.main.setZoom(0.95); this.syncFromState(); };
+    const onFollow = () => { this.following = true; this.cameras.main.useBounds = true; this.cameras.main.setZoom(0.95); this.syncFromState(); };
     const onResize = () => { if (this.scale.width >= 700) fit(); else onFollow(); };
     this.scale.on('resize', onResize);
     EventBus.on('fit-chart', onFit);

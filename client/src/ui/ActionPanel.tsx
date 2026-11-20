@@ -247,10 +247,9 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
     body = <p className="waiting">{t('Sailing…', '航行中……')}</p>;
   }
 
-  return (
-    <div className="panel actions">
-      {atHelm && state.phase !== 'gameOver' && <section aria-label={t('Strategy cards', '谋略卡')}>
-        <h3><StatTooltip stat="cards">{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</StatTooltip></h3>
+  const strategies = (
+      <details className="strategy-cards">
+        <summary>{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</summary>
         {player.strategies.length === 0 && <p>{t('No strategy cards.', '没有谋略卡。')}</p>}
         {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
           {state.map.map((node) => <option key={node.id} value={node.id}>{nodeName(node, locale)}</option>)}
@@ -261,8 +260,13 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
           <button disabled={!gameController.canUseStrategy(id, id === 'navigate' ? destination : undefined)} onClick={() => gameController.useStrategy(id, id === 'navigate' ? destination : undefined)}>{t('Use {s}', '使用「{s}」', { s: strategyText(id, locale).name })}</button>
         </div>)}
         {player.knownHoard !== null && <p>{t('Buried hoard: {n}', '埋藏的宝藏：{n}', { n: at(player.knownHoard) })}</p>}
-      </section>}
+      </details>
+  );
+  return (
+    <div className={`panel actions ${state.phase === 'awaitingSpin' || spinning || state.phase === 'moving' ? 'sailing-action' : 'decision-action'}`}>
+      <div className="rival-cards">
       <p>{state.players.filter((p) => p.id !== player.id).map((p) => t(`{p}: {n} ${p.strategies.length === 1 ? 'card' : 'cards'}`, '{p}：{n} 张谋略卡', { p: name(p), n: p.strategies.length })).join(' · ')}</p>
+      </div>
       {state.phase === 'gameOver' || trading ? body : (
         <div className="action-content">
           <Compass
@@ -275,6 +279,7 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
           <div>{body}</div>
         </div>
       )}
+      {atHelm && state.phase !== 'gameOver' && strategies}
       {gameController.waiting && (
         <button onClick={() => gameController.skipToMyTurn()}>{room ? t('Skip animations', '跳过动画') : gameController.humanCount > 1 ? t('Skip to the next player', '跳到下一位玩家') : t('Skip to my turn', '跳到我的回合')} <kbd>K</kbd></button>
       )}
