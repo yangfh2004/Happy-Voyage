@@ -19,11 +19,23 @@ import { SeaNotifications } from './ui/SeaNotifications';
 import { TutorialPanel } from './ui/TutorialPanel';
 import { TurnIndicator } from './ui/TurnIndicator';
 import { readPreference, writePreference } from './ui/accessibilityPreferences';
+import { HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } from './ui/BoardChrome';
+import { ShortcutLegend } from './ui/ShortcutLegend';
+import { TurnCoach } from './ui/TurnCoach';
+import { trapMenuFocus } from './ui/menuFocus';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [fleetOpen, setFleetOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [strategyHost, setStrategyHost] = useState<HTMLDivElement | null>(null);
+  const [chartFocus, setChartFocus] = useState<{ x: number; y: number; bottom: boolean } | null>(null);
+  useEffect(() => {
+    const update = (focus: typeof chartFocus) => setChartFocus(old => JSON.stringify(old) === JSON.stringify(focus) ? old : focus);
+    EventBus.on('chart-focus', update);
+    return () => { EventBus.off('chart-focus', update); };
+  }, []);
   const [tutorialDismissed, setTutorialDismissed] = useState(() => readPreference('tutorial-dismissed'));
   const [tutorialRequested, setTutorialRequested] = useState(false);
   const [colorBlind, setColorBlind] = useState(() => readPreference('color-blind'));
@@ -33,6 +45,8 @@ export function App() {
   const { t, locale } = useT();
   const state = gameController.state;
   const room = gameController.room;
+  const atHelm = !!state && !state.players[state.currentPlayer].isAI && (!room || gameController.canHelm) && !gameController.awaitingHandoff && state.phase !== 'gameOver';
+  const landing = atHelm && state.phase.startsWith('awaiting') && state.phase !== 'awaitingSpin';
   const tutorialOpen = !!state && (!tutorialDismissed || tutorialRequested);
   function dismissTutorial() {
     writePreference('tutorial-dismissed', true);
@@ -55,7 +69,7 @@ export function App() {
   const paletteToggle = <button type="button" className="palette-toggle" aria-pressed={colorBlind} onClick={toggleColorBlind}>{t('Color-blind mode', '色觉无障碍模式')}</button>;
 
   useEffect(() => {
-    if (rulesOpen || fleetOpen || tutorialOpen) return;
+    if (rulesOpen || fleetOpen || tutorialOpen || menuOpen) return;
     const shortcuts = keyboardShortcuts(gameController);
     window.addEventListener('keydown', shortcuts.keydown);
     window.addEventListener('keyup', shortcuts.keyup);
@@ -65,7 +79,12 @@ export function App() {
       window.removeEventListener('keyup', shortcuts.keyup);
       window.removeEventListener('blur', shortcuts.blur);
     };
-  }, [rulesOpen, fleetOpen, tutorialOpen]);
+  }, [rulesOpen, fleetOpen, tutorialOpen, menuOpen]);
+  const [menu, setMenu] = useState<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    if (!menuOpen) return;
+    if (menu) return trapMenuFocus(menu, () => setMenuOpen(false));
+  }, [menuOpen, menu]);
   useEffect(() => {
     const start = () => gameController.startSoundtrack();
     window.addEventListener('pointerdown', start, { once: true });
@@ -76,17 +95,20 @@ export function App() {
     };
   }, []);
   const overlay = useRef<HTMLDivElement>(null);
+  const actionSurface = useRef<HTMLElement>(null);
   const needsInput = state && !state.players[state.currentPlayer].isAI &&
     (state.phase === 'awaitingSpin' || state.phase === 'awaitingClaim' ||
       state.phase === 'awaitingRecruit' || state.phase === 'awaitingLottery' || state.phase === 'awaitingBarter' || state.phase === 'awaitingCargoMarket' || state.phase === 'awaitingToll' ||
       state.phase === 'awaitingMerchant' || state.phase === 'awaitingWyvern');
-  const prompt = needsInput ? `${state.round}:${state.currentPlayer}:${state.phase}` : null;
+  const prompt = state && (needsInput || landing) ? `${state.round}:${state.currentPlayer}:${state.phase}` : null;
   useLayoutEffect(() => {
     if (prompt && overlay.current) overlay.current.scrollTop = 0;
+    if (prompt && actionSurface.current) actionSurface.current.scrollTop = 0;
   }, [prompt]);
 
   return (
     <div className={`app ${state ? 'playing' : ''}`}>
+      {state && <VoyageTopBar state={state} colorBlind={colorBlind} menuOpen={menuOpen} onMenu={() => setMenuOpen(!menuOpen)} />}
       <div className="sea-map">
         <PhaserGame />
         <Atmosphere state={state} />
@@ -95,9 +117,22 @@ export function App() {
           <SeaNotifications notices={gameController.seaNotices} onDismiss={(id) => gameController.dismissSeaNotice(id)} />
         </div>}
       </div>
-      <div className="overlay" ref={overlay}>
+      <div className={`overlay ${landing ? 'has-landing' : ''} ${atHelm ? 'is-your-turn' : ''}`} ref={overlay}>
         {state ? (
           <div className="hud">
+            <HelmCard state={state} colorBlind={colorBlind} atHelm={atHelm} />
+            <NextStop state={state} />
+            {landing && <p className="landing-hint">⚓ {t('Choose an action on the card', '请在卡片上选择行动')}</p>}
+            <section ref={actionSurface} className={landing ? `landing-placement ${chartFocus?.bottom ? 'landing-top' : ''}` : 'turn-action-panel'}>
+            {landing && <LandingHeading state={state} />}
+            <ActionPanel state={state} colorBlind={colorBlind} strategyHost={landing ? strategyHost : null} />
+            </section>
+            <div ref={setStrategyHost} className="strategy-host" />
+            {!tutorialOpen && <TurnCoach state={state} atHelm={atHelm} target={chartFocus} />}
+            <div className={`secondary-hud ${menuOpen ? 'is-open' : ''}`}>
+            {menuOpen && <button className="menu-scrim" aria-label={t('Close menu', '关闭菜单')} onClick={() => setMenuOpen(false)} />}
+            <div ref={setMenu} id="voyage-menu" className="voyage-menu" role={menuOpen ? 'dialog' : undefined} aria-modal={menuOpen || undefined} aria-label={t('Menu', '菜单')} tabIndex={-1}>
+            <button className="menu-close" onClick={() => setMenuOpen(false)}>{t('Close menu', '关闭菜单')} ✕</button>
             <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>{t('Fit chart', '查看全图')}</button><button onClick={() => EventBus.emit('follow-ship')}>{t('Follow ship', '跟随船只')}</button></div>
             {room && (
               <div className="panel room-status">
@@ -105,15 +140,20 @@ export function App() {
                   t('Online · You are {p}', '在线 · 你是 {p}', { p: playerName(state.players[gameController.viewerId!], locale) }) : t('Room connection lost. Trying to reconnect…', '与房间的连接已断开，正在重新连接……')}</span>
                 {room.error && <span role="alert">{roomError(room.error, locale)}</span>}
                 {state.phase !== 'gameOver' && <button onClick={() => {
-                  if (window.confirm(t('Leave this voyage? You can reopen your invite in this tab to return to your seat.', '离开本次航程？在此标签页重新打开邀请链接即可回到你的座位。'))) gameController.quit();
+                  if (window.confirm(t('Leave this voyage? You can reopen your invite in this tab to return to your seat.', '离开本次航程？在此标签页重新打开邀请链接即可回到你的座位。'))) {
+                    setMenuOpen(false);
+                    gameController.quit();
+                  }
                 }}>{t('Leave room', '离开房间')}</button>}
               </div>
             )}
-            <ActionPanel state={state} colorBlind={colorBlind} />
             {state.campaign && <CampaignPanel campaign={state.campaign} />}
-            <PlayerBar state={state} colorBlind={colorBlind} paletteToggle={paletteToggle} onRules={() => setRulesOpen(true)} onFleet={() => setFleetOpen(true)} onTutorial={() => setTutorialRequested(true)} />
-            <LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} />
+            <PlayerBar state={state} colorBlind={colorBlind} paletteToggle={paletteToggle} onRules={() => { setMenuOpen(false); setRulesOpen(true); }} onFleet={() => { setMenuOpen(false); setFleetOpen(true); }} onTutorial={() => { setMenuOpen(false); setTutorialRequested(true); }} />
+            <div className="mobile-log"><LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} limit={3} /></div>
             <RouteDetails state={state} />
+            <div className="menu-shortcuts"><ShortcutLegend /></div>
+            </div>
+            </div>
           </div>
         ) : room ? <OnlineMenu room={room} /> : (
           <SetupMenu onRules={() => setRulesOpen(true)} paletteToggle={paletteToggle} />
@@ -122,6 +162,7 @@ export function App() {
         {tutorialOpen && <TutorialPanel onClose={dismissTutorial} />}
         {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} islandCount={state?.map.filter((node) => node.kind === 'island').length} campaign={state?.campaign} onClose={() => setRulesOpen(false)} />}
       </div>
+      {state && <VoyageBottomBar state={state} atHelm={atHelm} />}
     </div>
   );
 }

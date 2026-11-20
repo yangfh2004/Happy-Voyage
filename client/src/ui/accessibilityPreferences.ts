@@ -1,6 +1,6 @@
 const PREFIX = 'happy-voyage-';
 
-export type Preference = 'tutorial-dismissed' | 'color-blind';
+export type Preference = 'tutorial-dismissed' | 'color-blind' | 'coach-dismissed';
 
 const sessionValues = new Map<Preference, boolean>();
 

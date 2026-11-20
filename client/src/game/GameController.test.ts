@@ -50,6 +50,49 @@ function humanTurn() {
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
 }
 
+it('tags only the compass movement for route dots, not later Wyvern flights', () => {
+  const moves = vi.fn();
+  EventBus.on('animate-move', moves);
+  controller.newGame(players);
+  const origin = controller.state!.players[0].position;
+  controller.spinCompass();
+  controller.finishSpin(controller.spinId);
+  expect(moves).toHaveBeenLastCalledWith(expect.objectContaining({ sailFrom: origin }));
+  controller.newGame(players);
+  const state = controller.state!;
+  state.players[0].strategies = ['navigate'];
+  controller.useStrategy('navigate', state.map.find(n => n.event === 'wyvern')!.id);
+  expect(state.phase).toBe('awaitingWyvern');
+  controller.wyvernFly(2);
+  expect(moves).toHaveBeenLastCalledWith(expect.objectContaining({ path: [2], sailFrom: undefined }));
+});
+
+it('publishes a compass target through sailing and clears it on arrival', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  expect(controller.landingTarget).toBeNull();
+  controller.spinCompass();
+  const target = controller.landingTarget!;
+  expect(target.steps).toBe(2);
+  expect(target.nodeId).toBe((state.players[0].position + 2) % state.map.length);
+  controller.finishSpin(controller.spinId);
+  expect(controller.landingTarget).toEqual(target);
+  EventBus.emit('move-complete', moveId);
+  expect(controller.landingTarget).toBeNull();
+});
+
+it('clears Navigate previews on its immediate landing without inventing a compass roll', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  const target = state.map.find((node) => node.kind === 'island')!.id;
+  state.players[0].strategies = ['navigate'];
+  controller.useStrategy('navigate', target);
+  expect(state.players[0].position).toBe(target);
+  expect(state.phase).toBe('awaitingClaim');
+  expect(state.lastSpin).toBeNull();
+  expect(controller.landingTarget).toBeNull();
+});
+
 it('routes recruitment and decline actions only during human recruiting visits', () => {
   controller.newGame(players);
   const state = controller.state!;

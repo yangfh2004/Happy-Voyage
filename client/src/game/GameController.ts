@@ -6,6 +6,7 @@ import type { HermitId, StrategyId } from '@happy-voyage/shared';
 import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, setVolume, sfx, startSoundtrack, type SoundChannel } from './sfx';
 import type { SeaEventResult } from '@happy-voyage/shared';
+import { landingTarget } from './landingTarget';
 
 export interface SeaNotice {
   id: number;
@@ -58,7 +59,8 @@ export class GameController {
   feedback = new TurnFeedback();
   private skipping = false;
   private moveId = 0;
-  private pendingMove: { playerId: number; path: number[]; id: number } | null = null;
+  private pendingMove: { playerId: number; path: number[]; id: number; sailFrom?: number } | null = null;
+  private compassDeparture: number | undefined;
   private spinSequence = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private lotteryClock: ReturnType<typeof setInterval> | undefined;
@@ -94,7 +96,7 @@ export class GameController {
       if (this.engine?.state.phase === 'moving') {
         this.departure = { playerId: this.engine.currentPlayer.id, position: this.engine.currentPlayer.position };
         this.engine.resolveLanding();
-      }
+      } else this.changed();
     });
   }
 
@@ -123,6 +125,10 @@ export class GameController {
 
   get spinId(): number {
     return this.spinSequence;
+  }
+
+  get landingTarget() {
+    return landingTarget(this.state, this.pendingMove);
   }
 
   get waiting(): boolean {
@@ -208,6 +214,7 @@ export class GameController {
   }
 
   private beginGame(options: EngineOptions): void {
+    this.compassDeparture = undefined;
     this.clearTimers();
     this.skipping = false;
     this.moveId += 1;
@@ -227,6 +234,7 @@ export class GameController {
 
   /** Back to the setup menu. */
   quit(): void {
+    this.compassDeparture = undefined;
     const room = this.room;
     this.room = null;
     this.onlineView = null;
@@ -534,6 +542,7 @@ export class GameController {
         sfx.coin();
         break;
       case 'compassSpun':
+        this.compassDeparture = players[event.playerId].position;
         this.spinSequence += 1;
         this.departure = { playerId: event.playerId, position: players[event.playerId].position };
         if (isViewer(event.playerId)) this.headline = null;
@@ -545,7 +554,8 @@ export class GameController {
         else if (event.reason === 'storm repairs') sfx.storm();
         break;
       case 'moved':
-        this.pendingMove = { playerId: event.playerId, path: event.path, id: ++this.moveId };
+        this.pendingMove = { playerId: event.playerId, path: event.path, id: ++this.moveId, sailFrom: this.compassDeparture };
+        this.compassDeparture = undefined;
         this.resumeMovement();
         break;
       case 'turnStarted':

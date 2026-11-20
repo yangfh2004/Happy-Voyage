@@ -7,6 +7,7 @@ vi.mock('../GameController', () => ({ gameController: { timings: { step: 200 } }
 import { OceanScene } from './OceanScene';
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
+import { createNationRoster, GameEngine } from '@happy-voyage/shared';
 
 type Move = { playerId: number; path: number[]; id: number };
 type SceneHarness = {
@@ -15,6 +16,7 @@ type SceneHarness = {
   cancelMove(): void;
   syncFromState(): void;
   update(): void;
+  drawLandingTarget(): void;
 };
 
 let scene: SceneHarness;
@@ -40,6 +42,28 @@ beforeEach(() => {
       return tween;
     } },
   }) as unknown as SceneHarness;
+});
+
+describe('landing highlight', () => {
+  it('draws a large layered glow and badge, projects the target and clears after arrival', () => {
+    const { state } = new GameEngine({ players: createNationRoster([{ name: 'Captain', nation: 'Spain' }]) });
+    const node = state.map[5];
+    const graphics = { clear: vi.fn(), lineStyle: vi.fn().mockReturnThis(), strokeCircle: vi.fn().mockReturnThis() };
+    const badge = { setFontSize: vi.fn().mockReturnThis(), setText: vi.fn().mockReturnThis(), setPosition: vi.fn().mockReturnThis(), setVisible: vi.fn().mockReturnThis() };
+    Object.assign(gameController, { state, landingTarget: { nodeId: node.id, playerId: 0, steps: null, preview: true } });
+    Object.assign(scene, { landingMarker: graphics, landingBadge: badge, time: { now: 0 }, cameras: { main: { worldView: { x: 0, y: 0 }, zoom: .5, height: 600 } }, game: { canvas: { getBoundingClientRect: () => ({ left: 10, top: 20 }) } } });
+    vi.stubGlobal('window', { matchMedia: () => ({ matches: true }) });
+    scene.drawLandingTarget();
+    expect(graphics.strokeCircle).toHaveBeenCalledWith(node.x, node.y, 62);
+    expect(graphics.lineStyle).toHaveBeenCalledWith(32, expect.any(Number), .12);
+    expect(badge.setFontSize).toHaveBeenCalledWith(34);
+    expect(EventBus.emit).toHaveBeenCalledWith('chart-focus', { x: Math.round(10 + node.x / 2), y: Math.round(20 + node.y / 2), bottom: node.y / 2 > 300 });
+    Object.assign(gameController, { landingTarget: null });
+    scene.drawLandingTarget();
+    expect(graphics.clear).toHaveBeenCalledTimes(2);
+    expect(badge.setVisible).toHaveBeenLastCalledWith(false);
+    vi.unstubAllGlobals();
+  });
 });
 
 describe('pinch zoom', () => {

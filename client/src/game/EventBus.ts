@@ -10,6 +10,8 @@ import Phaser from 'phaser';
  *   'pacing-changed'         ()                       update active movement speed
  *   'palette-changed'        (enabled)                redraw chart colors and seat markers
  *   'cancel-move'            ()                       discard an old game's movement
+ *   'navigate-preview'       ({ playerId, nodeId } | null) preview the focused Navigate selector
+ *   'chart-focus'            ({ x, y, bottom } | null) viewport position of target or landed stop
  *   'engine-event'           (GameEvent)              every engine event, for board effects
  */
 export const EventBus = new Phaser.Events.EventEmitter();

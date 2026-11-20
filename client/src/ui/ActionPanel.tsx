@@ -3,7 +3,8 @@ import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { BarterPanel } from './BarterPanel';
 import { LotteryPanel } from './LotteryPanel';
 import { MistPanel } from './MistPanel';
@@ -16,11 +17,12 @@ import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { seatTag } from './seats';
 import { StatTooltip } from './StatTooltip';
+import { EventBus } from '../game/EventBus';
 
 const BUILDING_SIZES = { en: ['None', 'Small', 'Medium', 'Large'], zh: ['无', '小型', '中型', '大型'] };
 
 /** What the human can do right now: spin, claim or decline, or start over. */
-export function ActionPanel({ state, colorBlind = false }: { state: GameState; colorBlind?: boolean }) {
+export function ActionPanel({ state, colorBlind = false, strategyHost }: { state: GameState; colorBlind?: boolean; strategyHost?: HTMLElement | null }) {
   const { t, l, locale } = useT();
   const name = (p: { name: string; navigator?: string }) => playerName(p, locale);
   const at = (id: number) => nodeName(state.map[id], locale);
@@ -29,9 +31,15 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
   const lastLog = () => { const text = state.logText?.length === state.log.length ? state.logText.at(-1) : undefined; return text ? l(text, state) : state.log.at(-1) ?? ''; };
   const [transfersOpen, setTransfersOpen] = useState(false);
   const [destination, setDestination] = useState(state.map[0].id);
+  const [previewing, setPreviewing] = useState(false);
   const player = state.players[state.currentPlayer];
   const room = gameController.room;
   const atHelm = !player.isAI && (!room || gameController.canHelm);
+  const canPreview = atHelm && state.phase === 'awaitingSpin' && player.strategies.includes('navigate') && !state.strategyUsed;
+  useEffect(() => {
+    EventBus.emit('navigate-preview', previewing && canPreview ? { playerId: player.id, nodeId: destination } : null);
+    return () => { EventBus.emit('navigate-preview', null); };
+  }, [previewing, canPreview, player.id, destination]);
   const spinning = state.phase === 'spinning';
   const trading = state.phase === 'awaitingCargoMarket' && atHelm;
   const spinId = gameController.spinId;
@@ -247,8 +255,25 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
     body = <p className="waiting">{t('Sailing…', '航行中……')}</p>;
   }
 
+  const strategies = (
+    <section aria-label={t('Strategy cards', '谋略卡')}>
+      <details className="strategy-cards" onToggle={(event) => { if (!event.currentTarget.open) setPreviewing(false); }}>
+        <summary>{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</summary>
+        {player.strategies.length === 0 && <p>{t('No strategy cards.', '没有谋略卡。')}</p>}
+        {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onFocus={() => setPreviewing(true)} onBlur={() => setPreviewing(false)} onChange={(e) => { setDestination(Number(e.target.value)); setPreviewing(true); }}>
+          {state.map.map((node) => <option key={node.id} value={node.id}>{nodeName(node, locale)}</option>)}
+        </select></label>}
+        {player.strategies.map((id, index) => <div key={`${id}-${index}`}>
+          <strong>{strategyText(id, locale).name}</strong>
+          <p>{strategyText(id, locale).description}</p>
+          <button disabled={!gameController.canUseStrategy(id, id === 'navigate' ? destination : undefined)} onClick={() => gameController.useStrategy(id, id === 'navigate' ? destination : undefined)}>{t('Use {s}', '使用「{s}」', { s: strategyText(id, locale).name })}</button>
+        </div>)}
+        {player.knownHoard !== null && <p>{t('Buried hoard: {n}', '埋藏的宝藏：{n}', { n: at(player.knownHoard) })}</p>}
+      </details>
+    </section>
+  );
   return (
-    <div className="panel actions">
+    <div className={`panel actions ${state.phase === 'awaitingSpin' || spinning || state.phase === 'moving' ? 'sailing-action' : 'decision-action'}`}>
       {state.phase === 'gameOver' || trading ? body : (
         <div className="action-content">
           <Compass
@@ -264,20 +289,10 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
       {gameController.waiting && (
         <button onClick={() => gameController.skipToMyTurn()}>{room ? t('Skip animations', '跳过动画') : gameController.humanCount > 1 ? t('Skip to the next player', '跳到下一位玩家') : t('Skip to my turn', '跳到我的回合')} <kbd>K</kbd></button>
       )}
-      {atHelm && state.phase !== 'gameOver' && <section aria-label={t('Strategy cards', '谋略卡')}>
-        <h3><StatTooltip stat="cards">{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</StatTooltip></h3>
-        {player.strategies.length === 0 && <p>{t('No strategy cards.', '没有谋略卡。')}</p>}
-        {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
-          {state.map.map((node) => <option key={node.id} value={node.id}>{nodeName(node, locale)}</option>)}
-        </select></label>}
-        {player.strategies.map((id, index) => <div key={`${id}-${index}`}>
-          <strong>{strategyText(id, locale).name}</strong>
-          <p>{strategyText(id, locale).description}</p>
-          <button disabled={!gameController.canUseStrategy(id, id === 'navigate' ? destination : undefined)} onClick={() => gameController.useStrategy(id, id === 'navigate' ? destination : undefined)}>{t('Use {s}', '使用「{s}」', { s: strategyText(id, locale).name })}</button>
-        </div>)}
-        {player.knownHoard !== null && <p>{t('Buried hoard: {n}', '埋藏的宝藏：{n}', { n: at(player.knownHoard) })}</p>}
-      </section>}
+      {atHelm && state.phase !== 'gameOver' && (strategyHost ? createPortal(strategies, strategyHost) : strategies)}
+      <div className="rival-cards">
       <p>{state.players.filter((p) => p.id !== player.id).map((p) => t(`{p}: {n} ${p.strategies.length === 1 ? 'card' : 'cards'}`, '{p}：{n} 张谋略卡', { p: name(p), n: p.strategies.length })).join(' · ')}</p>
+      </div>
       {summary && (
         <div className="turn-summary">
           <strong>{gameController.humanCount > 1 ? t('Since your last turn, {p}', '{p}，自你上回合以来', { p: name(player) }) : t('Since your last turn', '自你上回合以来')}</strong>

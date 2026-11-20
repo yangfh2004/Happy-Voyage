@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { atmosphere, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
-import { getLocale, subscribeLocale } from '../../i18n';
+import { atmosphere, buildingDescription, buildingName, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type BuildingKind, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
+import { getLocale, pick, subscribeLocale } from '../../i18n';
 import { readPreference } from '../../ui/accessibilityPreferences';
 
 const REGIONS = [['ATLANTIC OCEAN', '大西洋'], ['THE AMERICAS', '美洲'], ['AFRICA · INDIAN OCEAN', '非洲 · 印度洋'], ['ASIAN SEAS', '亚洲海域']];
@@ -9,10 +9,20 @@ import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 import { sfx } from '../sfx';
 import { CHART_DEPTH, drawAtmosphere } from '../atmosphereArt';
+import { landingTarget, sailingRoute, type MovePath, type NavigatePreview } from '../landingTarget';
 
 const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
 const SPECIAL_SYMBOL: Record<string, string> = { skeleton: '☠', treasure: '◆', mist: '☁', revival: '✚', nightless: '☾', wind: '≋', dragonSnake: '♜' };
+const SPECIAL_HELP: Record<string, [string, string]> = {
+  skeleton: ['Trade used ships after tribute or scrap trading.', '缴纳贡金或交易废料后买卖二手船。'],
+  treasure: ['Buy lottery numbers and match the draw to win gold.', '购买彩票号码，匹配开奖赢取金币。'],
+  mist: ['Duel a hermit to learn a strategy card.', '与隐士对决，学习谋略卡。'],
+  revival: ['Pay for fleet repairs and block the next sea hazard.', '付费修理舰队，并抵挡下一次海上灾难。'],
+  nightless: ['Buy and sell cargo at changing market prices.', '按变化的市场价格买卖货物。'],
+  wind: ['Exchange fleet cargo for more valuable native goods.', '用船上货物交换更有价值的当地特产。'],
+  dragonSnake: ['Recruit a captain for royal benefits and discounts.', '招募船长，获得王室福利和折扣。'],
+};
 const PORT_FLAGS: Record<string, [number, number, number]> = {
   Spain: [0xc62632, 0xf6c945, 0xc62632], Netherlands: [0xc62632, 0xffffff, 0x23478e],
   England: [0xffffff, 0xc62632, 0xffffff], Portugal: [0x147549, 0xc62632, 0xc62632],
@@ -53,8 +63,12 @@ export class OceanScene extends Phaser.Scene {
   private sailing = new Set<number>();
   private islands = new Map<number, Phaser.GameObjects.Image>();
   private goldPopups = new Map<Phaser.GameObjects.Text, { x: number; y: number; lane: number }>();
-  private movement: { playerId: number; path: number[]; id: number; index: number } | null = null;
+  private movement: (MovePath & { id: number; index: number }) | null = null;
   private moveTween: Phaser.Tweens.Tween | null = null;
+  private landingMarker?: Phaser.GameObjects.Graphics;
+  private landingBadge?: Phaser.GameObjects.Text;
+  private navigatePreview: NavigatePreview | null = null;
+  private framedTarget: string | null = null;
 
   constructor() {
     super('Ocean');
@@ -65,6 +79,7 @@ export class OceanScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
     const fit = () => {
       const camera = this.cameras.main;
+      camera.useBounds = false;
       camera.setSize(this.game.canvas.parentElement!.clientWidth, this.game.canvas.parentElement!.clientHeight);
       camera.setZoom(Math.min(camera.width / WORLD.width, camera.height / WORLD.height));
       camera.centerOn(WORLD.width / 2, WORLD.height / 2);
@@ -90,7 +105,7 @@ export class OceanScene extends Phaser.Scene {
       }
     });
     const onFit = () => fit();
-    const onFollow = () => { this.following = true; this.cameras.main.setZoom(0.95); this.syncFromState(); };
+    const onFollow = () => { this.following = true; this.cameras.main.useBounds = true; this.cameras.main.setZoom(0.95); this.syncFromState(); };
     const onResize = () => { if (this.scale.width >= 700) fit(); else onFollow(); };
     this.scale.on('resize', onResize);
     EventBus.on('fit-chart', onFit);
@@ -104,6 +119,8 @@ export class OceanScene extends Phaser.Scene {
     // Flags and the turn ring sit above the fleets so a moored ship never hides who owns an island.
     this.flags = this.add.graphics().setDepth(11);
     this.marker = this.add.graphics().setDepth(12);
+    this.landingMarker = this.add.graphics().setDepth(13);
+    this.landingBadge = this.add.text(0, 0, '', { fontFamily: '"Sea Names", system-ui, sans-serif', fontSize: '24px', fontStyle: 'bold', color: '#fff8d8', backgroundColor: '#092f46', padding: { x: 7, y: 3 } }).setOrigin(0.5).setDepth(14).setVisible(false);
 
     const syncLabels = () => {
       const showLabels = getComputedStyle(this.scale.parent).getPropertyValue('--chart-labels').trim() !== 'hidden';
@@ -132,6 +149,8 @@ export class OceanScene extends Phaser.Scene {
     EventBus.on('cancel-move', onCancel);
     EventBus.on('engine-event', onEngine);
     EventBus.on('palette-changed', onPalette);
+    const onPreview = (preview: NavigatePreview | null) => { this.navigatePreview = preview; };
+    EventBus.on('navigate-preview', onPreview);
     const unsubscribeLocale = subscribeLocale(() => this.relabel(gameController.state));
     const cleanup = () => {
       unsubscribeLocale();
@@ -148,6 +167,7 @@ export class OceanScene extends Phaser.Scene {
       EventBus.off('cancel-move', onCancel);
       EventBus.off('engine-event', onEngine);
       EventBus.off('palette-changed', onPalette);
+      EventBus.off('navigate-preview', onPreview);
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
@@ -158,11 +178,62 @@ export class OceanScene extends Phaser.Scene {
 
   update() {
     this.updatePinch();
+    this.drawLandingTarget();
     if (this.atmosphereLayer) drawAtmosphere(this.atmosphereLayer, gameController.state, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : this.time.now);
     this.shipBadges.forEach((badge, id) => {
       const ship = this.ships.get(id)!;
       badge.setPosition(ship.x + 12, ship.y - 13);
     });
+  }
+
+  private drawLandingTarget() {
+    if (!this.landingMarker || !this.landingBadge) return;
+    this.landingMarker.clear();
+    const state = gameController.state;
+    const target = gameController.landingTarget ?? landingTarget(state, null, this.navigatePreview);
+    if (state && this.scale?.width <= 700) {
+      const camera = this.cameras.main;
+      const key = target ? `${target.playerId}:${target.nodeId}` : null;
+      if (target && key !== this.framedTarget) {
+        const from = state.map[state.players[target.playerId].position];
+        const to = state.map[target.nodeId];
+        this.following = false;
+        camera.setZoom(Math.min(.95, (camera.width - 80) / (Math.abs(to.x - from.x) + 140), (camera.height - 80) / (Math.abs(to.y - from.y) + 140)));
+        camera.centerOn((from.x + to.x) / 2, (from.y + to.y) / 2);
+      } else if (!target && this.framedTarget) {
+        const node = state.map[state.players[state.currentPlayer].position];
+        this.following = true;
+        camera.setZoom(.95).centerOn(node.x, node.y);
+      }
+      this.framedTarget = key;
+    }
+    const focus = state && this.map[target?.nodeId ?? state.pendingClaim ?? state.players[state.currentPlayer].position];
+    if (focus) {
+      const camera = this.cameras.main;
+      const rect = this.game.canvas.getBoundingClientRect();
+      const point = { x: (focus.x - camera.worldView.x) * camera.zoom, y: (focus.y - camera.worldView.y) * camera.zoom };
+      EventBus.emit('chart-focus', { x: Math.round(rect.left + point.x), y: Math.round(rect.top + point.y), bottom: point.y > camera.height / 2 });
+    } else EventBus.emit('chart-focus', null);
+    if (!state || !target) { this.landingBadge.setVisible(false); return; }
+    const node = state.map.find((stop) => stop.id === target.nodeId)!;
+    const { color } = chartIdentity(state.players[target.playerId], this.colorBlind);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const pulse = reduced ? 0 : (Math.sin(this.time.now / 180) + 1) / 2;
+    if (!target.preview) {
+      const route = sailingRoute(state, this.movement);
+      for (let i = 0; i < route.length - 1; i++) {
+        const a = state.map[route[i]];
+        const b = state.map[route[i + 1]];
+        const count = Math.ceil(Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y) / 18);
+        for (let j = 0; j < count; j++) this.landingMarker.fillStyle(color, .5).fillCircle(a.x + (b.x - a.x) * j / count, a.y + (b.y - a.y) * j / count, 4);
+      }
+    }
+    const radius = 62 + pulse * 10;
+    this.landingMarker.lineStyle(32, color, .12).strokeCircle(node.x, node.y, radius);
+    this.landingMarker.lineStyle(23, color, .2).strokeCircle(node.x, node.y, radius);
+    this.landingMarker.lineStyle(15, 0xffffff, .95).strokeCircle(node.x, node.y, radius);
+    this.landingMarker.lineStyle(10, color, 1).strokeCircle(node.x, node.y, radius);
+    this.landingBadge.setFontSize(Math.max(34, 16 / this.cameras.main.zoom)).setText(target.preview ? pick(getLocale(), 'Preview', '预览') : String(target.steps)).setPosition(node.x + 55, node.y - 64).setVisible(true);
   }
 
   private updatePinch() {
@@ -206,7 +277,9 @@ export class OceanScene extends Phaser.Scene {
     this.ocean.clear();
     this.ocean.fillStyle(top);
     this.ocean.fillGradientStyle(top, top, bottom, bottom, 1);
-    this.ocean.fillRect(0, 0, WORLD.width, WORLD.height);
+    this.ocean.fillRect(-WORLD.width * 4, 0, WORLD.width * 9, WORLD.height);
+    this.ocean.fillStyle(top).fillRect(-WORLD.width * 4, -WORLD.height * 4, WORLD.width * 9, WORLD.height * 4);
+    this.ocean.fillStyle(bottom).fillRect(-WORLD.width * 4, WORLD.height, WORLD.width * 9, WORLD.height * 4);
   }
 
   private syncBadge(badges: Map<number, Phaser.GameObjects.Text>, id: number, label: string | null, x: number, y: number, depth: number) {
@@ -294,6 +367,22 @@ export class OceanScene extends Phaser.Scene {
       text.setPosition(node.x, node.y + 35).setOrigin(0.5, 0);
       this.labels.add(text);
       this.stopLabels.set(node.id, text);
+      text.setInteractive({ useHandCursor: true });
+      let tooltip: Phaser.GameObjects.Text | null = null;
+      const showTooltip = () => {
+        const locale = getLocale();
+        const help = SPECIAL_HELP[node.special ?? ''];
+        const buildings = gameController.state?.buildings[node.id] ?? {};
+        const lines = Object.entries(buildings).filter(([, level]) => level > 0).map(([kind]) => `${buildingName(kind as BuildingKind, locale)}: ${buildingDescription(kind as BuildingKind, locale)}`);
+        if (help) lines.unshift(pick(locale, ...help));
+        if (!lines.length) return;
+        tooltip?.destroy();
+        tooltip = this.add.text(node.x, node.y - 80, `${nodeName(node, locale)}\n${lines.join('\n')}`, { fontFamily: '"Sea Names", sans-serif', fontSize: '15px', color: '#fff6dc', backgroundColor: '#092f46', padding: { x: 12, y: 9 }, wordWrap: { width: 240 } }).setOrigin(.5, 1).setDepth(40).setScale(1 / this.cameras.main.zoom);
+      };
+      const hideTooltip = () => { tooltip?.destroy(); tooltip = null; };
+      text.on('pointerover', showTooltip);
+      text.on('pointerout', hideTooltip);
+      this.add.zone(node.x, node.y, 60, 50).setInteractive({ useHandCursor: true }).on('pointerover', showTooltip).on('pointerout', hideTooltip);
     }
   }
 
