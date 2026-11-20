@@ -197,6 +197,26 @@ export class GameController {
     if (this.isHumanTurn('awaitingBuild')) this.engine!.finishBuilding();
   }
 
+  canBuyUsedShip(type: ShipType): boolean {
+    return this.isHumanTurn('awaitingMarket') && this.engine!.canBuyUsedShip(type);
+  }
+
+  buyUsedShip(type: ShipType): void {
+    if (this.canBuyUsedShip(type)) this.engine!.buyUsedShip(type);
+  }
+
+  canSellShip(shipId: number): boolean {
+    return this.isHumanTurn('awaitingMarket') && this.engine!.canSellShip(shipId);
+  }
+
+  sellShip(shipId: number): void {
+    if (this.canSellShip(shipId)) this.engine!.sellShip(shipId);
+  }
+
+  finishMarket(): void {
+    if (this.isHumanTurn('awaitingMarket')) this.engine!.finishMarket();
+  }
+
   /** A fleet's stop as the board shows it: its departure stop until it has sailed in. */
   shownPosition(player: Player): number {
     const sailing = this.departure?.playerId === player.id && this.engine?.state.phase === 'moving';
@@ -277,7 +297,11 @@ export class GameController {
         if (isHuman(event.playerId) && ship) this.headline = { text: `${ship.name} joined your fleet.`, tone: 'gain' };
         break;
       }
+      case 'shipSold':
+        if (isHuman(event.playerId)) this.headline = { text: `Sold ${event.shipName} for ${event.price}g.`, tone: 'gain' };
+        break;
       case 'claimOffered':
+      case 'marketOffered':
       case 'barterOffered':
       case 'buildOffered':
         if (!engine.currentPlayer.isAI) this.skipping = false;

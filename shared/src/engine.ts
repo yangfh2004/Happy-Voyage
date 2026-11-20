@@ -7,7 +7,7 @@ export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
-import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad } from './ships';
+import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 import type { Good } from './types';
 import { navigatorById, type SignatureShip } from './navigators';
 import type { ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
@@ -90,6 +90,7 @@ export class GameEngine {
         fleet: [],
       })),
       nextShipId: 1,
+      marketStock: [],
       owners: map.map(() => null),
       buildings: map.map(() => ({})),
       stockpiles: map.map(emptyStockpile),
@@ -215,6 +216,12 @@ export class GameEngine {
         break;
       case 'special':
         this.resolveSpecial(player, node);
+        if (node.special === 'skeleton') {
+          this.state.marketStock = ['explorer', 'cargo', 'warship'];
+          this.state.phase = 'awaitingMarket';
+          this.emit({ type: 'marketOffered', playerId: player.id, nodeId: node.id });
+          return;
+        }
         if (this.state.pendingBarter) return;
         break;
       case 'event':
@@ -424,6 +431,10 @@ export class GameEngine {
 
   /** Let the built-in AI make the current player's pending decision. */
   decideForAI(): void {
+    if (this.state.phase === 'awaitingMarket') {
+      this.finishMarket();
+      return;
+    }
     if (this.state.phase === 'awaitingBarter') {
       const choice = aiBarterChoice(this.currentPlayer, this.state.pendingBarter!);
       if (choice === null) this.declineBarter();
@@ -447,6 +458,46 @@ export class GameEngine {
   }
 
   // --- internals -----------------------------------------------------------
+
+  private atMarket(): boolean {
+    return this.state.phase === 'awaitingMarket' && !this.currentPlayer.bankrupt &&
+      this.node(this.currentPlayer.position)?.special === 'skeleton';
+  }
+
+  canBuyUsedShip(type: ShipType): boolean {
+    return this.atMarket() && this.state.marketStock.includes(type) && this.currentPlayer.gold >= USED_SHIP_PRICES[type];
+  }
+
+  buyUsedShip(type: ShipType): Ship {
+    if (!this.canBuyUsedShip(type)) throw new Error('Cannot buy ship: market, stock or gold');
+    this.state.marketStock.splice(this.state.marketStock.indexOf(type), 1);
+    this.changeGold(this.currentPlayer, -USED_SHIP_PRICES[type], 'second-hand ship');
+    const ship = this.addShipToFleet(this.currentPlayer.id, type);
+    ship.durability = Math.floor(ship.maxDurability * USED_SHIP_CONDITION);
+    this.log(`${this.currentPlayer.name} buys ${ship.name} at Skeleton Island.`);
+    return ship;
+  }
+
+  canSellShip(shipId: number): boolean {
+    return this.atMarket() && this.currentPlayer.fleet.length > 1 &&
+      this.currentPlayer.fleet.some((ship) => ship.id === shipId && cargoLoad(ship) === 0);
+  }
+
+  sellShip(shipId: number): void {
+    if (!this.canSellShip(shipId)) throw new Error('Cannot sell ship: market, last ship, ownership or cargo');
+    const fleet = this.currentPlayer.fleet;
+    const [ship] = fleet.splice(fleet.findIndex((ship) => ship.id === shipId), 1);
+    const price = shipSalePrice(ship);
+    this.changeGold(this.currentPlayer, price, 'ship sale');
+    this.emit({ type: 'shipSold', playerId: this.currentPlayer.id, shipName: ship.name, price });
+    this.log(`${this.currentPlayer.name} sells ${ship.name} at Skeleton Island.`);
+  }
+
+  finishMarket(): void {
+    if (!this.atMarket()) throw new Error('Not at Skeleton Island market');
+    this.state.marketStock = [];
+    this.endTurn();
+  }
 
   private resolveSpecial(player: Player, node: MapNode): void {
     const r = SEA_RULES;

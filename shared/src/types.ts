@@ -93,7 +93,7 @@ export interface BarterOffer {
   receiveQty: number;
 }
 
-export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' | 'awaitingBarter' | 'gameOver';
+export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' | 'awaitingMarket' | 'awaitingBarter' | 'gameOver';
 
 export interface GameConfig {
   startingGold: number;
@@ -110,6 +110,7 @@ export interface GameState {
   map: MapNode[];
   players: Player[];
   nextShipId: number;
+  marketStock: ShipType[];
   /** owners[nodeId] = owning player id, or null when neutral / not an island. */
   owners: (number | null)[];
   buildings: Partial<Record<BuildingKind, number>>[];
@@ -128,6 +129,8 @@ export interface GameState {
 
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
+  | { type: 'shipSold'; playerId: number; shipName: string; price: number }
+  | { type: 'marketOffered'; playerId: number; nodeId: number }
   | { type: 'barterOffered'; playerId: number; nodeId: number }
   | { type: 'shipTransferred'; playerId: number; nodeId: number; shipId: number; direction: 'dock' | 'board' }
   | { type: 'cargoMoved'; playerId: number; nodeId: number; shipId: number; good: Good; qty: number; direction: 'load' | 'unload' }

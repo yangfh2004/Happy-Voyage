@@ -88,6 +88,20 @@ it('launches a ship during a human colony visit and announces its arrival', () =
 });
 
 describe('pacing', () => {
+  it('replaces the purchase headline with the ship sale and its proceeds', () => {
+    controller.newGame(players);
+    const state = controller.state!;
+    state.map[2] = { ...state.map[2], kind: 'special', special: 'skeleton' };
+    humanTurn();
+    expect(state.phase).toBe('awaitingMarket');
+    controller.buyUsedShip('explorer');
+    const ship = state.players[0].fleet.at(-1)!;
+    expect(controller.headline?.text).toBe(`${ship.name} joined your fleet.`);
+    controller.sellShip(ship.id);
+    expect(controller.headline).toEqual({ text: `Sold ${ship.name} for 54g.`, tone: 'gain' });
+    controller.sellShip(ship.id);
+    expect(controller.headline?.text).toBe(`Sold ${ship.name} for 54g.`);
+  });
   it('replays a move lost before scene startup and clears it after landing', () => {
     controller.newGame(players);
     controller.spinCompass();
