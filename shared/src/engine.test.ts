@@ -208,7 +208,10 @@ describe('GameEngine', () => {
     engine.start();
     let guard = 0;
     while (engine.state.phase !== 'gameOver' && guard++ < 10_000) {
-      spinAndSail(engine);
+      if (engine.state.phase === 'awaitingSpin') {
+        engine.decideForAI();
+        if (engine.state.phase === 'awaitingSpin') spinAndSail(engine);
+      }
       while (engine.state.phase === 'moving') engine.resolveLanding();
       engine.decideForAI();
     }

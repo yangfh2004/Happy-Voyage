@@ -3,7 +3,7 @@ import { GameEngine } from '@happy-voyage/shared';
 import { TurnFeedback } from './TurnFeedback';
 
 function fixture() {
-  const engine = new GameEngine({ players: [
+  const engine = new GameEngine({ config: { startingStrategies: 0 }, players: [
     { name: 'Captain', color: 0, isAI: false },
     { name: 'England', color: 1, isAI: true },
   ] });

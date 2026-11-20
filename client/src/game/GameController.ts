@@ -1,5 +1,6 @@
 import { GameEngine, quoteMarketTrade, type Good, type BuildingKind, type GameEvent, type GameState, type MarketOrder, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
+import type { StrategyId } from '@happy-voyage/shared';
 import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, sfx } from './sfx';
 
@@ -160,6 +161,14 @@ export class GameController {
 
   payToll(): void {
     if (this.isHumanTurn('awaitingToll')) this.engine!.payToll();
+  }
+
+  canUseStrategy(id: StrategyId, target?: number): boolean {
+    return !!this.engine && !this.engine.currentPlayer.isAI && this.engine.canUseStrategy(id, target);
+  }
+
+  useStrategy(id: StrategyId, target?: number): void {
+    if (this.canUseStrategy(id, target)) this.engine!.useStrategy(id, target);
   }
 
   fight(): void {
@@ -329,7 +338,10 @@ export class GameController {
         break;
       case 'turnStarted':
         if (!engine.currentPlayer.isAI) this.skipping = false;
-        if (engine.currentPlayer.isAI) this.later(() => this.beginSpin(engine));
+        if (engine.currentPlayer.isAI) this.later(() => {
+          engine.decideForAI();
+          if (engine.state.phase === 'awaitingSpin' && engine.currentPlayer.id === event.playerId) this.beginSpin(engine);
+        });
         break;
       case 'tollPaid': {
         const at = engine.state.map[players[event.from].position].name;

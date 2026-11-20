@@ -208,6 +208,7 @@ describe('pacing', () => {
 
   it('reschedules an in-flight AI delay without spinning twice', async () => {
     controller.newGame(players);
+    controller.state!.players[1].strategies = [];
     humanTurn();
     expect(controller.state?.currentPlayer).toBe(1);
     await vi.advanceTimersByTimeAsync(100);

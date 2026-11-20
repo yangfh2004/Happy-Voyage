@@ -1,5 +1,5 @@
 import { COMPASS_SECTORS } from './compass';
-import { colonyDefenders, forecastNavalBattle, tollDue } from './combat';
+import { forecastColonyBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
 import { captainBonus, discountedByCaptains } from './captains';
 import type { BarterOffer } from './types';
@@ -143,5 +143,5 @@ export function aiShouldFight(state: GameState, player: Player): boolean {
   if (!player.fleet.length) return false;
   const nodeId = player.position;
   if (player.gold < tollDue(state, player, nodeId)) return true;
-  return forecastNavalBattle(player.fleet, colonyDefenders(state, nodeId).ships) === 'victory';
+  return forecastColonyBattle(state, player) === 'victory';
 }
