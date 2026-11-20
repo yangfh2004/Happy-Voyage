@@ -9,12 +9,14 @@ import { LogPanel } from './ui/LogPanel';
 import { RulesPanel } from './ui/RulesPanel';
 import { RouteDetails } from './ui/RouteDetails';
 import { keyboardShortcuts } from './game/keyboard';
+import { FleetPanel } from './ui/FleetPanel';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [fleetOpen, setFleetOpen] = useState(false);
   useEffect(() => {
-    if (rulesOpen) return;
+    if (rulesOpen || fleetOpen) return;
     const shortcuts = keyboardShortcuts(gameController);
     window.addEventListener('keydown', shortcuts.keydown);
     window.addEventListener('keyup', shortcuts.keyup);
@@ -24,7 +26,7 @@ export function App() {
       window.removeEventListener('keyup', shortcuts.keyup);
       window.removeEventListener('blur', shortcuts.blur);
     };
-  }, [rulesOpen]);
+  }, [rulesOpen, fleetOpen]);
   // Re-render whenever the controller reports a state change.
   useSyncExternalStore(gameController.subscribe, gameController.getVersion);
   const state = gameController.state;
@@ -40,13 +42,14 @@ export function App() {
       <div className="overlay">
         {state ? (
           <div className="hud">
-            <PlayerBar state={state} onRules={() => setRulesOpen(true)} />
+            <PlayerBar state={state} onRules={() => setRulesOpen(true)} onFleet={() => setFleetOpen(true)} />
             <ActionPanel state={state} />
             <LogPanel log={state.log} tones={gameController.feedback.logTones} />
           </div>
         ) : (
           <SetupMenu onRules={() => setRulesOpen(true)} />
         )}
+        {state && fleetOpen && <FleetPanel players={state.players} onClose={() => setFleetOpen(false)} />}
         {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} onClose={() => setRulesOpen(false)} />}
       </div>
     </div>

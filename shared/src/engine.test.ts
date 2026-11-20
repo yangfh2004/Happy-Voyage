@@ -17,6 +17,62 @@ const twoPlayers = [
 ];
 
 describe('GameEngine', () => {
+  it('starts every navigator with distinct ships suited to each role', () => {
+    const { state } = new GameEngine({ players: twoPlayers });
+    const allShips = state.players.flatMap((player) => player.fleet);
+    expect(new Set(allShips.map((ship) => ship.id)).size).toBe(allShips.length);
+    expect(new Set(allShips.map((ship) => ship.name)).size).toBe(allShips.length);
+    for (const { fleet } of state.players) {
+      expect(fleet.map((ship) => ship.type)).toEqual(['warship', 'cargo', 'explorer']);
+      const [warship, cargo, explorer] = fleet;
+      expect(warship.firepower).toBeGreaterThan(Math.max(cargo.firepower, explorer.firepower));
+      expect(cargo.cargoCapacity).toBeGreaterThan(Math.max(warship.cargoCapacity, explorer.cargoCapacity));
+      expect(explorer.speed).toBeGreaterThan(Math.max(warship.speed, cargo.speed));
+      for (const ship of fleet) {
+        expect(ship.durability).toBe(ship.maxDurability);
+        expect(ship.crewCapacity).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('commissions uniquely named ships for the target fleet without reusing lost ship IDs', () => {
+    const engine = new GameEngine({ players: twoPlayers });
+    const player = engine.state.players[1];
+    const events: unknown[] = [];
+    engine.on((event) => events.push(event));
+
+    const first = engine.addShipToFleet(player.id, 'cargo');
+    expect(player.fleet.pop()).toBe(first);
+    const second = engine.addShipToFleet(player.id, 'cargo');
+
+    expect(second.id).toBe(first.id + 1);
+    expect(second.name).toBe(`Cargo Ship ${second.id}`);
+    expect(player.fleet).toContain(second);
+    expect(engine.currentPlayer.fleet).not.toContain(second);
+    expect(events).toEqual([
+      { type: 'shipAdded', playerId: player.id, shipId: first.id },
+      { type: 'shipAdded', playerId: player.id, shipId: second.id },
+    ]);
+  });
+
+  it('serializes fleet contents, per-ship damage, and the next ship ID in game state', () => {
+    const engine = new GameEngine({ players: twoPlayers, rng: spinTwo });
+    const [first, second] = engine.state.players;
+    const ship = engine.addShipToFleet(first.id, 'warship');
+    ship.durability -= 20;
+    expect(first.fleet[0].durability).toBe(ship.maxDurability);
+    expect(second.fleet[0].durability).toBe(ship.maxDurability);
+
+    spinAndSail(engine);
+    engine.resolveLanding();
+    engine.decline();
+
+    const snapshot = JSON.parse(JSON.stringify(engine.state));
+    expect(snapshot.players[0].fleet).toContainEqual(ship);
+    expect(snapshot.players[1].fleet).toEqual(second.fleet);
+    expect(snapshot.nextShipId).toBe(ship.id + 1);
+  });
+
   it.each([
     ['treasure', 0, EVENT_GOLD.treasure.min],
     ['treasure', 0.999, EVENT_GOLD.treasure.max],

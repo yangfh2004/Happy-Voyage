@@ -35,12 +35,30 @@ export interface PlayerSetup {
   isAI: boolean;
 }
 
+export type ShipType = 'warship' | 'cargo' | 'explorer';
+
+export interface ShipStats {
+  maxDurability: number;
+  firepower: number;
+  cargoCapacity: number;
+  speed: number;
+  crewCapacity: number;
+}
+
+export interface Ship extends ShipStats {
+  id: number;
+  name: string;
+  type: ShipType;
+  durability: number;
+}
+
 export interface Player extends PlayerSetup {
   id: number;
   gold: number;
   /** Index of the map node the fleet is on. */
   position: number;
   bankrupt: boolean;
+  fleet: Ship[];
 }
 
 export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'gameOver';
@@ -59,6 +77,7 @@ export interface GameState {
   config: GameConfig;
   map: MapNode[];
   players: Player[];
+  nextShipId: number;
   /** owners[nodeId] = owning player id, or null when neutral / not an island. */
   owners: (number | null)[];
   currentPlayer: number;
@@ -78,6 +97,7 @@ export type GameEvent =
   | { type: 'moved'; playerId: number; path: number[] }
   | { type: 'claimOffered'; playerId: number; nodeId: number }
   | { type: 'claimed'; playerId: number; nodeId: number }
+  | { type: 'shipAdded'; playerId: number; shipId: number }
   | { type: 'tollPaid'; from: number; to: number; amount: number }
   | { type: 'goldChanged'; playerId: number; delta: number; reason: string }
   | { type: 'bankrupt'; playerId: number }
