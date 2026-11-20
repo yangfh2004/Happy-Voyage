@@ -7,9 +7,10 @@ const DICE_TOTALS = Array.from({ length: 11 }, (_, i) => ({
 }));
 
 /** Forecast the next two rolls without privileged access to the dice. */
-function bankruptcyOdds(state: GameState, player: Player, gold: number): number {
+function bankruptcyOdds(state: GameState, player: Player, gold: number, coloniesAfterClaim: number): number {
   const { map, owners, config } = state;
   const horizon = Math.min(2, config.maxRounds - state.round);
+  const tradeIncome = 50 + 30 * coloniesAfterClaim;
   const maxLoss = map.reduce((max, node) => {
     if (node.event === 'storm') return Math.max(max, 100);
     const owner = owners[node.id];
@@ -32,6 +33,16 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number): number 
           0,
         );
         return risk + odds * stormRisk / 3;
+      }
+      if (turns > 1 && node.event === 'treasure') {
+        const treasureRisk = [50, 100, 150, 200].reduce(
+          (sum, payout) => sum + forecast(next, afterSalary + payout, turns - 1),
+          0,
+        );
+        return risk + odds * treasureRisk / 4;
+      }
+      if (turns > 1 && node.event === 'tradeWind') {
+        return risk + odds * forecast(next, afterSalary + tradeIncome, turns - 1);
       }
       const toll = owner !== null && owner !== player.id ? (node.toll ?? 0) : 0;
       return risk + odds * forecast(next, afterSalary - toll, turns - 1);
@@ -65,7 +76,7 @@ export function aiShouldClaim(state: GameState, player: Player, nodeId: number):
 
   const turnsLeft = state.config.maxRounds - state.round;
   const cash = player.gold - price;
-  if (bankruptcyOdds(state, player, cash) > 0.12) return false;
+  if (bankruptcyOdds(state, player, cash, owned + 1) > 0.12) return false;
   const neutralIslands = state.map.filter((stop) => stop.kind === 'island' && state.owners[stop.id] === null).length;
   if (turnsLeft + 1 >= leftToWin && neutralIslands >= leftToWin) return true;
   return estimatedTolls(state, player, node) >= price - colonyValue(node);

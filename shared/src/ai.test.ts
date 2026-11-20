@@ -3,7 +3,7 @@ import { aiShouldClaim } from './ai';
 import { GameEngine } from './engine';
 import { createDefaultMap } from './map';
 
-function claimOffer(maxRounds = 30, islandsToWin = 8) {
+function claimOffer(maxRounds = 30, islandsToWin = 8, nodeId = 17) {
   const engine = new GameEngine({
     players: [
       { name: 'Rival', color: 0, isAI: true },
@@ -12,7 +12,7 @@ function claimOffer(maxRounds = 30, islandsToWin = 8) {
     config: { maxRounds, islandsToWin },
   });
   const { state, currentPlayer: player } = engine;
-  const node = state.map[17];
+  const node = state.map[nodeId];
   player.position = node.id;
   player.gold = node.price! + 20;
   state.pendingClaim = node.id;
@@ -33,6 +33,18 @@ describe('AI colony decisions', () => {
     state.owners[1] = 1; // A roll of eight lands after salary.
     engine.decideForAI();
     expect(state.owners[node.id]).toBe(0);
+  });
+
+  it.each([
+    { event: 'treasure', colony: 6, toll: 22 },
+    { event: 'trade wind', colony: 1, toll: 20 },
+  ])('accounts for $event income before a second-roll toll', ({ colony, toll }) => {
+    const { engine, state, player, node } = claimOffer(30, 8, colony);
+    player.gold = node.price! + 75;
+    state.owners[toll] = 1;
+
+    engine.decideForAI();
+    expect(state.owners[colony]).toBe(0);
   });
 
   it('counts multiple salaries on one roll when forecasting toll risk on a short route', () => {
