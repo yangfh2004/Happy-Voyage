@@ -1,6 +1,7 @@
-import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount } from './ai';
+import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount,
+  aiTravelTarget, aiBattleStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase } from './ai';
 import { STRATEGIES, STRATEGY_RULES, type StrategyId } from './strategies';
-import { COMBAT, colonyDefenders, fightNavalBattle, forecastNavalBattle, tollDue } from './combat';
+import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
 import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { HERMITS, NIM_MAX_TAKE, hermitStoneTake, type HermitId, type MistResult } from './mist';
@@ -780,24 +781,25 @@ export class GameEngine {
     }
     if (this.state.phase === 'awaitingSpin') {
       const p = this.currentPlayer;
-      const target = p.knownHoard ?? this.state.map.find((n) => n.kind === 'island' && this.state.owners[n.id] === null && aiShouldClaim(this.state, { ...p, position: n.id }, n.id))?.id;
-      if (target !== undefined && target !== null && this.canUseStrategy('navigate', target)) { this.useStrategy('navigate', target); return; }
+      if (this.canUseStrategy('navigate', p.position)) {
+        const target = aiTravelTarget(this.state, p);
+        if (target !== undefined) { this.useStrategy('navigate', target); return; }
+      }
       if (p.knownHoard === null && this.canUseStrategy('locate')) this.useStrategy('locate');
     }
     if (this.state.phase === 'awaitingToll') {
-      for (const id of ['betray', 'mislead', 'inspire'] as StrategyId[]) {
-        if (!this.canUseStrategy(id)) continue;
-        const { ships: defenders, owner, fromFleet } = colonyDefenders(this.state, this.currentPlayer.position);
-        const boosted = id === 'inspire' ? { attackerMultiplier: STRATEGY_RULES.inspireMultiplier } : {};
-        const attackers = id === 'betray' ? [...this.currentPlayer.fleet, defenders[0]] : this.currentPlayer.fleet;
-        const remainingDefenders = id === 'inspire' ? defenders : !fromFleet && defenders.length === 1 ? owner.fleet : defenders.slice(1);
-        if (aiShouldFight(this.state, this.currentPlayer) || forecastNavalBattle(attackers, remainingDefenders, boosted) === 'victory') this.useStrategy(id);
-      }
+      const card = aiBattleStrategy(this.state, this.currentPlayer, (id) => this.canUseStrategy(id));
+      if (card) this.useStrategy(card);
       if (aiShouldFight(this.state, this.currentPlayer)) this.fight();
       else this.payToll();
       return;
     }
     if (this.state.phase === 'awaitingMarket') {
+      const player = this.currentPlayer;
+      const sale = aiUsedShipSale(this.state, player, (id) => this.canSellShip(id));
+      if (sale !== undefined) this.sellShip(sale);
+      const purchase = aiUsedShipChoice(this.state, player, (type) => this.canBuyUsedShip(type));
+      if (purchase) this.buyUsedShip(purchase);
       this.finishMarket();
       return;
     }
@@ -834,11 +836,17 @@ export class GameEngine {
       return;
     }
     if (this.state.phase === 'awaitingBuild') {
+      const player = this.currentPlayer;
       let kind = aiBuildingChoice(this.state, this.currentPlayer);
       while (kind !== null && this.canBuild(kind)) {
         this.build(kind);
         kind = aiBuildingChoice(this.state, this.currentPlayer);
       }
+      for (const ship of [...this.state.docks[player.position]]) {
+        if (ship.durability === ship.maxDurability || !buildingLevel(this.state, player.position, 'repairYard')) this.boardShip(ship.id);
+      }
+      const ship = aiShipChoice(player, (type) => this.canBuildShip(type));
+      if (ship) this.buildShip(ship);
       this.autoLoad();
       this.finishBuilding();
       return;
@@ -850,6 +858,8 @@ export class GameEngine {
           if (quantity > 0) this.tradeAtMarket({ side: 'sell', shipId: ship.id, good, quantity });
         }
       }
+      const purchase = aiMarketPurchase(this.state, this.currentPlayer);
+      if (purchase) this.tradeAtMarket(purchase);
       this.finishTrading();
       return;
     }

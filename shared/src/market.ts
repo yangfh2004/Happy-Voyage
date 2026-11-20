@@ -27,12 +27,22 @@ export function marketDemand(state: GameState) {
 }
 
 function unitValue(state: GameState, good: Good, stock: number): number {
-  const base = BASE_PRICE[good];
   const { featuredGood, stormRepairs } = marketDemand(state);
   const demand = (good === featuredGood ? 3 : 0) +
     (stormRepairs && (good === 'lumber' || good === 'iron') ? 4 : 0);
-  const scarcity = Math.max(-Math.floor(base / 2), Math.min(base, NORMAL_STOCK - stock));
-  return base + scarcity + demand;
+  return inventoryValue(good, stock) + demand;
+}
+
+function inventoryValue(good: Good, stock: number): number {
+  const base = BASE_PRICE[good];
+  return base + Math.max(-Math.floor(base / 2), Math.min(base, NORMAL_STOCK - stock));
+}
+
+/** Sale estimate after stock returns to normal, ignoring temporary demand bonuses. */
+export function normalMarketSale(good: Good, quantity: number): number {
+  let total = 0;
+  for (let i = 1; i <= quantity; i++) total += inventoryValue(good, NORMAL_STOCK + i);
+  return total;
 }
 
 function spread(good: Good): number {

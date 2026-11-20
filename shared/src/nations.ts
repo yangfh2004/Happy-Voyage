@@ -1,4 +1,4 @@
-import type { PlayerSetup } from './types';
+import type { AIDifficulty, PlayerSetup } from './types';
 import { navigatorForNation } from './navigators';
 
 export const NATIONS = [
@@ -18,7 +18,7 @@ export type Nation = (typeof NATIONS)[number]['name'];
 type NationPick = { name: string; nation: Nation };
 
 /** Keep human seats in pick order, then fill every other nation with an AI seat. */
-export function createNationRoster(picks: readonly NationPick[]): PlayerSetup[] {
+export function createNationRoster(picks: readonly NationPick[], aiDifficulty?: AIDifficulty): PlayerSetup[] {
   if (!picks.length) throw new Error('At least one nation must be picked');
   const chosen = new Set<Nation>();
   const humans = picks.map(({ name, nation }) => {
@@ -32,7 +32,7 @@ export function createNationRoster(picks: readonly NationPick[]): PlayerSetup[] 
     ...humans,
     ...NATIONS.filter(({ name }) => !chosen.has(name)).map(({ name, color }) => {
       const navigator = navigatorForNation(name);
-      return { name: navigator?.name ?? name, nation: name, navigator: navigator?.id, color, isAI: true };
+      return { name: navigator?.name ?? name, nation: name, navigator: navigator?.id, color, isAI: true, ...(aiDifficulty && { aiDifficulty }) };
     }),
   ];
 }
