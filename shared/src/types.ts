@@ -37,6 +37,8 @@ export interface MapNode {
 export interface PlayerSetup {
   name: string;
   nation?: string;
+  /** Historical navigator id (see NAVIGATORS); their signature ship replaces the starting ship of its type. */
+  navigator?: string;
   /** 0xRRGGBB, used for the ship token and colony flags. */
   color: number;
   isAI: boolean;
@@ -58,6 +60,8 @@ export interface Ship extends ShipStats {
   name: string;
   type: ShipType;
   durability: number;
+  /** The navigator's signature flagship. */
+  signature?: boolean;
 }
 
 export interface Player extends PlayerSetup {

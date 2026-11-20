@@ -10,7 +10,8 @@ Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, tradin
 Pick one of ten nations and start at its home port. The other nine nations are AI rivals.
 
 - Spin the compass to sail 2–12 stops around a 70-stop sea route. Set the game speed or skip animations and AI turns until your next decision.
-- Open **Fleet** to inspect any navigator's ships, including new ships launched from a colony.
+- Each nation sails with its historical navigator (Columbus, Juliana, Cook, Magellan, Zheng He, Morgan and more), shown with a portrait in setup and the player bar; their signature flagship replaces one starting ship.
+- Open **Fleet** to inspect any navigator's ships, including new ships launched from a colony (★ marks the signature ship).
 - Land on an unowned island to found a colony; rivals who land there pay you a toll.
 - Revisit a colony to build a lumber mill, iron mine, and shipyard. Spend the colony's lumber and iron to build an Explorer (small yard), Cargo Ship (medium), or Warship (large).
 - Passing the home port pays a royal salary; event stops bring treasure, storms or trade winds.

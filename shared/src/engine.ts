@@ -8,7 +8,8 @@ import { createDefaultMap } from './map';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad } from './ships';
 import type { Good } from './types';
-import type { ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup, Ship, ShipType } from './types';
+import { navigatorById, type SignatureShip } from './navigators';
+import type { ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
   startingGold: 1400,
@@ -101,7 +102,9 @@ export class GameEngine {
       log: [],
     };
     for (const player of this.state.players) {
-      for (const type of STARTING_FLEET) this.addShipToFleet(player.id, type);
+      const flagship = player.navigator === undefined ? undefined : navigatorById(player.navigator)?.signatureShip;
+      if (player.navigator !== undefined && !flagship) throw new Error(`Unknown navigator: ${player.navigator}`);
+      for (const type of STARTING_FLEET) this.commissionShip(player.id, type, type === flagship?.type ? flagship : undefined);
     }
   }
 
@@ -127,13 +130,21 @@ export class GameEngine {
 
   /** Commission a ship for setup or after a game rule has authorized construction. */
   addShipToFleet(playerId: number, type: ShipType): Ship {
+    return this.commissionShip(playerId, type);
+  }
+
+  private commissionShip(playerId: number, type: ShipType, signature?: SignatureShip): Ship {
     const player = this.state.players[playerId];
     if (!player) throw new Error(`Unknown player: ${playerId}`);
     if (!Object.prototype.hasOwnProperty.call(SHIP_TYPES, type)) throw new Error(`Unknown ship type: ${type}`);
 
     const id = this.state.nextShipId++;
-    const { label, ...stats } = SHIP_TYPES[type];
-    const ship = { ...stats, id, type, name: `${label} ${id}`, durability: stats.maxDurability, cargo: {} };
+    const { label, ...base } = SHIP_TYPES[type];
+    const stats: ShipStats = { ...base };
+    for (const [stat, bonus] of Object.entries(signature?.bonus ?? {}) as [keyof ShipStats, number][]) stats[stat] += bonus;
+    const ship: Ship = signature
+      ? { ...stats, id, type, name: signature.name, durability: stats.maxDurability, signature: true, cargo: {} }
+      : { ...stats, id, type, name: `${label} ${id}`, durability: stats.maxDurability, cargo: {} };
     player.fleet.push(ship);
     this.emit({ type: 'shipAdded', playerId, shipId: id });
     return ship;

@@ -2,6 +2,7 @@ export * from './types';
 export * from './buildings';
 export * from './map';
 export * from './nations';
+export * from './navigators';
 export * from './compass';
 export * from './engine';
 export * from './ai';

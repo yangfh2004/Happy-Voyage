@@ -1,17 +1,22 @@
 import { useState } from 'react';
-import { createNationRoster, DEFAULT_CONFIG, NATIONS, type Nation } from '@happy-voyage/shared';
+import { createNationRoster, DEFAULT_CONFIG, NATIONS, navigatorForNation, type Nation } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
+import { NavigatorCard } from './NavigatorCard';
+import { NavigatorPortrait } from './NavigatorPortrait';
 import { SpeedControl } from './SpeedControl';
 import { ShortcutLegend } from './ShortcutLegend';
 
-/** Start screen: pick a navigator and their home nation. */
+/** Start screen: pick a nation, meet its navigator and their signature ship. */
 export function SetupMenu({ onRules }: { onRules: () => void }) {
-  const [name, setName] = useState('Captain');
+  const [customName, setCustomName] = useState<string | null>(null);
   const [nation, setNation] = useState<Nation>(NATIONS[0].name);
+  const navigator = navigatorForNation(nation)!;
+  const color = NATIONS.find((n) => n.name === nation)!.color;
+  const name = customName ?? navigator.name;
 
   const start = () => {
-    gameController.newGame(createNationRoster([{ name: name.trim() || 'Captain', nation }]));
+    gameController.newGame(createNationRoster([{ name: name.trim() || navigator.name, nation }]));
   };
 
   return (
@@ -26,7 +31,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
 
       <label>
         Navigator name
-        <input value={name} maxLength={16} onChange={(e) => setName(e.target.value)} />
+        <input value={name} maxLength={16} onChange={(e) => setCustomName(e.target.value)} />
       </label>
 
       <div className="field nations" role="group" aria-labelledby="nation-label">
@@ -40,11 +45,12 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
               style={{ borderColor: cssColor(n.color) }}
               onClick={() => setNation(n.name)}
             >
-              <span className="dot" style={{ background: cssColor(n.color) }} />
+              <NavigatorPortrait navigator={navigatorForNation(n.name)!.id} color={n.color} size={24} />
               {n.name}
             </button>
           ))}
         </div>
+        <NavigatorCard navigator={navigator} color={color} />
         <small className="nation-note">Start at {nation} Port. The other {NATIONS.length - 1} nations are AI rivals.</small>
       </div>
 
