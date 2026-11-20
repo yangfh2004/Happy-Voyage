@@ -9,6 +9,7 @@ import { SoundControl } from './SoundControl';
 import { ShortcutLegend } from './ShortcutLegend';
 import { LanguageSwitch } from './LanguageSwitch';
 import { useT } from '../i18n';
+import { tx } from '@happy-voyage/shared';
 
 export const MAX_LOCAL_PLAYERS = 6;
 
@@ -25,6 +26,7 @@ export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; pal
   const { t, l, locale } = useT();
   const [seats, setSeats] = useState<Seat[]>([{ customName: null, nation: NATIONS[0].name }]);
   const [active, setActive] = useState(0);
+  const [totalPlayers, setTotalPlayers] = useState(4);
   const [modeId, setModeId] = useState<GameModeId | 'campaign'>(GAME_MODES[0].id);
   const [stageId, setStageId] = useState<CampaignStageId>(CAMPAIGN_STAGES[0].id);
   const mode = modeId === 'campaign' ? null : gameMode(modeId);
@@ -44,7 +46,7 @@ export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; pal
   };
   const addSeat = () => {
     const free = NATIONS.find((n) => !seats.some((s) => s.nation === n.name));
-    if (!free || seats.length >= MAX_LOCAL_PLAYERS) return;
+    if (!free || seats.length >= Math.min(MAX_LOCAL_PLAYERS, totalPlayers)) return;
     setSeats([...seats, { customName: null, nation: free.name }]);
     setActive(seats.length);
   };
@@ -53,13 +55,18 @@ export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; pal
     setSeats(seats.filter((_, i) => i !== active));
     setActive(Math.max(0, active - 1));
   };
+  const changeTotal = (total: number) => {
+    setTotalPlayers(total);
+    setSeats(seats.slice(0, total));
+    setActive(Math.min(active, total - 1));
+  };
 
   const start = () => {
     const pick = (s: Seat) => ({
       name: seatName(s).trim() || navigatorForNation(s.nation)!.name,
       nation: s.nation,
     });
-    if (mode) gameController.newGame(createNationRoster(seats.map(pick), difficulty), mode.config);
+    if (mode) gameController.newGame(createNationRoster(seats.map(pick), { difficulty, totalPlayers }), mode.config);
     else gameController.newCampaign({ stage: stageId, navigator: pick(campaignSeat) });
   };
 
@@ -77,10 +84,17 @@ export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; pal
 
       {mode && <div className="field seats" role="group" aria-labelledby="seats-label">
         <span id="seats-label">{t('Players on this device', '本机玩家')}</span>
+        <div className="seat-count" role="group" aria-label={l(tx('Total players', '玩家总数'))}>
+          <span>{l(tx('Total players', '玩家总数'))}</span>
+          <button aria-label={l(tx('Decrease total players', '减少玩家总数'))} disabled={totalPlayers <= 2} onClick={() => changeTotal(totalPlayers - 1)}>−</button>
+          <strong aria-live="polite">{totalPlayers}</strong>
+          <button aria-label={l(tx('Increase total players', '增加玩家总数'))} disabled={totalPlayers >= NATIONS.length} onClick={() => changeTotal(totalPlayers + 1)}>+</button>
+        </div>
+        <small className="nation-note">{l(tx('{humans} humans + {ai} AI rivals', '{humans} 位人类玩家 + {ai} 位电脑对手', { humans: seats.length, ai: totalPlayers - seats.length }))}</small>
         <div className="seat-count">
           <button aria-label={t('Remove player', '移除玩家')} disabled={!multi} onClick={removeSeat}>−</button>
           <strong aria-live="polite">{seats.length}</strong>
-          <button aria-label={t('Add player', '添加玩家')} disabled={seats.length >= MAX_LOCAL_PLAYERS} onClick={addSeat}>+</button>
+          <button aria-label={t('Add player', '添加玩家')} disabled={seats.length >= Math.min(MAX_LOCAL_PLAYERS, totalPlayers)} onClick={addSeat}>+</button>
           <small className="nation-note">{t('Up to {n} people take turns; pass the device when prompted.', '最多 {n} 人轮流操作；提示时请传递设备。', { n: MAX_LOCAL_PLAYERS })}</small>
         </div>
         {multi && (
@@ -131,7 +145,7 @@ export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; pal
         <NavigatorCard navigator={navigator} color={color} />
         <small className="nation-note">
           {multi ? t('{n} players start at their home ports.', '{n} 位玩家从各自的母港出发。', { n: seats.length }) : t('Start at {nation} Port.', '从{nation}港出发。', { nation: nationName(seat.nation, locale) })}
-          {mode && t(' The other {n} nations are AI rivals.', '其余 {n} 个国家由电脑对手控制。', { n: NATIONS.length - seats.length })}
+          {mode && l(tx(' {n} nations are AI rivals.', ' {n} 个国家由电脑对手控制。', { n: totalPlayers - seats.length }))}
         </small>
       </div>
 

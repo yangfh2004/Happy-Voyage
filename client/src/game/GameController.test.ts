@@ -419,6 +419,37 @@ it('reveals a held lottery result on a fallback timer if the last ball never rep
 });
 
 describe('local multiplayer', () => {
+  it('holds each of three AI seats for its own compass and sailing completion at Normal speed', async () => {
+    controller.setSpeed('Normal');
+    controller.newGame(createNationRoster([{ name: 'Human', nation: 'Spain' }], { totalPlayers: 4 }));
+    const state = controller.state!;
+    const islands = state.map.filter((node) => node.kind === 'island');
+    for (const player of state.players) {
+      player.strategies = [];
+      player.position = (islands[player.id].id - 2 + state.map.length) % state.map.length;
+    }
+    humanTurn();
+    for (const seat of [1, 2, 3]) {
+      expect(state.currentPlayer).toBe(seat);
+      expect(state.phase).toBe('awaitingSpin');
+      await vi.advanceTimersByTimeAsync(699);
+      expect(state.phase).toBe('awaitingSpin');
+      await vi.advanceTimersByTimeAsync(1);
+      expect(state.phase).toBe('spinning');
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(state.currentPlayer).toBe(seat);
+      expect(state.phase).toBe('spinning');
+      controller.finishSpin(controller.spinId);
+      expect(state.phase).toBe('moving');
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(state.currentPlayer).toBe(seat);
+      expect(state.phase).toBe('moving');
+      EventBus.emit('move-complete', moveId);
+      await vi.advanceTimersByTimeAsync(700);
+    }
+    expect(state.log.filter((line) => line.includes(' spins '))).toHaveLength(4);
+  });
+
   const roster = () => createNationRoster([
     { name: 'Ana', nation: 'Spain' },
     { name: 'Bo', nation: 'China' },
