@@ -1,4 +1,4 @@
-import { GameEngine, quoteMarketTrade, type Good, type BuildingKind, type GameEvent, type GameState, type MarketOrder, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
+import { GameEngine, LOTTERY, quoteMarketTrade, type Good, type BuildingKind, type GameEvent, type GameState, type LotteryDraw, type MarketOrder, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
 import type { StrategyId } from '@happy-voyage/shared';
 import { TurnFeedback } from './TurnFeedback';
@@ -47,6 +47,8 @@ function savedSpeed(): GameSpeed {
  */
 /** Length of one ball's drop animation (matches `ball-drop` in styles.css). */
 export const LOTTERY_BALL_DROP_MS = 450;
+/** Fallback slack if the last ball's animationend never arrives (e.g. reduced motion, hidden tab). */
+const LOTTERY_REVEAL_GRACE_MS = 500;
 
 export class GameController {
   private engine: GameEngine | null = null;
@@ -63,6 +65,9 @@ export class GameController {
   private lotteryReveal: ReturnType<typeof setTimeout> | undefined;
   /** False while the drawn balls are still dropping into the jar; the result and Sail on wait for it. */
   lotteryRevealed = true;
+  /** The human's draw whose prize, log line and toast wait until the last ball lands. */
+  private lotteryHeld: { draw: LotteryDraw; logCut: number; events: GameEvent[] } | null = null;
+  private lotteryShown: LotteryDraw | null = null;
   private pending: (() => void) | null = null;
   private pendingSince = 0;
   /** Where the sailing fleet set out from, so text views don't reveal its destination early. */
@@ -354,6 +359,7 @@ export class GameController {
 
   private onEngineEvent(event: GameEvent): void {
     const engine = this.engine!;
+    if (this.holdsLotteryResult(event, engine)) return;
     this.feedback.observe(event, engine.state);
     const players = engine.state.players;
     const isHuman = (id: number) => !players[id].isAI;
@@ -464,16 +470,10 @@ export class GameController {
         const { draw } = event;
         if (isHuman(draw.playerId)) {
           const matched = `${draw.matches.length} match${draw.matches.length === 1 ? '' : 'es'}`;
-          this.lotteryRevealed = false;
-          clearTimeout(this.lotteryReveal);
-          this.lotteryReveal = setTimeout(() => {
-            this.lotteryRevealed = true;
-            this.headline = draw.prize
-              ? { text: `Lottery: ${matched}! You win ${draw.prize}g.`, tone: 'gain' }
-              : { text: `Lottery: ${draw.picks.length ? matched : 'no numbers bought'}. No prize this time.`, tone: 'loss' };
-            if (draw.prize) sfx.win();
-            this.changed();
-          }, (draw.balls.length - 1) * this.lotteryBallDelay + LOTTERY_BALL_DROP_MS);
+          this.headline = draw.prize
+            ? { text: `Lottery: ${matched}! You win ${draw.prize}g.`, tone: 'gain' }
+            : { text: `Lottery: ${draw.picks.length ? matched : 'no numbers bought'}. No prize this time.`, tone: 'loss' };
+          if (draw.prize) sfx.win();
         }
         break;
       }
@@ -532,11 +532,58 @@ export class GameController {
     return this.timings.step * 3;
   }
 
+  /** How long the human's drawn balls take to land in the jar; 0 at Instant speed. */
+  get lotteryRevealDelay(): number {
+    return this.timings.step === 0 ? 0 : (LOTTERY.drawn - 1) * this.lotteryBallDelay + LOTTERY_BALL_DROP_MS;
+  }
+
+  /** The ship's log as the player may see it: a held lottery result stays hidden until the last ball lands. */
+  visibleLog(state: GameState): string[] {
+    return this.lotteryHeld ? state.log.slice(0, this.lotteryHeld.logCut) : state.log;
+  }
+
+  /** A player's treasury as shown, without a lottery prize that is still being drawn. */
+  displayGold(player: Player): number {
+    return player.gold - (this.lotteryHeld?.draw.playerId === player.id ? this.lotteryHeld.draw.prize : 0);
+  }
+
+  private holdsLotteryResult(event: GameEvent, engine: GameEngine): boolean {
+    const draw = engine.state.lottery?.draw;
+    const result = event.type === 'lotteryDrawn' || (event.type === 'goldChanged' && event.reason === 'lottery prize');
+    if (!draw || !result || this.lotteryShown === draw || engine.state.players[draw.playerId].isAI || this.lotteryRevealDelay === 0) return false;
+    if (this.lotteryHeld?.draw !== draw) {
+      clearInterval(this.lotteryClock);
+      clearTimeout(this.lotteryReveal);
+      this.lotteryRevealed = false;
+      this.lotteryHeld = { draw, logCut: engine.state.log.length - 1, events: [] };
+      this.lotteryReveal = setTimeout(() => this.revealLottery(engine), this.lotteryRevealDelay + LOTTERY_REVEAL_GRACE_MS);
+    }
+    this.lotteryHeld.events.push(event);
+    return true;
+  }
+
+  /** The lottery panel's last ball finished dropping into the jar. */
+  lotteryBallsLanded(): void {
+    if (this.engine) this.revealLottery(this.engine);
+  }
+
+  private revealLottery(engine: GameEngine): void {
+    const held = this.lotteryHeld;
+    if (!held || this.engine !== engine) return;
+    clearTimeout(this.lotteryReveal);
+    this.lotteryHeld = null;
+    this.lotteryShown = held.draw;
+    this.lotteryRevealed = true;
+    for (const event of held.events) this.onEngineEvent(event);
+    this.changed();
+  }
+
   private clearTimers(): void {
     clearTimeout(this.timer);
     clearInterval(this.lotteryClock);
     clearTimeout(this.lotteryReveal);
     this.lotteryRevealed = true;
+    this.lotteryHeld = null;
     this.pending = null;
   }
 

@@ -37,7 +37,7 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
             <div className="stats">
               {RANKS[p.rank].name} ({RANKS[p.rank].chineseName})<br />
               {p.nation && <>{p.nation}<br /></>}
-              {p.gold}g · {islands(gameController.islandsOwnedBy(p.id))} · {p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}
+              {gameController.displayGold(p)}g · {islands(gameController.islandsOwnedBy(p.id))} · {p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}
             </div>
           </div>
         ))}

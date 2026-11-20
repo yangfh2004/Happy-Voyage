@@ -41,7 +41,8 @@ export function LotteryPanel({ state }: { state: GameState }) {
     </> : <>
       <div className="lottery-jar" aria-label={`Balls drawn: ${draw.balls.join(', ')}`}>
         {draw.balls.map((n, i) => <span key={n} className={draw.matches.includes(n) ? 'ball drawn match' : 'ball drawn'}
-          style={{ '--delay': `${i * ballDelay}ms` } as CSSProperties}>{n}</span>)}
+          style={{ '--delay': `${i * ballDelay}ms` } as CSSProperties}
+          onAnimationEnd={i === draw.balls.length - 1 ? () => gameController.lotteryBallsLanded() : undefined}>{n}</span>)}
       </div>
       {!gameController.lotteryRevealed ? <p className="lottery-result" aria-live="polite">Drawing from the jar…</p> : <>
       <p>Your numbers: {draw.picks.length ? draw.picks.map((n) => <span key={n} className={draw.matches.includes(n) ? 'ball small match' : 'ball small'}>{n}</span>) : 'none'}</p>
