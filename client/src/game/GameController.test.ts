@@ -446,6 +446,33 @@ describe('local multiplayer', () => {
     expect(controller.turnNotice).toBeNull();
   });
 
+  it('clears the previous Navigate notice and cancels its timer when the next turn starts', async () => {
+    const setTimer = vi.spyOn(globalThis, 'setTimeout');
+    const clearTimer = vi.spyOn(globalThis, 'clearTimeout');
+    controller.newGame(createNationRoster([{ name: 'Human', nation: 'Spain' }], { totalPlayers: 4 }));
+    const state = controller.state!;
+    for (const player of state.players) player.strategies = [];
+    const island = state.map.find((node) => node.kind === 'island')!;
+    state.players[0].position = (island.id - 2 + state.map.length) % state.map.length;
+    state.players[1].strategies = ['navigate'];
+    humanTurn();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(state.currentPlayer).toBe(1);
+    expect(controller.turnAction).not.toBeNull();
+    const timerIndex = setTimer.mock.calls.map(([, delay]) => delay).lastIndexOf(1000);
+    const actionTimer = setTimer.mock.results[timerIndex].value;
+    clearTimer.mockClear();
+
+    await vi.advanceTimersByTimeAsync(700);
+    expect(state.currentPlayer).toBe(2);
+    expect(controller.turnNotice).toMatchObject({ params: { p: { id: 2 } } });
+    expect(controller.turnAction).toBeNull();
+    expect(clearTimer).toHaveBeenCalledWith(actionTimer);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(controller.turnAction).toBeNull();
+    expect(controller.turnNotice).not.toBeNull();
+  });
+
   it('holds each of three AI seats for its own compass and sailing completion at Normal speed', async () => {
     controller.setSpeed('Normal');
     controller.newGame(createNationRoster([{ name: 'Human', nation: 'Spain' }], { totalPlayers: 4 }));

@@ -549,6 +549,8 @@ export class GameController {
         this.resumeMovement();
         break;
       case 'turnStarted':
+        clearTimeout(this.turnActionTimer);
+        this.turnAction = null;
         if (isHuman(event.playerId) && (engine || isViewer(event.playerId))) {
           this.skipping = false;
           if (engine && event.playerId !== this.viewerId) {
