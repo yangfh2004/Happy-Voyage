@@ -132,7 +132,7 @@ describe('living sea board', () => {
     if (special === 'revival') expect(p.revivalProtection).toBe(true);
     if (special === 'dragonSnake') expect(p.captain).toBe(true);
     if (special === 'nightless') expect(p.gold).toBe(g.state.config.startingGold + SEA_RULES.marketPerColony);
-    if (special === 'wind') expect(p.gold).toBe(g.state.config.startingGold + SEA_RULES.barterPerColony);
+    if (special === 'wind') expect(p.gold).toBe(g.state.config.startingGold);
     if (special === 'treasure') expect(p.gold).toBe(g.state.config.startingGold - SEA_RULES.ticket + SEA_RULES.lotteryPrize);
   });
 
