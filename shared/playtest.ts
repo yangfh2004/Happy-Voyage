@@ -1,4 +1,5 @@
 import { GameEngine } from './src/engine';
+import { DEFAULT_ISLAND_COUNT, gameMode, hasRoundLimit } from './src/modes';
 import { createNationRoster, NATIONS } from './src/nations';
 import type { GameConfig, PlayerSetup } from './src/types';
 
@@ -14,7 +15,11 @@ function seeded(seed: number) {
 const levels = ['easy', 'normal', 'hard'] as const;
 const roster = createNationRoster([{ name: 'Columbus', nation: 'Spain' }]);
 const seeds = Number(process.argv[2] ?? 300);
+const offset = Number(process.argv[3] ?? 0);
+const scenario = process.argv[4];
+let scenariosRun = 0;
 if (!Number.isSafeInteger(seeds) || seeds < 1) throw new Error('Supply a positive seed count');
+if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(offset + seeds)) throw new Error('Supply a nonnegative seed offset');
 
 function stats() {
   return {
@@ -24,13 +29,15 @@ function stats() {
 }
 
 function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?: Partial<GameConfig>) {
+  if (scenario && scenario !== name) return;
+  scenariosRun++;
   const byLevel = { easy: stats(), normal: stats(), hard: stats() };
   const nationWins = Object.fromEntries(NATIONS.map(({ name }) => [name, 0]));
   const endings = { conquest: 0, survival: 0, wealth: 0 };
   let games = 0;
   let rounds = 0;
 
-  for (let seed = 0; seed < seeds; seed++) {
+  for (let seed = offset; seed < offset + seeds; seed++) {
     for (const players of fixtures(seed)) {
       const game = new GameEngine({ players, config, rng: seeded(seed + 1) });
       const { state } = game;
@@ -53,8 +60,8 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?:
             break;
           case 'strategyUsed': row(event.playerId).cards++; break;
           case 'gameOver':
-            if (event.reason.startsWith('claimed')) endings.conquest++;
-            else if (event.reason.startsWith('is the richest')) endings.wealth++;
+            if (event.victory === 'everyContinent' || event.victory === 'islandGoal') endings.conquest++;
+            else if (event.victory === 'richest') endings.wealth++;
             else endings.survival++;
             break;
         }
@@ -77,7 +84,7 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?:
         }
       }
       games++;
-      rounds += Math.min(state.config.maxRounds, state.round);
+      rounds += hasRoundLimit(state.config) ? Math.min(state.config.maxRounds, state.round) : state.round;
       nationWins[players[state.winner!].nation!]++;
       for (const player of state.players) {
         const result = row(player.id);
@@ -92,7 +99,7 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?:
 
   const ratio = (n: number, d: number) => +(n / d).toFixed(2);
   console.log(JSON.stringify({
-    name, games, meanRounds: ratio(rounds, games), endings, nationWins,
+    name, games, firstSeed: offset + 1, lastSeed: offset + seeds, meanRounds: ratio(rounds, games), endings, nationWins,
     levels: Object.fromEntries(levels.filter((level) => byLevel[level].seats > 0).map((level) => {
       const { seats, wins, bankruptcies, score, colonies, turns, battleWins, battles, ...actions } = byLevel[level];
       return [level, {
@@ -105,14 +112,19 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?:
   }));
 }
 
-for (const [lower, higher] of [['easy', 'normal'], ['normal', 'hard'], ['easy', 'hard']] as const) {
-  run(`${higher} vs ${lower}`, (seed) => {
+function duel(mode: 'conquest' | 'quick', lower: typeof levels[number], higher: typeof levels[number]) {
+  run(`${gameMode(mode).name}: ${higher} vs ${lower}`, (seed) => {
     const i = seed % roster.length;
     const j = (i + 1 + Math.floor(seed / roster.length) % (roster.length - 1)) % roster.length;
     return [[lower, higher], [higher, lower]].map((pair) =>
       [roster[i], roster[j]].map((seat, index) => ({ ...seat, isAI: true, aiDifficulty: pair[index] })));
-  });
+  }, gameMode(mode).config);
 }
+
+duel('conquest', 'easy', 'normal');
+duel('conquest', 'normal', 'hard');
+duel('conquest', 'easy', 'hard');
+duel('quick', 'normal', 'hard');
 
 run('10-nation Normal self-play', () => [roster.map((seat) => ({ ...seat, isAI: true, aiDifficulty: 'normal' }))]);
 run('10-nation mixed difficulty', (seed) => [
@@ -123,4 +135,6 @@ run('Economy stress test (custom rules)', (seed) => [
   Array.from({ length: 3 }, (_, i) => ({
     ...roster[(seed + i * 3) % roster.length], isAI: true, aiDifficulty: levels[(seed + i) % levels.length],
   })),
-], { startingGold: 3500, islandsToWin: 41 });
+], { startingGold: 3500, islandsToWin: DEFAULT_ISLAND_COUNT, maxRounds: 50 });
+
+if (scenariosRun === 0) throw new Error(`Unknown scenario: ${scenario}`);

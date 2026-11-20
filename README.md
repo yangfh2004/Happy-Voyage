@@ -78,7 +78,7 @@ npm test             # rules and server tests
 npm run typecheck
 npm run build        # production client build in client/dist
 npm start            # Express server at http://localhost:3000 (serves the built client)
-npm exec -- vite-node shared/playtest.ts 360  # seeds per scenario; duels swap the two policies per seed
+npm exec -- vite-node shared/playtest.ts 360 10000  # 360 seeds starting at 10,001
 ```
 
 Pushes to `main` publish the built client to the `demo` branch (served by the link above) and to
@@ -87,25 +87,25 @@ in the repository settings (Settings > Pages > Source: GitHub Actions).
 
 ### AI balance playtest
 
-The command above played **3,240** complete matches on the default map with real navigator fleets.
-Duels swap difficulty assignments for the same seed and nations; ten-nation games rotate difficulty assignments across nations.
+The command above played **3,960** matches on the standard map, using seeds not used to tune Hard.
+Duels swap difficulties across the same two nations per seed. Mixed games rotate difficulty assignments across nations.
+Hard prioritizes affordable warships, forecasts its next compass spin, looks for safe captures, and saves money for claims instead of spending it all on buildings. It plays by the same rules and starts with the same resources as the other difficulties.
 
-| Default-rule matchup | Games | Win rate |
+| Preset and matchup | Games | Win rate |
 | --- | ---: | --- |
-| Normal vs. Easy | 720 | 73.2% vs. 26.8% |
-| Hard vs. Normal | 720 | 51.4% vs. 48.6% |
-| Hard vs. Easy | 720 | 73.8% vs. 26.3% |
-| Ten Normal rivals | 360 | Individual nations: 6.9–13.1% |
-| Ten mixed rivals | 360 | Easy 4.2%, Normal 12.8%, Hard 13.1% per seat |
+| Classic: Normal vs. Easy | 720 | 75.3% vs. 24.7% |
+| Classic: Hard vs. Normal | 720 | 70.6% vs. 29.4% |
+| Classic: Hard vs. Easy | 720 | 89.2% vs. 10.8% |
+| Classic: ten Normal rivals | 360 | Individual nations: 5.8–19.7% |
+| Classic: ten mixed rivals | 360 | Easy 5.6%, Normal 8.3%, Hard 16.2% per seat |
+| Quick: Hard vs. Normal | 720 | 68.3% vs. 31.7% |
 
-Hard and Normal were close in competitive play. Ten-nation games lasted about 20 rounds; over 99% ended in conquest, so there were few opportunities to revisit colonies and ship goods. In mixed games, 45–50% of seats went bankrupt.
+On the same seeds, the previous Hard won 51.4% against Normal in Classic and 50.4% in Quick. All simulated Classic games ended by survival rather than capturing all continents; the new Hard went bankrupt in 29.4% of Classic duels against Normal. These are AI self-play results, not estimates of human win rates.
 
-A separate 360-game economy stress test used three rivals, 3,500 starting gold, and disabled conquest by setting the goal above the map's island count. Activity per 100 active turns:
+A separate 360-game economy stress test used three rivals, 3,500 starting gold, a 40-island goal and a 50-round limit. Hard won 66.9%, Normal 27.8%, and Easy 5.3%. Activity per 100 active turns:
 
 | Difficulty | Building levels added | Ships built / bought | Market and merchant trades | Attacks | Cards played |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Easy | 4.20 | 0.00 / 0.48 | 0.17 | 1.62 | 4.78 |
-| Normal | 19.82 | 0.57 / 0.44 | 0.45 | 5.57 | 7.39 |
-| Hard | 25.12 | 0.84 / 1.21 | 0.79 | 5.00 | 7.52 |
-
-Normal won 47.8% of the stress games, Hard 43.1%, and Easy 9.2%. Hard invested and traded more and won a greater share of the battles it chose, but that did not make it the most successful policy under wealth and survival rules. These are AI self-play results, not estimates of human win rates.
+| Easy | 3.85 | 0.02 / 0.62 | 0.23 | 1.22 | 6.01 |
+| Normal | 17.15 | 0.33 / 0.46 | 0.29 | 3.50 | 7.23 |
+| Hard | 24.00 | 0.55 / 3.21 | 0.55 | 7.43 | 9.85 |
