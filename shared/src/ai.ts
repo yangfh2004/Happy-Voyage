@@ -1,7 +1,7 @@
 import { COMPASS_SECTORS } from './compass';
 import { colonyDefenders, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
-import { captainBonus } from './captains';
+import { captainBonus, discountedByCaptains } from './captains';
 import type { BarterOffer } from './types';
 import { BUILDINGS, colonyToll, nextBuildingCost } from './buildings';
 import type { BuildingKind } from './types';
@@ -43,7 +43,7 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
       const onward = (balance: number, protection = protectedFromHazards, ships = fleet) => forecast(next, balance, turns - 1, protection, ships);
       if (hazard && protectedFromHazards) return risk + odds * onward(afterSalary, false);
       if (node.kind === 'port' && node.id !== player.homePort) {
-        const balance = afterSalary - Math.ceil(foreignTaxDue(player.rank) * (1 - captainBonus(player, 'tax')));
+        const balance = afterSalary - discountedByCaptains(player, 'tax', foreignTaxDue(player.rank));
         let shortfall = Math.max(0, -balance);
         const remaining = [...fleet].sort((a, b) => shipSalePrice(a) - shipSalePrice(b) || a.id - b.id);
         while (shortfall > 0 && remaining.length > 0) shortfall -= shipSalePrice(remaining.shift()!);
@@ -80,7 +80,7 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
       }
       const paysToll = node.kind === 'island' && owner !== null && owner !== player.id;
       const toll = paysToll ? colonyToll(state, node.id) : 0;
-      return risk + odds * onward(afterSalary - Math.ceil(toll * (1 - captainBonus(player, 'toll'))));
+      return risk + odds * onward(afterSalary - discountedByCaptains(player, 'toll', toll));
     }, 0);
   }
   return forecast(player.position, gold, horizon, player.revivalProtection, player.fleet);
