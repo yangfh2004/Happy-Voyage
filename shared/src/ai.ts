@@ -7,9 +7,18 @@ import { BUILDINGS, colonyToll, nextBuildingCost } from './buildings';
 import type { BuildingKind } from './types';
 import { colonyValue, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
 import { SEA_RULES } from './seaRules';
+import { LOTTERY, expectedLotteryPrize } from './lottery';
 import { RANKS, foreignTaxDue } from './ranks';
 import { shipSalePrice } from './ships';
 import type { GameState, MapNode, Player, Ship } from './types';
+
+/** Gold an AI keeps back before buying lottery numbers. */
+export const AI_LOTTERY_RESERVE = 600;
+
+/** How many Treasure Island numbers the AI buys: up to three, never dipping below its reserve. */
+export function aiLotteryPickCount(gold: number): number {
+  return Math.max(0, Math.min(3, Math.floor((gold - AI_LOTTERY_RESERVE) / LOTTERY.ticketPrice)));
+}
 
 export function aiBarterChoice(player: Player, offers: BarterOffer[]): number | null {
   let best: number | null = null;
@@ -52,9 +61,10 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
       if (node.event === 'pirates' || node.event === 'seaMonster') return risk + odds * onward(afterSalary - SEA_RULES[node.event]);
       if (node.event === 'whirlpool') return risk + odds * (0.33 * onward(afterSalary - SEA_RULES.whirlpoolLoss) + 0.67 * onward(afterSalary));
       if (node.special === 'skeleton') return risk + odds * onward(afterSalary >= SEA_RULES.tribute ? afterSalary - SEA_RULES.tribute : afterSalary + SEA_RULES.scrap);
-      if (node.special === 'treasure' && afterSalary >= SEA_RULES.ticket) {
-        const balance = afterSalary - SEA_RULES.ticket;
-        return risk + odds * ((1 - SEA_RULES.lotteryChance) * onward(balance) + SEA_RULES.lotteryChance * onward(balance + SEA_RULES.lotteryPrize));
+      if (node.special === 'treasure' && aiLotteryPickCount(afterSalary) > 0) {
+        const picks = aiLotteryPickCount(afterSalary);
+        const balance = afterSalary - picks * LOTTERY.ticketPrice;
+        return risk + odds * onward(balance + Math.round(expectedLotteryPrize(picks)));
       }
       if (node.special === 'revival') {
         const damage = fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);

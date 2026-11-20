@@ -328,3 +328,32 @@ describe('pacing', () => {
     expect(controller.timings.step).toBe(200);
   });
 });
+
+it('runs the Treasure Island timer for the human and draws when it runs out', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  const p = state.players[0];
+  const treasure = state.map.find((node) => node.special === 'treasure')!;
+  p.position = (treasure.id - 2 + state.map.length) % state.map.length;
+  humanTurn();
+  expect(state.phase).toBe('awaitingLottery');
+  controller.buyLotteryNumber(7);
+  expect(state.lottery!.picks).toEqual([7]);
+  const seconds = state.lottery!.secondsLeft;
+  vi.advanceTimersByTime(1000);
+  expect(state.lottery!.secondsLeft).toBe(seconds - 1);
+  vi.setSystemTime(Date.now() + 5000);
+  vi.advanceTimersByTime(250);
+  expect(state.lottery!.secondsLeft).toBe(seconds - 6);
+  vi.advanceTimersByTime((seconds - 6) * 1000);
+  expect(state.lottery!.draw).not.toBeNull();
+  expect(state.lotteryDraws).toHaveLength(1);
+  controller.finishLottery();
+  expect(state.phase).toBe('awaitingLottery');
+  vi.advanceTimersByTime(10_000);
+  expect(controller.lotteryRevealed).toBe(true);
+  expect(controller.headline?.text).toContain('Lottery');
+  controller.finishLottery();
+  expect(state.lottery).toBeNull();
+  expect(state.currentPlayer).toBe(1);
+});

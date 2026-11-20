@@ -231,3 +231,19 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .playing .player .portrait { width: 18px; height: 18px; margin-right: 3px; }
   .navigator-card .portrait { width: 56px; height: 56px; }
 }
+.lottery-timer strong { font-size: 18px; color: #8e2b2b; }
+.lottery-grid { display: grid; grid-template-columns: repeat(5, 40px); gap: 6px; margin: 8px 0; }
+.ball { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border-radius: 50%; font-weight: 700; }
+.ball.picked { background: #e0b728; border-color: #7a5200; color: #3e2700; opacity: 1; }
+.ball.small { width: 26px; height: 26px; margin: 0 3px; border: 1px solid #6d4c41; font-size: 12px; background: #fffaf0; }
+.ball.match { background: #2e7d32; border-color: #1b5e20; color: #fff; }
+.lottery-jar { display: flex; flex-wrap: wrap; align-content: flex-end; justify-content: center; gap: 6px; width: 230px; min-height: 120px;
+  padding: 18px 12px 14px; margin: 8px 0; border: 3px solid rgba(120, 190, 230, 0.9); border-top-width: 8px; border-radius: 28px 28px 60px 60px;
+  background: linear-gradient(135deg, rgba(220, 245, 255, 0.85), rgba(160, 210, 240, 0.45)); box-shadow: inset 8px 0 14px rgba(255, 255, 255, 0.7); }
+.ball.drawn { border: 2px solid #6d4c41; background: radial-gradient(circle at 30% 30%, #fff, #ffd54f); color: #3e2700; animation: ball-drop 0.45s ease-out both; animation-delay: var(--delay); }
+.ball.drawn.match { background: radial-gradient(circle at 30% 30%, #c8f7c5, #2e7d32); color: #fff; }
+@keyframes ball-drop { from { opacity: 0; transform: translateY(-40px) scale(0.6); } to { opacity: 1; transform: none; } }
+.lottery-payouts { border-collapse: collapse; margin: 6px 0 10px; font-size: 13px; }
+.lottery-payouts caption { text-align: left; font-size: 12px; color: #6d4c41; }
+.lottery-payouts th, .lottery-payouts td { padding: 1px 10px 1px 0; text-align: left; }
+@media (prefers-reduced-motion: reduce) { .ball.drawn { animation: none; } }
