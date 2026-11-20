@@ -1,12 +1,13 @@
-import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight, aiLotteryPickCount } from './ai';
+import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount } from './ai';
 import { STRATEGIES, STRATEGY_RULES, type StrategyId } from './strategies';
 import { COMBAT, colonyDefenders, fightNavalBattle, forecastNavalBattle, tollDue } from './combat';
-import { barterOffers, fleetQuantity } from './barter';
+import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { CAPTAINS, MAX_CAPTAINS, captainBonus, discountedByCaptains, recruitOffers, aiRecruitChoice } from './captains';
 import { BUILDINGS, buildingLevel, nextBuildingCost, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
+import { seaEventText } from './seaEvents';
 import { RANKS, playerMerit, foreignTaxDue } from './ranks';
 export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
@@ -14,7 +15,7 @@ import { createDefaultMap } from './map';
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
-import type { Good } from './types';
+import type { Good, SeaEventResult, Specialty } from './types';
 import { navigatorById, type SignatureShip } from './navigators';
 import type { BattleReport, ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, MarketOrder, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
 
@@ -118,6 +119,8 @@ export class GameEngine {
       lastSpin: null,
       pendingClaim: null,
       pendingBarter: null,
+      pendingMerchant: null,
+      pendingWyvern: false,
       lottery: null,
       lotteryDraws: [],
       pendingRecruits: null,
@@ -703,6 +706,14 @@ export class GameEngine {
 
   /** Let the built-in AI make the current player's pending decision. */
   decideForAI(): void {
+    if (this.state.phase === 'awaitingMerchant') {
+      this.acceptMerchant();
+      return;
+    }
+    if (this.state.phase === 'awaitingWyvern') {
+      this.wyvernFly(aiWyvernTarget(this.state, this.currentPlayer));
+      return;
+    }
     if (this.state.phase === 'awaitingSpin') {
       const p = this.currentPlayer;
       const target = p.knownHoard ?? this.state.map.find((n) => n.kind === 'island' && this.state.owners[n.id] === null && aiShouldClaim(this.state, { ...p, position: n.id }, n.id))?.id;
@@ -905,49 +916,158 @@ export class GameEngine {
     }
   }
 
+  acceptMerchant(): void {
+    this.assertPhase('awaitingMerchant');
+    const offer = this.state.pendingMerchant!;
+    const player = this.currentPlayer;
+    if (fleetQuantity(player, offer.good) < offer.quantity) throw new Error('Not enough cargo');
+    let remaining = offer.quantity;
+    for (const ship of player.fleet) {
+      const units = Math.min(remaining, ship.cargo[offer.good] ?? 0);
+      ship.cargo[offer.good] = (ship.cargo[offer.good] ?? 0) - units;
+      if (ship.cargo[offer.good] === 0) delete ship.cargo[offer.good];
+      remaining -= units;
+    }
+    this.changeGold(player, offer.gold, 'merchant');
+    this.emit({ type: 'seaEvent', playerId: player.id, event: 'merchant', outcome: 'accepted', ...offer });
+    this.endTurn();
+  }
+
+  declineMerchant(): void {
+    this.assertPhase('awaitingMerchant');
+    this.emit({ type: 'seaEvent', playerId: this.currentPlayer.id, event: 'merchant', outcome: 'declined' });
+    this.endTurn();
+  }
+
+  wyvernFly(nodeId: number): void {
+    this.assertPhase('awaitingWyvern');
+    if (!Number.isInteger(nodeId) || !this.state.map[nodeId]) throw new Error('Unknown destination');
+    const player = this.currentPlayer;
+    player.position = nodeId;
+    this.state.pendingWyvern = false;
+    this.state.phase = 'moving';
+    this.pendingPath = [nodeId];
+    this.emit({ type: 'seaEvent', playerId: player.id, event: 'wyvern', outcome: 'relocated', destination: nodeId });
+    this.emit({ type: 'moved', playerId: player.id, path: [nodeId] });
+  }
+
   private resolveEvent(player: Player, node: MapNode): boolean {
-    if (['storm', 'pirates', 'seaMonster', 'whirlpool', 'wyvern'].includes(node.event ?? '') && player.revivalProtection) {
+    const event = node.event!;
+    const announce = (outcome: SeaEventResult['outcome'], details: Partial<Omit<SeaEventResult, 'type' | 'playerId' | 'event' | 'outcome'>> = {}) =>
+      this.emit({ type: 'seaEvent', playerId: player.id, event, outcome, ...details });
+    if (['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'].includes(event) && player.revivalProtection) {
       player.revivalProtection = false;
-      this.log(`Revival protection shields ${player.name} from ${node.event}.`);
+      announce('protected');
       return false;
     }
-    switch (node.event) {
-      case 'pirates':
-      case 'seaMonster':
-        this.damageFleet(player);
-        this.log(`${node.event === 'pirates' ? 'Pirates raid' : 'A sea monster attacks'} ${player.name}'s fleet.`);
-        this.changeGold(player, -SEA_RULES[node.event], node.event);
+    const hurt = (ships: Ship[], amount: number) => ships.reduce((total, ship) => {
+      const damage = Math.min(amount, Math.max(0, ship.durability - 1));
+      ship.durability -= damage;
+      return total + damage;
+    }, 0);
+    const sink = () => player.fleet.length > 1 ? [player.fleet.splice(Math.floor(this.rng() * player.fleet.length), 1)[0].id] : [];
+    switch (event) {
+      case 'pirates': {
+        const pirate: Ship = { id: -1, name: 'Pirate', type: 'warship', cargo: {}, ...SHIP_TYPES.warship,
+          durability: SEA_RULES.pirateDurability, maxDurability: SEA_RULES.pirateDurability, firepower: SEA_RULES.pirateFirepower };
+        const before = player.fleet.reduce((sum, ship) => sum + ship.durability, 0);
+        const result = fightNavalBattle(player.fleet, [pirate], this.rng);
+        const lost = result.attackerSunk.map((ship) => ship.id);
+        player.fleet = player.fleet.filter((ship) => !lost.includes(ship.id));
+        if (!player.fleet.length && result.attackerSunk.length) {
+          const survivor = result.attackerSunk.pop()!;
+          survivor.durability = 1;
+          player.fleet.push(survivor);
+          lost.splice(lost.indexOf(survivor.id), 1);
+        }
+        const won = result.outcome === 'victory';
+        const gold = won ? SEA_RULES.pirateLoot : -SEA_RULES.pirates;
+        this.changeGold(player, gold, 'pirates');
+        announce(won ? 'victory' : 'defeat', { gold, shipsLost: lost,
+          damage: before - player.fleet.reduce((sum, ship) => sum + ship.durability, 0) });
         break;
-      case 'bottle':
-      case 'floatingCargo':
-        if (node.event === 'bottle' && this.rng() < STRATEGY_RULES.bottleChance) this.gainStrategy(player.id, 'drifting bottle');
-        this.log(`${player.name} recovers ${node.event === 'bottle' ? 'a bottled reward chart' : 'floating cargo'}.`);
-        this.changeGold(player, SEA_RULES[node.event], node.event);
+      }
+      case 'smallMonster':
+      case 'largeMonster': {
+        const large = event === 'largeMonster';
+        const targets = large ? player.fleet : player.fleet.length ? [player.fleet[Math.floor(this.rng() * player.fleet.length)]] : [];
+        const damage = hurt(targets, large ? SEA_RULES.largeMonsterDamage : SEA_RULES.smallMonsterDamage);
+        const shipsLost = large && this.rng() < SEA_RULES.monsterSinkChance ? sink() : [];
+        const gold = -SEA_RULES[event];
+        this.changeGold(player, gold, event);
+        announce(shipsLost.length ? 'sunk' : 'damaged', { gold, damage, shipsLost });
         break;
-      case 'merchant':
-        this.log(`A merchant buys specialties from ${player.name}.`);
-        this.changeGold(player, SEA_RULES.merchantPerColony * this.islandsOwnedBy(player.id), 'merchant');
+      }
+      case 'turtle': {
+        const shipsLost = sink();
+        const damage = shipsLost.length ? 0 : hurt(player.fleet, SEA_RULES.turtleDamage);
+        announce(shipsLost.length ? 'sunk' : 'damaged', { shipsLost, damage });
         break;
-      case 'whirlpool':
-      case 'wyvern': {
-        if (node.event === 'whirlpool' && this.rng() < 0.33) {
-          this.log(`Bermuda whirlpool damages ${player.name}'s fleet.`);
+      }
+      case 'bottle': {
+        if (this.rng() < STRATEGY_RULES.bottleChance) this.gainStrategy(player.id, 'drifting bottle');
+        const roll = this.rng();
+        if (roll < SEA_RULES.bottlePrizeChance) {
+          this.changeGold(player, SEA_RULES.bottlePrize, event);
+          announce('specialPrize', { gold: SEA_RULES.bottlePrize });
+        } else if (roll < SEA_RULES.bottlePrizeChance + SEA_RULES.bottleRepairChance) {
+          for (const ship of player.fleet) ship.durability = ship.maxDurability;
+          announce('repaired');
+        } else {
+          this.changeGold(player, SEA_RULES.bottle, event);
+          announce('gold', { gold: SEA_RULES.bottle });
+        }
+        break;
+      }
+      case 'floatingCargo': {
+        const specialties = GOODS.filter((good): good is Specialty => good !== 'lumber' && good !== 'iron');
+        let quantity = 0;
+        const good = specialties[Math.floor(this.rng() * specialties.length)];
+        if (this.rng() >= SEA_RULES.cargoGoldChance) {
+          for (const ship of player.fleet) {
+            const units = Math.min(SEA_RULES.cargoUnits - quantity, Math.max(0, ship.cargoCapacity - cargoLoad(ship)));
+            ship.cargo[good] = (ship.cargo[good] ?? 0) + units;
+            quantity += units;
+          }
+        }
+        if (quantity) announce('cargo', { good, quantity });
+        else {
+          this.changeGold(player, SEA_RULES.floatingCargo, event);
+          announce('gold', { gold: SEA_RULES.floatingCargo });
+        }
+        break;
+      }
+      case 'merchant': {
+        const good = GOODS.find((good): good is Specialty => good !== 'lumber' && good !== 'iron' && fleetQuantity(player, good) > 0);
+        if (!good) { announce('noTrade'); break; }
+        const quantity = Math.min(SEA_RULES.merchantUnits, fleetQuantity(player, good));
+        const offer = { good, quantity, gold: Math.round(GOOD_VALUES[good] * quantity * SEA_RULES.merchantPremium) };
+        this.state.pendingMerchant = offer;
+        this.state.phase = 'awaitingMerchant';
+        this.emit({ type: 'merchantOffered', playerId: player.id, offer });
+        return true;
+      }
+      case 'wyvern':
+        if (this.relocations++ >= SEA_RULES.relocationLimit) { announce('escaped'); break; }
+        this.state.pendingWyvern = true;
+        this.state.phase = 'awaitingWyvern';
+        this.emit({ type: 'wyvernOffered', playerId: player.id });
+        return true;
+      case 'whirlpool': {
+        if (this.rng() < SEA_RULES.whirlpoolDamageChance) {
+          const before = player.fleet.reduce((sum, ship) => sum + ship.durability, 0);
           this.damageFleet(player);
-          this.changeGold(player, -SEA_RULES.whirlpoolLoss, 'whirlpool');
+          this.changeGold(player, -SEA_RULES.whirlpoolLoss, event);
+          announce('damaged', { gold: -SEA_RULES.whirlpoolLoss, damage: before - player.fleet.reduce((sum, ship) => sum + ship.durability, 0) });
           break;
         }
+        if (this.relocations++ >= SEA_RULES.relocationLimit) { announce('escaped'); break; }
         const size = this.state.map.length;
-        if (this.relocations++ >= 4) { this.log(`${player.name}'s fleet escapes the circling currents and rests.`); break; }
-        let target = Math.floor(this.rng() * size);
-        let path = [target];
-        if (node.event === 'whirlpool') {
-          const direction = this.rng() < 0.5 ? -1 : 1;
-          path = Array.from({ length: SEA_RULES.whirlpoolSteps }, (_, i) => (player.position + direction * (i + 1) + size * SEA_RULES.whirlpoolSteps) % size);
-          target = path[path.length - 1];
-        }
-        player.position = target;
-        this.log(`${node.event === 'wyvern' ? 'A wyvern carries' : 'Bermuda currents push'} ${player.name}'s fleet to ${this.node(target).name}.`);
+        const direction = this.rng() < 0.5 ? -1 : 1;
+        const path = Array.from({ length: SEA_RULES.whirlpoolSteps }, (_, i) => (player.position + direction * (i + 1) + size * SEA_RULES.whirlpoolSteps) % size);
+        player.position = path[path.length - 1];
         this.pendingPath = path;
+        announce('relocated', { destination: player.position });
         this.emit({ type: 'moved', playerId: player.id, path });
         return true;
       }
@@ -962,15 +1082,18 @@ export class GameEngine {
         const amount = min + Math.floor(this.rng() * ((max - min) / step + 1)) * step;
         this.log(`${player.name} hauls up a sunken chest worth ${amount}g!`);
         this.changeGold(player, amount, 'treasure');
+        announce('gold', { gold: amount });
         break;
       }
       case 'storm': {
+        const stormDamage = player.fleet.reduce((sum, ship) => sum + Math.min(ship.durability, SEA_HAZARD_DAMAGE), 0);
         this.damageFleet(player);
         this.state.market.repairDemandThroughRound = this.state.round + 1;
         const { min, max, step } = EVENT_GOLD.storm;
         const amount = min + Math.floor(this.rng() * ((max - min) / step + 1)) * step;
         this.log(`A storm batters ${player.name}'s fleet: repairs cost ${amount}g.`);
         this.changeGold(player, -amount, 'storm repairs');
+        announce('damaged', { gold: -amount, damage: stormDamage });
         break;
       }
       case 'tradeWind': {
@@ -978,6 +1101,7 @@ export class GameEngine {
         const amount = EVENT_GOLD.tradeWind.perColony * this.islandsOwnedBy(player.id) + EVENT_GOLD.tradeWind.base;
         this.log(`Trade winds carry ${player.name}'s goods to market: +${amount}g.`);
         this.changeGold(player, amount, 'trade');
+        announce('gold', { gold: amount });
         break;
       }
     }
@@ -1038,6 +1162,8 @@ export class GameEngine {
   }
 
   private endTurn(): void {
+    this.state.pendingMerchant = null;
+    this.state.pendingWyvern = false;
     this.state.pendingClaim = null;
     this.state.pendingBarter = null;
     this.state.lottery = null;
@@ -1148,6 +1274,14 @@ export class GameEngine {
   }
 
   private emit(event: GameEvent): void {
+    if (event.type === 'seaEvent') {
+      this.log(`${this.state.players[event.playerId].name}: ${seaEventText(event, event.destination === undefined ? undefined : this.node(event.destination).name)}`);
+    }
+    if (event.type === 'merchantOffered') {
+      const { good, quantity, gold } = event.offer;
+      this.log(`A merchant offers ${this.state.players[event.playerId].name} ${gold}g for ${quantity} aboard ${good}.`);
+    }
+    if (event.type === 'wyvernOffered') this.log(`A wyvern offers to carry ${this.state.players[event.playerId].name} to any destination.`);
     for (const listener of this.listeners) listener(event, this.state);
   }
 }

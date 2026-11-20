@@ -33,6 +33,19 @@ export function aiBarterChoice(player: Player, offers: BarterOffer[]): number | 
   return best;
 }
 
+export function aiWyvernTarget(state: GameState, player: Player): number {
+  const score = (node: MapNode): number => {
+    if (node.kind === 'island' && state.owners[node.id] === null && player.gold >= (node.price ?? Infinity))
+      return aiShouldClaim(state, { ...player, position: node.id }, node.id) ? 1000 - (node.price ?? 0) : 0;
+    if (node.special === 'revival') return 150;
+    if (node.event === 'treasure') return 125;
+    if (node.event === 'tradeWind') return 100;
+    if (node.id === player.homePort) return 50;
+    return -100;
+  };
+  return [...state.map].sort((a, b) => score(b) - score(a) || a.id - b.id)[0].id;
+}
+
 /** Forecast the next two moves without knowing the compass results. */
 function bankruptcyOdds(state: GameState, player: Player, gold: number, coloniesAfterClaim: number): number {
   const { map, owners, config } = state;
@@ -48,7 +61,7 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
       const passes = Array.from({ length: steps }, (_, i) => (position + i + 1) % map.length).filter((id) => id === player.homePort).length;
       const afterSalary = cash + passes * (config.homeSalary + RANKS[player.rank].salary + captainBonus(player, 'salary'));
       const owner = owners[next];
-      const hazard = ['storm', 'pirates', 'seaMonster', 'whirlpool', 'wyvern'].includes(node.event ?? '');
+      const hazard = ['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'].includes(node.event ?? '');
       const onward = (balance: number, protection = protectedFromHazards, ships = fleet) => forecast(next, balance, turns - 1, protection, ships);
       if (hazard && protectedFromHazards) return risk + odds * onward(afterSalary, false);
       if (node.kind === 'port' && node.id !== player.homePort) {
@@ -58,8 +71,8 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
         while (shortfall > 0 && remaining.length > 0) shortfall -= shipSalePrice(remaining.shift()!);
         return risk + odds * (shortfall > 0 || remaining.length === 0 ? 1 : onward(Math.max(0, balance), protectedFromHazards, remaining));
       }
-      if (node.event === 'pirates' || node.event === 'seaMonster') return risk + odds * onward(afterSalary - SEA_RULES[node.event]);
-      if (node.event === 'whirlpool') return risk + odds * (0.33 * onward(afterSalary - SEA_RULES.whirlpoolLoss) + 0.67 * onward(afterSalary));
+      if (node.event === 'pirates' || node.event === 'smallMonster' || node.event === 'largeMonster') return risk + odds * onward(afterSalary - SEA_RULES[node.event]);
+      if (node.event === 'whirlpool') return risk + odds * (SEA_RULES.whirlpoolDamageChance * onward(afterSalary - SEA_RULES.whirlpoolLoss) + (1 - SEA_RULES.whirlpoolDamageChance) * onward(afterSalary));
       if (node.special === 'skeleton') return risk + odds * onward(afterSalary >= SEA_RULES.tribute ? afterSalary - SEA_RULES.tribute : afterSalary + SEA_RULES.scrap);
       if (node.special === 'treasure' && aiLotteryPickCount(afterSalary) > 0) {
         const picks = aiLotteryPickCount(afterSalary);

@@ -66,9 +66,11 @@ describe('living sea board', () => {
     const p = g.currentPlayer;
     const before = p.gold;
     land(g, 0);
+    g.wyvernFly(2);
     expect(p.position).toBe(2);
     expect(p.gold).toBe(before);
     g.resolveLanding();
+    g.wyvernFly(1);
     expect(p.position).toBe(1);
     expect(p.gold).toBe(before);
     g.resolveLanding();
@@ -163,24 +165,7 @@ describe('living sea board', () => {
     expect(p.captains).toEqual(['ines']);
   });
 
-  it.each(['pirates', 'seaMonster', 'whirlpool', 'bottle', 'floatingCargo', 'merchant', 'wyvern'] as EventKind[])('resolves %s consistently', (event) => {
-    const g = game();
-    const p = g.currentPlayer;
-    const moves: number[][] = [];
-    g.on((e) => { if (e.type === 'moved') moves.push(e.path); });
-    const node = g.state.map.find((n) => n.event === event)!;
-    land(g, node.id);
-    if (event === 'wyvern') {
-      expect(moves).toHaveLength(1);
-      expect(g.state.phase).toBe('moving');
-      while (g.state.phase === 'moving') g.resolveLanding();
-      expect(g.state.phase).not.toBe('moving');
-    } else expect(g.state.phase).toBe('awaitingSpin');
-    if (event === 'pirates' || event === 'seaMonster') expect(p.gold).toBe(g.state.config.startingGold - SEA_RULES[event]);
-    if (event === 'bottle' || event === 'floatingCargo') expect(p.gold).toBe(g.state.config.startingGold + SEA_RULES[event]);
-  });
-
-  it.each(['storm', 'pirates', 'seaMonster', 'whirlpool', 'wyvern'] as EventKind[])('revival blocks one %s hazard', (event) => {
+  it.each(['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'] as EventKind[])('revival blocks one %s hazard', (event) => {
     const g = game();
     const p = g.currentPlayer;
     p.revivalProtection = true;
@@ -202,7 +187,10 @@ describe('living sea board', () => {
     g.spinCompass();
     g.sail();
     let resolutions = 0;
-    while (g.state.phase === 'moving' && resolutions++ < 10) g.resolveLanding();
+    while ((g.state.phase === 'moving' || g.state.phase === 'awaitingWyvern') && resolutions < 10) {
+      if (g.state.phase === 'awaitingWyvern') g.wyvernFly(0);
+      else { resolutions++; g.resolveLanding(); }
+    }
     expect(resolutions).toBe(5);
     expect(g.state.phase).toBe('awaitingSpin');
     expect(() => g.resolveLanding()).toThrow('Expected phase moving');

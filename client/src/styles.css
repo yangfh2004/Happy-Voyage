@@ -1,5 +1,24 @@
 .building-option { margin-bottom: 12px; }
 .building-option small { display: block; margin: 3px 0; }
+.sea-map { position: absolute; inset: 0; }
+.playing .sea-map { position: relative; inset: auto; min-width: 0; min-height: 0; overflow: hidden; }
+.sea-notifications { position: absolute; top: 12px; right: 12px; z-index: 20; width: min(440px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: auto; display: grid; gap: 8px; pointer-events: none; }
+.sea-notifications:empty { display: none; }
+.sea-notice { display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #edbf56; border-radius: 12px; background: #092f46; color: #fff6dc; box-shadow: 0 5px 18px #001b2fcc; pointer-events: auto; animation: banner 0.3s ease-out; }
+.sea-notice p { margin: 3px 0 0; font-size: 14px; }
+.sea-notice button { margin-left: auto; padding: 2px 9px; flex-shrink: 0; }
+.sea-icon { font-size: 30px; min-width: 34px; text-align: center; }
+.sea-largeMonster, .sea-turtle { border-color: #f08d78; background: #492c3f; }
+.sea-smallMonster { border-color: #a8d5ab; background: #1a4544; }
+.sea-whirlpool { border-color: #87e3ef; background: #163c69; }
+.sea-whirlpool .sea-icon { animation: sea-swirl 1s ease-out; }
+.sea-pirates { border-color: #f6b07a; background: #472b2b; }
+#wyvern-destination { font: inherit; max-width: 100%; padding: 6px; margin: 6px 0; }
+.action-content > div { min-width: 0; max-width: 100%; }
+.sea-choice { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.sea-choice select { width: 100%; }
+@keyframes sea-swirl { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sea-notice, .sea-whirlpool .sea-icon { animation: none; } }
 @font-face { font-family: 'Sea Names'; src: url('/fonts/sea-names.ttf') format('truetype'); font-display: block; }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }

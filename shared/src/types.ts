@@ -9,7 +9,7 @@ export type NodeKind = 'port' | 'island' | 'event' | 'special';
 export type SpecialKind = 'skeleton' | 'treasure' | 'mist' | 'revival' | 'nightless' | 'wind' | 'dragonSnake';
 
 /** Random-event stops (the "joy core" of the original game). */
-export type EventKind = 'treasure' | 'storm' | 'tradeWind' | 'pirates' | 'seaMonster' | 'whirlpool' | 'bottle' | 'floatingCargo' | 'merchant' | 'wyvern';
+export type EventKind = 'treasure' | 'storm' | 'tradeWind' | 'pirates' | 'smallMonster' | 'largeMonster' | 'turtle' | 'whirlpool' | 'bottle' | 'floatingCargo' | 'merchant' | 'wyvern';
 
 /** One stop on the node-based sea route. */
 export interface MapNode {
@@ -91,7 +91,26 @@ export interface ColonyStockpile {
 }
 
 export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' |
-  'awaitingMarket' | 'awaitingBarter' | 'awaitingRecruit' | 'awaitingLottery' | 'awaitingCargoMarket' | 'awaitingToll' | 'gameOver';
+  'awaitingMarket' | 'awaitingRecruit' | 'awaitingLottery' | 'awaitingBarter' | 'awaitingMerchant' | 'awaitingWyvern' | 'awaitingCargoMarket' | 'awaitingToll' | 'gameOver';
+
+export interface MerchantOffer {
+  good: Specialty;
+  quantity: number;
+  gold: number;
+}
+
+export interface SeaEventResult {
+  type: 'seaEvent';
+  playerId: number;
+  event: EventKind;
+  outcome: 'protected' | 'victory' | 'defeat' | 'damaged' | 'sunk' | 'gold' | 'specialPrize' | 'repaired' | 'cargo' | 'accepted' | 'declined' | 'noTrade' | 'relocated' | 'escaped';
+  gold?: number;
+  shipsLost?: number[];
+  damage?: number;
+  good?: Specialty;
+  quantity?: number;
+  destination?: number;
+}
 
 export interface MarketState {
   stock: Record<Good, number>;
@@ -161,6 +180,8 @@ export interface GameState {
   /** Island the current player may claim while phase === 'awaitingClaim'. */
   pendingClaim: number | null;
   pendingBarter: BarterOffer[] | null;
+  pendingMerchant: MerchantOffer | null;
+  pendingWyvern: boolean;
   /** Treasure Island lottery the current player is playing, while phase === 'awaitingLottery'. */
   lottery: import('./lottery').LotteryState | null;
   /** Every Treasure Island draw this game, oldest first. */
@@ -174,6 +195,9 @@ export interface GameState {
 
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
+  | SeaEventResult
+  | { type: 'merchantOffered'; playerId: number; offer: MerchantOffer }
+  | { type: 'wyvernOffered'; playerId: number }
   | { type: 'strategyGained'; playerId: number; card: import('./strategies').StrategyId; source: string }
   | { type: 'strategyUsed'; playerId: number; card: import('./strategies').StrategyId; target?: number }
   | { type: 'royalAudience'; audience: import('./ranks').RoyalAudience }
