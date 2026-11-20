@@ -85,7 +85,8 @@ button.big { font-size: 18px; padding: 10px 22px; }
 
 .player-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .player-header .round { margin-bottom: 0; }
-.rules-toggle { font-size: 12px; padding: 3px 10px; flex-shrink: 0; }
+.player-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.player-controls button { font-size: 12px; padding: 3px 10px; white-space: nowrap; }
 .rules-backdrop { position: absolute; inset: 0; background: #06283dbb; display: grid; place-items: center; padding: 20px; }
 .rules { width: min(570px, 94vw); max-height: 90vh; overflow: auto; padding: 20px 24px; }
 .rules-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -97,6 +98,17 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .standings { width: 100%; font-size: 12px; border-collapse: collapse; margin: 12px 0; }
 .standings caption { color: #6d4c41; margin-bottom: 6px; }
 .standings th, .standings td { text-align: left; padding: 5px 3px; border-bottom: 1px solid #8d6e6355; }
+
+.fleet { color: inherit; width: min(570px, 94vw); max-height: 90vh; overflow: auto; padding: 20px 24px; }
+.fleet::backdrop { background: #06283dbb; }
+.fleet-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.fleet-heading h2 { margin: 0; }
+.fleet select { max-width: 100%; font: inherit; }
+.fleet-table { overflow: auto; margin-top: 12px; }
+.fleet-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.fleet-table th, .fleet-table td { text-align: left; padding: 6px; border-bottom: 1px solid #8d6e6355; }
+.fleet-table th[scope="row"] { white-space: nowrap; }
+.fleet-table small { display: block; font-weight: normal; color: #5d4037; }
 
 @media (max-width: 720px), (max-width: 1024px) and (max-height: 500px) {
   body { overflow: auto; }
@@ -130,6 +142,7 @@ button.big { font-size: 18px; padding: 10px 22px; }
   .log { max-height: none; }
   .rules-backdrop { position: fixed; z-index: 2; }
   .rules { max-height: calc(100dvh - 40px); }
+  .fleet select { min-height: 44px; }
 }
 
 @media (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) {

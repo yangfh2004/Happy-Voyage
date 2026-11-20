@@ -2,7 +2,8 @@ import { aiShouldClaim } from './ai';
 import { rollDice, type Rng } from './dice';
 import { createDefaultMap } from './map';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
-import type { GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup } from './types';
+import { SHIP_TYPES, STARTING_FLEET } from './ships';
+import type { GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup, Ship, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
   startingGold: 750,
@@ -54,7 +55,9 @@ export class GameEngine {
         gold: config.startingGold,
         position: 0,
         bankrupt: false,
+        fleet: [],
       })),
+      nextShipId: 1,
       owners: map.map(() => null),
       currentPlayer: 0,
       round: 1,
@@ -64,6 +67,9 @@ export class GameEngine {
       winner: null,
       log: [],
     };
+    for (const player of this.state.players) {
+      for (const type of STARTING_FLEET) this.addShipToFleet(player.id, type);
+    }
   }
 
   /** Subscribe to engine events; returns an unsubscribe function. */
@@ -84,6 +90,20 @@ export class GameEngine {
 
   islandsOwnedBy(playerId: number): number {
     return this.state.owners.filter((o) => o === playerId).length;
+  }
+
+  /** Commission a ship for setup or after a game rule has authorized construction. */
+  addShipToFleet(playerId: number, type: ShipType): Ship {
+    const player = this.state.players[playerId];
+    if (!player) throw new Error(`Unknown player: ${playerId}`);
+    if (!Object.hasOwn(SHIP_TYPES, type)) throw new Error(`Unknown ship type: ${type}`);
+
+    const id = this.state.nextShipId++;
+    const { label, ...stats } = SHIP_TYPES[type];
+    const ship = { ...stats, id, type, name: `${label} ${id}`, durability: stats.maxDurability };
+    player.fleet.push(ship);
+    this.emit({ type: 'shipAdded', playerId, shipId: id });
+    return ship;
   }
 
   /** Gold plus the end-of-voyage value of every colony. */
