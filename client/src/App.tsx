@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG } from '@happy-voyage/shared';
 import { PhaserGame } from './game/PhaserGame';
 import { gameController } from './game/GameController';
 import { SetupMenu } from './ui/SetupMenu';
+import { OnlineMenu } from './ui/OnlineMenu';
 import { PlayerBar } from './ui/PlayerBar';
 import { ActionPanel } from './ui/ActionPanel';
 import { CampaignPanel } from './ui/CampaignPanel';
@@ -33,6 +34,7 @@ export function App() {
   // Re-render whenever the controller reports a state change.
   useSyncExternalStore(gameController.subscribe, gameController.getVersion);
   const state = gameController.state;
+  const room = gameController.room;
   const overlay = useRef<HTMLDivElement>(null);
   const needsInput = state && !state.players[state.currentPlayer].isAI &&
     (state.phase === 'awaitingSpin' || state.phase === 'awaitingClaim' ||
@@ -53,13 +55,23 @@ export function App() {
         {state ? (
           <div className="hud">
             <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>Fit chart</button><button onClick={() => EventBus.emit('follow-ship')}>Follow ship</button></div>
+            {room && (
+              <div className="panel room-status">
+                <span role="status">{room.lobby?.failed ? 'The room server stopped this voyage.' : room.ready ?
+                  `Online · You are ${state.players[gameController.viewerId!].name}` : 'Room connection lost. Trying to reconnect…'}</span>
+                {room.error && <span role="alert">{room.error}</span>}
+                {state.phase !== 'gameOver' && <button onClick={() => {
+                  if (window.confirm('Leave this voyage? You can reopen your invite in this tab to return to your seat.')) gameController.quit();
+                }}>Leave room</button>}
+              </div>
+            )}
             <ActionPanel state={state} />
             {state.campaign && <CampaignPanel campaign={state.campaign} />}
             <PlayerBar state={state} onRules={() => setRulesOpen(true)} onFleet={() => setFleetOpen(true)} />
             <LogPanel log={gameController.visibleLog(state)} tones={gameController.feedback.logTones} />
             <RouteDetails state={state} />
           </div>
-        ) : (
+        ) : room ? <OnlineMenu room={room} /> : (
           <SetupMenu onRules={() => setRulesOpen(true)} />
         )}
         {state && fleetOpen && <FleetPanel players={state.players} onClose={() => setFleetOpen(false)} />}
