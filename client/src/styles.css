@@ -276,8 +276,9 @@ kbd { display: inline-block; margin-left: 4px; padding: 0 3px; border: 1px solid
 .income, .log .income { color: #216b37; }
 .expense, .log .expense { color: #a32d25; }
 .color-blind .panel { background: #f4f6fa; border-color: #67778b; }
-.color-blind button:not(.stat-trigger, .primary, [aria-pressed="true"]) { border-color: #67778b; background: #fff; }
+.color-blind button:not(.stat-trigger, .primary, [aria-pressed="true"]) { border-color: #67778b; background: #fff; color: #173950; }
 .color-blind button:not(.stat-trigger, .primary, [aria-pressed="true"]):hover { background: #dbe8f5; }
+.color-blind .mobile-sound .sound::after { color: #173950; }
 .color-blind .player.current { border-color: #174d77; background: #dfedfc; }
 .color-blind .tag { background: #415774; }
 .color-blind :is(.income, .log .income) { color: #174d77; }
