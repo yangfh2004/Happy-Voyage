@@ -154,7 +154,8 @@ describe('Nightless Island market', () => {
     expect(ai.fleet[0].cargo.Wine).toBeUndefined();
     expect(g.state.round).toBe(2);
     expect(g.state.phase).toBe('awaitingSpin');
-    land(g, 0);
     expect(g.currentPlayer.id).toBe(0);
+    land(g, 0);
+    expect(g.currentPlayer.id).toBe(1);
   });
 });

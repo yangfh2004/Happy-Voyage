@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useT } from '../i18n';
+import { tx } from '@happy-voyage/shared';
 import { EVENT_GOLD, LOTTERY, NIM_MAX_TAKE, SEA_RULES, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE, DEFAULT_ISLAND_COUNT, hasRoundLimit, winConditionText, winConditionTx, localize, type CampaignState, type GameConfig } from '@happy-voyage/shared';
+
+const TURN_ORDER = tx('Navigators take turns in seat order, skipping eliminated players.', '航海家按座位顺序轮流行动，跳过已破产的玩家。');
 
 export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaign, onClose }: { config: GameConfig; islandCount?: number; campaign?: CampaignState | null; onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null);
@@ -41,7 +44,7 @@ export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaig
         <p><strong>Stay afloat:</strong> below 0 gold means bankruptcy. Your colonies go neutral.</p>
         {campaign ? <p><strong>Win:</strong> Complete all of the king’s missions{hasRoundLimit(config) ? ` by the end of round ${config.maxRounds}` : ''} without going bankrupt.</p>
           : <p><strong>Win:</strong> {winConditionText(config, islandCount)}. Classic conquest is the original rule; Quick match and Sprint are shorter modes picked at setup.</p>}
-        <p>The starting navigator rotates each round. Net worth = gold + 75% of each colony's purchase price, rounded down.</p>
+        <p>{localize('en', TURN_ORDER)} Net worth = gold + 75% of each colony's purchase price, rounded down.</p>
         </>}
       </section>
     </div>
@@ -70,6 +73,6 @@ function RulesZh({ config, islandCount, campaign }: { config: GameConfig; island
     <p><strong>保持偿付能力：</strong>金币低于 0 即为破产，你的殖民地会恢复中立。</p>
     {campaign ? <p><strong>胜利：</strong>{hasRoundLimit(config) ? `在第 ${config.maxRounds} 回合结束前` : ''}完成国王的全部使命且不破产。</p>
       : <p><strong>胜利：</strong>{localize('zh', winConditionTx(config, islandCount))}。经典征服是原作规则；快速对局和冲刺赛是开局时可选的较短模式。</p>}
-    <p>每回合轮换先手航海家。身家 = 金币 + 每块殖民地购买价的 75%（向下取整）。</p>
+    <p>{localize('zh', TURN_ORDER)}身家 = 金币 + 每块殖民地购买价的 75%（向下取整）。</p>
   </>;
 }

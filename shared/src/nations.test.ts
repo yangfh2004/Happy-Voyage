@@ -35,13 +35,17 @@ describe('reduced-player games', () => {
     game.resolveLanding();
   }
 
-  it('gives every human and AI one turn per round, rotating the starting seat', () => {
+  it.each([false, true])('cycles through every active human and AI across rounds (eliminated=%s)', (eliminated) => {
     const game = setup();
+    if (eliminated) game.state.players[1].bankrupt = true;
     const turns: number[] = [];
     game.on((event) => { if (event.type === 'turnStarted') turns.push(event.playerId); });
     game.start();
-    for (let i = 0; i < 7; i++) finish(game);
-    expect(turns).toEqual([0, 1, 2, 3, 1, 2, 3, 0]);
+    for (let i = 0; i < (eliminated ? 6 : 8); i++) {
+      finish(game);
+      expect(game.state.lastSpin).toBeNull();
+    }
+    expect(turns).toEqual(eliminated ? [0, 2, 3, 0, 2, 3, 0] : [0, 1, 2, 3, 0, 1, 2, 3, 0]);
     expect(game.state.players.map((p) => p.isAI)).toEqual([false, true, true, true]);
     expect(game.state.owners.every((owner) => owner === null)).toBe(true);
   });

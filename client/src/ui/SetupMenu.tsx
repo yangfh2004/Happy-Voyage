@@ -76,8 +76,8 @@ export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; pal
       <h1>{t('Happy Voyage', '欢乐大航海')}</h1>
       <p className="subtitle">{t('Seven Seas Domination · 欢乐大航海', '七海霸权 · Happy Voyage')}</p>
       <p>
-        {mode ? t('Spin the compass, sail the route and plant your flag on new lands. Rivals pay you a toll or attack when they land on your colonies. To win, {goal}. The starting navigator rotates each round. Final wealth is cash plus 75% of colony costs.',
-          '转动罗盘，沿航线前进，在新大陆插上你的旗帜。对手停在你的殖民地时，要向你缴纳过路费或发动攻击。获胜条件：{goal}。每回合轮换先手航海家。最终财富为现金加上殖民地成本的 75%。',
+        {mode ? t('Spin the compass, sail the route and plant your flag on new lands. Rivals pay you a toll or attack when they land on your colonies. To win, {goal}. Navigators take turns in seat order, skipping eliminated players. Final wealth is cash plus 75% of colony costs.',
+          '转动罗盘，沿航线前进，在新大陆插上你的旗帜。对手停在你的殖民地时，要向你缴纳过路费或发动攻击。获胜条件：{goal}。航海家按座位顺序轮流行动，跳过已破产的玩家。最终财富为现金加上殖民地成本的 75%。',
           { goal: l(winConditionTx(mode.config, DEFAULT_ISLAND_COUNT)) })
           : t('Take on the king’s missions in three standalone campaign stages. Finish every mission in a stage to win.', '在三个独立的战役关卡中接受国王的使命。完成一个关卡的全部使命即可获胜。')}
       </p>

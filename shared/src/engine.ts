@@ -1209,6 +1209,7 @@ export class GameEngine extends GameView {
     }
 
     this.state.currentPlayer = next;
+    this.state.lastSpin = null;
     this.state.strategyUsed = false;
     this.state.inspired = false;
     this.state.phase = 'awaitingSpin';

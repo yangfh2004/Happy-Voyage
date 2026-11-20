@@ -219,7 +219,7 @@ describe('GameEngine', () => {
     expect(engine.state.winner).not.toBeNull();
   });
 
-  it('rotates the first navigator without skipping or repeating a navigator within a round', () => {
+  it('keeps cyclic turn order without skipping or repeating a navigator', () => {
     const engine = new GameEngine({ players: [...twoPlayers, twoPlayers[1]], rng: spinTwo });
     const turns: number[][] = [];
     engine.on((event, { round }) => {
@@ -231,7 +231,7 @@ describe('GameEngine', () => {
       engine.resolveLanding();
       if (engine.state.phase === 'awaitingClaim') engine.decline();
     }
-    expect(turns).toEqual([[0, 1, 2], [1, 2, 0], [2, 0, 1]]);
+    expect(turns).toEqual([[0, 1, 2], [0, 1, 2], [0, 1, 2]]);
   });
 
   it('awards the round-limit win by cash plus discounted colony value', () => {

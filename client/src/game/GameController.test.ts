@@ -231,10 +231,6 @@ describe('pacing', () => {
     EventBus.emit('move-complete', moveId);
     await vi.runAllTimersAsync();
     expect(controller.state?.round).toBe(2);
-    expect(controller.state?.currentPlayer).toBe(1);
-    expect(controller.timings.step).toBe(0);
-    EventBus.emit('move-complete', moveId);
-    await vi.runAllTimersAsync();
     expect(controller.state?.currentPlayer).toBe(0);
     expect(controller.state?.phase).toBe('awaitingSpin');
     expect(controller.timings).toEqual({ ai: 250, step: 70, spin: 500 });
@@ -419,6 +415,37 @@ it('reveals a held lottery result on a fallback timer if the last ball never rep
 });
 
 describe('local multiplayer', () => {
+  it.each([['Normal', 1000], ['Fast', 350], ['Instant', 0]] as const)('announces turns at %s speed for %s ms', async (speed, duration) => {
+    controller.setSpeed(speed);
+    controller.newGame(players);
+    expect(controller.turnNoticeDuration).toBe(duration);
+    expect(controller.turnNotice !== null).toBe(duration > 0);
+    if (duration > 0) {
+      await vi.advanceTimersByTimeAsync(duration - 1);
+      expect(controller.turnNotice).not.toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(controller.turnNotice).toBeNull();
+    }
+  });
+
+  it('clears the compass on handover and explains an AI Navigate instead of a spin', async () => {
+    controller.newGame(createNationRoster([{ name: 'Human', nation: 'Spain' }], { totalPlayers: 4 }));
+    const state = controller.state!;
+    for (const player of state.players) player.strategies = [];
+    const islands = state.map.filter((node) => node.kind === 'island');
+    state.players[0].position = (islands[0].id - 2 + state.map.length) % state.map.length;
+    state.players[1].strategies = ['navigate'];
+    humanTurn();
+    expect(state.currentPlayer).toBe(1);
+    expect(state.lastSpin).toBeNull();
+    await vi.advanceTimersByTimeAsync(700);
+    expect(state.lastSpin).toBeNull();
+    expect(controller.turnAction).toMatchObject({ en: '{p} used Navigate to {n}.' });
+    controller.setSpeed('Instant');
+    expect(controller.turnAction).toBeNull();
+    expect(controller.turnNotice).toBeNull();
+  });
+
   it('holds each of three AI seats for its own compass and sailing completion at Normal speed', async () => {
     controller.setSpeed('Normal');
     controller.newGame(createNationRoster([{ name: 'Human', nation: 'Spain' }], { totalPlayers: 4 }));

@@ -73,6 +73,10 @@ export class GameController {
   /** Where the sailing fleet set out from, so text views don't reveal its destination early. */
   private departure: { playerId: number; position: number } | null = null;
   headline: Headline | null = null;
+  turnNotice: Text | null = null;
+  turnAction: Text | null = null;
+  private turnNoticeTimer: ReturnType<typeof setTimeout> | undefined;
+  private turnActionTimer: ReturnType<typeof setTimeout> | undefined;
   /** The outgoing human's last headline, shown on the pass-the-device screen. */
   handoffNote: (Headline & { playerId: number }) | null = null;
   /** The human seat the screen speaks to ("you"): whoever of the humans sailed most recently. */
@@ -113,6 +117,10 @@ export class GameController {
     return { ...local, spin: Math.min(local.spin, online.spin), step: Math.min(local.step, online.step) };
   }
 
+  get turnNoticeDuration(): number {
+    return this.timings.step === 0 ? 0 : this.timings.step === SPEEDS.Normal.step ? 1000 : 350;
+  }
+
   get spinId(): number {
     return this.spinSequence;
   }
@@ -141,6 +149,12 @@ export class GameController {
   }
 
   private refreshPacing(): void {
+    if (this.turnNoticeDuration === 0) {
+      clearTimeout(this.turnNoticeTimer);
+      clearTimeout(this.turnActionTimer);
+      this.turnNotice = null;
+      this.turnAction = null;
+    }
     this.schedulePending();
     if (this.timings.spin === 0) this.finishSpin(this.spinId);
     EventBus.emit('pacing-changed');
@@ -544,11 +558,19 @@ export class GameController {
             if (this.humanCount > 1) this.handoffTo = event.playerId;
           }
         }
+        this.showTurnNotice(tx("{p}'s turn", '{p} 的回合', { p: ref.player(event.playerId) }));
         if (engine?.currentPlayer.isAI) this.later(() => {
           const round = engine.state.round;
           engine.decideForAI();
           if (engine.state.phase === 'awaitingSpin' && engine.currentPlayer.id === event.playerId && engine.state.round === round) this.beginSpin(engine);
         });
+        break;
+      case 'strategyUsed':
+        if (event.card === 'navigate') {
+          clearTimeout(this.turnActionTimer);
+          this.turnAction = this.turnNoticeDuration === 0 ? null : tx('{p} used Navigate to {n}.', '{p} 使用「导航」前往{n}。', { p: ref.player(event.playerId), n: ref.node(event.target!) });
+          this.turnActionTimer = setTimeout(() => { this.turnAction = null; this.changed(); }, this.turnNoticeDuration);
+        }
         break;
       case 'tollPaid': {
         const at = ref.node(players[event.from].position);
@@ -680,6 +702,12 @@ export class GameController {
     this.schedulePending();
   }
 
+  private showTurnNotice(text: Text): void {
+    clearTimeout(this.turnNoticeTimer);
+    this.turnNotice = this.turnNoticeDuration === 0 ? null : text;
+    this.turnNoticeTimer = setTimeout(() => { this.turnNotice = null; this.changed(); }, this.turnNoticeDuration);
+  }
+
   private schedulePending(): void {
     clearTimeout(this.timer);
     if (!this.pending) return;
@@ -749,6 +777,10 @@ export class GameController {
   }
 
   private clearTimers(): void {
+    clearTimeout(this.turnNoticeTimer);
+    clearTimeout(this.turnActionTimer);
+    this.turnNotice = null;
+    this.turnAction = null;
     clearTimeout(this.timer);
     clearInterval(this.lotteryClock);
     clearTimeout(this.lotteryReveal);
