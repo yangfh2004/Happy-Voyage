@@ -7,16 +7,43 @@ import { NavigatorPortrait } from './NavigatorPortrait';
 import { SpeedControl } from './SpeedControl';
 import { ShortcutLegend } from './ShortcutLegend';
 
-/** Start screen: pick a nation, meet its navigator and their signature ship. */
+export const MAX_LOCAL_PLAYERS = 6;
+
+interface Seat {
+  customName: string | null;
+  nation: Nation;
+}
+
+const seatName = (seat: Seat) => seat.customName ?? navigatorForNation(seat.nation)!.name;
+
+/** Start screen: seat one or more people on this device, each with a nation; AI takes the rest. */
 export function SetupMenu({ onRules }: { onRules: () => void }) {
-  const [customName, setCustomName] = useState<string | null>(null);
-  const [nation, setNation] = useState<Nation>(NATIONS[0].name);
-  const navigator = navigatorForNation(nation)!;
-  const color = NATIONS.find((n) => n.name === nation)!.color;
-  const name = customName ?? navigator.name;
+  const [seats, setSeats] = useState<Seat[]>([{ customName: null, nation: NATIONS[0].name }]);
+  const [active, setActive] = useState(0);
+  const seat = seats[active];
+  const navigator = navigatorForNation(seat.nation)!;
+  const color = NATIONS.find((n) => n.name === seat.nation)!.color;
+  const takenBy = (nation: Nation) => seats.findIndex((other, i) => i !== active && other.nation === nation);
+  const multi = seats.length > 1;
+
+  const update = (change: Partial<Seat>) => setSeats(seats.map((s, i) => (i === active ? { ...s, ...change } : s)));
+  const addSeat = () => {
+    const free = NATIONS.find((n) => !seats.some((s) => s.nation === n.name));
+    if (!free || seats.length >= MAX_LOCAL_PLAYERS) return;
+    setSeats([...seats, { customName: null, nation: free.name }]);
+    setActive(seats.length);
+  };
+  const removeSeat = () => {
+    if (!multi) return;
+    setSeats(seats.filter((_, i) => i !== active));
+    setActive(Math.max(0, active - 1));
+  };
 
   const start = () => {
-    gameController.newGame(createNationRoster([{ name: name.trim() || navigator.name, nation }]));
+    gameController.newGame(createNationRoster(seats.map((s) => ({
+      name: seatName(s).trim() || navigatorForNation(s.nation)!.name,
+      nation: s.nation,
+    }))));
   };
 
   return (
@@ -29,29 +56,63 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         The starting navigator rotates each round. Final wealth is cash plus 75% of colony costs.
       </p>
 
+      <div className="field seats" role="group" aria-labelledby="seats-label">
+        <span id="seats-label">Players on this device</span>
+        <div className="seat-count">
+          <button aria-label="Remove player" disabled={!multi} onClick={removeSeat}>−</button>
+          <strong aria-live="polite">{seats.length}</strong>
+          <button aria-label="Add player" disabled={seats.length >= MAX_LOCAL_PLAYERS} onClick={addSeat}>+</button>
+          <small className="nation-note">Up to {MAX_LOCAL_PLAYERS} people take turns; pass the device when prompted.</small>
+        </div>
+        {multi && (
+          <div className="choices" role="tablist" aria-label="Seat to edit">
+            {seats.map((s, i) => (
+              <button
+                key={i}
+                role="tab"
+                aria-selected={i === active}
+                className={i === active ? 'chip selected' : 'chip'}
+                style={{ borderColor: cssColor(NATIONS.find((n) => n.name === s.nation)!.color) }}
+                onClick={() => setActive(i)}
+              >
+                P{i + 1} · {seatName(s)} · {s.nation}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <label>
-        Navigator name
-        <input value={name} maxLength={16} onChange={(e) => setCustomName(e.target.value)} />
+        {multi ? `Player ${active + 1} navigator name` : 'Navigator name'}
+        <input value={seatName(seat)} maxLength={16} onChange={(e) => update({ customName: e.target.value })} />
       </label>
 
       <div className="field nations" role="group" aria-labelledby="nation-label">
-        <span id="nation-label">Nation</span>
+        <span id="nation-label">{multi ? `Player ${active + 1} nation` : 'Nation'}</span>
         <div className="choices">
-          {NATIONS.map((n) => (
-            <button
-              key={n.name}
-              className={n.name === nation ? 'chip selected' : 'chip'}
-              aria-pressed={n.name === nation}
-              style={{ borderColor: cssColor(n.color) }}
-              onClick={() => setNation(n.name)}
-            >
-              <NavigatorPortrait navigator={navigatorForNation(n.name)!.id} color={n.color} size={24} />
-              {n.name}
-            </button>
-          ))}
+          {NATIONS.map((n) => {
+            const owner = takenBy(n.name);
+            return (
+              <button
+                key={n.name}
+                className={n.name === seat.nation ? 'chip selected' : 'chip'}
+                aria-pressed={n.name === seat.nation}
+                disabled={owner >= 0}
+                title={owner >= 0 ? `Taken by P${owner + 1}` : undefined}
+                style={{ borderColor: cssColor(n.color) }}
+                onClick={() => update({ nation: n.name })}
+              >
+                <NavigatorPortrait navigator={navigatorForNation(n.name)!.id} color={n.color} size={24} />
+                {n.name}
+                {owner >= 0 && <small> (P{owner + 1})</small>}
+              </button>
+            );
+          })}
         </div>
         <NavigatorCard navigator={navigator} color={color} />
-        <small className="nation-note">Start at {nation} Port. The other {NATIONS.length - 1} nations are AI rivals.</small>
+        <small className="nation-note">
+          {multi ? `${seats.length} players start at their home ports.` : `Start at ${seat.nation} Port.`} The other {NATIONS.length - seats.length} nations are AI rivals.
+        </small>
       </div>
 
       <button className="setup-rules" onClick={onRules}>How to play</button>

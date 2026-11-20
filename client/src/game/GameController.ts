@@ -73,6 +73,10 @@ export class GameController {
   /** Where the sailing fleet set out from, so text views don't reveal its destination early. */
   private departure: { playerId: number; position: number } | null = null;
   headline: Headline | null = null;
+  /** The human seat the screen speaks to ("you"): whoever of the humans sailed most recently. */
+  viewerId: number | null = null;
+  /** Hot-seat pause: the device must be passed to this human before their turn begins. */
+  handoffTo: number | null = null;
   seaNotices: SeaNotice[] = [];
   private noticeId = 0;
   private readonly noticeTimers = new Map<number, ReturnType<typeof setTimeout>>();
@@ -132,6 +136,8 @@ export class GameController {
     this.headline = null;
     this.clearSeaNotices();
     this.engine = new GameEngine({ players });
+    this.viewerId = this.engine.state.players.find((player) => !player.isAI)?.id ?? null;
+    this.handoffTo = null;
     this.feedback = new TurnFeedback();
     this.engine.on((event) => this.onEngineEvent(event));
     this.engine.start();
@@ -147,7 +153,26 @@ export class GameController {
     this.pendingMove = null;
     EventBus.emit('cancel-move');
     this.engine = null;
+    this.viewerId = null;
+    this.handoffTo = null;
     this.feedback = new TurnFeedback();
+    this.changed();
+  }
+
+  /** How many seats are played by people on this device. */
+  get humanCount(): number {
+    return this.engine?.state.players.filter((player) => !player.isAI).length ?? 0;
+  }
+
+  /** True while the seat at the helm still has to take the device. */
+  get awaitingHandoff(): boolean {
+    return this.handoffTo !== null && this.handoffTo === this.engine?.state.currentPlayer;
+  }
+
+  /** The next human has taken the device; their turn may begin. */
+  confirmHandoff(): void {
+    if (this.handoffTo === null) return;
+    this.handoffTo = null;
     this.changed();
   }
 
@@ -210,7 +235,7 @@ export class GameController {
   }
 
   canUseStrategy(id: StrategyId, target?: number): boolean {
-    return !!this.engine && !this.engine.currentPlayer.isAI && this.engine.canUseStrategy(id, target);
+    return !!this.engine && !this.engine.currentPlayer.isAI && !this.awaitingHandoff && this.engine.canUseStrategy(id, target);
   }
 
   useStrategy(id: StrategyId, target?: number): void {
@@ -363,6 +388,7 @@ export class GameController {
     this.feedback.observe(event, engine.state);
     const players = engine.state.players;
     const isHuman = (id: number) => !players[id].isAI;
+    const isViewer = (id: number) => id === this.viewerId;
     EventBus.emit('engine-event', event);
     switch (event.type) {
       case 'seaEvent': {
@@ -382,12 +408,12 @@ export class GameController {
         break;
       }
       case 'royalAudience':
-        if (isHuman(event.audience.playerId)) this.headline = { text: event.audience.message, tone: 'gain', royal: true };
+        if (isViewer(event.audience.playerId)) this.headline = { text: event.audience.message, tone: 'gain', royal: true };
         break;
       case 'compassSpun':
         this.spinSequence += 1;
         this.departure = { playerId: event.playerId, position: players[event.playerId].position };
-        if (isHuman(event.playerId)) this.headline = null;
+        if (isViewer(event.playerId)) this.headline = null;
         sfx.spin();
         break;
       case 'goldChanged':
@@ -400,7 +426,14 @@ export class GameController {
         this.resumeMovement();
         break;
       case 'turnStarted':
-        if (!engine.currentPlayer.isAI) this.skipping = false;
+        if (!engine.currentPlayer.isAI) {
+          this.skipping = false;
+          if (event.playerId !== this.viewerId) {
+            this.headline = null;
+            this.viewerId = event.playerId;
+            if (this.humanCount > 1) this.handoffTo = event.playerId;
+          }
+        }
         if (engine.currentPlayer.isAI) this.later(() => {
           engine.decideForAI();
           if (engine.state.phase === 'awaitingSpin' && engine.currentPlayer.id === event.playerId) this.beginSpin(engine);
@@ -408,10 +441,10 @@ export class GameController {
         break;
       case 'tollPaid': {
         const at = engine.state.map[players[event.from].position].name;
-        if (isHuman(event.to)) {
+        if (isViewer(event.to)) {
           this.headline = { text: `${players[event.from].name} pays you ${event.amount}g toll at ${at}!`, tone: 'gain' };
           sfx.coin();
-        } else if (isHuman(event.from)) {
+        } else if (isViewer(event.from)) {
           this.headline = { text: `You pay ${players[event.to].name} ${event.amount}g toll at ${at}.`, tone: 'loss' };
           sfx.pay();
         } else {
@@ -421,27 +454,27 @@ export class GameController {
       }
       case 'claimed': {
         const node = engine.state.map[event.nodeId];
-        if (isHuman(event.playerId)) this.headline = { text: `${node.name} is yours! Rivals now pay you ${node.toll}g here.`, tone: 'gain' };
+        if (isViewer(event.playerId)) this.headline = { text: `${node.name} is yours! Rivals now pay you ${node.toll}g here.`, tone: 'gain' };
         sfx.claim();
         break;
       }
       case 'shipAdded': {
         const ship = players[event.playerId].fleet.find((candidate) => candidate.id === event.shipId);
-        if (isHuman(event.playerId) && ship) this.headline = { text: `${ship.name} joined your fleet.`, tone: 'gain' };
+        if (isViewer(event.playerId) && ship) this.headline = { text: `${ship.name} joined your fleet.`, tone: 'gain' };
         break;
       }
       case 'shipSold':
-        if (isHuman(event.playerId)) this.headline = { text: `Sold ${event.shipName} for ${event.price}g.`, tone: 'gain' };
+        if (isViewer(event.playerId)) this.headline = { text: `Sold ${event.shipName} for ${event.price}g.`, tone: 'gain' };
         break;
       case 'battleFought': {
         const { report } = event;
         const at = engine.state.map[report.nodeId].name;
-        const rival = players[isHuman(report.attacker) ? report.defender : report.attacker].name;
-        if (isHuman(report.attacker)) {
+        const rival = players[isViewer(report.attacker) ? report.defender : report.attacker].name;
+        if (isViewer(report.attacker)) {
           this.headline = report.outcome === 'victory' ? { text: `Victory! You sink ${rival}'s defenders and take ${at}.`, tone: 'gain' }
             : report.outcome === 'defeat' ? { text: `Defeat at ${at}: your fleet is sunk and you pay ${report.tollPaid}g double toll.`, tone: 'loss' }
             : { text: `Stalemate at ${at}: both fleets sail home.`, tone: 'loss' };
-        } else if (isHuman(report.defender)) {
+        } else if (isViewer(report.defender)) {
           this.headline = report.outcome === 'victory' ? { text: `${rival} sinks your defenders and takes ${at}!`, tone: 'loss' }
             : report.outcome === 'defeat' ? { text: `You repel ${rival} at ${at} and collect ${report.tollPaid}g double toll!`, tone: 'gain' }
             : { text: `${rival} attacks ${at}; the battle is a draw and both fleets sail home.`, tone: 'loss' };
@@ -468,7 +501,7 @@ export class GameController {
       case 'lotteryDrawn': {
         clearInterval(this.lotteryClock);
         const { draw } = event;
-        if (isHuman(draw.playerId)) {
+        if (isViewer(draw.playerId)) {
           const matched = `${draw.matches.length} match${draw.matches.length === 1 ? '' : 'es'}`;
           this.headline = draw.prize
             ? { text: `Lottery: ${matched}! You win ${draw.prize}g.`, tone: 'gain' }
@@ -490,7 +523,7 @@ export class GameController {
         if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());
         break;
       case 'marketTrade':
-        if (isHuman(event.playerId)) {
+        if (isViewer(event.playerId)) {
           const sold = event.side === 'sell';
           this.headline = { text: `${sold ? 'Sold' : 'Bought'} ${event.quantity} ${event.good} for ${event.total}g.`, tone: sold ? 'gain' : 'loss' };
           if (sold) sfx.coin();
@@ -507,7 +540,7 @@ export class GameController {
   }
 
   private isHumanTurn(phase: GameState['phase']): boolean {
-    return !!this.engine && this.engine.state.phase === phase && !this.engine.currentPlayer.isAI;
+    return !!this.engine && this.engine.state.phase === phase && !this.engine.currentPlayer.isAI && !this.awaitingHandoff;
   }
 
   private later(action: () => void): void {

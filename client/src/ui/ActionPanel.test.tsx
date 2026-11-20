@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { GameEngine, type ShipType } from '@happy-voyage/shared';
+import { createNationRoster, GameEngine, type ShipType } from '@happy-voyage/shared';
 
 vi.mock('../game/GameController', () => ({ gameController: {
   spinId: 0, feedback: {}, headline: null, timings: { spin: 0 }, waiting: false,
@@ -216,5 +216,22 @@ describe('market menu', () => {
     const empty = renderToStaticMarkup(<ActionPanel state={game.state} />);
     expect(empty).toContain('<button disabled="">Buy</button>');
     expect(empty).toContain('<button disabled="">Sell</button>');
+  });
+});
+
+describe('hot-seat handoff', () => {
+  it('hides the turn behind a pass-the-device screen until the next human confirms', () => {
+    const engine = new GameEngine({ players: createNationRoster([{ name: 'Ana', nation: 'Spain' }, { name: 'Bo', nation: 'China' }]) });
+    const controller = gameController as unknown as { awaitingHandoff: boolean; humanCount: number };
+    engine.state.currentPlayer = 1;
+    controller.humanCount = 2;
+    controller.awaitingHandoff = true;
+    const html = renderToStaticMarkup(<ActionPanel state={engine.state} />);
+    expect(html).toContain('Pass the device to Bo');
+    expect(html).toContain('P2 · China');
+    expect(html).not.toContain('Spin compass');
+    controller.awaitingHandoff = false;
+    expect(renderToStaticMarkup(<ActionPanel state={engine.state} />)).toContain('Your turn, Bo.');
+    controller.humanCount = 0;
   });
 });

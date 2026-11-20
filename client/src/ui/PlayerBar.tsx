@@ -4,6 +4,7 @@ import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { SpeedControl } from './SpeedControl';
+import { seatTag } from './seats';
 
 /** Gold and colonies for every navigator; the current one is highlighted. */
 export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRules: () => void; onFleet: () => void }) {
@@ -33,7 +34,7 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
               ? <NavigatorPortrait navigator={p.navigator} color={p.color} size={26} />
               : <span className="dot" style={{ background: cssColor(p.color) }} />}
             <strong>{p.name}</strong>
-            <span className="tag">{p.isAI ? 'AI' : 'You'}</span>
+            <span className="tag">{seatTag(state.players, p)}</span>
             <div className="stats">
               {RANKS[p.rank].name} ({RANKS[p.rank].chineseName})<br />
               {p.nation && <>{p.nation}<br /></>}

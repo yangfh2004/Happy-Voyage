@@ -12,6 +12,7 @@ vi.mock('./EventBus', () => {
 
 import { EventBus } from './EventBus';
 import { GameController } from './GameController';
+import { createNationRoster } from '@happy-voyage/shared';
 
 const players = [
   { name: 'Human', color: 0, isAI: false },
@@ -414,4 +415,66 @@ it('reveals a held lottery result on a fallback timer if the last ball never rep
   vi.advanceTimersByTime(controller.lotteryRevealDelay + 500);
   expect(controller.lotteryRevealed).toBe(true);
   expect(controller.headline?.text).toContain('Lottery');
+});
+
+describe('local multiplayer', () => {
+  const roster = () => createNationRoster([
+    { name: 'Ana', nation: 'Spain' },
+    { name: 'Bo', nation: 'China' },
+    { name: 'Cy', nation: 'Japan' },
+  ]);
+
+  function finishHumanTurn() {
+    controller.spinCompass();
+    controller.finishSpin(controller.spinId);
+    EventBus.emit('move-complete', moveId);
+    const state = controller.state!;
+    if (state.phase === 'awaitingClaim') controller.decline();
+    else if (state.phase === 'awaitingBuild') controller.finishBuilding();
+    else if (state.phase === 'awaitingToll') controller.payToll();
+  }
+
+  it('pauses for a device handoff between different humans and speaks to the seat at the helm', () => {
+    controller.newGame(roster());
+    const state = controller.state!;
+    expect(controller.humanCount).toBe(3);
+    expect(controller.handoffTo).toBeNull();
+    expect(controller.viewerId).toBe(0);
+    finishHumanTurn();
+    expect(state.currentPlayer).toBe(1);
+    expect(controller.handoffTo).toBe(1);
+    expect(controller.viewerId).toBe(1);
+    controller.spinCompass();
+    expect(state.phase).toBe('awaitingSpin');
+    controller.confirmHandoff();
+    expect(controller.handoffTo).toBeNull();
+    controller.spinCompass();
+    expect(state.phase).toBe('spinning');
+  });
+
+  it('runs AI seats for every unpicked nation and returns to the first human after a full round', async () => {
+    controller.newGame(roster());
+    const state = controller.state!;
+    expect(state.players.filter((p) => p.isAI)).toHaveLength(7);
+    for (const seat of [0, 1, 2]) {
+      expect(state.currentPlayer).toBe(seat);
+      controller.confirmHandoff();
+      finishHumanTurn();
+    }
+    controller.setSpeed('Instant');
+    for (let i = 0; i < 200 && state.players[state.currentPlayer].isAI; i++) {
+      await vi.advanceTimersByTimeAsync(10);
+      if (state.phase === 'moving') EventBus.emit('move-complete', moveId);
+    }
+    expect(state.round).toBe(2);
+    expect(state.players[state.currentPlayer].isAI).toBe(false);
+    expect(controller.handoffTo).toBe(state.currentPlayer);
+    expect(controller.awaitingHandoff).toBe(true);
+  });
+
+  it('keeps a solo game free of handoffs', () => {
+    controller.newGame(players);
+    finishHumanTurn();
+    expect(controller.handoffTo).toBeNull();
+  });
 });
