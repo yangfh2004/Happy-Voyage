@@ -18,6 +18,16 @@ import { TransferContents } from './TransferPanel';
 import { gameController } from '../game/GameController';
 
 describe('build menu', () => {
+  it('keeps royal announcements visible alongside the turn summary', () => {
+    const { state } = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
+    gameController.headline = { text: 'King promotes you to Knight (骑士)!', tone: 'gain', royal: true };
+    gameController.feedback.summary = { tolls: [], claims: [], netGold: 0 };
+    const html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(html).toContain('Since your last turn');
+    expect(html).toContain('King promotes you to Knight (骑士)!');
+    gameController.headline = null;
+    gameController.feedback.summary = null;
+  });
   it('shows market stock, prices, worn condition and empty or unavailable trades', () => {
     const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
     const { state } = engine;

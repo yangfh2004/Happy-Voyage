@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SHIP_TYPES, cargoLoad, type Player } from '@happy-voyage/shared';
+import { RANKS, SHIP_TYPES, cargoLoad, type Player } from '@happy-voyage/shared';
 import dialogPolyfill from 'dialog-polyfill';
 
 export function FleetPanel({ players, onClose }: { players: Player[]; onClose: () => void }) {
@@ -32,7 +32,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
         Navigator{' '}
         <select value={playerId} onChange={(event) => setPlayerId(Number(event.target.value))}>
           {players.map((player) => (
-            <option key={player.id} value={player.id}>{player.name} ({player.isAI ? 'AI' : 'You'})</option>
+            <option key={player.id} value={player.id}>{player.name} · {RANKS[player.rank].name} ({RANKS[player.rank].chineseName}) ({player.isAI ? 'AI' : 'You'})</option>
           ))}
         </select>
       </label>
