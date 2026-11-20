@@ -1,6 +1,7 @@
 import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight } from './ai';
 import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
 import { barterOffers, fleetQuantity } from './barter';
+import { CAPTAINS, MAX_CAPTAINS, captainBonus, discountedByCaptains, recruitOffers, aiRecruitChoice } from './captains';
 import { BUILDINGS, buildingLevel, nextBuildingCost, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
@@ -92,7 +93,7 @@ export class GameEngine {
         position: homes[id]!,
         homePort: homes[id]!,
         revivalProtection: false,
-        captain: false,
+        captains: [],
         bankrupt: false,
         fleet: [],
       })),
@@ -109,6 +110,7 @@ export class GameEngine {
       lastSpin: null,
       pendingClaim: null,
       pendingBarter: null,
+      pendingRecruits: null,
       battles: [],
       winner: null,
       log: [],
@@ -210,7 +212,7 @@ export class GameEngine {
     const homePasses = this.pendingPath.filter((id) => id === player.homePort).length;
     this.pendingPath = [];
     if (homePasses > 0) {
-      const salary = (this.state.config.homeSalary + RANKS[player.rank].salary) * homePasses;
+      const salary = (this.state.config.homeSalary + RANKS[player.rank].salary + captainBonus(player, 'salary')) * homePasses;
       this.log(`The crown pays ${player.name} a ${salary}g royal salary.`);
       this.changeGold(player, salary, 'royal salary');
     }
@@ -236,7 +238,7 @@ export class GameEngine {
           this.emit({ type: 'marketOffered', playerId: player.id, nodeId: node.id });
           return;
         }
-        if (this.state.pendingBarter) return;
+        if (this.state.pendingBarter || this.state.pendingRecruits) return;
         break;
       case 'event':
         if (this.resolveEvent(player, node)) return;
@@ -307,6 +309,28 @@ export class GameEngine {
   decline(): void {
     this.assertPhase('awaitingClaim');
     this.log(`${this.currentPlayer.name} sails past ${this.node(this.state.pendingClaim!).name}.`);
+    this.endTurn();
+  }
+
+  recruitCaptain(index: number): void {
+    this.assertPhase('awaitingRecruit');
+    const id = Number.isInteger(index) ? this.state.pendingRecruits?.[index] : undefined;
+    const captain = CAPTAINS.find((candidate) => candidate.id === id);
+    if (!captain) throw new Error('Unknown captain offer');
+    const player = this.currentPlayer;
+    if (player.captains.length >= MAX_CAPTAINS) throw new Error('Crew is full');
+    if (player.captains.includes(captain.id)) throw new Error('Captain already aboard');
+    if (player.rank < captain.minRank) throw new Error('Higher royal rank required');
+    if (player.gold < captain.fee) throw new Error('Not enough gold');
+    this.changeGold(player, -captain.fee, 'captain recruitment');
+    player.captains.push(captain.id);
+    this.log(`${captain.name} joins ${player.name}'s fleet.`);
+    this.endTurn();
+  }
+
+  declineRecruit(): void {
+    this.assertPhase('awaitingRecruit');
+    this.log(`${this.currentPlayer.name} declines captain recruitment.`);
     this.endTurn();
   }
 
@@ -561,6 +585,12 @@ export class GameEngine {
       this.finishMarket();
       return;
     }
+    if (this.state.phase === 'awaitingRecruit') {
+      const choice = aiRecruitChoice(this.currentPlayer, this.state.pendingRecruits!);
+      if (choice === null) this.declineRecruit();
+      else this.recruitCaptain(choice);
+      return;
+    }
     if (this.state.phase === 'awaitingBarter') {
       const choice = aiBarterChoice(this.currentPlayer, this.state.pendingBarter!);
       if (choice === null) this.declineBarter();
@@ -700,12 +730,22 @@ export class GameEngine {
         this.emit({ type: 'barterOffered', playerId: player.id, nodeId: node.id });
         break;
       }
-      case 'dragonSnake':
-        if (player.gold < r.captainPrice) { this.log(`${player.name} cannot afford to recruit a captain.`); break; }
-        this.changeGold(player, -r.captainPrice, 'captain recruitment');
-        player.captain = true;
-        this.log(`A captain joins ${player.name}: their next colony toll is halved.`);
+      case 'dragonSnake': {
+        if (player.captains.length >= MAX_CAPTAINS) {
+          this.log(`${player.name}'s crew is full. No more captains can join.`);
+          break;
+        }
+        const offers = recruitOffers(player, this.rng);
+        if (!offers.some((id) => CAPTAINS.find((captain) => captain.id === id)!.fee <= player.gold)) {
+          this.log(`${player.name} finds no affordable captains available to recruit.`);
+          break;
+        }
+        this.state.pendingRecruits = offers;
+        this.state.phase = 'awaitingRecruit';
+        this.log(`${player.name} talks to sailors at Dragon Snake Island.`);
+        this.emit({ type: 'recruitsOffered', playerId: player.id, nodeId: node.id });
         break;
+      }
     }
   }
 
@@ -784,8 +824,6 @@ export class GameEngine {
   /** Charges the toll (times `multiplier` after a lost battle); returns what the owner received. */
   private collectToll(player: Player, owner: Player, node: MapNode, multiplier = 1): number {
     const toll = tollDue(this.state, player, node.id, multiplier);
-    if (player.captain) this.log(`${player.name}'s captain negotiates half the toll.`);
-    player.captain = false;
     const amount = Math.min(toll, Math.max(player.gold, 0));
     this.log(`${player.name} pays ${amount}g ${multiplier > 1 ? 'double ' : ''}toll to ${owner.name} at ${node.name}.`);
     this.changeGold(player, -toll, `toll at ${node.name}`);
@@ -795,7 +833,7 @@ export class GameEngine {
   }
 
   private payForeignTax(player: Player, host: Player | undefined, node: MapNode): void {
-    const tax = foreignTaxDue(player.rank);
+    const tax = discountedByCaptains(player, 'tax', foreignTaxDue(player.rank));
     const paid = Math.min(player.gold, tax);
     let shortfall = tax - paid;
     this.log(`${player.name} pays ${paid}g foreign tax to ${host?.name ?? 'the crown'} at ${node.name} (${tax}g due).`);
@@ -839,6 +877,7 @@ export class GameEngine {
   private endTurn(): void {
     this.state.pendingClaim = null;
     this.state.pendingBarter = null;
+    this.state.pendingRecruits = null;
     if (this.checkVictory()) return;
 
     const lastPosition = turnOrderPosition(this.state, this.state.currentPlayer);

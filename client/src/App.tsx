@@ -34,7 +34,7 @@ export function App() {
   const overlay = useRef<HTMLDivElement>(null);
   const needsInput = state && !state.players[state.currentPlayer].isAI &&
     (state.phase === 'awaitingSpin' || state.phase === 'awaitingClaim' ||
-      state.phase === 'awaitingBarter' || state.phase === 'awaitingCargoMarket' || state.phase === 'awaitingToll');
+      state.phase === 'awaitingBarter' || state.phase === 'awaitingRecruit' || state.phase === 'awaitingCargoMarket' || state.phase === 'awaitingToll');
   const prompt = needsInput ? `${state.round}:${state.currentPlayer}:${state.phase}` : null;
   useLayoutEffect(() => {
     if (prompt && overlay.current) overlay.current.scrollTop = 0;

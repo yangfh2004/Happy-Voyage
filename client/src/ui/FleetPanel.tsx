@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { RANKS, SHIP_TYPES, cargoLoad, type Player } from '@happy-voyage/shared';
+import { CAPTAINS, RANKS, SHIP_TYPES, captainDescription, cargoLoad, type Player } from '@happy-voyage/shared';
 import dialogPolyfill from 'dialog-polyfill';
 
 export function FleetPanel({ players, onClose }: { players: Player[]; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [playerId, setPlayerId] = useState((players.find((player) => !player.isAI) ?? players[0]).id);
-  const { fleet } = players.find((player) => player.id === playerId) ?? players[0];
+  const { fleet, captains } = players.find((player) => player.id === playerId) ?? players[0];
 
   useEffect(() => {
     const element = dialog.current;
@@ -36,6 +36,9 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
           ))}
         </select>
       </label>
+      <h3>Captains aboard ({captains.length}/3)</h3>
+      {captains.length === 0 && <p>No captains recruited.</p>}
+      {CAPTAINS.filter((captain) => captains.includes(captain.id)).map((captain) => <p key={captain.id}><strong>{captain.name}</strong> · {captainDescription(captain)}</p>)}
       {fleet.length > 0 ? (
         <div className="fleet-table" role="region" aria-label="Ship details" tabIndex={0}>
           <table>

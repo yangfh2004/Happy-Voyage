@@ -47,6 +47,31 @@ function humanTurn() {
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
 }
 
+it('routes recruitment and decline actions only during human recruiting visits', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  const p = state.players[0];
+  controller.recruitCaptain(0);
+  expect(p.captains).toEqual([]);
+  const visit = () => {
+    state.currentPlayer = 0;
+    state.phase = 'awaitingSpin';
+    p.position = state.map.find((node) => node.special === 'dragonSnake')!.id - 2;
+    humanTurn();
+    expect(state.phase).toBe('awaitingRecruit');
+  };
+  visit();
+  const gold = p.gold;
+  controller.recruitCaptain(0);
+  expect(p.captains).toEqual(['ines']);
+  expect(p.gold).toBe(gold - 90);
+  expect(state.pendingRecruits).toBeNull();
+  visit();
+  controller.decline();
+  expect(state.pendingRecruits).toBeNull();
+  expect(p.captains).toEqual(['ines']);
+});
+
 it('announces a home promotion until the next human spin', () => {
   controller.newGame(players);
   const state = controller.state!;
