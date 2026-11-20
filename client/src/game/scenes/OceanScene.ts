@@ -157,7 +157,7 @@ export class OceanScene extends Phaser.Scene {
     bg.fillGradientStyle(0x1e88c7, 0x1e88c7, 0x0a3d62, 0x0a3d62, 1);
     bg.fillRect(0, 0, WORLD.width, WORLD.height);
     this.regionLabels = REGIONS.map(([en, zh], i) =>
-      this.add.text(WORLD.width / 2, 24 + i * 280, getLocale() === 'zh' ? zh : en, { fontFamily: 'Georgia, "Sea Names", serif', fontSize: '24px', color: '#b8dfdd' }).setOrigin(0.5).setAlpha(0.4));
+      this.add.text(WORLD.width / 2, 24 + i * 280, getLocale() === 'zh' ? zh : en, { fontFamily: '"Sea Names", Georgia, serif', fontSize: '24px', color: '#b8dfdd' }).setOrigin(0.5).setAlpha(0.4));
 
     // Drifting wave crests.
     for (let i = 0; i < 45; i++) {
@@ -234,7 +234,7 @@ export class OceanScene extends Phaser.Scene {
 
       const text = this.add
         .text(0, 0, this.stopLabel(node, null), {
-          fontFamily: 'Georgia, "Sea Names", serif',
+          fontFamily: '"Sea Names", Georgia, serif',
           fontSize: '19px',
           wordWrap: { width: 146 },
           color: '#ffffff',
@@ -503,7 +503,7 @@ export class OceanScene extends Phaser.Scene {
     while (nearby.some((other) => other.lane === lane)) lane += 1;
     const offset = Math.ceil(lane / 2) * (lane % 2 === 1 ? 110 : -110);
     const popup = this.add.text(0, 0, `${delta < 0 ? '−' : '+'}${Math.abs(delta)}${getLocale() === 'zh' ? '金' : 'g'}${shortReason ? `\n${shortReason}` : ''}`, {
-      fontFamily: 'system-ui, "Sea Names", sans-serif', fontSize: '18px', fontStyle: 'bold',
+      fontFamily: '"Sea Names", system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
       color: delta < 0 ? '#ff9c9c' : '#9dffb0', align: 'center', stroke: '#06283d', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(30);
     const distance = 32 + Math.abs(dx) * popup.width / 2 + Math.abs(dy) * popup.height / 2;

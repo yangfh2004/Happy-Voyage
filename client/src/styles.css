@@ -19,13 +19,14 @@
 .sea-choice select { width: 100%; }
 @keyframes sea-swirl { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .sea-notice, .sea-whirlpool .sea-icon { animation: none; } }
-@font-face { font-family: 'Sea Names'; src: url('./assets/sea-names.ttf') format('truetype'); font-display: block; }
+/* Chinese glyphs only: listed first in every stack so CJK never falls through to a system font without them. */
+@font-face { font-family: 'Sea Names'; src: url('./assets/sea-names.ttf') format('truetype'); font-display: block; unicode-range: U+2E80-9FFF, U+3000-303F, U+FF00-FFEF; }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }
 body {
   background: #06283d;
   color: #2b1d0e;
-  font-family: system-ui, -apple-system, 'Segoe UI', 'Sea Names', sans-serif;
+  font-family: 'Sea Names', system-ui, -apple-system, 'Segoe UI', sans-serif;
   overflow: hidden;
 }
 
@@ -62,8 +63,8 @@ body {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
-h1 { margin: 0; font-family: Georgia, 'Sea Names', serif; font-size: 40px; color: #0a3d62; }
-h2 { margin: 0 0 6px; font-family: Georgia, 'Sea Names', serif; font-size: 20px; color: #0a3d62; }
+h1 { margin: 0; font-family: 'Sea Names', Georgia, serif; font-size: 40px; color: #0a3d62; }
+h2 { margin: 0 0 6px; font-family: 'Sea Names', Georgia, serif; font-size: 20px; color: #0a3d62; }
 p { margin: 6px 0; line-height: 1.4; }
 .subtitle { margin-top: 0; color: #8d6e63; font-style: italic; }
 
@@ -249,7 +250,7 @@ kbd { display: inline-block; margin-left: 4px; padding: 0 3px; border: 1px solid
 .expense, .log .expense { color: #a32d25; }
 
 button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
-.subtitle { font-family: system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', 'Sea Names', sans-serif; }
+.subtitle { font-family: 'Sea Names', system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif; }
 
 .headline { margin: 6px 0 0; padding: 4px 10px; border-radius: 8px; font-weight: 700; animation: banner 0.3s ease-out; }
 @keyframes banner { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: none; } }
@@ -263,7 +264,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .navigator-card strong { color: #0a3d62; }
 .navigator-title { font-style: italic; color: #6d4c41; font-size: 14px; }
 .signature { font-size: 13px; margin-top: 2px; }
-.cjk { font-family: system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', 'Sea Names', sans-serif; color: #8d6e63; }
+.cjk { font-family: 'Sea Names', system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif; color: #8d6e63; }
 @media (max-width: 700px) {
   .playing .player .portrait { width: 18px; height: 18px; margin-right: 3px; }
   .navigator-card .portrait { width: 56px; height: 56px; }
