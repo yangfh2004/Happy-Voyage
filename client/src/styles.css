@@ -270,3 +270,12 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .lottery-payouts caption { text-align: left; font-size: 12px; color: #6d4c41; }
 .lottery-payouts th, .lottery-payouts td { padding: 1px 10px 1px 0; text-align: left; }
 @media (prefers-reduced-motion: reduce) { .ball.drawn { animation: none; } }
+
+.mist h3 { margin: 8px 0; color: #0a3d62; }
+.mist-choices { flex-wrap: wrap; margin: 10px 0; }
+.mist-choices small { display: block; }
+.mist-stones { display: flex; justify-content: center; gap: 4px; margin: 12px auto; max-width: 310px; }
+.mist-stone { flex: 1; aspect-ratio: 1; border: 1px solid #2e684a; border-radius: 45% 55% 50% 50%;
+  background: radial-gradient(circle at 30% 25%, #d4f1b8, #408957 68%, #275841);
+  box-shadow: 0 2px 3px #2b1d0e33; }
+.mist-stone.taken { background: transparent; border: 1px dashed #a38f76; box-shadow: none; }
