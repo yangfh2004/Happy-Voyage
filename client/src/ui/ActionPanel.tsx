@@ -1,16 +1,12 @@
 import { colonyValue, type GameState } from '@happy-voyage/shared';
-import { gameController } from '../game/GameController';
+import { ANIMATION_SPEEDS, gameController } from '../game/GameController';
+import { Compass } from './Compass';
 
-const DIE_FACES = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-
-/** What the human can do right now: roll, claim or decline, or start over. */
+/** What the human can do right now: spin, claim or decline, or start over. */
 export function ActionPanel({ state }: { state: GameState }) {
   const player = state.players[state.currentPlayer];
-  const dice = state.lastRoll && (
-    <div className="dice" aria-label={`Rolled ${state.lastRoll[0]} and ${state.lastRoll[1]}`}>
-      {DIE_FACES[state.lastRoll[0]]} {DIE_FACES[state.lastRoll[1]]}
-    </div>
-  );
+  const spinning = state.phase === 'spinning';
+  const animating = spinning || state.phase === 'moving';
 
   let body;
   if (state.phase === 'gameOver') {
@@ -36,14 +32,16 @@ export function ActionPanel({ state }: { state: GameState }) {
         </button>
       </>
     );
+  } else if (spinning) {
+    body = <p className="waiting">{player.isAI ? `${player.name} spins the compass.` : 'Your compass is spinning.'}</p>;
   } else if (player.isAI) {
     body = <p className="waiting">{player.name} is at the helm…</p>;
-  } else if (state.phase === 'awaitingRoll') {
+  } else if (state.phase === 'awaitingSpin') {
     body = (
       <>
         <p>Your turn, {player.name}.</p>
-        <button className="primary big" onClick={() => gameController.roll()}>
-          Roll dice
+        <button className="primary big" onClick={() => gameController.spinCompass()}>
+          Spin compass
         </button>
       </>
     );
@@ -73,8 +71,35 @@ export function ActionPanel({ state }: { state: GameState }) {
 
   return (
     <div className="panel actions">
-      {dice}
-      {body}
+      {state.phase === 'gameOver' ? body : (
+        <>
+          <div className="action-content">
+            <Compass
+              result={state.lastSpin}
+              spinning={spinning}
+              duration={gameController.spinDuration}
+              onSettled={() => gameController.finishSpin()}
+            />
+            <div>{body}</div>
+          </div>
+          <div className="animation-controls">
+            <label>
+              Animation speed
+              <select
+                value={gameController.animationSpeed}
+                disabled={animating}
+                onChange={(event) => {
+                  const speed = ANIMATION_SPEEDS.find((value) => String(value) === event.target.value);
+                  if (speed !== undefined) gameController.setAnimationSpeed(speed);
+                }}
+              >
+                {ANIMATION_SPEEDS.map((speed) => <option key={speed} value={speed}>{speed}×</option>)}
+              </select>
+            </label>
+            <button disabled={!animating} onClick={() => gameController.skipAnimation()}>Skip animation</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

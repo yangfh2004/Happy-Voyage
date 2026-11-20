@@ -43,7 +43,7 @@ export interface Player extends PlayerSetup {
   bankrupt: boolean;
 }
 
-export type Phase = 'awaitingRoll' | 'moving' | 'awaitingClaim' | 'gameOver';
+export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'gameOver';
 
 export interface GameConfig {
   startingGold: number;
@@ -64,7 +64,7 @@ export interface GameState {
   currentPlayer: number;
   round: number;
   phase: Phase;
-  lastRoll: [number, number] | null;
+  lastSpin: number | null;
   /** Island the current player may claim while phase === 'awaitingClaim'. */
   pendingClaim: number | null;
   winner: number | null;
@@ -74,7 +74,7 @@ export interface GameState {
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
   | { type: 'turnStarted'; playerId: number }
-  | { type: 'diceRolled'; playerId: number; dice: [number, number] }
+  | { type: 'compassSpun'; playerId: number; steps: number }
   | { type: 'moved'; playerId: number; path: number[] }
   | { type: 'claimOffered'; playerId: number; nodeId: number }
   | { type: 'claimed'; playerId: number; nodeId: number }

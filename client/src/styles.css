@@ -74,7 +74,22 @@ button.big { font-size: 18px; padding: 10px 22px; }
 
 .actions { text-align: center; }
 .actions .row { display: flex; gap: 8px; justify-content: center; }
-.dice { font-size: 40px; line-height: 1; color: #0a3d62; }
+.action-content { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; }
+.compass { display: grid; justify-items: center; color: #0a3d62; font-size: 13px; font-weight: 700; }
+.compass svg { width: 112px; height: 112px; font-size: 9px; }
+.compass-needle { transform-origin: center; }
+.compass-needle.is-spinning { animation: compass-spin var(--compass-duration) cubic-bezier(.18, .65, .2, 1) both; }
+@keyframes compass-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(var(--compass-stop)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .compass-needle.is-spinning { animation-duration: 1ms; }
+}
+.animation-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 10px; margin-top: 6px; font-size: 13px; }
+.animation-controls select { font: inherit; margin-left: 6px; }
+.animation-controls button { padding: 3px 10px; }
+.animation-controls button:disabled { cursor: default; }
 .waiting { color: #6d4c41; font-style: italic; }
 
 .log { font-size: 13px; color: #5d4037; max-height: 132px; overflow: hidden; }

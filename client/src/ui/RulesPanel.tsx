@@ -18,7 +18,7 @@ export function RulesPanel({ config, onClose }: { config: GameConfig; onClose: (
     <div className="rules-backdrop">
       <section className="panel rules" role="dialog" aria-modal="true" aria-labelledby="rules-title">
         <div className="rules-heading"><h2 id="rules-title">How to play</h2><button ref={close} onClick={onClose}>Close</button></div>
-        <p>Roll two dice and sail <strong>clockwise</strong> by their sum. The arrows show the way.</p>
+        <p>Spin the compass and sail <strong>clockwise</strong> by the number of stops it shows. The arrows show the way.</p>
         <dl>
           <dt>⚑ Royal Harbor</dt><dd>Collect {config.homeSalary}g royal salary when passing or landing here.</dd>
           <dt><svg width="23" height="23" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="22" fill="#e6cb75"/><circle cx="23" cy="23" r="16" fill="#79b956"/><circle cx="19" cy="18" r="8" fill="#4c9f50"/></svg> Islands</dt><dd>Claim neutral islands for the price on the map. Rivals landing on your colonies pay you the listed toll.</dd>

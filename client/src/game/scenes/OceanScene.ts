@@ -3,8 +3,13 @@ import { createDefaultMap, WORLD, type MapNode, type GameEvent } from '@happy-vo
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 
-const STEP_MS = 200;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈' };
+
+interface FleetMove {
+  playerId: number;
+  path: number[];
+  stepMs: number;
+}
 
 /** Small offsets so several fleets on one stop don't overlap. */
 const TOKEN_OFFSETS = [
@@ -29,6 +34,7 @@ export class OceanScene extends Phaser.Scene {
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
   private animatingPlayer: number | null = null;
+  private skipMove: (() => void) | null = null;
   private goldPopups = new Map<Phaser.GameObjects.Text, { x: number; y: number; lane: number }>();
 
   constructor() {
@@ -43,15 +49,18 @@ export class OceanScene extends Phaser.Scene {
     this.marker = this.add.graphics();
 
     const onState = () => this.syncFromState();
-    const onMove = (move: { playerId: number; path: number[] }) => void this.animateMove(move);
+    const onMove = (move: FleetMove) => this.animateMove(move);
+    const onSkip = () => this.skipMove?.();
     EventBus.on('state-changed', onState);
     EventBus.on('animate-move', onMove);
+    EventBus.on('skip-move', onSkip);
     const onGold = (event: Extract<GameEvent, { type: 'goldChanged' }>) => this.showGold(event);
     EventBus.on('gold-changed', onGold);
     const cleanup = () => {
       this.goldPopups.clear();
       EventBus.off('state-changed', onState);
       EventBus.off('animate-move', onMove);
+      EventBus.off('skip-move', onSkip);
       EventBus.off('gold-changed', onGold);
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
@@ -180,20 +189,31 @@ export class OceanScene extends Phaser.Scene {
     }
   }
 
-  private async animateMove({ playerId, path }: { playerId: number; path: number[] }) {
+  private animateMove({ playerId, path, stepMs }: FleetMove) {
     const ship = this.ships.get(playerId);
     if (!ship) return;
     this.animatingPlayer = playerId;
     this.marker.clear();
-    for (const nodeId of path) {
+    let previousX = ship.x;
+    const steps = path.map((nodeId) => {
       const [x, y] = this.tokenPosition(playerId, nodeId);
-      ship.setFlipX(x < ship.x);
-      await new Promise<void>((resolve) =>
-        this.tweens.add({ targets: ship, x, y, duration: STEP_MS, ease: 'Sine.easeInOut', onComplete: () => resolve() }),
-      );
-    }
-    this.animatingPlayer = null;
-    EventBus.emit('move-complete');
+      const westbound = x < previousX;
+      previousX = x;
+      return { x, y, duration: stepMs, ease: 'Sine.easeInOut', onStart: () => ship.setFlipX(westbound) };
+    });
+    const finish = () => {
+      this.animatingPlayer = null;
+      this.skipMove = null;
+      EventBus.emit('move-complete');
+    };
+    const tween = this.tweens.chain({ targets: ship, tweens: steps, onComplete: finish });
+    this.skipMove = () => {
+      tween.stop();
+      const last = steps[steps.length - 1];
+      ship.setPosition(last.x, last.y);
+      last.onStart();
+      finish();
+    };
   }
 
   private tokenPosition(playerId: number, nodeId: number): [number, number] {

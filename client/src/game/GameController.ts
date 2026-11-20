@@ -3,6 +3,10 @@ import { EventBus } from './EventBus';
 
 /** Pause before an AI acts, so the human can follow what happens. */
 const AI_DELAY_MS = 700;
+const SPIN_MS = 1400;
+const STEP_MS = 200;
+export const ANIMATION_SPEEDS = [1, 2, 4] as const;
+type AnimationSpeed = (typeof ANIMATION_SPEEDS)[number];
 
 /**
  * Owns the rules engine for a single-player match and wires it to the UI:
@@ -17,6 +21,8 @@ class GameController {
   private version = 0;
   private readonly subscribers = new Set<() => void>();
   private timers: ReturnType<typeof setTimeout>[] = [];
+  private speed: AnimationSpeed = 1;
+  private skipSailing = false;
 
   constructor() {
     EventBus.on('move-complete', () => {
@@ -44,8 +50,40 @@ class GameController {
   }
 
   /** Human actions; ignored when it is not the human's move. */
-  roll(): void {
-    if (this.isHumanTurn('awaitingRoll')) this.engine!.roll();
+  spinCompass(): void {
+    if (this.isHumanTurn('awaitingSpin')) this.engine!.spinCompass();
+  }
+
+  get animationSpeed(): AnimationSpeed {
+    return this.speed;
+  }
+
+  get spinDuration(): number {
+    return SPIN_MS / this.speed;
+  }
+
+  setAnimationSpeed(speed: AnimationSpeed): void {
+    this.speed = speed;
+    this.changed();
+  }
+
+  finishSpin(): void {
+    if (this.engine?.state.phase === 'spinning') this.engine.sail();
+  }
+
+  skipAnimation(): void {
+    const engine = this.engine;
+    if (engine?.state.phase === 'spinning') {
+      this.skipSailing = true;
+      try {
+        engine.sail();
+      } finally {
+        this.skipSailing = false;
+      }
+      engine.resolveLanding();
+    } else if (engine?.state.phase === 'moving') {
+      EventBus.emit('skip-move');
+    }
   }
 
   claim(): void {
@@ -78,10 +116,12 @@ class GameController {
         EventBus.emit('gold-changed', event);
         break;
       case 'moved':
-        EventBus.emit('animate-move', { playerId: event.playerId, path: event.path });
+        if (!this.skipSailing) {
+          EventBus.emit('animate-move', { playerId: event.playerId, path: event.path, stepMs: STEP_MS / this.speed });
+        }
         break;
       case 'turnStarted':
-        if (engine.currentPlayer.isAI) this.later(() => engine.roll());
+        if (engine.currentPlayer.isAI) this.later(() => engine.spinCompass());
         break;
       case 'claimOffered':
         if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());

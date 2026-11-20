@@ -2,7 +2,7 @@ import type { Server } from 'socket.io';
 
 /**
  * Multiplayer skeleton. Clients join a named room and see who else is there.
- * Next step: create a GameEngine per room, accept 'roll' / 'claim' messages
+ * Next step: create a GameEngine per room, accept 'spinCompass' / 'claim' messages
  * from the current player only, and broadcast engine events to the room.
  */
 export function registerLobby(io: Server): void {
