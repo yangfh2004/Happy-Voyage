@@ -69,8 +69,8 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng)
     defenseLine = defenseLine.filter((ship) => !lostDefenders.includes(ship));
     attackLine = attackLine.filter((ship) => !lostAttackers.includes(ship));
   }
-  const outcome: BattleOutcome = !attackLine.length && defenseLine.length ? 'defeat'
-    : attackLine.length && !defenseLine.length ? 'victory' : 'draw';
+  // Losing every ship is a defeat even if the last volley also sank the defenders.
+  const outcome: BattleOutcome = !attackLine.length ? 'defeat' : !defenseLine.length ? 'victory' : 'draw';
   return { outcome, rounds, attackerSunk, defenderSunk };
 }
 

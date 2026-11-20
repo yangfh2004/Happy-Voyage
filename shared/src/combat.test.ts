@@ -131,6 +131,14 @@ describe('naval combat', () => {
     expect(weak.state.battles).toEqual([]);
   });
 
+  it('counts mutual destruction as a defeat', () => {
+    const ship = (id: number, durability: number, firepower: number) => ({ id, durability, firepower }) as Ship;
+    const result = fightNavalBattle([ship(1, 10, 20)], [ship(2, 10, 20)], () => 0.5);
+    expect(result).toMatchObject({ outcome: 'defeat', rounds: 1 });
+    expect(result.attackerSunk).toHaveLength(1);
+    expect(result.defenderSunk).toHaveLength(1);
+  });
+
   it('spreads overflowing damage from the weakest ship onward', () => {
     const ship = (id: number, durability: number, firepower = 0) => ({ id, durability, firepower }) as Ship;
     const defenders = [ship(1, 50), ship(2, 5), ship(3, 20)];
