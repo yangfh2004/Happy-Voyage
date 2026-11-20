@@ -29,6 +29,7 @@ const TOKEN_OFFSETS = [
 export class OceanScene extends Phaser.Scene {
   private map: MapNode[] = createDefaultMap();
   private following = true;
+  private pinch: { distance: number; zoom: number } | null = null;
   private ships = new Map<number, Phaser.GameObjects.Image>();
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
@@ -56,15 +57,15 @@ export class OceanScene extends Phaser.Scene {
     if (this.following) this.cameras.main.setZoom(0.95);
     const zoom = (factor: number) => this.cameras.main.setZoom(Phaser.Math.Clamp(this.cameras.main.zoom * factor, 0.16, 2));
     this.input.on('wheel', (_p: unknown, _o: unknown, _x: number, dy: number) => { zoom(dy > 0 ? 0.9 : 1.1); });
+    this.input.on('pointerdown', () => this.updatePinch());
+    this.input.on('pointerup', () => { this.pinch = null; });
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!pointer.isDown) return;
       this.following = false;
       const a = this.input.pointer1;
       const b = this.input.pointer2;
       if (a.isDown && b.isDown) {
-        const now = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
-        const before = Phaser.Math.Distance.Between(a.prevPosition.x, a.prevPosition.y, b.prevPosition.x, b.prevPosition.y);
-        if (before > 0) zoom(now / before);
+        return;
       } else {
         this.cameras.main.scrollX -= (pointer.x - pointer.prevPosition.x) / this.cameras.main.zoom;
         this.cameras.main.scrollY -= (pointer.y - pointer.prevPosition.y) / this.cameras.main.zoom;
@@ -117,6 +118,22 @@ export class OceanScene extends Phaser.Scene {
 
     this.syncFromState();
     gameController.resumeMovement();
+  }
+
+  update() {
+    this.updatePinch();
+  }
+
+  private updatePinch() {
+    const a = this.input.pointer1;
+    const b = this.input.pointer2;
+    if (!a.isDown || !b.isDown) { this.pinch = null; return; }
+    const distance = Math.hypot(a.x - b.x, a.y - b.y);
+    if (distance === 0) return;
+    const camera = this.cameras.main;
+    if (!this.pinch) this.pinch = { distance, zoom: camera.zoom };
+    this.following = false;
+    camera.setZoom(Phaser.Math.Clamp(this.pinch.zoom * distance / this.pinch.distance, 0.16, 2));
   }
 
   private drawOcean() {
