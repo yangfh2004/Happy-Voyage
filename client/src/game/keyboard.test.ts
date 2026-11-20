@@ -3,8 +3,8 @@ import type { GameController } from './GameController';
 import { keyboardShortcuts } from './keyboard';
 
 const controller = {
-  state: { phase: 'awaitingRoll' } as { phase: string } | null,
-  roll: vi.fn(), claim: vi.fn(), decline: vi.fn(), quit: vi.fn(),
+  state: { phase: 'awaitingSpin' } as { phase: string } | null,
+  spinCompass: vi.fn(), claim: vi.fn(), decline: vi.fn(), quit: vi.fn(),
   skipToMyTurn: vi.fn(), setSpeed: vi.fn(),
 };
 let keys: ReturnType<typeof keyboardShortcuts>;
@@ -13,7 +13,7 @@ function event(key: string, extra = {}) {
 }
 beforeEach(() => {
   vi.clearAllMocks();
-  controller.state = { phase: 'awaitingRoll' };
+  controller.state = { phase: 'awaitingSpin' };
   keys = keyboardShortcuts(controller as unknown as GameController);
 });
 
@@ -25,7 +25,7 @@ describe('keyboard shortcuts', () => {
       expect(press.preventDefault).toHaveBeenCalledOnce();
       keys.keyup(press);
     }
-    expect(controller.roll).toHaveBeenCalledTimes(2);
+    expect(controller.spinCompass).toHaveBeenCalledTimes(2);
     expect(controller.claim).toHaveBeenCalledOnce();
     expect(controller.decline).toHaveBeenCalledTimes(2);
     expect(controller.skipToMyTurn).toHaveBeenCalledOnce();
@@ -38,14 +38,14 @@ describe('keyboard shortcuts', () => {
     keys.keydown(repeat);
     keys.keydown(event(' '));
     expect(repeat.preventDefault).toHaveBeenCalledOnce();
-    expect(controller.roll).toHaveBeenCalledOnce();
+    expect(controller.spinCompass).toHaveBeenCalledOnce();
     expect(controller.claim).not.toHaveBeenCalled();
     keys.keyup(event(' '));
     keys.keydown(event(' '));
-    expect(controller.roll).toHaveBeenCalledTimes(2);
+    expect(controller.spinCompass).toHaveBeenCalledTimes(2);
     keys.blur();
     keys.keydown(event(' '));
-    expect(controller.roll).toHaveBeenCalledTimes(3);
+    expect(controller.spinCompass).toHaveBeenCalledTimes(3);
   });
 
   it('uses Enter and Space to quit only at game over', () => {
@@ -53,7 +53,7 @@ describe('keyboard shortcuts', () => {
     keys.keydown(event('Enter'));
     keys.keydown(event(' '));
     expect(controller.quit).toHaveBeenCalledTimes(2);
-    expect(controller.roll).not.toHaveBeenCalled();
+    expect(controller.spinCompass).not.toHaveBeenCalled();
   });
 
   it('ignores editing, composition, modifier shortcuts and unrelated keys', () => {
@@ -79,7 +79,7 @@ describe('keyboard shortcuts', () => {
 
   it('leaves Enter and Space native on focused controls, including nested hints', () => {
     const target = { closest: (selector: string) => selector.startsWith('button,') ? {} : null };
-    for (const phase of ['awaitingRoll', 'gameOver']) {
+    for (const phase of ['awaitingSpin', 'gameOver']) {
       controller.state = { phase };
       for (const key of ['Enter', ' ']) {
         const press = event(key, { target });
@@ -87,7 +87,7 @@ describe('keyboard shortcuts', () => {
         expect(press.preventDefault).not.toHaveBeenCalled();
       }
     }
-    expect(controller.roll).not.toHaveBeenCalled();
+    expect(controller.spinCompass).not.toHaveBeenCalled();
     expect(controller.quit).not.toHaveBeenCalled();
     keys.keydown(event('2', { target }));
     keys.keydown(event('c', { target }));

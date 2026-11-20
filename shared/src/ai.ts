@@ -1,12 +1,8 @@
+import { COMPASS_SECTORS } from './compass';
 import { colonyValue, turnOrderPosition } from './rules';
 import type { GameState, MapNode, Player } from './types';
 
-const DICE_TOTALS = Array.from({ length: 11 }, (_, i) => ({
-  steps: i + 2,
-  odds: (6 - Math.abs(i - 5)) / 36,
-}));
-
-/** Forecast the next two rolls without privileged access to the dice. */
+/** Forecast the next two moves without knowing the compass results. */
 function bankruptcyOdds(state: GameState, player: Player, gold: number, coloniesAfterClaim: number): number {
   const { map, owners, config } = state;
   const horizon = Math.min(2, config.maxRounds - state.round);
@@ -21,7 +17,7 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
   function forecast(position: number, cash: number, turns: number): number {
     if (cash < 0) return 1;
     if (turns === 0) return 0;
-    return DICE_TOTALS.reduce((risk, { steps, odds }) => {
+    return COMPASS_SECTORS.reduce((risk, { steps, odds }) => {
       const distance = position + steps;
       const next = distance % map.length;
       const node = map[next];
@@ -58,9 +54,9 @@ function estimatedTolls(state: GameState, player: Player, node: MapNode): number
     if (rival.bankrupt || rival.id === player.id) continue;
     const moves = state.config.maxRounds - state.round + Number(turnOrderPosition(state, rival.id) > myTurn);
     if (moves === 0) continue;
-    const nextRollOdds = DICE_TOTALS.reduce((chance, { steps, odds }) =>
+    const nextSpinOdds = COMPASS_SECTORS.reduce((chance, { steps, odds }) =>
       chance + ((rival.position + steps) % state.map.length === node.id ? odds : 0), 0);
-    tolls += Math.min(rival.gold, node.toll ?? 0) * (nextRollOdds + (moves - 1) / state.map.length);
+    tolls += Math.min(rival.gold, node.toll ?? 0) * (nextSpinOdds + (moves - 1) / state.map.length);
   }
   return tolls;
 }

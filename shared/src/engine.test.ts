@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG, EVENT_GOLD, GameEngine } from './engine';
-import type { Rng } from './dice';
+import type { Rng } from './compass';
 import { createDefaultMap } from './map';
 
-/** Rng that makes every die show `face`. */
-const fixedDice = (face: number): Rng => () => (face - 1) / 6 + 0.01;
+const spinTwo: Rng = () => 0;
+const spinTwelve: Rng = () => 0.999;
+
+function spinAndSail(engine: GameEngine): number[] {
+  engine.spinCompass();
+  return engine.sail();
+}
 
 const twoPlayers = [
   { name: 'You', color: 0xff0000, isAI: false },
@@ -51,14 +56,14 @@ describe('GameEngine', () => {
   });
 
   it('serializes fleet contents, per-ship damage, and the next ship ID in game state', () => {
-    const engine = new GameEngine({ players: twoPlayers, rng: fixedDice(1) });
+    const engine = new GameEngine({ players: twoPlayers, rng: spinTwo });
     const [first, second] = engine.state.players;
     const ship = engine.addShipToFleet(first.id, 'warship');
     ship.durability -= 20;
     expect(first.fleet[0].durability).toBe(ship.maxDurability);
     expect(second.fleet[0].durability).toBe(ship.maxDurability);
 
-    engine.roll();
+    spinAndSail(engine);
     engine.resolveLanding();
     engine.decline();
 
@@ -106,17 +111,27 @@ describe('GameEngine', () => {
     expect(engine.state.owners[1]).toBeNull();
   });
 
-  it('moves the fleet by the dice total', () => {
-    const engine = new GameEngine({ players: twoPlayers, rng: fixedDice(1) });
-    const path = engine.roll();
+  it('announces the compass result before moving the fleet that many steps', () => {
+    const engine = new GameEngine({ players: twoPlayers, rng: spinTwo });
+    const events: unknown[] = [];
+    engine.on((event) => events.push(event));
+    expect(engine.spinCompass()).toBe(2);
+    expect(engine.state.lastSpin).toBe(2);
+    expect(engine.state.phase).toBe('spinning');
+    expect(engine.currentPlayer.position).toBe(0);
+    expect(events).toEqual([{ type: 'compassSpun', playerId: 0, steps: 2 }]);
+    expect(() => engine.spinCompass()).toThrow();
+    expect(() => engine.resolveLanding()).toThrow();
+    const path = engine.sail();
     expect(path).toEqual([1, 2]);
     expect(engine.currentPlayer.position).toBe(2);
     expect(engine.state.phase).toBe('moving');
+    expect(() => engine.sail()).toThrow();
   });
 
   it('offers and claims an unowned island', () => {
-    const engine = new GameEngine({ players: twoPlayers, config: { startingGold: 1000 }, rng: fixedDice(1) });
-    engine.roll();
+    const engine = new GameEngine({ players: twoPlayers, config: { startingGold: 1000 }, rng: spinTwo });
+    spinAndSail(engine);
     engine.resolveLanding();
     expect(engine.state.phase).toBe('awaitingClaim');
     const price = engine.state.map[2].price!;
@@ -127,11 +142,11 @@ describe('GameEngine', () => {
   });
 
   it('charges a toll on a rival colony', () => {
-    const engine = new GameEngine({ players: twoPlayers, config: { startingGold: 1000 }, rng: fixedDice(1) });
-    engine.roll();
+    const engine = new GameEngine({ players: twoPlayers, config: { startingGold: 1000 }, rng: spinTwo });
+    spinAndSail(engine);
     engine.resolveLanding();
     engine.claim();
-    engine.roll();
+    spinAndSail(engine);
     engine.resolveLanding();
     const toll = engine.state.map[2].toll!;
     expect(engine.state.players[1].gold).toBe(1000 - toll);
@@ -139,21 +154,21 @@ describe('GameEngine', () => {
   });
 
   it('pays the royal salary when reaching home', () => {
-    const engine = new GameEngine({ players: [twoPlayers[0]], rng: fixedDice(6) });
-    engine.roll(); // 12 steps: halfway round the 24-stop route
+    const engine = new GameEngine({ players: [twoPlayers[0]], rng: spinTwelve });
+    spinAndSail(engine); // 12 steps: halfway round the 24-stop route
     engine.resolveLanding();
     engine.decline();
     const before = engine.currentPlayer.gold;
-    engine.roll(); // 12 more steps wraps back to the home port
+    spinAndSail(engine); // 12 more steps wraps back to the home port
     expect(engine.currentPlayer.position).toBe(0);
     expect(engine.currentPlayer.gold).toBe(before + 200);
   });
 
   it('pays the salary for every lap on a short route', () => {
     const map = createDefaultMap().slice(0, 4);
-    const engine = new GameEngine({ players: [twoPlayers[0]], rng: fixedDice(6), map });
+    const engine = new GameEngine({ players: [twoPlayers[0]], rng: spinTwelve, map });
     const before = engine.currentPlayer.gold;
-    engine.roll(); // 12 steps on a 4-stop route: home three times
+    spinAndSail(engine); // 12 steps on a 4-stop route: home three times
     expect(engine.currentPlayer.gold).toBe(before + 3 * engine.state.config.homeSalary);
   });
 
@@ -164,7 +179,7 @@ describe('GameEngine', () => {
     engine.start();
     let guard = 0;
     while (engine.state.phase !== 'gameOver' && guard++ < 10_000) {
-      engine.roll();
+      spinAndSail(engine);
       engine.resolveLanding();
       engine.decideForAI();
     }
@@ -173,14 +188,14 @@ describe('GameEngine', () => {
   });
 
   it('rotates the first navigator without skipping or repeating a navigator within a round', () => {
-    const engine = new GameEngine({ players: [...twoPlayers, twoPlayers[1]], rng: fixedDice(1) });
+    const engine = new GameEngine({ players: [...twoPlayers, twoPlayers[1]], rng: spinTwo });
     const turns: number[][] = [];
     engine.on((event, { round }) => {
       if (event.type === 'turnStarted') (turns[round - 1] ??= []).push(event.playerId);
     });
     engine.start();
     for (let i = 0; i < 8; i++) {
-      engine.roll();
+      spinAndSail(engine);
       engine.resolveLanding();
       if (engine.state.phase === 'awaitingClaim') engine.decline();
     }
@@ -188,14 +203,14 @@ describe('GameEngine', () => {
   });
 
   it('awards the round-limit win by cash plus discounted colony value', () => {
-    const engine = new GameEngine({ players: twoPlayers, config: { maxRounds: 1 }, rng: fixedDice(1) });
+    const engine = new GameEngine({ players: twoPlayers, config: { maxRounds: 1 }, rng: spinTwo });
     engine.state.players[1].gold += 85;
-    engine.roll();
+    spinAndSail(engine);
     engine.resolveLanding();
     engine.claim();
     expect(engine.netWorth(0)).toBe(DEFAULT_CONFIG.startingGold - 130 + 97);
-    expect(engine.state.phase).toBe('awaitingRoll');
-    engine.roll();
+    expect(engine.state.phase).toBe('awaitingSpin');
+    spinAndSail(engine);
     engine.resolveLanding();
     expect(engine.state.winner).toBe(1);
   });

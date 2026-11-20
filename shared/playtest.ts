@@ -59,7 +59,8 @@ for (const players of [2, 3, 4]) {
       game.start();
       while (game.state.phase !== 'gameOver') {
         const isChallenger = game.currentPlayer.id === seat;
-        game.roll();
+        game.spinCompass();
+        game.sail();
         game.resolveLanding();
         if (game.state.phase === 'awaitingClaim') {
           const claim = (isChallenger ? policy : policies.builtIn)(game);
