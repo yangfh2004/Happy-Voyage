@@ -55,7 +55,8 @@ button.primary { background: #0a3d62; border-color: #0a3d62; color: #fff; }
 button.primary:hover { background: #145a8d; }
 button.big { font-size: 18px; padding: 10px 22px; }
 
-.setup { width: min(520px, 92vw); display: flex; flex-direction: column; gap: 12px; }
+.setup { width: min(520px, 92vw); max-height: calc(100% - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.setup > * { flex-shrink: 0; }
 .setup label, .setup .field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
 .setup input { font: inherit; padding: 6px 10px; border-radius: 8px; border: 2px solid #8d6e63; }
 .choices { display: flex; flex-wrap: wrap; gap: 6px; font-weight: 400; }
