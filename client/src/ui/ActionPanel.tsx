@@ -1,4 +1,4 @@
-import { colonyValue, type GameState } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, type BuildingKind, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
@@ -47,6 +47,29 @@ export function ActionPanel({ state }: { state: GameState }) {
         <button className="primary big" onClick={() => gameController.spinCompass()}>
           Spin compass <kbd>Space / Enter</kbd>
         </button>
+      </>
+    );
+  } else if (state.phase === 'awaitingBuild') {
+    const nodeId = player.position;
+    body = (
+      <>
+        <h2>Build at {state.map[nodeId].name}</h2>
+        <p>Your colony · Toll {colonyToll(state, nodeId)}g · Treasury {player.gold}g</p>
+        {(Object.keys(BUILDINGS) as BuildingKind[]).map((kind) => {
+          const building = BUILDINGS[kind];
+          const level = buildingLevel(state, nodeId, kind);
+          const cost = nextBuildingCost(state, nodeId, kind);
+          return (
+            <div className="building-option" key={kind}>
+              <div><strong>{building.label}</strong> · {building.chineseName} · {['None', 'Small', 'Medium', 'Large'][level]}</div>
+              <small>{building.description}</small>
+              <button disabled={!gameController.canBuild(kind)} onClick={() => gameController.build(kind)}>
+                {cost === null ? 'Max level' : `${level ? 'Upgrade' : 'Build'} (${cost}g)`}
+              </button>
+            </div>
+          );
+        })}
+        <button className="primary" onClick={() => gameController.finishBuilding()}>Done <kbd>D / Esc</kbd></button>
       </>
     );
   } else if (state.phase === 'awaitingClaim') {

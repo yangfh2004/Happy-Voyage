@@ -47,6 +47,27 @@ function humanTurn() {
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
 }
 
+it('offers the human build menu and guards build actions outside the visit', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  state.owners[2] = 0;
+  controller.build('lumberMill');
+  expect(state.buildings[2]).toEqual({});
+  controller.spinCompass();
+  controller.finishSpin(controller.spinId);
+  EventBus.emit('move-complete', moveId);
+  expect(state.phase).toBe('awaitingBuild');
+  expect(controller.canBuild('lumberMill')).toBe(true);
+  controller.build('lumberMill');
+  controller.build('lumberMill');
+  expect(state.buildings[2].lumberMill).toBe(2);
+  state.players[0].gold = 0;
+  controller.build('shipyard');
+  expect(state.buildings[2].shipyard).toBeUndefined();
+  controller.finishBuilding();
+  expect(state.currentPlayer).toBe(1);
+});
+
 describe('pacing', () => {
   it('replays a move lost before scene startup and clears it after landing', () => {
     controller.newGame(players);

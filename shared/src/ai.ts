@@ -1,4 +1,6 @@
 import { COMPASS_SECTORS } from './compass';
+import { BUILDINGS, colonyToll, nextBuildingCost } from './buildings';
+import type { BuildingKind } from './types';
 import { colonyValue, turnOrderPosition } from './rules';
 import { SEA_RULES } from './seaRules';
 import type { GameState, MapNode, Player } from './types';
@@ -49,7 +51,7 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
         return risk + odds * onward(afterSalary + tradeIncome);
       }
       const paysToll = node.kind === 'island' && owner !== null && owner !== player.id;
-      const toll = paysToll ? (node.toll ?? 0) : 0;
+      const toll = paysToll ? colonyToll(state, node.id) : 0;
       return risk + odds * onward(afterSalary - (captain ? Math.ceil(toll / 2) : toll), protectedFromHazards, paysToll ? false : captain);
     }, 0);
   }
@@ -85,4 +87,15 @@ export function aiShouldClaim(state: GameState, player: Player, nodeId: number):
   const neutralIslands = state.map.filter((stop) => stop.kind === 'island' && state.owners[stop.id] === null).length;
   if (turnsLeft + 1 >= leftToWin && neutralIslands >= leftToWin) return true;
   return estimatedTolls(state, player, node) >= price - colonyValue(node);
+}
+
+export function aiBuildingChoice(state: GameState, player: Player): BuildingKind | null {
+  if (state.phase !== 'awaitingBuild' || state.owners[player.position] !== player.id) return null;
+  const reserve = Math.max(400, state.config.homeSalary);
+  return (Object.keys(BUILDINGS) as BuildingKind[])
+    .filter((kind) => {
+      const cost = nextBuildingCost(state, player.position, kind);
+      return cost !== null && player.gold - cost >= reserve;
+    })
+    .sort((a, b) => nextBuildingCost(state, player.position, a)! - nextBuildingCost(state, player.position, b)!)[0] ?? null;
 }

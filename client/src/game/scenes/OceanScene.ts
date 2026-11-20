@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { createDefaultMap, WORLD, type GameEvent, type MapNode } from '@happy-voyage/shared';
+import { colonyToll, createDefaultMap, WORLD, type GameEvent, type MapNode } from '@happy-voyage/shared';
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 import { sfx } from '../sfx';
@@ -36,6 +36,7 @@ export class OceanScene extends Phaser.Scene {
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
   private labels!: Phaser.GameObjects.Layer;
+  private stopLabels = new Map<number, Phaser.GameObjects.Text>();
   /** Fleets whose move is being shown; their sprites are not snapped to the state position. */
   private sailing = new Set<number>();
   private islands = new Map<number, Phaser.GameObjects.Image>();
@@ -239,11 +240,16 @@ export class OceanScene extends Phaser.Scene {
         .setOrigin(0.5);
       text.setPosition(node.x, node.y + 35).setOrigin(0.5, 0);
       this.labels.add(text);
+      if (node.kind === 'island') this.stopLabels.set(node.id, text);
     }
   }
 
   private syncFromState() {
     const state = gameController.state;
+    this.stopLabels.forEach((text, id) => {
+      const node = this.map[id];
+      text.setText(`${node.name}\n${node.price}g · ${state ? colonyToll(state, id) : node.toll}g`);
+    });
     this.flags.clear();
     this.marker.clear();
     if (!state) {

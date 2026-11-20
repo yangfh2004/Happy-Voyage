@@ -69,7 +69,8 @@ export interface Player extends PlayerSetup {
   fleet: Ship[];
 }
 
-export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'gameOver';
+export type BuildingKind = 'lumberMill' | 'ironMine' | 'shipyard' | 'repairYard' | 'collectionField';
+export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' | 'gameOver';
 
 export interface GameConfig {
   startingGold: number;
@@ -88,6 +89,7 @@ export interface GameState {
   nextShipId: number;
   /** owners[nodeId] = owning player id, or null when neutral / not an island. */
   owners: (number | null)[];
+  buildings: Partial<Record<BuildingKind, number>>[];
   currentPlayer: number;
   round: number;
   phase: Phase;
@@ -100,6 +102,8 @@ export interface GameState {
 
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
+  | { type: 'buildingBuilt'; playerId: number; nodeId: number; kind: BuildingKind; level: number }
+  | { type: 'buildOffered'; playerId: number; nodeId: number }
   | { type: 'turnStarted'; playerId: number }
   | { type: 'compassSpun'; playerId: number; steps: number }
   | { type: 'moved'; playerId: number; path: number[] }
