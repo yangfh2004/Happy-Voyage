@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CAPTAINS, RANKS, SHIP_TYPES, captainDescription, cargoLoad, type Player } from '@happy-voyage/shared';
 import dialogPolyfill from 'dialog-polyfill';
+import { gameController } from '../game/GameController';
+import { seatTag } from './seats';
 
 export function FleetPanel({ players, onClose }: { players: Player[]; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
-  const [playerId, setPlayerId] = useState((players.find((player) => !player.isAI) ?? players[0]).id);
+  const [playerId, setPlayerId] = useState((players.find((player) => player.id === gameController.viewerId) ?? players.find((player) => !player.isAI) ?? players[0]).id);
   const { fleet, captains } = players.find((player) => player.id === playerId) ?? players[0];
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
         Navigator{' '}
         <select value={playerId} onChange={(event) => setPlayerId(Number(event.target.value))}>
           {players.map((player) => (
-            <option key={player.id} value={player.id}>{player.name} · {RANKS[player.rank].name} ({RANKS[player.rank].chineseName}) ({player.isAI ? 'AI' : 'You'})</option>
+            <option key={player.id} value={player.id}>{player.name} · {RANKS[player.rank].name} ({RANKS[player.rank].chineseName}) ({seatTag(players, player)})</option>
           ))}
         </select>
       </label>
