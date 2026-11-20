@@ -10,6 +10,7 @@ import { RANKS, foreignTaxDue } from './ranks';
 import { GOODS, SHIP_RECIPES, USED_SHIP_PRICES, cargoLoad, shipSalePrice } from './ships';
 import { normalMarketSale, quoteMarketTrade } from './market';
 import { STRATEGY_RULES, type StrategyId } from './strategies';
+import { roundsLeft as roundsToPlay } from './modes';
 import type { BarterOffer, BuildingKind, GameState, MapNode, MarketOrder, Player, Ship, ShipType } from './types';
 
 const POLICIES = {
@@ -19,7 +20,7 @@ const POLICIES = {
 } as const;
 
 const policy = (player: Player) => POLICIES[player.aiDifficulty ?? 'normal'];
-const roundsLeft = (state: GameState) => state.config.maxRounds - state.round;
+const roundsLeft = (state: GameState) => roundsToPlay(state.config, state.round);
 const reserve = (state: GameState, player: Player) => Math.max(policy(player).reserve, state.config.homeSalary);
 const colonies = (state: GameState, player: Player) => state.owners.filter((owner) => owner === player.id).length;
 const cargoUnits = (player: Player) => player.fleet.reduce((sum, ship) => sum + cargoLoad(ship), 0);
@@ -109,7 +110,7 @@ export function aiWyvernTarget(state: GameState, player: Player): number {
 /** Forecast the next two moves without knowing the compass results. */
 function bankruptcyOdds(state: GameState, player: Player, gold: number, coloniesAfterClaim: number): number {
   const { map, owners, config } = state;
-  const horizon = Math.min(2, config.maxRounds - state.round);
+  const horizon = Math.min(2, roundsLeft(state));
   const tradeIncome = 50 + 30 * coloniesAfterClaim;
   function forecast(position: number, cash: number, turns: number, protectedFromHazards: boolean, fleet: Ship[]): number {
     if (cash < 0) return 1;
@@ -174,7 +175,7 @@ function estimatedTolls(state: GameState, player: Player, node: MapNode): number
   let tolls = 0;
   for (const rival of state.players) {
     if (rival.bankrupt || rival.id === player.id) continue;
-    const moves = state.config.maxRounds - state.round + Number(turnOrderPosition(state, rival.id) > myTurn);
+    const moves = roundsLeft(state) + Number(turnOrderPosition(state, rival.id) > myTurn);
     if (moves === 0) continue;
     const nextSpinOdds = COMPASS_SECTORS.reduce((chance, { steps, odds }) =>
       chance + ((rival.position + steps) % state.map.length === node.id ? odds : 0), 0);
@@ -192,7 +193,7 @@ export function aiShouldClaim(state: GameState, player: Player, nodeId: number):
   const leftToWin = state.config.islandsToWin - owned;
   if (leftToWin <= 1) return true;
 
-  const turnsLeft = state.config.maxRounds - state.round;
+  const turnsLeft = roundsLeft(state);
   const cash = player.gold - price;
   if (bankruptcyOdds(state, player, cash, owned + 1) > policy(player).claimRisk) return false;
   const neutralIslands = state.map.filter((stop) => stop.kind === 'island' && state.owners[stop.id] === null).length;

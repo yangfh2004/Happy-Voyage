@@ -61,7 +61,7 @@ export function App() {
           <SetupMenu onRules={() => setRulesOpen(true)} />
         )}
         {state && fleetOpen && <FleetPanel players={state.players} onClose={() => setFleetOpen(false)} />}
-        {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} onClose={() => setRulesOpen(false)} />}
+        {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} islandCount={state?.map.filter((node) => node.kind === 'island').length} onClose={() => setRulesOpen(false)} />}
       </div>
     </div>
   );
