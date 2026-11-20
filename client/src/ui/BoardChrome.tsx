@@ -45,7 +45,7 @@ export function VoyageTopBar({ state, colorBlind, onMenu, menuOpen }: { state: G
         return <div key={p.id} className={`voyage-chip ${p.id === state.currentPlayer ? 'active' : ''} ${p.bankrupt ? 'bankrupt' : ''}`} style={{ borderColor: cssColor(color) }}>
           {p.id === state.currentPlayer && <span className="current-label">♛ {t('CURRENT TURN', '当前回合')}</span>}
           {p.navigator && <NavigatorPortrait navigator={p.navigator} color={color} size={30} />}
-          <strong><span className="seat-number">{p.id + 1} </span>{badge && `${badge} · `}{playerName(p, locale)}</strong>
+          <strong>{!badge && <span className="seat-number">{p.id + 1} </span>}{badge && `${badge} · `}{playerName(p, locale)}</strong>
           <span aria-label={t('Gold and ships', '金币与船只')}><ResourceIcon /> {gameController.displayGold(p)} · <ResourceIcon ship /> {p.fleet.length}</span>
           <small>{p.bankrupt ? t('Bankrupt', '破产') : p.isAI ? t('AI', '电脑') : t('Player', '玩家')}</small>
         </div>;

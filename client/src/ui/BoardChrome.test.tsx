@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createNationRoster, GameEngine, tx, type GameState } from '@happy-voyage/shared';
+import { createNationRoster, GameEngine, playerName, tx, type GameState } from '@happy-voyage/shared';
 
 vi.mock('../game/GameController', () => ({ gameController: {
   displayGold: (p: { gold: number }) => p.gold,
@@ -15,6 +15,13 @@ const game = () => new GameEngine({ players: createNationRoster([{ name: 'Captai
 afterEach(() => vi.restoreAllMocks());
 
 describe('board chrome', () => {
+  it.each([false, true])('shows each seat number once in the portrait strip with color-blind mode %s', (colorBlind) => {
+    const { state } = game();
+    const html = renderToStaticMarkup(<VoyageTopBar state={state} colorBlind={colorBlind} onMenu={() => {}} menuOpen={false} />);
+    const names = Array.from(html.matchAll(/<strong>(.*?)<\/strong>/g), match => match[1].replace(/<[^>]+>/g, ''));
+    expect(names).toEqual(state.players.map(p => `${p.id + 1}${colorBlind ? ' ·' : ''} ${playerName(p, 'en')}`));
+    expect(html.match(/class="seat-number"/g)?.length ?? 0).toBe(colorBlind ? 0 : state.players.length);
+  });
   it('shows the next known landing and hides missing or invalid targets', () => {
     const { state } = game();
     expect(renderToStaticMarkup(<NextStop state={state} />)).toBe('');
