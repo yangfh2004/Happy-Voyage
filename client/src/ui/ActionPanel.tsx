@@ -33,6 +33,11 @@ export function ActionPanel({ state }: { state: GameState }) {
     return (
       <div className="panel actions handoff" role="dialog" aria-label="Pass the device">
         {handoff.navigator && <NavigatorPortrait navigator={handoff.navigator} color={handoff.color} size={64} />}
+        {gameController.handoffNote && (
+          <div className={`headline ${gameController.handoffNote.tone}`}>
+            {state.players[gameController.handoffNote.playerId].name}: {gameController.handoffNote.text}
+          </div>
+        )}
         <h2>Pass the device to {handoff.name}</h2>
         <p>{seatTag(state.players, handoff)} · {handoff.nation ?? 'Navigator'} · Round {state.round}</p>
         <button className="primary big" onClick={() => gameController.confirmHandoff()}>

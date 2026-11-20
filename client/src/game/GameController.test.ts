@@ -452,6 +452,23 @@ describe('local multiplayer', () => {
     expect(state.phase).toBe('spinning');
   });
 
+  it('carries the outgoing human\'s last headline onto the pass-the-device screen', () => {
+    controller.newGame(roster());
+    controller.spinCompass();
+    controller.finishSpin(controller.spinId);
+    EventBus.emit('move-complete', moveId);
+    controller.headline = { text: 'Azores is yours!', tone: 'gain' };
+    const state = controller.state!;
+    if (state.phase === 'awaitingClaim') controller.decline();
+    else if (state.phase === 'awaitingBuild') controller.finishBuilding();
+    else if (state.phase === 'awaitingToll') controller.payToll();
+    expect(state.currentPlayer).toBe(1);
+    expect(controller.headline).toBeNull();
+    expect(controller.handoffNote).toMatchObject({ playerId: 0, tone: 'gain' });
+    controller.confirmHandoff();
+    expect(controller.handoffNote).toBeNull();
+  });
+
   it('runs AI seats for every unpicked nation and returns to the first human after a full round', async () => {
     controller.newGame(roster());
     const state = controller.state!;

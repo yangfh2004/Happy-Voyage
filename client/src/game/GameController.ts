@@ -73,6 +73,8 @@ export class GameController {
   /** Where the sailing fleet set out from, so text views don't reveal its destination early. */
   private departure: { playerId: number; position: number } | null = null;
   headline: Headline | null = null;
+  /** The outgoing human's last headline, shown on the pass-the-device screen. */
+  handoffNote: (Headline & { playerId: number }) | null = null;
   /** The human seat the screen speaks to ("you"): whoever of the humans sailed most recently. */
   viewerId: number | null = null;
   /** Hot-seat pause: the device must be passed to this human before their turn begins. */
@@ -138,6 +140,7 @@ export class GameController {
     this.engine = new GameEngine({ players });
     this.viewerId = this.engine.state.players.find((player) => !player.isAI)?.id ?? null;
     this.handoffTo = null;
+    this.handoffNote = null;
     this.feedback = new TurnFeedback();
     this.engine.on((event) => this.onEngineEvent(event));
     this.engine.start();
@@ -155,6 +158,7 @@ export class GameController {
     this.engine = null;
     this.viewerId = null;
     this.handoffTo = null;
+    this.handoffNote = null;
     this.feedback = new TurnFeedback();
     this.changed();
   }
@@ -173,6 +177,7 @@ export class GameController {
   confirmHandoff(): void {
     if (this.handoffTo === null) return;
     this.handoffTo = null;
+    this.handoffNote = null;
     this.changed();
   }
 
@@ -429,6 +434,7 @@ export class GameController {
         if (!engine.currentPlayer.isAI) {
           this.skipping = false;
           if (event.playerId !== this.viewerId) {
+            this.handoffNote = this.headline && this.viewerId !== null && this.humanCount > 1 ? { ...this.headline, playerId: this.viewerId } : null;
             this.headline = null;
             this.viewerId = event.playerId;
             if (this.humanCount > 1) this.handoffTo = event.playerId;
