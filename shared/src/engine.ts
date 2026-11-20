@@ -491,7 +491,6 @@ export class GameEngine {
 
   private resolveSpecial(player: Player, node: MapNode): void {
     const r = SEA_RULES;
-    const colonies = this.islandsOwnedBy(player.id);
     this.log(`${player.name} visits ${node.name} (${node.chineseName ?? ''}).`);
     switch (node.special) {
       case 'skeleton':
