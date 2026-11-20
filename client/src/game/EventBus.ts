@@ -9,5 +9,6 @@ import Phaser from 'phaser';
  *   'move-complete'          (id)                     scene finished animating
  *   'pacing-changed'         ()                       update active movement speed
  *   'cancel-move'            ()                       discard an old game's movement
+ *   'engine-event'           (GameEvent)              every engine event, for board effects
  */
 export const EventBus = new Phaser.Events.EventEmitter();
