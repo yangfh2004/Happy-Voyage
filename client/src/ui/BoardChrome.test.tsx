@@ -7,7 +7,7 @@ vi.mock('../game/GameController', () => ({ gameController: {
   visibleLogText: () => [], feedback: { logTones: new Map() }, decline: vi.fn(),
   get landingTarget() { return null; },
 } }));
-import { canEndTurn, HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } from './BoardChrome';
+import { canEndTurn, endTurnAction, HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } from './BoardChrome';
 import { LogPanel } from './LogPanel';
 import { gameController } from '../game/GameController';
 
@@ -58,7 +58,7 @@ describe('board chrome', () => {
   });
   it('only enables End Turn for supported decline decisions at the local helm', () => {
     const { state } = game();
-    for (const phase of ['awaitingClaim', 'awaitingRecruit', 'awaitingBarter', 'awaitingMerchant'] as GameState['phase'][]) {
+    for (const phase of ['awaitingClaim', 'awaitingRecruit', 'awaitingBarter', 'awaitingBuild', 'awaitingMarket', 'awaitingCargoMarket'] as GameState['phase'][]) {
       state.phase = phase;
       expect(canEndTurn(state, true)).toBe(true);
       expect(canEndTurn(state, false)).toBe(false);
@@ -68,6 +68,39 @@ describe('board chrome', () => {
       expect(canEndTurn(state, true)).toBe(false);
     }
     expect(renderToStaticMarkup(<VoyageBottomBar state={state} atHelm={false} />)).toContain('disabled=""');
+  });
+  it('maps continuations to their exact panel actions without skipping unresolved choices', () => {
+    const { state } = game();
+    for (const [phase, action] of Object.entries({ awaitingClaim: 'decline', awaitingRecruit: 'declineRecruit', awaitingBarter: 'declineBarter', awaitingBuild: 'finishBuilding', awaitingMarket: 'finishMarket', awaitingCargoMarket: 'finishTrading' })) {
+      state.phase = phase as GameState['phase'];
+      expect(endTurnAction(state, true)).toBe(action);
+      expect(endTurnAction(state, false)).toBeNull();
+    }
+    state.phase = 'awaitingLottery';
+    expect(endTurnAction(state, true)).toBeNull();
+    state.lottery = { playerId: 0, nodeId: 0, secondsLeft: 0, picks: [], draw: { playerId: 0, round: 1, nodeId: 0, picks: [], balls: [], matches: [], spent: 0, prize: 0 } };
+    expect(endTurnAction(state, true, false)).toBeNull();
+    expect(endTurnAction(state, true, true)).toBe('finishLottery');
+    state.phase = 'awaitingMerchant';
+    expect(endTurnAction(state, true)).toBeNull();
+    state.pendingMerchant = { good: 'Wine', quantity: 1, gold: 100 };
+    expect(endTurnAction(state, true)).toBe('declineMerchant');
+    state.phase = 'awaitingMistDuel';
+    state.mistDuel = { nodeId: 0, hermitId: null, stonesLeft: 15, lastTurn: null, result: null };
+    expect(endTurnAction(state, true)).toBe('leaveMistIsland');
+    state.mistDuel.hermitId = 'brook';
+    expect(endTurnAction(state, true)).toBeNull();
+    state.mistDuel.result = { round: 1, playerId: 0, nodeId: 0, hermitId: 'brook', outcome: 'loss', strategy: null };
+    expect(endTurnAction(state, true)).toBe('leaveMistIsland');
+    state.phase = 'awaitingWyvern';
+    expect(endTurnAction(state, true)).toBeNull();
+    state.phase = 'awaitingToll';
+    const island = state.map.find(n => n.kind === 'island')!;
+    state.players[0].position = island.id;
+    state.owners[island.id] = 1;
+    expect(endTurnAction(state, true)).toBeNull();
+    island.toll = 0;
+    expect(endTurnAction(state, true)).toBe('payToll');
   });
   it('renders empty logs and limits recent events while preserving tones', () => {
     const { state } = game();

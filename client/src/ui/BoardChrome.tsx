@@ -1,4 +1,4 @@
-import { chartIdentity, nodeName, playerName, rankName, type GameState } from '@happy-voyage/shared';
+import { chartIdentity, nodeName, playerName, rankName, tollDue, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
@@ -10,8 +10,28 @@ function ResourceIcon({ ship = false }: { ship?: boolean }) {
   return <svg className="resource-icon" viewBox="0 0 24 24" aria-hidden="true">{ship ? <><path d="M3 16h18l-4 5H7Z" fill="#91bfdd" /><path d="M12 2v14H5Zm2 2 6 10h-6Z" fill="#fff4d5" stroke="#947439" /></> : <><circle cx="12" cy="12" r="10" fill="#edbd45" stroke="#9c6b13" /><path d="M15 7h-5a3 3 0 0 0 0 5h4a3 3 0 0 1 0 5H8m4-13v16" fill="none" stroke="#855313" strokeWidth="2" /></>}</svg>;
 }
 
-export function canEndTurn(state: GameState, atHelm: boolean) {
-  return atHelm && ['awaitingClaim', 'awaitingRecruit', 'awaitingBarter', 'awaitingMerchant'].includes(state.phase);
+export function endTurnAction(state: GameState, atHelm: boolean, lotteryRevealed = true) {
+  if (!atHelm) return null;
+  switch (state.phase) {
+    case 'awaitingClaim': return 'decline';
+    case 'awaitingRecruit': return 'declineRecruit';
+    case 'awaitingBarter': return 'declineBarter';
+    case 'awaitingMerchant': return state.pendingMerchant ? 'declineMerchant' : null;
+    case 'awaitingBuild': return 'finishBuilding';
+    case 'awaitingMarket': return 'finishMarket';
+    case 'awaitingCargoMarket': return 'finishTrading';
+    case 'awaitingLottery': return state.lottery?.draw && lotteryRevealed ? 'finishLottery' : null;
+    case 'awaitingMistDuel': return state.mistDuel && (state.mistDuel.hermitId === null || state.mistDuel.result !== null) ? 'leaveMistIsland' : null;
+    case 'awaitingToll': {
+      const player = state.players[state.currentPlayer];
+      return state.owners[player.position] != null && tollDue(state, player, player.position) === 0 ? 'payToll' : null;
+    }
+    default: return null;
+  }
+}
+
+export function canEndTurn(state: GameState, atHelm: boolean, lotteryRevealed = true) {
+  return endTurnAction(state, atHelm, lotteryRevealed) !== null;
 }
 
 export function VoyageTopBar({ state, colorBlind, onMenu, menuOpen }: { state: GameState; colorBlind: boolean; onMenu: () => void; menuOpen: boolean }) {
@@ -49,7 +69,8 @@ export function HelmCard({ state, colorBlind, atHelm }: { state: GameState; colo
 
 export function VoyageBottomBar({ state, atHelm }: { state: GameState; atHelm: boolean }) {
   const { t } = useT();
-  return <footer className="voyage-bottom"><strong>📜 {t('EVENT LOG', '航海日志')}</strong><LogPanel state={state} log={gameController.visibleLogText(state)} tones={gameController.feedback.logTones} limit={3} /><button disabled={!canEndTurn(state, atHelm)} onClick={() => gameController.decline()}>{t('End Turn', '结束回合')} ↪</button></footer>;
+  const action = endTurnAction(state, atHelm, gameController.lotteryRevealed);
+  return <footer className="voyage-bottom"><strong>📜 {t('EVENT LOG', '航海日志')}</strong><LogPanel state={state} log={gameController.visibleLogText(state)} tones={gameController.feedback.logTones} limit={3} /><button disabled={!action} onClick={() => { if (action) gameController[action](); }}>{t('End Turn', '结束回合')} ↪</button></footer>;
 }
 
 export function NextStop({ state }: { state: GameState }) {
