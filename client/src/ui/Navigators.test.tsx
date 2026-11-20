@@ -20,6 +20,10 @@ describe('navigators in the UI', () => {
     expect(html).toContain('Santa María');
     expect(html).toContain('+20 durability, +20 cargo');
     expect(html.match(/role="img"/g)).toHaveLength(11);
+    expect(html).toContain('Rival difficulty');
+    expect(html).toContain('<option value="normal" selected="">Normal</option>');
+    expect(html).toContain('<option value="easy">Easy</option>');
+    expect(html).toContain('<option value="hard">Hard</option>');
   });
 
   it('shows every navigator portrait and nation in the HUD', () => {
