@@ -379,6 +379,18 @@ export class OceanScene extends Phaser.Scene {
     const state = gameController.state;
     if (!state) return;
     switch (event.type) {
+      case 'seaEvent': {
+        const ship = this.ships.get(event.playerId);
+        if (event.event === 'largeMonster') this.cameras.main.shake(450, 0.009);
+        else if (event.event === 'smallMonster') this.cameras.main.shake(180, 0.003);
+        else if (event.event === 'turtle') this.cameras.main.shake(350, 0.006);
+        if (ship && event.event === 'whirlpool') {
+          const swirl = this.add.text(ship.x, ship.y, '◎', { fontSize: '64px', color: '#a1efff' }).setOrigin(0.5).setDepth(30);
+          this.tweens.add({ targets: swirl, angle: 360, scale: 2, alpha: 0, duration: 900, onComplete: () => swirl.destroy() });
+        }
+        if (ship && (event.gold ?? 0) > 0) this.coinBurst(ship.x, ship.y + 30, ship.x, ship.y, 6);
+        break;
+      }
       case 'tollPaid': {
         const payer = this.ships.get(event.from);
         const island = this.map[state.players[event.from].position];

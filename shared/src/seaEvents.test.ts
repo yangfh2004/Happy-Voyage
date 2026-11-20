@@ -8,6 +8,9 @@ function encounter(event: EventKind, rng = 0.5, setup: (g: GameEngine) => void =
   const p = g.currentPlayer;
   const results: SeaEventResult[] = [];
   g.on((e) => { if (e.type === 'seaEvent') results.push(e); });
+  g.on((e) => {
+    if (e.type === 'seaEvent') expect(g.state.log.at(-1)).toContain(p.name + ': ');
+  });
   setup(g);
   p.position = g.state.map.find((n) => n.event === event)!.id;
   g.state.phase = 'moving';
@@ -91,7 +94,7 @@ describe('sea event outcomes', () => {
     expect(results).toHaveLength(1);
     expect(results[0].outcome).toBe(choice === 'decline' ? 'declined' : 'accepted');
     expect(p.gold).toBe(choice === 'decline' ? gold : gold + 405);
-    expect(p.fleet[0].cargo.Silk).toBe(choice === 'decline' ? 3 : 0);
+    expect(p.fleet[0].cargo.Silk).toBe(choice === 'decline' ? 3 : undefined);
     expect(g.state.pendingMerchant).toBeNull();
     expect(() => g.acceptMerchant()).toThrow();
   });

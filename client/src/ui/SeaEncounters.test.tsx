@@ -1,0 +1,146 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { SEA_EVENT_NAMES, type EventKind, type SeaEventResult } from '@happy-voyage/shared';
+
+const hooks = vi.hoisted(() => ({ values: [] as unknown[], index: 0 }));
+vi.mock('react', async (original) => ({
+  ...await original<typeof import('react')>(),
+  useState: (initial: unknown) => {
+    const index = hooks.index++;
+    if (!(index in hooks.values)) hooks.values[index] = initial;
+    return [hooks.values[index], (value: unknown) => { hooks.values[index] = value; }];
+  },
+}));
+vi.mock('../game/EventBus', () => {
+  const listeners = new Map<string, ((...args: unknown[]) => void)[]>();
+  return { EventBus: {
+    on: (name: string, fn: (...args: unknown[]) => void) => listeners.set(name, [...(listeners.get(name) ?? []), fn]),
+    emit: (name: string, ...args: unknown[]) => listeners.get(name)?.forEach((fn) => fn(...args)),
+  } };
+});
+
+import { gameController } from '../game/GameController';
+import { EventBus } from '../game/EventBus';
+import { SeaChoicePanel } from './SeaChoicePanel';
+import { SeaNotifications, SEA_ICONS } from './SeaNotifications';
+
+function elements(node: ReactNode): ReactElement<Record<string, unknown>>[] {
+  return Children.toArray(node).flatMap((child) => {
+    if (!isValidElement<Record<string, unknown>>(child)) return [];
+    return [child, ...elements(child.props.children as ReactNode)];
+  });
+}
+function panel() {
+  hooks.index = 0;
+  return SeaChoicePanel({ state: gameController.state! });
+}
+function click(text: string) {
+  const button = elements(panel()).find((el) => el.type === 'button' && el.props.children === text)!;
+  (button.props.onClick as () => void)();
+}
+let moveId = 0;
+EventBus.on('animate-move', (move: { id: number }) => { moveId = move.id; });
+
+function land(event: EventKind, ai = false) {
+  gameController.newGame([{ name: 'Captain', color: 0, isAI: ai }, { name: 'Rival', color: 1, isAI: true }]);
+  const state = gameController.state!;
+  state.map[2] = { ...state.map[2], kind: 'event', event };
+  state.players[0].fleet[0].cargo.Silk = 3;
+  if (ai) vi.advanceTimersByTime(700);
+  else gameController.spinCompass();
+  gameController.finishSpin(gameController.spinId);
+  EventBus.emit('move-complete', moveId);
+  return state;
+}
+
+beforeEach(() => {
+  hooks.values = [];
+  hooks.index = 0;
+  vi.useFakeTimers();
+  vi.spyOn(Math, 'random').mockReturnValue(0);
+});
+afterEach(() => { gameController.quit(); vi.useRealTimers(); vi.restoreAllMocks(); });
+
+describe('sea notifications', () => {
+  it.each(Object.keys(SEA_EVENT_NAMES) as EventKind[])('renders a %s outcome with its icon and player', (event) => {
+    const outcome: SeaEventResult = { type: 'seaEvent', playerId: 0, event, outcome: 'gold', gold: 70 };
+    const html = renderToStaticMarkup(<SeaNotifications notices={[{ id: 1, event: outcome, playerName: 'Captain' }]} onDismiss={() => {}} />);
+    expect(html).toContain(SEA_EVENT_NAMES[event] + '! Gold recovered');
+    expect(html).toContain(SEA_ICONS[event]);
+    expect(html).toContain('gained 70g');
+    expect(html).toContain('Captain');
+    expect(html).toContain('role="status"');
+  });
+
+  it('shows losses, sunk ships, and supports dismissing without losing later events', () => {
+    land('pirates');
+    expect(gameController.seaNotices).toHaveLength(1);
+    const notice = gameController.seaNotices[0];
+    const event: SeaEventResult = { type: 'seaEvent', playerId: 0, event: 'pirates', outcome: 'defeat', gold: -80, shipsLost: [2] };
+    const html = renderToStaticMarkup(<SeaNotifications notices={[{ ...notice, event }]} onDismiss={() => {}} />);
+    expect(html).toContain('Pirates! Defeated — lost 80g, 1 ship sunk');
+    const tree = SeaNotifications({ notices: [notice], onDismiss: (id) => gameController.dismissSeaNotice(id) });
+    const dismiss = elements(tree).find((el) => el.type === 'button')!;
+    (dismiss.props.onClick as () => void)();
+    expect(gameController.seaNotices).toHaveLength(0);
+  });
+
+  it('renders nothing for an empty queue', () => {
+    expect(renderToStaticMarkup(<SeaNotifications notices={[]} onDismiss={() => {}} />)).not.toContain('role="status"');
+  });
+});
+
+describe('human sea choices wired to the real engine', () => {
+  it.each([true, false])('merchant accept=%s advances the turn and only accepted cargo is removed', (accept) => {
+    const state = land('merchant');
+    expect(state.phase).toBe('awaitingMerchant');
+    const html = renderToStaticMarkup(panel());
+    expect(html).toContain('Sell 3 Silk');
+    expect(html).toContain('405g');
+    const before = state.players[0].gold;
+    click(accept ? 'Accept merchant offer' : 'Decline merchant offer');
+    expect(state.phase).toBe('awaitingSpin');
+    expect(state.currentPlayer).toBe(1);
+    expect(state.players[0].gold).toBe(before + (accept ? 405 : 0));
+    expect(state.players[0].fleet[0].cargo.Silk).toBe(accept ? undefined : 3);
+    expect(gameController.seaNotices[0].event.outcome).toBe(accept ? 'accepted' : 'declined');
+  });
+
+  it('wyvern selection flies then resolves landing after the animation', () => {
+    const state = land('wyvern');
+    expect(state.phase).toBe('awaitingWyvern');
+    const target = state.map.find((node) => node.kind === 'island')!;
+    const select = elements(panel()).find((el) => el.type === 'select')!;
+    (select.props.onChange as (e: { target: { value: string } }) => void)({ target: { value: String(target.id) } });
+    expect(renderToStaticMarkup(panel())).toContain('Fly with wyvern');
+    click('Fly with wyvern');
+    expect(state.phase).toBe('moving');
+    expect(state.players[0].position).toBe(target.id);
+    EventBus.emit('move-complete', moveId);
+    expect(state.phase).toBe('awaitingClaim');
+    gameController.decline();
+    expect(state.currentPlayer).toBe(1);
+  });
+
+  it('displays invalid destination errors without leaving the choice', () => {
+    const state = land('wyvern');
+    const select = elements(panel()).find((el) => el.type === 'select')!;
+    (select.props.onChange as (e: { target: { value: string } }) => void)({ target: { value: '-1' } });
+    click('Fly with wyvern');
+    expect(renderToStaticMarkup(panel())).toContain('Unknown destination');
+    expect(state.phase).toBe('awaitingWyvern');
+  });
+
+  it.each(['merchant', 'wyvern'] as const)('AI continues after %s without human input', (event) => {
+    const state = land(event, true);
+    vi.advanceTimersByTime(700);
+    if (event === 'wyvern') {
+      expect(state.phase).toBe('moving');
+      EventBus.emit('move-complete', moveId);
+      vi.advanceTimersByTime(700);
+    }
+    expect(state.currentPlayer).toBe(1);
+    expect(gameController.seaNotices[0].event.outcome).toBe(event === 'merchant' ? 'accepted' : 'relocated');
+  });
+});

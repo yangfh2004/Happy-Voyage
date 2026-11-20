@@ -4,6 +4,7 @@ import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { BUILDINGS, buildingLevel, nextBuildingCost, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
+import { seaEventText } from './seaEvents';
 import { RANKS, playerMerit, foreignTaxDue } from './ranks';
 export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
@@ -728,6 +729,7 @@ export class GameEngine {
     for (const ship of player.fleet) {
       const units = Math.min(remaining, ship.cargo[offer.good] ?? 0);
       ship.cargo[offer.good] = (ship.cargo[offer.good] ?? 0) - units;
+      if (ship.cargo[offer.good] === 0) delete ship.cargo[offer.good];
       remaining -= units;
     }
     this.changeGold(player, offer.gold, 'merchant');
@@ -1067,6 +1069,14 @@ export class GameEngine {
   }
 
   private emit(event: GameEvent): void {
+    if (event.type === 'seaEvent') {
+      this.log(`${this.state.players[event.playerId].name}: ${seaEventText(event, event.destination === undefined ? undefined : this.node(event.destination).name)}`);
+    }
+    if (event.type === 'merchantOffered') {
+      const { good, quantity, gold } = event.offer;
+      this.log(`A merchant offers ${this.state.players[event.playerId].name} ${gold}g for ${quantity} aboard ${good}.`);
+    }
+    if (event.type === 'wyvernOffered') this.log(`A wyvern offers to carry ${this.state.players[event.playerId].name} to any destination.`);
     for (const listener of this.listeners) listener(event, this.state);
   }
 }

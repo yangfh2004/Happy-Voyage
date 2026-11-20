@@ -2,6 +2,14 @@ import { GameEngine, quoteMarketTrade, type Good, type BuildingKind, type GameEv
 import { EventBus } from './EventBus';
 import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, sfx } from './sfx';
+import type { SeaEventResult } from '@happy-voyage/shared';
+
+export interface SeaNotice {
+  id: number;
+  event: SeaEventResult;
+  playerName: string;
+  destination?: string;
+}
 
 /** A moment worth celebrating (or groaning at) for the human, shown until their next roll. */
 export interface Headline {
@@ -50,6 +58,8 @@ export class GameController {
   /** Where the sailing fleet set out from, so text views don't reveal its destination early. */
   private departure: { playerId: number; position: number } | null = null;
   headline: Headline | null = null;
+  seaNotices: SeaNotice[] = [];
+  private noticeId = 0;
 
   constructor() {
     EventBus.on('move-complete', (id: number) => {
@@ -104,6 +114,7 @@ export class GameController {
     this.pendingMove = null;
     EventBus.emit('cancel-move');
     this.headline = null;
+    this.seaNotices = [];
     this.engine = new GameEngine({ players });
     this.feedback = new TurnFeedback();
     this.engine.on((event) => this.onEngineEvent(event));
@@ -147,7 +158,25 @@ export class GameController {
 
   decline(): void {
     if (this.isHumanTurn('awaitingClaim')) this.engine!.decline();
+    else if (this.isHumanTurn('awaitingMerchant')) this.declineMerchant();
     else this.declineBarter();
+  }
+
+  acceptMerchant(): void {
+    if (this.isHumanTurn('awaitingMerchant')) this.engine!.acceptMerchant();
+  }
+
+  declineMerchant(): void {
+    if (this.isHumanTurn('awaitingMerchant')) this.engine!.declineMerchant();
+  }
+
+  wyvernFly(nodeId: number): void {
+    if (this.isHumanTurn('awaitingWyvern')) this.engine!.wyvernFly(nodeId);
+  }
+
+  dismissSeaNotice(id: number): void {
+    this.seaNotices = this.seaNotices.filter((notice) => notice.id !== id);
+    this.changed();
   }
 
   payToll(): void {
@@ -273,6 +302,14 @@ export class GameController {
     const isHuman = (id: number) => !players[id].isAI;
     EventBus.emit('engine-event', event);
     switch (event.type) {
+      case 'seaEvent':
+        this.seaNotices = [{
+          id: ++this.noticeId, event, playerName: players[event.playerId].name,
+          destination: event.destination === undefined ? undefined : engine.state.map[event.destination].name,
+        }, ...this.seaNotices];
+        if ((event.gold ?? 0) > 0) sfx.coin();
+        else if (event.outcome === 'damaged' || event.outcome === 'sunk' || event.outcome === 'defeat') sfx.storm();
+        break;
       case 'royalAudience':
         if (isHuman(event.audience.playerId)) this.headline = { text: event.audience.message, tone: 'gain', royal: true };
         break;

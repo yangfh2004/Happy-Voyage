@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { BarterPanel } from './BarterPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
+import { SeaChoicePanel } from './SeaChoicePanel';
 
 const BUILDING_SIZES = ['None', 'Small', 'Medium', 'Large'];
 
@@ -58,6 +59,8 @@ export function ActionPanel({ state }: { state: GameState }) {
         </button>
       </>
     );
+  } else if (state.phase === 'awaitingMerchant' || state.phase === 'awaitingWyvern') {
+    body = <SeaChoicePanel key={`${player.id}:${state.phase}`} state={state} />;
   } else if (trading) {
     body = <MarketPanel key={player.id} state={state} />;
   } else if (state.phase === 'awaitingMarket') {
