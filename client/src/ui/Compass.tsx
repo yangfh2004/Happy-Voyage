@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { COMPASS_SECTORS } from '@happy-voyage/shared';
+import { useT } from '../i18n';
 
 const sectors = COMPASS_SECTORS.map(({ steps, odds }, index) => {
   const start = (COMPASS_SECTORS.slice(0, index).reduce((sum, sector) => sum + sector.odds, 0) - COMPASS_SECTORS[0].odds / 2) * 360;
@@ -20,6 +21,7 @@ interface CompassProps {
 }
 
 export function Compass({ spinId, result, spinning, duration, onSettled }: CompassProps) {
+  const { t } = useT();
   const angle = sectors.find(({ steps }) => steps === result)?.center ?? 0;
   const needleStyle = {
     transform: `rotate(${angle}deg)`,
@@ -56,7 +58,7 @@ export function Compass({ spinId, result, spinning, duration, onSettled }: Compa
           <circle r="3.5" fill="#ffe082" />
         </g>
       </svg>
-      <span role="status">{spinning ? 'Spinning…' : result === null ? 'Compass ready' : `${result} steps`}</span>
+      <span role="status">{spinning ? t('Spinning…', '转动中…') : result === null ? t('Compass ready', '罗盘就绪') : t('{n} steps', '{n} 步', { n: result })}</span>
     </div>
   );
 }

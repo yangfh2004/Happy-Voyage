@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import type { GameState } from '@happy-voyage/shared';
-import { RANKS, chartIdentity, hasRoundLimit, requiresEveryIsland } from '@happy-voyage/shared';
+import { chartIdentity, hasRoundLimit, nationName, playerName, rankName, requiresEveryIsland } from '@happy-voyage/shared';
+import { useT } from '../i18n';
+import { LanguageSwitch } from './LanguageSwitch';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorPortrait } from './NavigatorPortrait';
@@ -11,19 +13,25 @@ import { StatTooltip } from './StatTooltip';
 
 /** Gold and colonies for every navigator; the current one is highlighted. */
 export function PlayerBar({ state, colorBlind, paletteToggle, onRules, onFleet, onTutorial }: { state: GameState; colorBlind: boolean; paletteToggle: ReactNode; onRules: () => void; onFleet: () => void; onTutorial: () => void }) {
+  const { t, locale } = useT();
+  const islands = (n: number) => t(`{n} island${n === 1 ? '' : 's'}`, '{n} 座岛屿', { n });
   return (
     <div className="panel players">
       <SpeedControl />
+      <LanguageSwitch />
       <SoundControl />
       <div className="player-header">
         <div className="round">
-          <StatTooltip stat="round">Round {hasRoundLimit(state.config) ? `${Math.min(state.round, state.config.maxRounds)} / ${state.config.maxRounds}` : state.round}</StatTooltip> ·{' '}
-          <StatTooltip stat="goal">goal: {state.campaign ? 'king’s missions' : requiresEveryIsland(state.config, islandCount(state)) ? `all ${state.config.islandsToWin} new continents` : `${state.config.islandsToWin} islands`}</StatTooltip>
+          <StatTooltip stat="round">{t('Round {r}', '第 {r} 回合', { r: hasRoundLimit(state.config) ? `${Math.min(state.round, state.config.maxRounds)} / ${state.config.maxRounds}` : state.round })}</StatTooltip> ·{' '}
+          <StatTooltip stat="goal">{t('goal: {goal}', '目标：{goal}', {
+            goal: state.campaign ? t('king’s missions', '国王使命') : requiresEveryIsland(state.config, islandCount(state))
+              ? t('all {n} new continents', '全部 {n} 块新大陆', { n: state.config.islandsToWin }) : islands(state.config.islandsToWin),
+          })}</StatTooltip>
         </div>
         <div className="player-controls">
-          <button onClick={onFleet}>Fleet</button>
-          <button onClick={onTutorial}>Tutorial</button>
-          <button onClick={onRules}>? Rules</button>
+          <button onClick={onFleet}>{t('Fleet', '舰队')}</button>
+          <button onClick={onTutorial}>{t('Tutorial', '教程')}</button>
+          <button onClick={onRules}>{t('? Rules', '? 规则')}</button>
           {paletteToggle}
         </div>
       </div>
@@ -38,13 +46,13 @@ export function PlayerBar({ state, colorBlind, paletteToggle, onRules, onFleet, 
             {p.navigator
               ? <NavigatorPortrait navigator={p.navigator} color={color} size={26} />
               : <span className="dot" style={{ background: cssColor(color) }} />}
-            {badge && <span className="chart-badge" aria-label={`Chart marker ${badge}`}>{badge}</span>}
-            <strong>{p.name}</strong>
-            <span className="tag">{gameController.room && gameController.viewerId === p.id ? 'You' : seatTag(state.players, p)}</span>
+            {badge && <span className="chart-badge" aria-label={t('Chart marker {n}', '海图标记 {n}', { n: badge })}>{badge}</span>}
+            <strong>{playerName(p, locale)}</strong>
+            <span className="tag">{gameController.room && gameController.viewerId === p.id ? t('You', '你') : seatTag(state.players, p)}</span>
             <div className="stats">
-              <StatTooltip stat="rank">{RANKS[p.rank].name} ({RANKS[p.rank].chineseName})</StatTooltip><br />
-              {p.nation && <>{p.nation}<br /></>}
-              <StatTooltip stat="gold">{gameController.displayGold(p)}g</StatTooltip> · <StatTooltip stat="islands">{islands(gameController.islandsOwnedBy(p.id))}</StatTooltip> · <StatTooltip stat="ships">{p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}</StatTooltip>
+              <StatTooltip stat="rank">{rankName(p.rank, locale)}</StatTooltip><br />
+              {p.nation && <>{nationName(p.nation, locale)}<br /></>}
+              <StatTooltip stat="gold">{t('{g}g', '{g} 金币', { g: gameController.displayGold(p) })}</StatTooltip> · <StatTooltip stat="islands">{islands(gameController.islandsOwnedBy(p.id))}</StatTooltip> · <StatTooltip stat="ships">{t(`{n} ${p.fleet.length === 1 ? 'ship' : 'ships'}`, '{n} 艘船', { n: p.fleet.length })}</StatTooltip>
             </div>
           </div>
           );
@@ -55,4 +63,3 @@ export function PlayerBar({ state, colorBlind, paletteToggle, onRules, onFleet, 
 }
 
 const islandCount = (state: GameState) => state.map.filter((node) => node.kind === 'island').length;
-const islands = (n: number) => `${n} island${n === 1 ? '' : 's'}`;

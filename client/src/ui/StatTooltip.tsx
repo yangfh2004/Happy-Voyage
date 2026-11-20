@@ -1,5 +1,6 @@
 import { useEffect, useId, useReducer, useRef, type ReactNode } from 'react';
 import { STAT_HELP, type Stat } from '@happy-voyage/shared';
+import { useT } from '../i18n';
 import { statTooltipState, type TooltipPosition } from './statTooltipState';
 
 function tooltipPosition(target: HTMLButtonElement): TooltipPosition {
@@ -12,7 +13,9 @@ function tooltipPosition(target: HTMLButtonElement): TooltipPosition {
 
 export function StatTooltip({ stat, children }: { stat: Stat; children?: ReactNode }) {
   const id = useId();
-  const { label, description } = STAT_HELP[stat];
+  const { l } = useT();
+  const help = STAT_HELP[stat];
+  const label = l(help.label);
   const trigger = useRef<HTMLButtonElement>(null);
   const wrapper = useRef<HTMLSpanElement>(null);
   const [state, dispatch] = useReducer(statTooltipState, null);
@@ -67,7 +70,7 @@ export function StatTooltip({ stat, children }: { stat: Stat; children?: ReactNo
         hidden={!position}
         className={position?.above ? 'stat-tooltip above' : 'stat-tooltip'}
         style={position ? { left: position.left, top: position.top } : undefined}
-      ><strong>{label}</strong>{description}</span>
+      ><strong>{label}</strong>{l(help.description)}</span>
     </span>
   );
 }

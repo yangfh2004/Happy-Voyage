@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
-import { chartIdentity, colonyToll, createDefaultMap, WORLD, type GameEvent, type MapNode } from '@happy-voyage/shared';
+import { chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
+import { getLocale, subscribeLocale } from '../../i18n';
 import { readPreference } from '../../ui/accessibilityPreferences';
+
+const REGIONS = [['ATLANTIC OCEAN', '大西洋'], ['THE AMERICAS', '美洲'], ['AFRICA · INDIAN OCEAN', '非洲 · 印度洋'], ['ASIAN SEAS', '亚洲海域']];
+const GOLD_REASONS_ZH: Record<string, string> = { salary: '薪俸', promotion: '晋升', royal: '赏赐', colony: '殖民地', captain: '船长', lottery: '彩票', buried: '宝藏', foreign: '税金', merchant: '商船', pirate: '海盗', pirates: '海盗', revival: '修理', scrap: '废料', ship: '船只', storm: '风暴', trade: '交易', treasure: '宝藏', toll: '过路费', tax: '税金', market: '市场', build: '建设' };
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 import { sfx } from '../sfx';
@@ -42,6 +46,7 @@ export class OceanScene extends Phaser.Scene {
   private marker!: Phaser.GameObjects.Graphics;
   private labels!: Phaser.GameObjects.Layer;
   private stopLabels = new Map<number, Phaser.GameObjects.Text>();
+  private regionLabels: Phaser.GameObjects.Text[] = [];
   /** Fleets whose move is being shown; their sprites are not snapped to the state position. */
   private sailing = new Set<number>();
   private islands = new Map<number, Phaser.GameObjects.Image>();
@@ -123,7 +128,9 @@ export class OceanScene extends Phaser.Scene {
     EventBus.on('cancel-move', onCancel);
     EventBus.on('engine-event', onEngine);
     EventBus.on('palette-changed', onPalette);
+    const unsubscribeLocale = subscribeLocale(() => this.relabel(gameController.state));
     const cleanup = () => {
+      unsubscribeLocale();
       this.scale.off('resize', onResize);
       EventBus.off('fit-chart', onFit);
       EventBus.off('follow-ship', onFollow);
@@ -168,9 +175,8 @@ export class OceanScene extends Phaser.Scene {
   private drawOcean() {
     this.ocean = this.add.graphics();
     this.drawOceanBackground();
-    ['ATLANTIC OCEAN', 'THE AMERICAS', 'AFRICA · INDIAN OCEAN', 'ASIAN SEAS'].forEach((name, i) => {
-      this.add.text(WORLD.width / 2, 24 + i * 280, name, { fontFamily: 'Georgia', fontSize: '24px', color: '#b8dfdd' }).setOrigin(0.5).setAlpha(0.4);
-    });
+    this.regionLabels = REGIONS.map(([en, zh], i) =>
+      this.add.text(WORLD.width / 2, 24 + i * 280, getLocale() === 'zh' ? zh : en, { fontFamily: '"Sea Names", Georgia, serif', fontSize: '24px', color: '#b8dfdd' }).setOrigin(0.5).setAlpha(0.4));
 
     // Drifting wave crests.
     for (let i = 0; i < 45; i++) {
@@ -269,10 +275,9 @@ export class OceanScene extends Phaser.Scene {
           .setOrigin(0.5);
       }
 
-      const label = node.kind === 'island' ? `${node.name}\n${node.price}g · ${node.toll}g` : `${node.name}${node.chineseName ? `\n${node.chineseName}` : ''}`;
       const text = this.add
-        .text(0, 0, label, {
-          fontFamily: 'Georgia, "Sea Names", serif',
+        .text(0, 0, this.stopLabel(node, null), {
+          fontFamily: '"Sea Names", Georgia, serif',
           fontSize: '19px',
           wordWrap: { width: 146 },
           color: '#ffffff',
@@ -283,16 +288,28 @@ export class OceanScene extends Phaser.Scene {
         .setOrigin(0.5);
       text.setPosition(node.x, node.y + 35).setOrigin(0.5, 0);
       this.labels.add(text);
-      if (node.kind === 'island') this.stopLabels.set(node.id, text);
+      this.stopLabels.set(node.id, text);
     }
+  }
+
+  private stopLabel(node: MapNode, state: GameState | null): string {
+    const zh = getLocale() === 'zh';
+    const name = nodeName(node, getLocale());
+    if (node.kind === 'island') {
+      const toll = state ? colonyToll(state, node.id) : node.toll;
+      return zh ? `${name}\n${node.price}金 · 过路${toll}金` : `${name}\n${node.price}g · ${toll}g`;
+    }
+    return zh || !node.chineseName ? name : `${name}\n${node.chineseName}`;
+  }
+
+  private relabel(state: GameState | null) {
+    this.stopLabels.forEach((text, id) => text.setText(this.stopLabel(this.map[id], state)));
+    this.regionLabels.forEach((text, i) => text.setText(REGIONS[i][getLocale() === 'zh' ? 1 : 0]));
   }
 
   private syncFromState() {
     const state = gameController.state;
-    this.stopLabels.forEach((text, id) => {
-      const node = this.map[id];
-      text.setText(`${node.name}\n${node.price}g · ${state ? colonyToll(state, id) : node.toll}g`);
-    });
+    this.relabel(state);
     this.flags.clear();
     this.marker.clear();
     if (!state) {
@@ -529,7 +546,8 @@ export class OceanScene extends Phaser.Scene {
   private showGold({ playerId, delta, reason }: Extract<GameEvent, { type: 'goldChanged' }>) {
     const ship = this.ships.get(playerId);
     if (!ship) return;
-    const shortReason = reason.startsWith('royal') ? 'salary' : reason.split(' ')[0];
+    const englishReason = reason.startsWith('royal') ? 'salary' : reason.split(' ')[0];
+    const shortReason = getLocale() === 'zh' ? GOLD_REASONS_ZH[englishReason.toLowerCase()] ?? '' : englishReason;
     const angle = Math.atan2(ship.y - WORLD.height / 2 - 10, ship.x - WORLD.width / 2);
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
@@ -537,8 +555,8 @@ export class OceanScene extends Phaser.Scene {
     let lane = 0;
     while (nearby.some((other) => other.lane === lane)) lane += 1;
     const offset = Math.ceil(lane / 2) * (lane % 2 === 1 ? 110 : -110);
-    const popup = this.add.text(0, 0, `${delta < 0 ? '−' : '+'}${Math.abs(delta)}g\n${shortReason}`, {
-      fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
+    const popup = this.add.text(0, 0, `${delta < 0 ? '−' : '+'}${Math.abs(delta)}${getLocale() === 'zh' ? '金' : 'g'}${shortReason ? `\n${shortReason}` : ''}`, {
+      fontFamily: '"Sea Names", system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
       color: delta < 0 ? (this.colorBlind ? '#ffd18a' : '#ff9c9c') : (this.colorBlind ? '#a9deff' : '#9dffb0'),
       align: 'center', stroke: '#06283d', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(30);

@@ -1,5 +1,6 @@
+import { getLocale } from '../i18n';
 import { useId } from 'react';
-import { navigatorById, type NavigatorId } from '@happy-voyage/shared';
+import { navigatorById, navigatorName, type NavigatorId } from '@happy-voyage/shared';
 import { cssColor } from './nations';
 
 type Hat = 'beret' | 'feathered' | 'bicorne' | 'morion' | 'wusha' | 'tricorn' | 'topknot' | 'furCap' | 'cappuccio' | 'gat';
@@ -128,7 +129,7 @@ export function NavigatorPortrait({ navigator, color, size = 48 }: { navigator: 
   const look = LOOKS[navigator as NavigatorId];
   if (!info || !look) return null;
   return (
-    <svg className="portrait" width={size} height={size} viewBox="0 0 64 64" role="img" aria-label={`${info.name} portrait`}>
+    <svg className="portrait" width={size} height={size} viewBox="0 0 64 64" role="img" aria-label={getLocale() === 'zh' ? `${navigatorName(info.id, 'zh')}的肖像` : `${info.name} portrait`}>
       <circle cx="32" cy="32" r="31" fill={cssColor(color)} stroke="#5d4037" strokeWidth="2" />
       <clipPath id={clipId}><circle cx="32" cy="32" r="30" /></clipPath>
       <g clipPath={`url(#${clipId})`}>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CAPTAINS, MAX_CAPTAINS, RANKS, SHIP_TYPES, captainDescription, cargoLoad, type Player } from '@happy-voyage/shared';
+import { CAPTAINS, MAX_CAPTAINS, captainDescriptionText, captainName, cargoLoad, goodName, playerName, rankName, shipName, shipTypeName, type Good, type Player } from '@happy-voyage/shared';
+import { useT } from '../i18n';
 import dialogPolyfill from 'dialog-polyfill';
 import { gameController } from '../game/GameController';
 import { seatTag } from './seats';
@@ -8,6 +9,7 @@ import { StatTooltip } from './StatTooltip';
 
 export function FleetPanel({ players, onClose }: { players: Player[]; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const { t, locale } = useT();
   const previousFocus = useRef<HTMLElement | null>(null);
   const [playerId, setPlayerId] = useState((players.find((player) => player.id === gameController.viewerId) ?? players.find((player) => !player.isAI) ?? players[0]).id);
   const { fleet, captains } = players.find((player) => player.id === playerId) ?? players[0];
@@ -28,26 +30,26 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
   return createPortal(
     <dialog className="panel fleet" ref={dialog} onClose={closePanel} role="dialog" aria-modal="true" aria-labelledby="fleet-title">
       <div className="fleet-heading">
-        <h2 id="fleet-title">Fleet</h2>
-        <button type="button" onClick={() => dialog.current?.close()}>Close</button>
+        <h2 id="fleet-title">{t('Fleet', '舰队')}</h2>
+        <button type="button" onClick={() => dialog.current?.close()}>{t('Close', '关闭')}</button>
       </div>
       <label>
-        Navigator{' '}
+        {t('Navigator', '航海家')}{' '}
         <select value={playerId} onChange={(event) => setPlayerId(Number(event.target.value))}>
           {players.map((player) => (
-            <option key={player.id} value={player.id}>{player.name} · {RANKS[player.rank].name} ({RANKS[player.rank].chineseName}) ({seatTag(players, player)})</option>
+            <option key={player.id} value={player.id}>{playerName(player, locale)} · {rankName(player.rank, locale)} ({seatTag(players, player)})</option>
           ))}
         </select>
       </label>
-      <h3><StatTooltip stat="captains">Captains aboard ({captains.length}/{MAX_CAPTAINS})</StatTooltip></h3>
-      {captains.length === 0 && <p>No captains recruited.</p>}
-      {CAPTAINS.filter((captain) => captains.includes(captain.id)).map((captain) => <p key={captain.id}><strong>{captain.name}</strong> · {captainDescription(captain)}</p>)}
+      <h3><StatTooltip stat="captains">{t('Captains aboard ({n}/{max})', '船上的船长（{n}/{max}）', { n: captains.length, max: MAX_CAPTAINS })}</StatTooltip></h3>
+      {captains.length === 0 && <p>{t('No captains recruited.', '尚未招募船长。')}</p>}
+      {CAPTAINS.filter((captain) => captains.includes(captain.id)).map((captain) => <p key={captain.id}><strong>{captainName(captain.id, locale)}</strong> · {captainDescriptionText(captain.id, locale)}</p>)}
       {fleet.length > 0 ? (
-        <div className="fleet-table" role="region" aria-label="Ship details" tabIndex={0}>
+        <div className="fleet-table" role="region" aria-label={t('Ship details', '船只详情')} tabIndex={0}>
           <table>
             <thead>
               <tr>
-                <th scope="col">Ship</th>
+                <th scope="col">{t('Ship', '船只')}</th>
                 <th scope="col"><StatTooltip stat="durability" /></th>
                 <th scope="col"><StatTooltip stat="firepower" /></th>
                 <th scope="col"><StatTooltip stat="cargoCapacity" /></th>
@@ -58,10 +60,10 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
             <tbody>
               {fleet.map((ship) => (
                 <tr key={ship.id}>
-                  <th scope="row">{ship.signature && <span aria-label="Signature ship" title="Signature ship">★ </span>}{ship.name}<small>{SHIP_TYPES[ship.type].label}{ship.signature && ' · signature ship'}</small></th>
+                  <th scope="row">{ship.signature && <span aria-label={t('Signature ship', '特色船只')} title={t('Signature ship', '特色船只')}>★ </span>}{shipName(ship.name, locale)}<small>{shipTypeName(ship.type, locale)}{ship.signature && t(' · signature ship', ' · 特色船只')}</small></th>
                   <td>{ship.durability}/{ship.maxDurability}</td>
                   <td>{ship.firepower}</td>
-                  <td>{cargoLoad(ship)}/{ship.cargoCapacity}<small>{Object.entries(ship.cargo).filter(([, qty]) => qty > 0).map(([good, qty]) => `${qty} ${good}`).join(' · ') || 'Empty'}</small></td>
+                  <td>{cargoLoad(ship)}/{ship.cargoCapacity}<small>{Object.entries(ship.cargo).filter(([, qty]) => qty > 0).map(([good, qty]) => `${qty} ${goodName(good as Good, locale)}`).join(' · ') || t('Empty', '空')}</small></td>
                   <td>{ship.speed}</td>
                   <td>{ship.crewCapacity}</td>
                 </tr>
@@ -69,7 +71,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
             </tbody>
           </table>
         </div>
-      ) : <p>No ships in this fleet.</p>}
+      ) : <p>{t('No ships in this fleet.', '这支舰队没有船只。')}</p>}
     </dialog>,
     document.body,
   );

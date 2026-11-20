@@ -19,13 +19,14 @@
 .sea-choice select { width: 100%; }
 @keyframes sea-swirl { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .sea-notice, .sea-whirlpool .sea-icon { animation: none; } }
-@font-face { font-family: 'Sea Names'; src: url('/fonts/sea-names.ttf') format('truetype'); font-display: block; }
+/* Chinese glyphs only: listed first in every stack so CJK never falls through to a system font without them. */
+@font-face { font-family: 'Sea Names'; src: url('./assets/sea-names.ttf') format('truetype'); font-display: block; unicode-range: U+2E80-9FFF, U+3000-303F, U+FF00-FFEF; }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }
 body {
   background: #06283d;
   color: #2b1d0e;
-  font-family: system-ui, -apple-system, 'Segoe UI', 'Sea Names', sans-serif;
+  font-family: 'Sea Names', system-ui, -apple-system, 'Segoe UI', sans-serif;
   overflow: hidden;
 }
 
@@ -62,8 +63,8 @@ body {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
-h1 { margin: 0; font-family: Georgia, 'Sea Names', serif; font-size: 40px; color: #0a3d62; }
-h2 { margin: 0 0 6px; font-family: Georgia, 'Sea Names', serif; font-size: 20px; color: #0a3d62; }
+h1 { margin: 0; font-family: 'Sea Names', Georgia, serif; font-size: 40px; color: #0a3d62; }
+h2 { margin: 0 0 6px; font-family: 'Sea Names', Georgia, serif; font-size: 20px; color: #0a3d62; }
 p { margin: 6px 0; line-height: 1.4; }
 .subtitle { margin-top: 0; color: #8d6e63; font-style: italic; }
 
@@ -191,7 +192,7 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .stat-trigger { padding: 0; border: 0; border-radius: 2px; background: none; color: inherit; font: inherit; text-align: inherit; text-decoration: underline dotted; text-underline-offset: 2px; }
 .stat-trigger:hover { background: none; text-decoration-style: solid; }
 .stat-trigger:focus-visible { outline: 2px solid #0a3d62; outline-offset: 2px; }
-.stat-tooltip { position: fixed; transform: translateX(-50%); z-index: 25; width: min(280px, calc(100vw - 16px)); padding: 8px 12px; border: 1px solid #edbf56; border-radius: 8px; background: #092f46; color: #fff6dc; box-shadow: 0 4px 12px #001b2f66; font: 400 14px/1.4 system-ui, sans-serif; text-align: left; white-space: normal; }
+.stat-tooltip { position: fixed; transform: translateX(-50%); z-index: 25; width: min(280px, calc(100vw - 16px)); padding: 8px 12px; border: 1px solid #edbf56; border-radius: 8px; background: #092f46; color: #fff6dc; box-shadow: 0 4px 12px #001b2f66; font: 400 14px/1.4 'Sea Names', system-ui, sans-serif; text-align: left; white-space: normal; }
 .stat-tooltip.above { transform: translate(-50%, -100%); }
 .stat-tooltip strong { display: block; }
 
@@ -275,7 +276,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .sound-control label { display: flex; align-items: center; gap: 4px; }
 .sound-control input[type='range'] { width: 64px; accent-color: #0a3d62; }
 .sound-control.muted label { opacity: 0.5; }
-.subtitle { font-family: system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif; }
+.subtitle { font-family: 'Sea Names', system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif; }
 
 .headline { margin: 6px 0 0; padding: 4px 10px; border-radius: 8px; font-weight: 700; animation: banner 0.3s ease-out; }
 @keyframes banner { 0% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 1; transform: none; } }
@@ -291,7 +292,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .navigator-card strong { color: #0a3d62; }
 .navigator-title { font-style: italic; color: #6d4c41; font-size: 14px; }
 .signature { font-size: 13px; margin-top: 2px; }
-.cjk { font-family: system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', 'Sea Names', sans-serif; color: #8d6e63; }
+.cjk { font-family: 'Sea Names', system-ui, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif; color: #8d6e63; }
 @media (max-width: 700px) {
   .playing .player .portrait { width: 18px; height: 18px; margin-right: 3px; }
   .navigator-card .portrait { width: 56px; height: 56px; }

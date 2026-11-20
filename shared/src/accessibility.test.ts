@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { chartIdentity } from './accessibility';
+import { STAT_HELP, TUTORIAL_STEPS, chartIdentity } from './accessibility';
+import { localize } from './i18n';
 import { NATIONS } from './nations';
+
+describe('accessibility copy', () => {
+  it('localizes every tutorial step and stat explanation', () => {
+    const copy = [
+      ...TUTORIAL_STEPS.flatMap(({ title, text }) => [title, text]),
+      ...Object.values(STAT_HELP).flatMap(({ label, description }) => [label, description]),
+    ];
+    for (const entry of copy) {
+      expect(localize('en', entry)).toMatch(/[A-Za-z]/);
+      expect(localize('zh', entry)).toMatch(/[\u4e00-\u9fff]/);
+    }
+  });
+});
 
 describe('chart identity', () => {
   it('keeps the original player colors and does not add markers by default', () => {
