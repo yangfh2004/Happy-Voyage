@@ -449,7 +449,7 @@ export class GameController {
         this.seaNotices = this.seaNotices.slice(0, SEA_NOTICE_LIMIT);
         this.noticeTimers.set(id, setTimeout(() => this.dismissSeaNotice(id), SEA_NOTICE_DURATION_MS));
         const fought = event.outcome === 'victory' || event.outcome === 'defeat' || event.outcome === 'damaged' || event.outcome === 'sunk';
-        if (event.event === 'merchant' && event.outcome === 'accepted') sfx.buy();
+        if (event.event === 'merchant' && event.outcome === 'accepted') sfx.sell();
         else if (event.event === 'pirates' && fought) sfx.cannon();
         else if ((event.gold ?? 0) > 0) sfx.coin();
         else if (event.outcome === 'damaged' || event.outcome === 'sunk' || event.outcome === 'defeat') sfx.storm();
