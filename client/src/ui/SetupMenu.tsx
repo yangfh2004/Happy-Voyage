@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createNationRoster, DEFAULT_CONFIG, NATIONS, navigatorForNation, type Nation } from '@happy-voyage/shared';
+import { createNationRoster, DEFAULT_ISLAND_COUNT, GAME_MODES, gameMode, NATIONS, navigatorForNation, winConditionText, type GameModeId, type Nation } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorCard } from './NavigatorCard';
@@ -11,12 +11,14 @@ import { ShortcutLegend } from './ShortcutLegend';
 export function SetupMenu({ onRules }: { onRules: () => void }) {
   const [customName, setCustomName] = useState<string | null>(null);
   const [nation, setNation] = useState<Nation>(NATIONS[0].name);
+  const [modeId, setModeId] = useState<GameModeId>(GAME_MODES[0].id);
+  const mode = gameMode(modeId);
   const navigator = navigatorForNation(nation)!;
   const color = NATIONS.find((n) => n.name === nation)!.color;
   const name = customName ?? navigator.name;
 
   const start = () => {
-    gameController.newGame(createNationRoster([{ name: name.trim() || navigator.name, nation }]));
+    gameController.newGame(createNationRoster([{ name: name.trim() || navigator.name, nation }]), mode.config);
   };
 
   return (
@@ -25,7 +27,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
       <p className="subtitle">Seven Seas Domination · 欢乐大航海</p>
       <p>
         Spin the compass, sail the route and plant your flag on new lands. Rivals pay you a toll or attack when they
-        land on your colonies. Claim {DEFAULT_CONFIG.islandsToWin} islands, be last afloat, or be richest after {DEFAULT_CONFIG.maxRounds} rounds to win.
+        land on your colonies. To win, {winConditionText(mode.config, DEFAULT_ISLAND_COUNT)}.
         The starting navigator rotates each round. Final wealth is cash plus 75% of colony costs.
       </p>
 
@@ -52,6 +54,18 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         </div>
         <NavigatorCard navigator={navigator} color={color} />
         <small className="nation-note">Start at {nation} Port. The other {NATIONS.length - 1} nations are AI rivals.</small>
+      </div>
+
+      <div className="field modes" role="group" aria-labelledby="mode-label">
+        <span id="mode-label">Victory</span>
+        <div className="choices">
+          {GAME_MODES.map((m) => (
+            <button key={m.id} className={m.id === modeId ? 'chip selected' : 'chip'} aria-pressed={m.id === modeId} onClick={() => setModeId(m.id)}>
+              {m.name}
+            </button>
+          ))}
+        </div>
+        <small className="nation-note">{mode.description}</small>
       </div>
 
       <button className="setup-rules" onClick={onRules}>How to play</button>

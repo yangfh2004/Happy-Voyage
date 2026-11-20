@@ -131,6 +131,9 @@ export interface BarterOffer {
   receiveQty: number;
 }
 
+/** everyContinent: held every new continent at once (the original's victory); islandGoal: reached a shorter mode's island target. */
+export type VictoryKind = 'everyContinent' | 'islandGoal' | 'lastAfloat' | 'richest';
+
 export type BattleOutcome = 'victory' | 'defeat' | 'draw';
 
 /** The record of one naval battle at a rival colony. */
@@ -151,9 +154,9 @@ export interface GameConfig {
   startingGold: number;
   /** Paid by the crown every time a fleet passes or lands on the home port. */
   homeSalary: number;
-  /** Claiming this many islands wins immediately. */
+  /** Holding this many islands at once wins; capped at the map's island count, so the default means every new continent. */
   islandsToWin: number;
-  /** After this many rounds the richest navigator wins. */
+  /** After this many rounds the richest navigator wins (NO_ROUND_LIMIT disables it). */
   maxRounds: number;
 }
 
@@ -190,6 +193,8 @@ export interface GameState {
   /** Every naval battle fought this game, oldest first. */
   battles: BattleReport[];
   winner: number | null;
+  /** How the winner won, once phase === 'gameOver'. */
+  victory: VictoryKind | null;
   log: string[];
 }
 
@@ -225,5 +230,5 @@ export type GameEvent =
   | { type: 'tollPaid'; from: number; to: number; amount: number }
   | { type: 'goldChanged'; playerId: number; delta: number; reason: string }
   | { type: 'bankrupt'; playerId: number }
-  | { type: 'gameOver'; winner: number; reason: string }
+  | { type: 'gameOver'; winner: number; victory: VictoryKind; reason: string }
   | { type: 'log'; message: string };

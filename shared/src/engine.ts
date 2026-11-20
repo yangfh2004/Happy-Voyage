@@ -12,19 +12,19 @@ import { RANKS, playerMerit, foreignTaxDue } from './ranks';
 export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
+import { GAME_MODES } from './modes';
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
 import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 import type { Good, SeaEventResult, Specialty } from './types';
 import { navigatorById, type SignatureShip } from './navigators';
-import type { BattleReport, ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, MarketOrder, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
+import type { VictoryKind, BattleReport, ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, MarketOrder, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
   startingStrategies: 3,
   startingGold: 1400,
   homeSalary: 400,
-  islandsToWin: 10,
-  maxRounds: 50,
+  ...GAME_MODES[0].config,
 };
 
 export const EVENT_GOLD = {
@@ -67,8 +67,10 @@ export class GameEngine {
 
   constructor(options: EngineOptions) {
     if (options.players.length < 1) throw new Error('At least one player is required');
-    const config = { ...DEFAULT_CONFIG, ...options.config };
     const map = options.map ?? createDefaultMap();
+    const config = { ...DEFAULT_CONFIG, ...options.config };
+    const islandCount = map.filter((node) => node.kind === 'island').length;
+    if (islandCount > 0) config.islandsToWin = Math.min(config.islandsToWin, islandCount);
     const ports = map.filter((node) => node.kind === 'port');
     const usedPorts = new Set<number>();
     const homes = options.players.map((player) => {
@@ -126,6 +128,7 @@ export class GameEngine {
       pendingRecruits: null,
       battles: [],
       winner: null,
+      victory: null,
       log: [],
     };
     this.buryHoard();
@@ -1233,28 +1236,37 @@ export class GameEngine {
     const { players, config } = this.state;
     const alive = players.filter((p) => !p.bankrupt);
     let winner: Player | undefined;
+    let victory: VictoryKind | undefined;
     let reason = '';
 
     const conqueror = alive.find((p) => this.islandsOwnedBy(p.id) >= config.islandsToWin);
     if (conqueror) {
       winner = conqueror;
-      reason = `claimed ${config.islandsToWin} islands for the crown`;
+      const islandCount = this.state.map.filter((node) => node.kind === 'island').length;
+      victory = config.islandsToWin >= islandCount ? 'everyContinent' : 'islandGoal';
+      reason = victory === 'everyContinent'
+        ? `holds all ${islandCount} new continents for the crown`
+        : `claimed ${config.islandsToWin} islands for the crown`;
     } else if (players.length > 1 && alive.length === 1) {
       winner = alive[0];
+      victory = 'lastAfloat';
       reason = 'is the last navigator afloat';
     } else if (alive.length === 0) {
       winner = players[0];
+      victory = 'lastAfloat';
       reason = 'outlasted the sea';
     } else if (this.state.round > config.maxRounds) {
       winner = alive.reduce((a, b) => (this.netWorth(b.id) > this.netWorth(a.id) ? b : a));
+      victory = 'richest';
       reason = `is the richest navigator after ${config.maxRounds} rounds`;
     }
 
-    if (!winner) return false;
+    if (!winner || !victory) return false;
     this.state.phase = 'gameOver';
     this.state.winner = winner.id;
+    this.state.victory = victory;
     this.log(`${winner.name} ${reason}!`);
-    this.emit({ type: 'gameOver', winner: winner.id, reason });
+    this.emit({ type: 'gameOver', winner: winner.id, victory, reason });
     return true;
   }
 
