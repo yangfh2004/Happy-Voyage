@@ -44,8 +44,10 @@ export function App() {
 
   return (
     <div className={`app ${state ? 'playing' : ''}`}>
-      <PhaserGame />
-      {state && <SeaNotifications notices={gameController.seaNotices} onDismiss={(id) => gameController.dismissSeaNotice(id)} />}
+      <div className="sea-map">
+        <PhaserGame />
+        {state && <SeaNotifications notices={gameController.seaNotices} onDismiss={(id) => gameController.dismissSeaNotice(id)} />}
+      </div>
       <div className="overlay" ref={overlay}>
         {state ? (
           <div className="hud">

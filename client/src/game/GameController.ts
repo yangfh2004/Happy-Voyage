@@ -25,6 +25,8 @@ export const SPEEDS = {
 };
 export type GameSpeed = keyof typeof SPEEDS;
 const SPEED_KEY = 'happy-voyage-speed';
+export const SEA_NOTICE_LIMIT = 3;
+export const SEA_NOTICE_DURATION_MS = 5000;
 
 function savedSpeed(): GameSpeed {
   try {
@@ -67,6 +69,7 @@ export class GameController {
   headline: Headline | null = null;
   seaNotices: SeaNotice[] = [];
   private noticeId = 0;
+  private readonly noticeTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
   constructor() {
     EventBus.on('move-complete', (id: number) => {
@@ -121,7 +124,7 @@ export class GameController {
     this.pendingMove = null;
     EventBus.emit('cancel-move');
     this.headline = null;
-    this.seaNotices = [];
+    this.clearSeaNotices();
     this.engine = new GameEngine({ players });
     this.feedback = new TurnFeedback();
     this.engine.on((event) => this.onEngineEvent(event));
@@ -132,6 +135,7 @@ export class GameController {
   /** Back to the setup menu. */
   quit(): void {
     this.clearTimers();
+    this.clearSeaNotices();
     this.skipping = false;
     this.moveId += 1;
     this.pendingMove = null;
@@ -183,8 +187,16 @@ export class GameController {
   }
 
   dismissSeaNotice(id: number): void {
+    clearTimeout(this.noticeTimers.get(id));
+    this.noticeTimers.delete(id);
     this.seaNotices = this.seaNotices.filter((notice) => notice.id !== id);
     this.changed();
+  }
+
+  private clearSeaNotices(): void {
+    for (const timer of this.noticeTimers.values()) clearTimeout(timer);
+    this.noticeTimers.clear();
+    this.seaNotices = [];
   }
 
   payToll(): void {
@@ -338,14 +350,22 @@ export class GameController {
     const isHuman = (id: number) => !players[id].isAI;
     EventBus.emit('engine-event', event);
     switch (event.type) {
-      case 'seaEvent':
+      case 'seaEvent': {
+        const id = ++this.noticeId;
         this.seaNotices = [{
-          id: ++this.noticeId, event, playerName: players[event.playerId].name,
+          id, event, playerName: players[event.playerId].name,
           destination: event.destination === undefined ? undefined : engine.state.map[event.destination].name,
         }, ...this.seaNotices];
+        for (const notice of this.seaNotices.slice(SEA_NOTICE_LIMIT)) {
+          clearTimeout(this.noticeTimers.get(notice.id));
+          this.noticeTimers.delete(notice.id);
+        }
+        this.seaNotices = this.seaNotices.slice(0, SEA_NOTICE_LIMIT);
+        this.noticeTimers.set(id, setTimeout(() => this.dismissSeaNotice(id), SEA_NOTICE_DURATION_MS));
         if ((event.gold ?? 0) > 0) sfx.coin();
         else if (event.outcome === 'damaged' || event.outcome === 'sunk' || event.outcome === 'defeat') sfx.storm();
         break;
+      }
       case 'royalAudience':
         if (isHuman(event.audience.playerId)) this.headline = { text: event.audience.message, tone: 'gain', royal: true };
         break;

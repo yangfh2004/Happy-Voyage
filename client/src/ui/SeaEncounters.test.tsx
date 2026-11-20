@@ -20,7 +20,7 @@ vi.mock('../game/EventBus', () => {
   } };
 });
 
-import { gameController } from '../game/GameController';
+import { gameController, SEA_NOTICE_DURATION_MS, SEA_NOTICE_LIMIT } from '../game/GameController';
 import { EventBus } from '../game/EventBus';
 import { SeaChoicePanel } from './SeaChoicePanel';
 import { SeaNotifications, SEA_ICONS } from './SeaNotifications';
@@ -42,8 +42,8 @@ function click(text: string) {
 let moveId = 0;
 EventBus.on('animate-move', (move: { id: number }) => { moveId = move.id; });
 
-function land(event: EventKind, ai = false) {
-  gameController.newGame([{ name: 'Captain', color: 0, isAI: ai }, { name: 'Rival', color: 1, isAI: true }]);
+function land(event: EventKind, ai = false, rivalAI = true) {
+  gameController.newGame([{ name: 'Captain', color: 0, isAI: ai }, { name: 'Rival', color: 1, isAI: rivalAI }]);
   const state = gameController.state!;
   state.map[2] = { ...state.map[2], kind: 'event', event };
   state.players[0].fleet[0].cargo.Silk = 3;
@@ -63,6 +63,51 @@ beforeEach(() => {
 afterEach(() => { gameController.quit(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('sea notifications', () => {
+  function addNotice() {
+    const state = gameController.state!;
+    state.players[1].isAI = false;
+    state.currentPlayer = 0;
+    state.phase = 'awaitingSpin';
+    state.players[0].position = 0;
+    gameController.spinCompass();
+    gameController.finishSpin(gameController.spinId);
+    EventBus.emit('move-complete', moveId);
+  }
+
+  it('keeps only the three newest banners while preserving all outcomes in the log', () => {
+    land('treasure', false, false);
+    for (let i = 0; i < 5; i++) addNotice();
+    const ids = gameController.seaNotices.map((notice) => notice.id);
+    expect(ids).toHaveLength(SEA_NOTICE_LIMIT);
+    expect(ids).toEqual([...ids].sort((a, b) => b - a));
+    expect(gameController.state!.log.filter((line) => line.includes('Sunken treasure!'))).toHaveLength(6);
+    const html = renderToStaticMarkup(<SeaNotifications notices={gameController.seaNotices} onDismiss={() => {}} />);
+    expect(html.match(/role="status"/g)).toHaveLength(3);
+  });
+
+  it('expires each banner after five seconds without expiring a newer one early', () => {
+    land('treasure', false, false);
+    vi.advanceTimersByTime(SEA_NOTICE_DURATION_MS - 1000);
+    expect(gameController.seaNotices).toHaveLength(1);
+    addNotice();
+    const newest = gameController.seaNotices[0].id;
+    vi.advanceTimersByTime(1000);
+    expect(gameController.seaNotices.map((notice) => notice.id)).toEqual([newest]);
+    vi.advanceTimersByTime(SEA_NOTICE_DURATION_MS - 1000);
+    expect(gameController.seaNotices).toHaveLength(0);
+    expect(gameController.state!.log.filter((line) => line.includes('Sunken treasure!'))).toHaveLength(2);
+  });
+
+  it('cleans banner timers on quit and does not carry banners into a new voyage', () => {
+    land('treasure');
+    gameController.quit();
+    expect(gameController.seaNotices).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
+    land('treasure');
+    land('treasure');
+    expect(gameController.seaNotices).toHaveLength(1);
+  });
+
   it.each(Object.keys(SEA_EVENT_NAMES) as EventKind[])('renders a %s outcome with its icon and player', (event) => {
     const outcome: SeaEventResult = { type: 'seaEvent', playerId: 0, event, outcome: 'gold', gold: 70 };
     const html = renderToStaticMarkup(<SeaNotifications notices={[{ id: 1, event: outcome, playerName: 'Captain' }]} onDismiss={() => {}} />);
