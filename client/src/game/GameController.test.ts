@@ -84,6 +84,7 @@ describe('pacing', () => {
     const rollId = moveId;
     EventBus.emit('move-complete', rollId);
     expect(moveId).not.toBe(rollId);
+    expect(controller.shownPosition(state.players[0])).toBe(2);
     expect(state.phase).toBe('moving');
     expect(state.players[0].position).toBe(state.players[0].homePort);
     EventBus.emit('move-complete', rollId);

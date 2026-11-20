@@ -32,6 +32,16 @@ export class BootScene extends Phaser.Scene {
     g.generateTexture('island', 48, 48);
     g.clear();
 
+    // Gold coin for tolls and treasure.
+    g.fillStyle(0xb8860b);
+    g.fillCircle(8, 8, 8);
+    g.fillStyle(0xffd54f);
+    g.fillCircle(8, 8, 6);
+    g.fillStyle(0xfff3c4);
+    g.fillRect(6, 4, 2, 8);
+    g.generateTexture('coin', 16, 16);
+    g.clear();
+
     // Wave crest used for the animated ocean.
     g.lineStyle(3, 0xffffff, 0.35);
     g.beginPath();

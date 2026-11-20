@@ -162,6 +162,8 @@ describe('GameEngine', () => {
     const before = engine.currentPlayer.gold;
     spinAndSail(engine);
     expect(engine.currentPlayer.position).toBe(0);
+    expect(engine.currentPlayer.gold).toBe(before); // paid once the fleet has sailed in
+    engine.resolveLanding();
     expect(engine.currentPlayer.gold).toBe(before + DEFAULT_CONFIG.homeSalary);
   });
 
@@ -170,7 +172,30 @@ describe('GameEngine', () => {
     const engine = new GameEngine({ players: [twoPlayers[0]], rng: spinTwelve, map });
     const before = engine.currentPlayer.gold;
     spinAndSail(engine); // 12 steps on a 4-stop route: home three times
+    engine.resolveLanding();
     expect(engine.currentPlayer.gold).toBe(before + 3 * engine.state.config.homeSalary);
+  });
+
+  it('logs the destination only once the fleet arrives', () => {
+    const engine = new GameEngine({ players: twoPlayers, rng: spinTwo });
+    spinAndSail(engine);
+    const destination = engine.state.map[2].name;
+    expect(engine.state.log.join(' ')).not.toContain(destination);
+    engine.resolveLanding();
+    engine.decline();
+    expect(engine.state.log.join(' ')).toContain(destination);
+  });
+
+  it('logs the toll actually paid by a nearly broke fleet', () => {
+    const engine = new GameEngine({ players: twoPlayers, rng: spinTwo });
+    spinAndSail(engine);
+    engine.resolveLanding();
+    engine.claim();
+    engine.state.players[1].gold = 10;
+    engine.currentPlayer.position = 0;
+    spinAndSail(engine);
+    engine.resolveLanding();
+    expect(engine.state.log).toContain(`Rival pays 10g toll to You at ${engine.state.map[2].name}.`);
   });
 
   it('plays an all-AI game to completion', () => {

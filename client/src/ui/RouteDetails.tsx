@@ -1,4 +1,5 @@
 import type { GameState } from '@happy-voyage/shared';
+import { gameController } from '../game/GameController';
 
 /** A readable key for the chart when the canvas labels are too small. */
 export function RouteDetails({ state }: { state: GameState }) {
@@ -8,7 +9,7 @@ export function RouteDetails({ state }: { state: GameState }) {
       <ol className="route-stops">
         {state.map.map((stop) => {
           const owner = state.owners[stop.id];
-          const fleets = state.players.filter((player) => !player.bankrupt && player.position === stop.id);
+          const fleets = state.players.filter((player) => !player.bankrupt && gameController.shownPosition(player) === stop.id);
           return (
             <li key={stop.id}>
               <strong>{stop.name}</strong>

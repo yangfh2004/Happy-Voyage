@@ -12,6 +12,40 @@ function land(g: GameEngine, id: number) {
 }
 
 describe('living sea board', () => {
+  it.each(['Spain', 'England'])('settles %s home salary only after the ship arrives', (nation) => {
+    const g = new GameEngine({ players: [{ ...players[0], nation }], rng: () => 0 });
+    const p = g.currentPlayer;
+    p.position = (p.homePort - 2 + g.state.map.length) % g.state.map.length;
+    const before = p.gold;
+    g.spinCompass();
+    g.sail();
+    expect(p.gold).toBe(before);
+    g.resolveLanding();
+    expect(p.gold).toBe(before + g.state.config.homeSalary);
+    expect(() => g.resolveLanding()).toThrow();
+    expect(p.gold).toBe(before + g.state.config.homeSalary);
+  });
+
+  it('settles salary once at the end of a relocation chain to a national home port', () => {
+    const rng = [0.6, 0.3];
+    const g = new GameEngine({ players: [{ ...players[0], nation: 'England' }], rng: () => rng.shift()!, map: [
+      { id: 0, name: 'First Wyvern', kind: 'event', event: 'wyvern', x: 0, y: 0 },
+      { id: 1, name: 'England', kind: 'port', nation: 'England', x: 1, y: 0 },
+      { id: 2, name: 'Second Wyvern', kind: 'event', event: 'wyvern', x: 2, y: 0 },
+      { id: 3, name: 'Spain', kind: 'port', nation: 'Spain', x: 3, y: 0 },
+    ] });
+    const p = g.currentPlayer;
+    const before = p.gold;
+    land(g, 0);
+    expect(p.position).toBe(2);
+    expect(p.gold).toBe(before);
+    g.resolveLanding();
+    expect(p.position).toBe(1);
+    expect(p.gold).toBe(before);
+    g.resolveLanding();
+    expect(p.gold).toBe(before + g.state.config.homeSalary);
+    expect(g.state.log.filter((line) => line.includes('royal salary'))).toHaveLength(1);
+  });
   it('assigns chosen nations before seat fallbacks without sharing home ports', () => {
     const g = new GameEngine({ players: [
       { ...players[0] },
