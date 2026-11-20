@@ -14,10 +14,9 @@ import { routeEdge } from '../routeEdge';
 import { islandTexture } from '../islandArt';
 import { bindStopHelp, stopHelpPosition } from '../stopHelp';
 import { addNauticalSea, shipTexture } from '../nauticalArt';
+import { specialIslandTexture } from '../specialIslandArt';
 
 const HOP_HEIGHT = 10;
-const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
-const SPECIAL_SYMBOL: Record<string, string> = { skeleton: '☠', treasure: '◆', mist: '☁', revival: '✚', nightless: '☾', wind: '≋', dragonSnake: '♜' };
 const SPECIAL_HELP: Record<string, [string, string]> = {
   skeleton: ['Trade used ships after tribute or scrap trading.', '缴纳贡金或交易废料后买卖二手船。'],
   treasure: ['Buy lottery numbers and match the draw to win gold.', '购买彩票号码，匹配开奖赢取金币。'],
@@ -380,18 +379,8 @@ export class OceanScene extends Phaser.Scene {
         g.fillStyle(0xffd54f).fillRect(node.x - 16, node.y - 12, 32, 24);
         g.fillStyle(0x6d4c41).fillRect(node.x - 5, node.y - 2, 10, 14);
         flag.lineStyle(2, 0x3e2723).lineBetween(node.x - 21, node.y - 55, node.x - 21, node.y - 22);
-      } else if (node.kind === 'special') {
-        const colors = [0x9c4778, 0xe2b634, 0x8074ae, 0x38a58c, 0x494c9d, 0x41a9bf, 0xc65d42];
-        const index = Object.keys(SPECIAL_SYMBOL).indexOf(node.special ?? '');
-        this.add.graphics().fillStyle(colors[index] ?? 0xffffff).fillCircle(node.x, node.y, 28).lineStyle(3, 0xffedbe).strokeCircle(node.x, node.y, 28);
-        this.add.text(node.x, node.y, SPECIAL_SYMBOL[node.special ?? ''] ?? '★', { fontSize: '26px' }).setOrigin(0.5);
       } else {
-        const g = this.add.graphics();
-        g.fillStyle(node.event === 'storm' ? 0x37474f : 0xffb300, 0.95).fillCircle(node.x, node.y, 23);
-        g.lineStyle(2, 0xffffff, 0.8).strokeCircle(node.x, node.y, 23);
-        this.add
-          .text(node.x, node.y, EVENT_SYMBOL[node.event ?? ''] ?? '?', { fontSize: '20px', fontStyle: 'bold', color: '#fff' })
-          .setOrigin(0.5);
+        this.add.image(node.x, node.y, specialIslandTexture(this, node));
       }
 
       const text = this.add
@@ -405,7 +394,7 @@ export class OceanScene extends Phaser.Scene {
           strokeThickness: 4,
         })
         .setOrigin(0.5);
-      text.setPosition(node.x, node.y + (node.kind === 'island' ? 63 : 35)).setOrigin(0.5, 0);
+      text.setPosition(node.x, node.y + (node.kind === 'island' ? 63 : node.kind === 'port' ? 35 : 55)).setOrigin(0.5, 0);
       this.labels.add(text);
       this.stopLabels.set(node.id, text);
       text.setInteractive({ useHandCursor: true });
@@ -424,7 +413,7 @@ export class OceanScene extends Phaser.Scene {
       };
       const hideTooltip = () => { this.stopTooltip?.destroy(); this.stopTooltip = null; };
       bindStopHelp(text, showTooltip, hideTooltip);
-      bindStopHelp(this.add.zone(node.x, node.y, node.kind === 'island' ? 140 : 60, node.kind === 'island' ? 110 : 50).setInteractive({ useHandCursor: true }), showTooltip, hideTooltip);
+      bindStopHelp(this.add.zone(node.x, node.y, node.kind === 'port' ? 60 : 140, node.kind === 'port' ? 50 : 110).setInteractive({ useHandCursor: true }), showTooltip, hideTooltip);
     }
   }
 
@@ -435,10 +424,12 @@ export class OceanScene extends Phaser.Scene {
       const toll = state ? colonyToll(state, node.id) : node.toll;
       return zh ? `${name}\n${node.price}金 · 过路${toll}金` : `${name}\n${node.price}g · ${toll}g`;
     }
-    return zh || !node.chineseName ? name : `${name}\n${node.chineseName}`;
+    return name;
   }
 
   private relabel(state: GameState | null) {
+    this.stopTooltip?.destroy();
+    this.stopTooltip = null;
     this.stopLabels.forEach((text, id) => text.setText(this.stopLabel(this.map[id], state)));
     this.regionLabels.forEach((text, i) => text.setText(REGIONS[i][getLocale() === 'zh' ? 1 : 0]));
   }
