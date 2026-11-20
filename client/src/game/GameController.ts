@@ -70,6 +70,9 @@ class GameController {
   private onEngineEvent(event: GameEvent): void {
     const engine = this.engine!;
     switch (event.type) {
+      case 'goldChanged':
+        EventBus.emit('gold-changed', event);
+        break;
       case 'moved':
         EventBus.emit('animate-move', { playerId: event.playerId, path: event.path });
         break;

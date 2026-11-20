@@ -18,7 +18,7 @@ export function PlayerBar({ state }: { state: GameState }) {
           >
             <span className="dot" style={{ background: cssColor(p.color) }} />
             <strong>{p.name}</strong>
-            {p.isAI && <span className="tag">AI</span>}
+            <span className="tag">{p.isAI ? 'AI' : 'You'}</span>
             <div className="stats">
               {p.gold}g · {gameController.islandsOwnedBy(p.id)} islands
             </div>

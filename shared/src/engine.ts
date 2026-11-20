@@ -10,6 +10,12 @@ export const DEFAULT_CONFIG: GameConfig = {
   maxRounds: 30,
 };
 
+export const EVENT_GOLD = {
+  treasure: { min: 50, max: 200, step: 50 },
+  storm: { min: 50, max: 100, step: 25 },
+  tradeWind: { base: 50, perColony: 30 },
+} as const;
+
 export interface EngineOptions {
   players: PlayerSetup[];
   config?: Partial<GameConfig>;
@@ -177,19 +183,21 @@ export class GameEngine {
   private resolveEvent(player: Player, node: MapNode): void {
     switch (node.event) {
       case 'treasure': {
-        const amount = 50 + Math.floor(this.rng() * 4) * 50;
+        const { min, max, step } = EVENT_GOLD.treasure;
+        const amount = min + Math.floor(this.rng() * ((max - min) / step + 1)) * step;
         this.log(`${player.name} hauls up a sunken chest worth ${amount}g!`);
         this.changeGold(player, amount, 'treasure');
         break;
       }
       case 'storm': {
-        const amount = 50 + Math.floor(this.rng() * 3) * 25;
+        const { min, max, step } = EVENT_GOLD.storm;
+        const amount = min + Math.floor(this.rng() * ((max - min) / step + 1)) * step;
         this.log(`A storm batters ${player.name}'s fleet: repairs cost ${amount}g.`);
         this.changeGold(player, -amount, 'storm repairs');
         break;
       }
       case 'tradeWind': {
-        const amount = 30 * this.islandsOwnedBy(player.id) + 50;
+        const amount = EVENT_GOLD.tradeWind.perColony * this.islandsOwnedBy(player.id) + EVENT_GOLD.tradeWind.base;
         this.log(`Trade winds carry ${player.name}'s goods to market: +${amount}g.`);
         this.changeGold(player, amount, 'trade');
         break;
