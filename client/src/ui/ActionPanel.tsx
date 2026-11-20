@@ -4,6 +4,7 @@ import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
 import { useState } from 'react';
+import { BarterPanel } from './BarterPanel';
 import { TransferPanel } from './TransferPanel';
 
 const BUILDING_SIZES = ['None', 'Small', 'Medium', 'Large'];
@@ -101,6 +102,8 @@ export function ActionPanel({ state }: { state: GameState }) {
         <button className="primary" onClick={() => gameController.finishBuilding()}>Done <kbd>D / Esc</kbd></button>
       </>
     );
+  } else if (state.phase === 'awaitingBarter') {
+    body = <BarterPanel state={state} />;
   } else if (state.phase === 'awaitingClaim') {
     const island = state.map[state.pendingClaim!];
     body = (

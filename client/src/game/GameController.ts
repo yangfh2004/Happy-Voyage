@@ -148,6 +148,14 @@ export class GameController {
     if (this.isHumanTurn('awaitingClaim')) this.engine!.decline();
   }
 
+  acceptBarter(index: number): void {
+    if (this.isHumanTurn('awaitingBarter')) this.engine!.acceptBarter(index);
+  }
+
+  declineBarter(): void {
+    if (this.isHumanTurn('awaitingBarter')) this.engine!.declineBarter();
+  }
+
   canBuild(kind: BuildingKind): boolean {
     return this.isHumanTurn('awaitingBuild') && this.engine!.canBuild(kind);
   }
@@ -269,6 +277,7 @@ export class GameController {
         break;
       }
       case 'claimOffered':
+      case 'barterOffered':
       case 'buildOffered':
         if (!engine.currentPlayer.isAI) this.skipping = false;
         if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());
