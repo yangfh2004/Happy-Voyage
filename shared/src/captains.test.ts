@@ -90,8 +90,28 @@ describe('Dragon Snake captains', () => {
       land(g);
       expect(g.state.pendingRecruits).toBeNull();
       expect(g.state.phase).toBe('awaitingSpin');
-      expect(g.state.log.join(' ')).toContain('no affordable captains');
+      expect(g.state.log.join(' ')).toContain(owned ? 'crew is full' : 'no affordable captains');
     }
+  });
+
+  it('skips recruitment for full crews even with eligible affordable captains available', () => {
+    const g = game();
+    const p = g.currentPlayer;
+    p.rank = 5;
+    p.captains = ['ines', 'rui', 'mei'];
+    const gold = p.gold;
+    const crew = [...p.captains];
+    let offered = false;
+    g.on((event) => { if (event.type === 'recruitsOffered') offered = true; });
+    expect(recruitOffers(p, () => 0)).toHaveLength(3);
+    land(g);
+    expect(offered).toBe(false);
+    expect(g.state.pendingRecruits).toBeNull();
+    expect(g.state.phase).toBe('awaitingSpin');
+    expect(g.state.currentPlayer).toBe(1);
+    expect(g.state.log.join(' ')).toContain('crew is full');
+    expect(p.gold).toBe(gold);
+    expect(p.captains).toEqual(crew);
   });
 
   it('applies tax discounts after rank and adds salary at home', () => {

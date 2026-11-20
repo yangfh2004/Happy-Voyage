@@ -658,6 +658,10 @@ export class GameEngine {
         break;
       }
       case 'dragonSnake': {
+        if (player.captains.length >= MAX_CAPTAINS) {
+          this.log(`${player.name}'s crew is full. No more captains can join.`);
+          break;
+        }
         const offers = recruitOffers(player, this.rng);
         if (!offers.some((id) => CAPTAINS.find((captain) => captain.id === id)!.fee <= player.gold)) {
           this.log(`${player.name} finds no affordable captains available to recruit.`);
