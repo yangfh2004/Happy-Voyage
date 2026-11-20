@@ -5,6 +5,7 @@ import { cssColor } from './nations';
 import { NavigatorCard } from './NavigatorCard';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { SpeedControl } from './SpeedControl';
+import { SoundControl } from './SoundControl';
 import { ShortcutLegend } from './ShortcutLegend';
 
 export const MAX_LOCAL_PLAYERS = 6;
@@ -170,6 +171,7 @@ export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; pal
         {paletteToggle}
       </div>
       <SpeedControl />
+      <SoundControl />
       <ShortcutLegend />
       <button className="primary big" onClick={start}>
         Set sail

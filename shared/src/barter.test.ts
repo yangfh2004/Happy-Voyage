@@ -37,7 +37,10 @@ describe('Wind Island barter', () => {
     land(g);
     const o = g.state.pendingBarter![0];
     const before = fleetQuantity(p, o.give);
+    const events: string[] = [];
+    g.on((event) => { if (event.type === 'barterTraded' && event.offer === o) events.push(event.type); });
     g.acceptBarter(0);
+    expect(events).toEqual(['barterTraded']);
     expect(fleetQuantity(p, o.give)).toBe(before - o.giveQty);
     expect(fleetQuantity(p, o.receive)).toBe(o.receiveQty);
     expect(p.fleet.every((ship) => cargoLoad(ship) <= ship.cargoCapacity)).toBe(true);

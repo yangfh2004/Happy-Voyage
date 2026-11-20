@@ -61,6 +61,15 @@ export function App() {
       window.removeEventListener('blur', shortcuts.blur);
     };
   }, [rulesOpen, fleetOpen, tutorialOpen]);
+  useEffect(() => {
+    const start = () => gameController.startSoundtrack();
+    window.addEventListener('pointerdown', start, { once: true });
+    window.addEventListener('keydown', start, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+    };
+  }, []);
   const overlay = useRef<HTMLDivElement>(null);
   const needsInput = state && !state.players[state.currentPlayer].isAI &&
     (state.phase === 'awaitingSpin' || state.phase === 'awaitingClaim' ||
