@@ -1,3 +1,4 @@
+import { localize, tx, type Text } from './i18n';
 import { createDefaultMap } from './map';
 import type { GameConfig } from './types';
 
@@ -58,10 +59,14 @@ export function requiresEveryIsland(config: Pick<GameConfig, 'islandsToWin'>, is
 
 /** The ways to win under this config, as a sentence fragment ("hold all 40 new continents at once or ..."). */
 export function winConditionText(config: Pick<GameConfig, 'islandsToWin' | 'maxRounds'>, islandCount: number): string {
-  const goal = requiresEveryIsland(config, islandCount)
-    ? `hold all ${islandCount} new continents at once`
-    : `claim ${config.islandsToWin} islands`;
+  return localize('en', winConditionTx(config, islandCount));
+}
+
+export function winConditionTx(config: Pick<GameConfig, 'islandsToWin' | 'maxRounds'>, islandCount: number): Text {
+  const every = requiresEveryIsland(config, islandCount);
+  const goal = every ? tx('hold all {n} new continents at once', '同时占领全部 {n} 块新大陆', { n: islandCount })
+    : tx('claim {n} islands', '占领 {n} 座岛屿', { n: config.islandsToWin });
   return hasRoundLimit(config)
-    ? `${goal}, be the last navigator afloat, or have the highest net worth after ${config.maxRounds} rounds`
-    : `${goal} or be the last navigator afloat`;
+    ? tx('{goal}, be the last navigator afloat, or have the highest net worth after {r} rounds', '{goal}、成为最后一位仍在海上的航海家，或在 {r} 回合后拥有最高身家', { goal, r: config.maxRounds })
+    : tx('{goal} or be the last navigator afloat', '{goal}，或成为最后一位仍在海上的航海家', { goal });
 }

@@ -1,5 +1,6 @@
 import { CAMPAIGN_STAGES, GameEngine, LOTTERY, NATIONS, quoteMarketTrade, type Good, type BuildingKind, type CampaignSetup, type EngineOptions, type GameConfig, type GameEvent, type GameState, type LotteryDraw, type MarketOrder, type Player, type PlayerSetup, type ShipType } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
+import { localize, ref, tx, type Text } from '@happy-voyage/shared';
 import type { HermitId, StrategyId } from '@happy-voyage/shared';
 import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, sfx } from './sfx';
@@ -9,12 +10,16 @@ export interface SeaNotice {
   id: number;
   event: SeaEventResult;
   playerName: string;
+  playerId?: number;
   destination?: string;
+  destinationId?: number;
 }
 
 /** A moment worth celebrating (or groaning at) for the human, shown until their next roll. */
 export interface Headline {
+  /** English, for logs and tests; `message` carries every language. */
   text: string;
+  message: Text;
   tone: 'gain' | 'loss';
   royal?: boolean;
 }
@@ -91,6 +96,10 @@ export class GameController {
         this.engine.resolveLanding();
       }
     });
+  }
+
+  private makeHeadline(message: Text, tone: Headline['tone'], royal?: boolean): Headline {
+    return { text: localize('en', message, this.engine?.state), message, tone, ...(royal ? { royal } : {}) };
   }
 
   get state(): GameState | null {
@@ -429,7 +438,7 @@ export class GameController {
       case 'seaEvent': {
         const id = ++this.noticeId;
         this.seaNotices = [{
-          id, event, playerName: players[event.playerId].name,
+          id, event, playerName: players[event.playerId].name, playerId: event.playerId, destinationId: event.destination,
           destination: event.destination === undefined ? undefined : engine.state.map[event.destination].name,
         }, ...this.seaNotices];
         for (const notice of this.seaNotices.slice(SEA_NOTICE_LIMIT)) {
@@ -443,10 +452,10 @@ export class GameController {
         break;
       }
       case 'royalAudience':
-        if (isViewer(event.audience.playerId)) this.headline = { text: event.audience.message, tone: 'gain', royal: true };
+        if (isViewer(event.audience.playerId)) this.headline = this.makeHeadline(event.audience.text ?? tx(event.audience.message, event.audience.message), 'gain', true);
         break;
       case 'campaignMissionCompleted':
-        this.headline = { text: `King’s mission complete: ${event.mission.description}. +${event.mission.reward}g`, tone: 'gain', royal: true };
+        this.headline = this.makeHeadline(tx('King’s mission complete: {m}. +{g}g', '国王使命完成：{m}。+{g} 金币', { m: ref.mission(engine.state.campaign!.stage, event.mission.objective), g: event.mission.reward }), 'gain', true);
         sfx.coin();
         break;
       case 'compassSpun':
@@ -481,12 +490,12 @@ export class GameController {
         });
         break;
       case 'tollPaid': {
-        const at = engine.state.map[players[event.from].position].name;
+        const at = ref.node(players[event.from].position);
         if (isViewer(event.to)) {
-          this.headline = { text: `${players[event.from].name} pays you ${event.amount}g toll at ${at}!`, tone: 'gain' };
+          this.headline = this.makeHeadline(tx('{p} pays you {g}g toll at {n}!', '{p} 在{n}向你缴纳 {g} 金币过路费！', { p: ref.player(event.from), g: event.amount, n: at }), 'gain');
           sfx.coin();
         } else if (isViewer(event.from)) {
-          this.headline = { text: `You pay ${players[event.to].name} ${event.amount}g toll at ${at}.`, tone: 'loss' };
+          this.headline = this.makeHeadline(tx('You pay {p} {g}g toll at {n}.', '你在{n}向 {p} 缴纳 {g} 金币过路费。', { p: ref.player(event.to), g: event.amount, n: at }), 'loss');
           sfx.pay();
         } else {
           sfx.coin();
@@ -495,30 +504,29 @@ export class GameController {
       }
       case 'claimed': {
         const node = engine.state.map[event.nodeId];
-        if (isViewer(event.playerId)) this.headline = { text: `${node.name} is yours! Rivals now pay you ${node.toll}g here.`, tone: 'gain' };
+        if (isViewer(event.playerId)) this.headline = this.makeHeadline(tx('{n} is yours! Rivals now pay you {g}g here.', '{n}归你了！对手今后在此须向你缴纳 {g} 金币。', { n: ref.node(node.id), g: node.toll ?? 0 }), 'gain');
         sfx.claim();
         break;
       }
       case 'shipAdded': {
         const ship = players[event.playerId].fleet.find((candidate) => candidate.id === event.shipId);
-        if (isViewer(event.playerId) && ship) this.headline = { text: `${ship.name} joined your fleet.`, tone: 'gain' };
+        if (isViewer(event.playerId) && ship) this.headline = this.makeHeadline(tx('{s} joined your fleet.', '{s}加入了你的舰队。', { s: ref.ship(ship.name) }), 'gain');
         break;
       }
       case 'shipSold':
-        if (isViewer(event.playerId)) this.headline = { text: `Sold ${event.shipName} for ${event.price}g.`, tone: 'gain' };
+        if (isViewer(event.playerId)) this.headline = this.makeHeadline(tx('Sold {s} for {g}g.', '以 {g} 金币卖出{s}。', { s: ref.ship(event.shipName), g: event.price }), 'gain');
         break;
       case 'battleFought': {
         const { report } = event;
-        const at = engine.state.map[report.nodeId].name;
-        const rival = players[isViewer(report.attacker) ? report.defender : report.attacker].name;
+        const params = { n: ref.node(report.nodeId), r: ref.player(isViewer(report.attacker) ? report.defender : report.attacker), g: report.tollPaid ?? 0 };
         if (isViewer(report.attacker)) {
-          this.headline = report.outcome === 'victory' ? { text: `Victory! You sink ${rival}'s defenders and take ${at}.`, tone: 'gain' }
-            : report.outcome === 'defeat' ? { text: `Defeat at ${at}: your fleet is sunk and you pay ${report.tollPaid}g double toll.`, tone: 'loss' }
-            : { text: `Stalemate at ${at}: both fleets sail home.`, tone: 'loss' };
+          this.headline = report.outcome === 'victory' ? this.makeHeadline(tx("Victory! You sink {r}'s defenders and take {n}.", '胜利！你击沉了 {r} 的守军，夺取了{n}。', params), 'gain')
+            : report.outcome === 'defeat' ? this.makeHeadline(tx('Defeat at {n}: your fleet is sunk and you pay {g}g double toll.', '{n}战败：你的舰队全军覆没，须缴纳 {g} 金币双倍过路费。', params), 'loss')
+            : this.makeHeadline(tx('Stalemate at {n}: both fleets sail home.', '{n}之战不分胜负：双方各自归队。', params), 'loss');
         } else if (isViewer(report.defender)) {
-          this.headline = report.outcome === 'victory' ? { text: `${rival} sinks your defenders and takes ${at}!`, tone: 'loss' }
-            : report.outcome === 'defeat' ? { text: `You repel ${rival} at ${at} and collect ${report.tollPaid}g double toll!`, tone: 'gain' }
-            : { text: `${rival} attacks ${at}; the battle is a draw and both fleets sail home.`, tone: 'loss' };
+          this.headline = report.outcome === 'victory' ? this.makeHeadline(tx('{r} sinks your defenders and takes {n}!', '{r} 击沉了你的守军，夺取了{n}！', params), 'loss')
+            : report.outcome === 'defeat' ? this.makeHeadline(tx('You repel {r} at {n} and collect {g}g double toll!', '你在{n}击退了 {r}，收取 {g} 金币双倍过路费！', params), 'gain')
+            : this.makeHeadline(tx('{r} attacks {n}; the battle is a draw and both fleets sail home.', '{r} 进攻{n}，双方不分胜负，各自归队。', params), 'loss');
         }
         sfx.storm();
         break;
@@ -543,10 +551,10 @@ export class GameController {
         clearInterval(this.lotteryClock);
         const { draw } = event;
         if (isViewer(draw.playerId)) {
-          const matched = `${draw.matches.length} match${draw.matches.length === 1 ? '' : 'es'}`;
+          const matched = tx(`{m} match${draw.matches.length === 1 ? '' : 'es'}`, '中 {m} 个号码', { m: draw.matches.length });
           this.headline = draw.prize
-            ? { text: `Lottery: ${matched}! You win ${draw.prize}g.`, tone: 'gain' }
-            : { text: `Lottery: ${draw.picks.length ? matched : 'no numbers bought'}. No prize this time.`, tone: 'loss' };
+            ? this.makeHeadline(tx('Lottery: {matched}! You win {g}g.', '彩票：{matched}！你赢得 {g} 金币。', { matched, g: draw.prize }), 'gain')
+            : this.makeHeadline(tx('Lottery: {matched}. No prize this time.', '彩票：{matched}。这次没有中奖。', { matched: draw.picks.length ? matched : tx('no numbers bought', '没有购买号码') }), 'loss');
           if (draw.prize) sfx.win();
         }
         break;
@@ -570,7 +578,8 @@ export class GameController {
       case 'marketTrade':
         if (isViewer(event.playerId)) {
           const sold = event.side === 'sell';
-          this.headline = { text: `${sold ? 'Sold' : 'Bought'} ${event.quantity} ${event.good} for ${event.total}g.`, tone: sold ? 'gain' : 'loss' };
+          const trade = { q: event.quantity, good: ref.good(event.good), g: event.total };
+          this.headline = this.makeHeadline(sold ? tx('Sold {q} {good} for {g}g.', '以 {g} 金币卖出 {q} 单位{good}。', trade) : tx('Bought {q} {good} for {g}g.', '以 {g} 金币买入 {q} 单位{good}。', trade), sold ? 'gain' : 'loss');
           if (sold) sfx.coin();
           else sfx.pay();
         }
@@ -620,6 +629,12 @@ export class GameController {
   /** The ship's log as the player may see it: a held lottery result stays hidden until the last ball lands. */
   visibleLog(state: GameState): string[] {
     return this.lotteryHeld ? state.log.slice(0, this.lotteryHeld.logCut) : state.log;
+  }
+
+  /** The visible log in every language; older saves without `logText` fall back to their English lines. */
+  visibleLogText(state: GameState): Text[] {
+    const texts = state.logText?.length === state.log.length ? state.logText : state.log.map((line) => tx(line, line));
+    return this.lotteryHeld ? texts.slice(0, this.lotteryHeld.logCut) : texts;
   }
 
   /** A player's treasury as shown, without a lottery prize that is still being drawn. */

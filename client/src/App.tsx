@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG } from '@happy-voyage/shared';
 import { PhaserGame } from './game/PhaserGame';
 import { gameController } from './game/GameController';
 import { SetupMenu } from './ui/SetupMenu';
+import { useLocale, useT } from './i18n';
 import { PlayerBar } from './ui/PlayerBar';
 import { ActionPanel } from './ui/ActionPanel';
 import { CampaignPanel } from './ui/CampaignPanel';
@@ -32,6 +33,8 @@ export function App() {
   }, [rulesOpen, fleetOpen]);
   // Re-render whenever the controller reports a state change.
   useSyncExternalStore(gameController.subscribe, gameController.getVersion);
+  const { t } = useT();
+  useLocale();
   const state = gameController.state;
   const overlay = useRef<HTMLDivElement>(null);
   const needsInput = state && !state.players[state.currentPlayer].isAI &&
@@ -52,11 +55,11 @@ export function App() {
       <div className="overlay" ref={overlay}>
         {state ? (
           <div className="hud">
-            <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>Fit chart</button><button onClick={() => EventBus.emit('follow-ship')}>Follow ship</button></div>
+            <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>{t('Fit chart', '查看全图')}</button><button onClick={() => EventBus.emit('follow-ship')}>{t('Follow ship', '跟随船只')}</button></div>
             <ActionPanel state={state} />
             {state.campaign && <CampaignPanel campaign={state.campaign} />}
             <PlayerBar state={state} onRules={() => setRulesOpen(true)} onFleet={() => setFleetOpen(true)} />
-            <LogPanel log={gameController.visibleLog(state)} tones={gameController.feedback.logTones} />
+            <LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} />
             <RouteDetails state={state} />
           </div>
         ) : (

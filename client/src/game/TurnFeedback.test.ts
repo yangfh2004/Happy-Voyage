@@ -38,7 +38,7 @@ describe('turn feedback', () => {
     state.players[0].gold += 80;
     feedback.observe({ type: 'turnStarted', playerId: 1 }, state);
     feedback.observe({ type: 'turnStarted', playerId: 0 }, state);
-    expect(feedback.summary).toEqual({
+    expect(feedback.summary).toMatchObject({
       tolls: [
         { direction: 'received', name: 'England', amount: 80 },
       ],
@@ -83,6 +83,6 @@ describe('turn feedback', () => {
       nodeId: 1, attacker: 1, defender: 0, outcome: 'victory', rounds: 1, attackerSunk: [], defenderSunk: ['Warship 1'], tollPaid: 0,
     } }, state);
     feedback.observe({ type: 'turnStarted', playerId: 0 }, state);
-    expect(feedback.summary?.claims).toEqual([{ name: 'England', island: state.map[1].name, captured: true }]);
+    expect(feedback.summary?.claims).toMatchObject([{ name: 'England', island: state.map[1].name, captured: true }]);
   });
 });

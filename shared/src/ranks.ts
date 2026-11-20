@@ -26,4 +26,5 @@ export interface RoyalAudience {
   promoted: boolean;
   reward: number;
   message: string;
+  text?: import('./i18n').Text;
 }

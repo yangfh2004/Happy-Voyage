@@ -1,3 +1,4 @@
+import { tx } from '@happy-voyage/shared';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import type { GameEvent } from '@happy-voyage/shared';
 
@@ -141,7 +142,7 @@ describe('pacing', () => {
     const ship = state.players[0].fleet.at(-1)!;
     expect(controller.headline?.text).toBe(`${ship.name} joined your fleet.`);
     controller.sellShip(ship.id);
-    expect(controller.headline).toEqual({ text: `Sold ${ship.name} for 54g.`, tone: 'gain' });
+    expect(controller.headline).toMatchObject({ text: `Sold ${ship.name} for 54g.`, tone: 'gain' });
     controller.sellShip(ship.id);
     expect(controller.headline?.text).toBe(`Sold ${ship.name} for 54g.`);
   });
@@ -457,7 +458,7 @@ describe('local multiplayer', () => {
     controller.spinCompass();
     controller.finishSpin(controller.spinId);
     EventBus.emit('move-complete', moveId);
-    controller.headline = { text: 'Azores is yours!', tone: 'gain' };
+    controller.headline = { text: 'Azores is yours!', message: tx('Azores is yours!', '亚速尔群岛归你了！'), tone: 'gain' };
     const state = controller.state!;
     if (state.phase === 'awaitingClaim') controller.decline();
     else if (state.phase === 'awaitingBuild') controller.finishBuilding();

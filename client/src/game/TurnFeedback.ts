@@ -1,8 +1,8 @@
 import type { GameEvent, GameState } from '@happy-voyage/shared';
 
 export interface TurnSummary {
-  tolls: { direction: 'received' | 'paid'; name: string; amount: number }[];
-  claims: { name: string; island: string; captured?: boolean }[];
+  tolls: { direction: 'received' | 'paid'; name: string; amount: number; playerId?: number }[];
+  claims: { name: string; island: string; captured?: boolean; playerId?: number; nodeId?: number }[];
   netGold: number;
 }
 
@@ -31,10 +31,10 @@ export class TurnFeedback {
       this.watches.set(human.id, watch);
       if (event.type === 'tollPaid' && watch.baseline !== null && (event.from === human.id || event.to === human.id)) {
         const received = event.to === human.id;
-        watch.tolls.push({ direction: received ? 'received' : 'paid', name: state.players[received ? event.from : event.to].name, amount: event.amount });
+        watch.tolls.push({ direction: received ? 'received' : 'paid', name: state.players[received ? event.from : event.to].name, amount: event.amount, playerId: received ? event.from : event.to });
       }
       if (event.type === 'claimed' && event.playerId !== human.id && watch.baseline !== null) {
-        watch.claims.push({ name: state.players[event.playerId].name, island: state.map[event.nodeId].name });
+        watch.claims.push({ name: state.players[event.playerId].name, island: state.map[event.nodeId].name, playerId: event.playerId, nodeId: event.nodeId });
       }
       if (event.type === 'battleFought' && event.report.defender === human.id && event.report.outcome === 'victory') {
         const island = state.map[event.report.nodeId].name;

@@ -1,4 +1,5 @@
 import type { EventKind, SeaEventResult } from './types';
+import { localize, ref, tx, type Text, type TextParam } from './i18n';
 
 export const SEA_EVENT_NAMES: Record<EventKind, string> = {
   treasure: 'Sunken treasure', storm: 'Storm', tradeWind: 'Trade winds', pirates: 'Pirates',
@@ -8,17 +9,36 @@ export const SEA_EVENT_NAMES: Record<EventKind, string> = {
 };
 
 export function seaEventText(event: SeaEventResult, destination?: string): string {
-  const outcomes: Record<SeaEventResult['outcome'], string> = {
-    protected: 'Revival protection blocks the hazard', victory: 'Victory', defeat: 'Defeated',
-    damaged: 'Fleet damaged', sunk: 'Ship sunk', gold: 'Gold recovered', specialPrize: 'Rare special prize!',
-    repaired: 'Fleet fully repaired for free', cargo: 'Specialty cargo recovered',
-    accepted: 'Trade accepted', declined: 'Trade declined', noTrade: 'No aboard specialties to trade',
-    relocated: 'Carried to ' + (destination ?? `stop ${event.destination}`), escaped: 'Escaped the circling currents',
-  };
-  const details: string[] = [];
-  if (event.gold) details.push(event.gold > 0 ? `gained ${event.gold}g` : `lost ${-event.gold}g`);
-  if (event.damage) details.push(`${event.damage} hull damage`);
-  if (event.shipsLost?.length) details.push(`${event.shipsLost.length} ship${event.shipsLost.length === 1 ? '' : 's'} sunk`);
-  if (event.quantity && event.good) details.push(`${event.outcome === 'accepted' ? 'sold' : 'loaded'} ${event.quantity} ${event.good}`);
-  return `${SEA_EVENT_NAMES[event.event]}! ${outcomes[event.outcome]}${details.length ? ' — ' + details.join(', ') : ''}.`;
+  return localize('en', seaEventTx(event, destination));
+}
+
+const OUTCOMES: Record<SeaEventResult['outcome'], [string, string]> = {
+  protected: ['Revival protection blocks the hazard', '复活庇护挡下了灾难'], victory: ['Victory', '胜利'], defeat: ['Defeated', '战败'],
+  damaged: ['Fleet damaged', '舰队受损'], sunk: ['Ship sunk', '船只沉没'], gold: ['Gold recovered', '获得金币'], specialPrize: ['Rare special prize!', '稀有特别奖！'],
+  repaired: ['Fleet fully repaired for free', '舰队免费全面修复'], cargo: ['Specialty cargo recovered', '打捞到特产货物'],
+  accepted: ['Trade accepted', '交易成功'], declined: ['Trade declined', '拒绝交易'], noTrade: ['No aboard specialties to trade', '船上没有可交易的特产'],
+  relocated: ['Carried to {dest}', '被带往{dest}'], escaped: ['Escaped the circling currents', '逃离了漩涡'],
+};
+
+/** The sea event as a message in every language; `destination` names where a wyvern or whirlpool carried the fleet. */
+export function seaEventTx(event: SeaEventResult, destination?: TextParam): Text {
+  const en: string[] = [];
+  const zh: string[] = [];
+  if (event.gold) {
+    en.push(event.gold > 0 ? 'gained {gold}g' : 'lost {gold}g');
+    zh.push(event.gold > 0 ? '获得 {gold} 金币' : '损失 {gold} 金币');
+  }
+  if (event.damage) { en.push('{damage} hull damage'); zh.push('船体受损 {damage}'); }
+  if (event.shipsLost?.length) { en.push(`{lost} ship${event.shipsLost.length === 1 ? '' : 's'} sunk`); zh.push('{lost} 艘船沉没'); }
+  if (event.quantity && event.good) {
+    en.push(`${event.outcome === 'accepted' ? 'sold' : 'loaded'} {quantity} {good}`);
+    zh.push(`${event.outcome === 'accepted' ? '卖出' : '装载'} {quantity} 单位{good}`);
+  }
+  const [outcomeEn, outcomeZh] = OUTCOMES[event.outcome];
+  return tx(`{name}! ${outcomeEn}${en.length ? ' — ' + en.join(', ') : ''}.`, `{name}！${outcomeZh}${zh.length ? '——' + zh.join('，') : ''}。`, {
+    name: ref.event(event.event),
+    dest: destination ?? tx('stop {n}', '第 {n} 站', { n: event.destination ?? '' }),
+    gold: Math.abs(event.gold ?? 0), damage: event.damage ?? 0, lost: event.shipsLost?.length ?? 0, quantity: event.quantity ?? 0,
+    good: event.good ? ref.good(event.good) : '',
+  });
 }

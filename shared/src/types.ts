@@ -204,6 +204,8 @@ export interface GameState {
   /** How the winner won, once phase === 'gameOver'. */
   victory: VictoryKind | null;
   log: string[];
+  /** The same entries as `log`, in every language (absent in saves from before localisation). */
+  logText?: import('./i18n').Text[];
 }
 
 /** Everything the engine announces; renderers and the network layer subscribe. */
@@ -244,4 +246,4 @@ export type GameEvent =
   | { type: 'goldChanged'; playerId: number; delta: number; reason: string }
   | { type: 'bankrupt'; playerId: number }
   | { type: 'gameOver'; winner: number; victory: VictoryKind; reason: string }
-  | { type: 'log'; message: string };
+  | { type: 'log'; message: string; text?: import('./i18n').Text };
