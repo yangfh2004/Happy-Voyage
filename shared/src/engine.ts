@@ -1,5 +1,5 @@
 import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount,
-  aiTravelTarget, aiBattleStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase } from './ai';
+  aiTravelTarget, aiBattleStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase, aiMistTake } from './ai';
 import { STRATEGIES, STRATEGY_RULES, type StrategyId } from './strategies';
 import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
 import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
@@ -827,8 +827,12 @@ export class GameEngine {
     }
     if (this.state.phase === 'awaitingMistDuel') {
       const duel = this.state.mistDuel!;
-      if (!duel.hermitId) this.challengeHermit(HERMITS[Math.floor(this.rng() * HERMITS.length)].id);
-      while (!duel.result) this.takeMistStones(1 + Math.floor(this.rng() * Math.min(NIM_MAX_TAKE, duel.stonesLeft)));
+      const hard = this.currentPlayer.aiDifficulty === 'hard';
+      if (!duel.hermitId) this.challengeHermit(hard ? 'brook' : HERMITS[Math.floor(this.rng() * HERMITS.length)].id);
+      while (!duel.result) {
+        const take = hard ? aiMistTake(duel.hermitId!, duel.stonesLeft) || 1 : 1 + Math.floor(this.rng() * Math.min(NIM_MAX_TAKE, duel.stonesLeft));
+        this.takeMistStones(take);
+      }
       this.leaveMistIsland();
       return;
     }

@@ -6,9 +6,10 @@ import { BUILDINGS, buildingLevel, colonyToll, nextBuildingCost } from './buildi
 import { colonyValue, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
 import { SEA_RULES } from './seaRules';
 import { LOTTERY, expectedLotteryPrize } from './lottery';
-import { RANKS, foreignTaxDue } from './ranks';
+import { RANKS, foreignTaxDue, playerMerit } from './ranks';
 import { GOODS, SHIP_RECIPES, USED_SHIP_PRICES, cargoLoad, shipSalePrice } from './ships';
 import { normalMarketSale, quoteMarketTrade } from './market';
+import { hermitStoneTake, NIM_MAX_TAKE, type HermitId } from './mist';
 import { STRATEGY_RULES, type StrategyId } from './strategies';
 import type { BarterOffer, BuildingKind, GameState, MapNode, MarketOrder, Player, Ship, ShipType } from './types';
 
@@ -48,9 +49,9 @@ export function aiBarterChoice(player: Player, offers: BarterOffer[]): number | 
 
 /** Rank profitable landings, only using information visible to this seat. */
 export function aiTravelTarget(state: GameState, player: Player, wyvern = false): number | undefined {
+  if (player.aiDifficulty === 'hard') return hardTravelTarget(state, player, wyvern);
   const easy = player.aiDifficulty === 'easy';
-  const hard = player.aiDifficulty === 'hard';
-  if (!wyvern && player.knownHoard !== null && !hard) return player.knownHoard;
+  if (!wyvern && player.knownHoard !== null) return player.knownHoard;
   const owned = colonies(state, player);
   const canWin = owned + 1 >= state.config.islandsToWin;
   const score = (node: MapNode): number => {
@@ -63,25 +64,11 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
         // Easy takes the first safe opportunity; stronger rivals compare costs and local traffic.
         return (wyvern ? 150 : 0) + (easy ? 300 : 360 - (node.price ?? 0) * 0.25 + Math.min(250, estimatedTolls(state, player, node)) * 0.5);
       }
-      if (hard && owner !== null && owner !== player.id && player.fleet.length > 0) {
-        const quality = battleQuality(state, arrival);
-        if (canWin && quality >= 4) return 9_000;
-        // Favor a reliable capture once neutral land runs out or a rival builds up a valuable colony.
-        if (quality === 5) return 200 + Math.min(220, colonyToll(state, node.id));
-      }
-      if (hard && owner === player.id && roundsLeft(state) >= 4) {
-        const stock = state.stockpiles[node.id];
-        const specialty = node.specialty ? Math.min(freeCargo(player), stock.specialties[node.specialty] ?? 0) : 0;
-        const level = buildingLevel(state, node.id, 'shipyard');
-        const canLaunch = player.fleet.length < policy(player).fleetSize && Object.values(SHIP_RECIPES).some((recipe) =>
-          level >= recipe.yardLevel && stock.lumber >= recipe.lumber && stock.iron >= recipe.iron);
-        return specialty * 8 + (canLaunch ? 240 : 0);
-      }
     }
     if (node.id === player.knownHoard) return 425;
-    if (!wyvern && !hard) return 0;
-    if (node.event === 'treasure') return wyvern || player.gold < 450 ? 125 : 0;
-    if (node.event === 'tradeWind') return wyvern || (hard && owned >= 4) ? 50 + 30 * owned : 0;
+    if (!wyvern) return 0;
+    if (node.event === 'treasure') return 125;
+    if (node.event === 'tradeWind') return 50 + 30 * owned;
     if (node.special === 'nightless' && cargoUnits(player) >= 8) return cargoUnits(player) * 12;
     if (node.special === 'revival') {
       const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
@@ -100,6 +87,110 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
     }
   }
   return best ?? (wyvern ? player.homePort : undefined);
+}
+
+function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): number | undefined {
+  const owned = colonies(state, player);
+  const canWin = owned + 1 >= state.config.islandsToWin;
+  const salary = state.config.homeSalary + RANKS[player.rank].salary + captainBonus(player, 'salary');
+  const merit = playerMerit(state, player.id);
+  const nextRank = RANKS[player.rank + 1];
+  const audience = nextRank && merit >= nextRank.merit ? nextRank.purse : (merit - player.audienceMerit) * 2;
+  const repair = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
+  const size = state.map.length;
+  const rivalHoldings = state.players.map((rival) => colonies(state, rival));
+  const soleRival = state.players.filter((rival) => !rival.bankrupt && rival.id !== player.id).length === 1;
+
+  // Use gold-equivalent scores for immediate results and the next compass spin.
+  const landing = (node: MapNode, cash: number, direct: boolean): number => {
+    if (node.kind === 'island') {
+      const owner = state.owners[node.id];
+      const arrival = { ...player, position: node.id, gold: cash };
+      if (owner === null && aiShouldClaim(state, arrival, node.id)) {
+        if (canWin) return 10_000;
+        return 390 - (node.price ?? 0) * 0.7 + Math.min(150, estimatedTolls(state, player, node)) * 0.35;
+      }
+      if (owner !== null && owner !== player.id) {
+        const quality = player.fleet.length ? battleQuality(state, arrival) : 0;
+        if (quality >= 4 && canWin) return 9_000;
+        if (quality === 5) {
+          const { fromFleet, ships } = colonyDefenders(state, node.id);
+          const disarm = fromFleet && ships.length ? (soleRival ? 460 : 120 + 24 * rivalHoldings[owner]) : 0;
+          return 310 + Math.min(130, colonyToll(state, node.id)) + disarm;
+        }
+        const toll = tollDue(state, player, node.id);
+        return -toll - (cash < toll ? 600 : 0);
+      }
+      if (owner === player.id && direct && roundsLeft(state) >= 4) {
+        const stock = state.stockpiles[node.id];
+        const specialty = node.specialty ? Math.min(freeCargo(player), stock.specialties[node.specialty] ?? 0) : 0;
+        const level = buildingLevel(state, node.id, 'shipyard');
+        const launch = aiShipChoice(player, (type) => {
+          const recipe = SHIP_RECIPES[type];
+          return level >= recipe.yardLevel && stock.lumber >= recipe.lumber && stock.iron >= recipe.iron;
+        });
+        return specialty * 4 + (launch ? 160 : 0);
+      }
+    }
+    if (node.kind === 'port') return node.id === player.homePort ? Math.max(0, audience) : -foreignTaxDue(player.rank);
+    if (node.event === 'treasure') return 125 + (node.id === player.knownHoard ? STRATEGY_RULES.hoardGold : 0);
+    if (node.event === 'tradeWind') return 50 + 30 * owned;
+    if (node.event === 'bottle') return 100 + Math.min(120, repair);
+    if (node.event === 'floatingCargo') return 70;
+    if (node.event === 'wyvern') return direct ? -Infinity : 220;
+    if (node.event === 'pirates' || node.event === 'smallMonster' || node.event === 'largeMonster') {
+      return player.revivalProtection ? 0 : -SEA_RULES[node.event] - 50;
+    }
+    if (node.event === 'storm' || node.event === 'turtle' || node.event === 'whirlpool') return player.revivalProtection ? 0 : -100;
+    if (node.special === 'mist') return SEA_RULES.nimPrize + 150;
+    if (node.special === 'skeleton' && direct && aiUsedShipChoice(state, { ...player, gold: cash - SEA_RULES.tribute }, () => true) === 'warship') {
+      const warships = player.fleet.filter((ship) => ship.type === 'warship' && ship.durability >= ship.maxDurability / 2);
+      return warships.length < 2 && cash >= 900 ? 540 : 90;
+    }
+    if (node.special === 'nightless') return cargoUnits(player) * 10;
+    if (node.special === 'revival') return cash > repair * REPAIR_GOLD_PER_POINT + 150 ? repair + 35 : 0;
+    return 0;
+  };
+
+  const spinLandings = new Map<number, Map<number, number>>();
+  const spinValue = (position: number, cash: number) => {
+    const homeDistance = (player.homePort - position + size - 1) % size + 1;
+    return COMPASS_SECTORS.reduce((value, { steps, odds }) => {
+      const pay = steps >= homeDistance ? salary : 0;
+      const next = state.map[(position + steps) % size];
+      const arrivalCash = cash + pay;
+      let scores = spinLandings.get(arrivalCash);
+      if (!scores) spinLandings.set(arrivalCash, scores = new Map());
+      let score = scores.get(next.id);
+      if (score === undefined) scores.set(next.id, score = landing(next, arrivalCash, false));
+      return value + odds * (pay + Math.min(400, score));
+    }, 0);
+  };
+
+  let best = wyvern ? player.homePort : undefined;
+  let bestScore = wyvern ? -Infinity : spinValue(player.position, player.gold) + 110;
+  for (const node of state.map) {
+    if (node.id === player.position) continue;
+    const pay = wyvern && node.id === player.homePort ? salary : 0;
+    const cash = player.gold + pay;
+    const score = pay + landing(node, cash, true) +
+      (roundsLeft(state) > 0 ? 0.55 * spinValue(node.id, cash) : 0);
+    if (score > bestScore) {
+      best = node.id;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+export function aiMistTake(hermit: HermitId, stones: number): number {
+  // Search the known hermit replies for a line that leaves it the last stone.
+  for (let take = 1; take <= Math.min(NIM_MAX_TAKE, stones - 1); take++) {
+    const remainder = stones - take;
+    const next = remainder - hermitStoneTake(hermit, remainder);
+    if (next === 0 || (next > 1 && aiMistTake(hermit, next) !== 0)) return take;
+  }
+  return 0;
 }
 
 export function aiWyvernTarget(state: GameState, player: Player): number {
@@ -207,7 +298,7 @@ export function aiBuildingChoice(state: GameState, player: Player): BuildingKind
   const level = (kind: BuildingKind) => buildingLevel(state, node.id, kind);
   const { development, fleetSize } = policy(player);
   const stock = state.stockpiles[node.id];
-  const funding = player.gold - reserve(state, player);
+  const funding = player.gold - reserve(state, player) - (player.aiDifficulty === 'hard' ? 250 : 0);
   const tollReturn = estimatedTolls(state, player, node) * 0.25;
   const newShip = player.fleet.length < fleetSize && turns >= 8;
   const supplies = (kind: 'lumberMill' | 'ironMine', good: 'lumber' | 'iron') =>
@@ -306,7 +397,7 @@ function battleQuality(state: GameState, player: Player, card?: StrategyId): num
   const baseline = forecastNavalBattle(attackers, defenders, options);
   if (player.aiDifficulty !== 'hard') return baseline === 'victory' ? 4 : baseline === 'draw' ? 2 : 0;
   // Stress-test with weaker attack and stronger defense rolls, without drawing from the match RNG.
-  const adverse = forecastNavalBattle(attackers, defenders, { ...options, attackerRoll: 0.2, defenderRoll: 0.8 });
+  const adverse = forecastNavalBattle(attackers, defenders, { ...options, attackerRoll: 0.35, defenderRoll: 0.65 });
   return (baseline === 'victory' ? 3 : baseline === 'draw' ? 1 : 0) +
     (adverse === 'victory' ? 2 : adverse === 'draw' ? 1 : 0);
 }
@@ -326,11 +417,14 @@ export function aiBattleStrategy(state: GameState, player: Player, canUse: (card
       bestQuality = quality;
     }
   }
-  // A healthy defector is worth the card even in a battle Hard already expects to win.
-  if (!best && player.aiDifficulty === 'hard' && baseline >= 4 && canUse('betray') && player.fleet.length < policy(player).fleetSize) {
-    const { ships } = colonyDefenders(state, player.position);
-    const defector = ships[0];
-    if (defector.durability >= defector.maxDurability / 2 && battleQuality(state, player, 'betray') >= baseline) return 'betray';
+  if (!best && player.aiDifficulty === 'hard') {
+    // Weakening a major rival's fleet can pay off even if we pay the toll now.
+    const { ships, owner, fromFleet } = colonyDefenders(state, player.position);
+    const lead = ships[0];
+    if (lead && canUse('betray') && (player.fleet.length < policy(player).fleetSize || lead.type === 'warship') &&
+      lead.durability >= lead.maxDurability / 2 && battleQuality(state, player, 'betray') >= baseline) return 'betray';
+    if (lead?.type === 'warship' && baseline < 4 && canUse('mislead') && fromFleet &&
+      (state.players.filter((rival) => !rival.bankrupt).length === 2 || colonies(state, owner) >= colonies(state, player))) return 'mislead';
   }
   return best;
 }

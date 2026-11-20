@@ -14,7 +14,10 @@ function seeded(seed: number) {
 const levels = ['easy', 'normal', 'hard'] as const;
 const roster = createNationRoster([{ name: 'Columbus', nation: 'Spain' }]);
 const seeds = Number(process.argv[2] ?? 300);
+const offset = Number(process.argv[3] ?? 0);
+const scenario = process.argv[4];
 if (!Number.isSafeInteger(seeds) || seeds < 1) throw new Error('Supply a positive seed count');
+if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(offset + seeds)) throw new Error('Supply a nonnegative seed offset');
 
 function stats() {
   return {
@@ -24,13 +27,14 @@ function stats() {
 }
 
 function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?: Partial<GameConfig>) {
+  if (scenario && scenario !== name) return;
   const byLevel = { easy: stats(), normal: stats(), hard: stats() };
   const nationWins = Object.fromEntries(NATIONS.map(({ name }) => [name, 0]));
   const endings = { conquest: 0, survival: 0, wealth: 0 };
   let games = 0;
   let rounds = 0;
 
-  for (let seed = 0; seed < seeds; seed++) {
+  for (let seed = offset; seed < offset + seeds; seed++) {
     for (const players of fixtures(seed)) {
       const game = new GameEngine({ players, config, rng: seeded(seed + 1) });
       const { state } = game;
