@@ -5,16 +5,20 @@
  */
 
 /** What a stop on the sea route does when a fleet lands on it. */
-export type NodeKind = 'port' | 'island' | 'event';
+export type NodeKind = 'port' | 'island' | 'event' | 'special';
+export type SpecialKind = 'skeleton' | 'treasure' | 'mist' | 'revival' | 'nightless' | 'wind' | 'dragonSnake';
 
 /** Random-event stops (the "joy core" of the original game). */
-export type EventKind = 'treasure' | 'storm' | 'tradeWind';
+export type EventKind = 'treasure' | 'storm' | 'tradeWind' | 'pirates' | 'seaMonster' | 'whirlpool' | 'bottle' | 'floatingCargo' | 'merchant' | 'wyvern';
 
 /** One stop on the node-based sea route. */
 export interface MapNode {
   id: number;
   name: string;
   kind: NodeKind;
+  special?: SpecialKind;
+  chineseName?: string;
+  nation?: string;
   /** World position in pixels, used by the renderer only. */
   x: number;
   y: number;
@@ -30,6 +34,7 @@ export interface MapNode {
 
 export interface PlayerSetup {
   name: string;
+  nation?: string;
   /** 0xRRGGBB, used for the ship token and colony flags. */
   color: number;
   isAI: boolean;
@@ -58,6 +63,9 @@ export interface Player extends PlayerSetup {
   /** Index of the map node the fleet is on. */
   position: number;
   bankrupt: boolean;
+  homePort: number;
+  revivalProtection: boolean;
+  captain: boolean;
   fleet: Ship[];
 }
 

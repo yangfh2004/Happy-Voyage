@@ -91,6 +91,7 @@ describe('GameEngine', () => {
   it('adds colony income to trade winds', () => {
     const engine = new GameEngine({ players: twoPlayers });
     engine.state.owners[1] = 0;
+    engine.state.map[11] = { ...engine.state.map[11], kind: 'event', event: 'tradeWind' };
     engine.currentPlayer.position = 11;
     engine.state.phase = 'moving';
     engine.resolveLanding();
@@ -100,6 +101,7 @@ describe('GameEngine', () => {
   it('announces a storm loss before bankruptcy and neutralizes colonies', () => {
     const engine = new GameEngine({ players: twoPlayers, rng: () => 0.999 });
     engine.currentPlayer.gold = 1;
+    engine.state.map[7] = { ...engine.state.map[7], kind: 'event', event: 'storm' };
     engine.currentPlayer.position = 7;
     engine.state.owners[1] = 0;
     engine.state.phase = 'moving';
@@ -146,6 +148,7 @@ describe('GameEngine', () => {
     spinAndSail(engine);
     engine.resolveLanding();
     engine.claim();
+    engine.currentPlayer.position = 0;
     spinAndSail(engine);
     engine.resolveLanding();
     const toll = engine.state.map[2].toll!;
@@ -155,15 +158,13 @@ describe('GameEngine', () => {
 
   it('pays the royal salary when reaching home', () => {
     const engine = new GameEngine({ players: [twoPlayers[0]], rng: spinTwelve });
-    spinAndSail(engine); // 12 steps: halfway round the 24-stop route
-    engine.resolveLanding();
-    engine.decline();
+    engine.currentPlayer.position = engine.state.map.length - 12;
     const before = engine.currentPlayer.gold;
-    spinAndSail(engine); // 12 more steps wraps back to the home port
+    spinAndSail(engine);
     expect(engine.currentPlayer.position).toBe(0);
     expect(engine.currentPlayer.gold).toBe(before); // paid once the fleet has sailed in
     engine.resolveLanding();
-    expect(engine.currentPlayer.gold).toBe(before + 200);
+    expect(engine.currentPlayer.gold).toBe(before + DEFAULT_CONFIG.homeSalary);
   });
 
   it('pays the salary for every lap on a short route', () => {
@@ -191,6 +192,7 @@ describe('GameEngine', () => {
     engine.resolveLanding();
     engine.claim();
     engine.state.players[1].gold = 10;
+    engine.currentPlayer.position = 0;
     spinAndSail(engine);
     engine.resolveLanding();
     expect(engine.state.log).toContain(`Rival pays 10g toll to You at ${engine.state.map[2].name}.`);
@@ -204,7 +206,7 @@ describe('GameEngine', () => {
     let guard = 0;
     while (engine.state.phase !== 'gameOver' && guard++ < 10_000) {
       spinAndSail(engine);
-      engine.resolveLanding();
+      while (engine.state.phase === 'moving') engine.resolveLanding();
       engine.decideForAI();
     }
     expect(engine.state.phase).toBe('gameOver');
@@ -232,10 +234,12 @@ describe('GameEngine', () => {
     spinAndSail(engine);
     engine.resolveLanding();
     engine.claim();
-    expect(engine.netWorth(0)).toBe(DEFAULT_CONFIG.startingGold - 130 + 97);
+    const price = engine.state.map[2].price!;
+    expect(engine.netWorth(0)).toBe(DEFAULT_CONFIG.startingGold - price + Math.floor(price * 0.75));
     expect(engine.state.phase).toBe('awaitingSpin');
     spinAndSail(engine);
     engine.resolveLanding();
+    if (engine.state.phase === 'awaitingClaim') engine.decline();
     expect(engine.state.winner).toBe(1);
   });
 });

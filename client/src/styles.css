@@ -1,15 +1,19 @@
+@font-face { font-family: 'Sea Names'; src: url('/fonts/sea-names.ttf') format('truetype'); font-display: block; }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }
 body {
   background: #06283d;
   color: #2b1d0e;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Sea Names', sans-serif;
   overflow: hidden;
 }
 
 .app { position: relative; width: 100vw; height: 100vh; }
-.chart, .chart-water, .phaser-container { position: absolute; inset: 0; }
-.route-details { display: none; }
+.phaser-container { position: absolute; inset: 0; }
+.phaser-container, .phaser-container canvas { touch-action: none; overscroll-behavior: contain; }
+.route-details summary { cursor: pointer; font-weight: 600; }
+.route-stops { padding-left: 24px; max-height: 260px; overflow: auto; }
+.route-stops li { padding-block: 6px; }
 
 /* On wide, tall screens, the HUD sits in the open water inside the route. */
 .overlay {
@@ -37,8 +41,8 @@ body {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
-h1 { margin: 0; font-family: Georgia, serif; font-size: 40px; color: #0a3d62; }
-h2 { margin: 0 0 6px; font-family: Georgia, serif; font-size: 20px; color: #0a3d62; }
+h1 { margin: 0; font-family: Georgia, 'Sea Names', serif; font-size: 40px; color: #0a3d62; }
+h2 { margin: 0 0 6px; font-family: Georgia, 'Sea Names', serif; font-size: 20px; color: #0a3d62; }
 p { margin: 6px 0; line-height: 1.4; }
 .subtitle { margin-top: 0; color: #8d6e63; font-style: italic; }
 
@@ -133,41 +137,37 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .fleet-table th[scope="row"] { white-space: nowrap; }
 .fleet-table small { display: block; font-weight: normal; color: #5d4037; }
 
-@media (max-width: 720px), (max-width: 1024px) and (max-height: 500px) {
-  body { overflow: auto; }
-  .app { width: 100%; height: auto; min-height: 100dvh; }
-  .chart { --chart-labels: hidden; }
-  .chart-water { overflow: hidden; }
-  .phaser-container { pointer-events: none; }
-  .overlay { position: relative; padding: 8px; min-height: 100dvh; }
-
-  .setup { width: min(100%, 520px); gap: 8px; }
+.playing { display: grid; grid-template-columns: minmax(0, 1fr) 310px; grid-template-rows: minmax(0, 1fr); }
+.playing .phaser-container { position: relative; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+.phaser-container canvas { display: block; }
+.playing .overlay { position: relative; display: block; background: #06283d; overflow: auto; padding: 10px; }
+.playing .hud { width: 100%; }
+.chart-controls { display: flex; gap: 6px; }
+.chart-controls button { flex: 1; font-size: 12px; }
+.playing .rules-backdrop { position: fixed; z-index: 20; }
+@media (max-width: 700px) {
+  .playing { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) 285px; height: 100dvh; }
+  .playing .overlay { padding: 5px; }
+  .playing .hud { gap: 4px; }
+  .playing .panel { padding: 5px 8px; border-radius: 7px; }
+  .playing .player-list { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
+  .playing .player { padding: 2px; font-size: 11px; }
+  .playing .player .stats { font-size: 10px; }
+  .playing .tag { display: none; }
+  .playing .log { max-height: 43px; font-size: 11px; }
+  .playing .actions p { margin: 2px 0; font-size: 12px; }
+  .playing .actions h2 { font-size: 17px; }
+  .playing .actions button.big { padding: 5px 16px; font-size: 15px; }
+  button, .setup input, .route-details summary { min-width: 44px; min-height: 44px; }
+  button, .route-details summary { touch-action: manipulation; }
+  .setup { gap: 8px; }
+  .fleet select { min-height: 44px; }
   .setup h1 { font-size: 32px; }
   .setup p { margin: 0; }
   .subtitle { color: #6d4c41; }
-  button, .setup input, .route-details summary { min-width: 44px; min-height: 44px; }
-  button, .route-details summary { touch-action: manipulation; }
-
-  .playing .chart { position: relative; }
-  .playing .chart-water { position: relative; aspect-ratio: 16 / 9; }
-  .route-details { display: block; margin: 0 8px; padding: 0; overflow-wrap: anywhere; }
-  .route-details summary { padding: 10px 12px; cursor: pointer; font-weight: 600; }
-  .route-stops { margin: 0; padding: 0 12px 0 38px; max-height: min(260px, 35dvh); overflow: auto; }
-  .route-stops li { padding-block: 6px; }
-
-  .playing .overlay { display: block; min-height: 0; }
-  .hud { width: 100%; overflow-wrap: anywhere; }
-  .actions { order: -1; }
-  .actions .row { flex-wrap: wrap; }
-  .player-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .round, .player .stats, .log { font-size: 14px; }
-  .tag { font-size: 12px; background: #6d4c41; }
-  .log { max-height: none; }
-  .rules-backdrop { position: fixed; z-index: 2; }
-  .rules { max-height: calc(100dvh - 40px); }
-  .fleet select { min-height: 44px; }
+  .playing .actions { order: -1; }
+  .playing .chart-controls { order: -2; }
 }
-
 @media (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) {
   .setup {
     display: grid;
@@ -190,8 +190,7 @@ button.big { font-size: 18px; padding: 10px 22px; }
   .setup-rules { grid-area: rules; }
   .setup > .primary { grid-area: start; }
 
-  .playing { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
-  .playing .chart { position: sticky; top: 0; }
+  .playing { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100dvh; }
   .playing .overlay { padding-left: 0; }
   .actions { position: sticky; top: 8px; z-index: 1; }
 }

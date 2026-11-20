@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { WORLD } from '@happy-voyage/shared';
 import { BootScene } from './scenes/BootScene';
 import { OceanScene } from './scenes/OceanScene';
 
@@ -8,10 +7,10 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
   return {
     type: Phaser.AUTO,
     parent,
-    width: WORLD.width,
-    height: WORLD.height,
+    width: parent.clientWidth,
+    height: parent.clientHeight,
     backgroundColor: '#0b4f7c',
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scale: { mode: Phaser.Scale.NONE, autoCenter: Phaser.Scale.NO_CENTER },
     scene: [BootScene, OceanScene],
   };
 }

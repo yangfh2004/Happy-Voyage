@@ -48,6 +48,51 @@ function humanTurn() {
 }
 
 describe('pacing', () => {
+  it('replays a move lost before scene startup and clears it after landing', () => {
+    controller.newGame(players);
+    controller.spinCompass();
+    controller.finishSpin(controller.spinId);
+    const replay = vi.fn();
+    EventBus.on('animate-move', replay);
+    controller.resumeMovement();
+    expect(replay).toHaveBeenCalledWith(expect.objectContaining({ id: moveId, path: [1, 2] }));
+    EventBus.emit('move-complete', moveId);
+    replay.mockClear();
+    controller.resumeMovement();
+    expect(replay).not.toHaveBeenCalled();
+    expect(controller.state?.phase).toBe('awaitingClaim');
+  });
+
+  it('does not replay a previous voyage after restarting or quitting', () => {
+    controller.newGame(players);
+    controller.spinCompass();
+    controller.finishSpin(controller.spinId);
+    controller.newGame(players);
+    const replay = vi.fn();
+    EventBus.on('animate-move', replay);
+    controller.resumeMovement();
+    controller.quit();
+    controller.resumeMovement();
+    expect(replay).not.toHaveBeenCalled();
+  });
+  it('resolves a wyvern relocation with a new move ID before advancing the turn', () => {
+    controller.newGame(players);
+    const state = controller.state!;
+    state.map[2] = { ...state.map[2], kind: 'event', event: 'wyvern' };
+    controller.spinCompass();
+    controller.finishSpin(controller.spinId);
+    const rollId = moveId;
+    EventBus.emit('move-complete', rollId);
+    expect(moveId).not.toBe(rollId);
+    expect(controller.shownPosition(state.players[0])).toBe(2);
+    expect(state.phase).toBe('moving');
+    expect(state.players[0].position).toBe(state.players[0].homePort);
+    EventBus.emit('move-complete', rollId);
+    expect(state.phase).toBe('moving');
+    EventBus.emit('move-complete', moveId);
+    expect(state.phase).toBe('awaitingSpin');
+    expect(state.currentPlayer).toBe(1);
+  });
   it('defaults to Normal and persists/restores valid choices', () => {
     expect(controller.speed).toBe('Normal');
     controller.setSpeed('Fast');

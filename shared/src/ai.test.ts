@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { aiShouldClaim } from './ai';
 import { GameEngine } from './engine';
-import { createDefaultMap } from './map';
+import { forecastMap } from './testMap';
 
 function claimOffer(maxRounds = 30, islandsToWin = 8, nodeId = 17) {
   const engine = new GameEngine({
@@ -10,6 +10,7 @@ function claimOffer(maxRounds = 30, islandsToWin = 8, nodeId = 17) {
       { name: 'Captain', color: 1, isAI: false },
     ],
     config: { maxRounds, islandsToWin },
+    map: forecastMap(),
   });
   const { state, currentPlayer: player } = engine;
   const node = state.map[nodeId];
@@ -21,6 +22,32 @@ function claimOffer(maxRounds = 30, islandsToWin = 8, nodeId = 17) {
 }
 
 describe('AI colony decisions', () => {
+  it.each(['port', 'pirates', 'seaMonster', 'whirlpool', 'skeleton', 'treasure', 'dragonSnake'] as const)('reserves cash for reachable %s costs before a subsequent toll', (stop) => {
+    const { state, player, node } = claimOffer(30, 8, 1);
+    state.config.homeSalary = 0;
+    player.gold = node.price! + 50;
+    for (const target of state.map) {
+      if (target.id === 1) continue;
+      target.kind = 'island';
+      delete target.event;
+      target.toll = 20;
+      state.owners[target.id] = 1;
+    }
+    expect(aiShouldClaim(state, player, node.id)).toBe(true);
+    for (const id of [7, 8, 9]) {
+      const hazard = state.map[id];
+      state.owners[id] = null;
+      if (stop === 'port') hazard.kind = 'port';
+      else if (stop === 'pirates' || stop === 'seaMonster' || stop === 'whirlpool') {
+        hazard.kind = 'event'; hazard.event = stop;
+      } else {
+        hazard.kind = 'special'; hazard.special = stop;
+      }
+    }
+    expect(aiShouldClaim(state, player, node.id)).toBe(false);
+    player.gold += 500;
+    expect(aiShouldClaim(state, player, node.id)).toBe(true);
+  });
   it('saves cash for a likely toll rather than using a flat reserve', () => {
     const { engine, state, node } = claimOffer();
     state.owners[23] = 1; // Six steps land before salary and cost 124g.
@@ -48,7 +75,7 @@ describe('AI colony decisions', () => {
   });
 
   it('counts multiple salaries in one move when forecasting toll risk on a short route', () => {
-    const route = createDefaultMap();
+    const route = forecastMap();
     const map = [route[0], route[1], { ...route[2], toll: 100 }, { ...route[4], id: 3 }];
     const game = new GameEngine({
       players: [

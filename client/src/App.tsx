@@ -7,6 +7,7 @@ import { PlayerBar } from './ui/PlayerBar';
 import { ActionPanel } from './ui/ActionPanel';
 import { LogPanel } from './ui/LogPanel';
 import { RulesPanel } from './ui/RulesPanel';
+import { EventBus } from './game/EventBus';
 import { RouteDetails } from './ui/RouteDetails';
 import { keyboardShortcuts } from './game/keyboard';
 import { FleetPanel } from './ui/FleetPanel';
@@ -32,19 +33,16 @@ export function App() {
   const state = gameController.state;
 
   return (
-    <div className={state ? 'app playing' : 'app'}>
-      <div className="chart">
-        <div className="chart-water">
-          <PhaserGame />
-        </div>
-        {state && <RouteDetails state={state} />}
-      </div>
+    <div className={`app ${state ? 'playing' : ''}`}>
+      <PhaserGame />
       <div className="overlay">
         {state ? (
           <div className="hud">
+            <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>Fit chart</button><button onClick={() => EventBus.emit('follow-ship')}>Follow ship</button></div>
             <PlayerBar state={state} onRules={() => setRulesOpen(true)} onFleet={() => setFleetOpen(true)} />
             <ActionPanel state={state} />
             <LogPanel log={state.log} tones={gameController.feedback.logTones} />
+            <RouteDetails state={state} />
           </div>
         ) : (
           <SetupMenu onRules={() => setRulesOpen(true)} />

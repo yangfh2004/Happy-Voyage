@@ -13,6 +13,9 @@ export function RouteDetails({ state }: { state: GameState }) {
           return (
             <li key={stop.id}>
               <strong>{stop.name}</strong>
+              {stop.kind === 'special' && <div>{stop.chineseName} · Special island</div>}
+              {stop.kind === 'port' && <div>{stop.nation} home port · {state.players.find((player) => player.homePort === stop.id)?.name ?? 'Crown'}</div>}
+              {stop.kind === 'event' && <div>Sea encounter</div>}
               {stop.kind === 'island' && (
                 <div>{stop.price}g · toll {stop.toll}g{owner !== null && ` · Colony of ${state.players[owner].name}`}</div>
               )}

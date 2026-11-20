@@ -1,5 +1,6 @@
 import { COMPASS_SECTORS } from './compass';
 import { colonyValue, turnOrderPosition } from './rules';
+import { SEA_RULES } from './seaRules';
 import type { GameState, MapNode, Player } from './types';
 
 /** Forecast the next two moves without knowing the compass results. */
@@ -7,44 +8,52 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
   const { map, owners, config } = state;
   const horizon = Math.min(2, config.maxRounds - state.round);
   const tradeIncome = 50 + 30 * coloniesAfterClaim;
-  const maxLoss = map.reduce((max, node) => {
-    if (node.event === 'storm') return Math.max(max, 100);
-    const owner = owners[node.id];
-    return owner !== null && owner !== player.id ? Math.max(max, node.toll ?? 0) : max;
-  }, 0);
-  if (gold >= horizon * maxLoss) return 0;
-
-  function forecast(position: number, cash: number, turns: number): number {
+  function forecast(position: number, cash: number, turns: number, protectedFromHazards: boolean, captain: boolean): number {
     if (cash < 0) return 1;
     if (turns === 0) return 0;
     return COMPASS_SECTORS.reduce((risk, { steps, odds }) => {
       const distance = position + steps;
       const next = distance % map.length;
       const node = map[next];
-      const afterSalary = cash + Math.floor(distance / map.length) * config.homeSalary;
+      const passes = Array.from({ length: steps }, (_, i) => (position + i + 1) % map.length).filter((id) => id === player.homePort).length;
+      const afterSalary = cash + passes * config.homeSalary;
       const owner = owners[next];
+      const hazard = ['storm', 'pirates', 'seaMonster', 'whirlpool', 'wyvern'].includes(node.event ?? '');
+      const onward = (balance: number, protection = protectedFromHazards, recruited = captain) => forecast(next, balance, turns - 1, protection, recruited);
+      if (hazard && protectedFromHazards) return risk + odds * onward(afterSalary, false);
+      if (node.kind === 'port' && node.id !== player.homePort) return risk + odds * onward(afterSalary - SEA_RULES.foreignTax);
+      if (node.event === 'pirates' || node.event === 'seaMonster') return risk + odds * onward(afterSalary - SEA_RULES[node.event]);
+      if (node.event === 'whirlpool') return risk + odds * (0.33 * onward(afterSalary - SEA_RULES.whirlpoolLoss) + 0.67 * onward(afterSalary));
+      if (node.special === 'skeleton') return risk + odds * onward(afterSalary >= SEA_RULES.tribute ? afterSalary - SEA_RULES.tribute : afterSalary + SEA_RULES.scrap);
+      if (node.special === 'treasure' && afterSalary >= SEA_RULES.ticket) {
+        const balance = afterSalary - SEA_RULES.ticket;
+        return risk + odds * ((1 - SEA_RULES.lotteryChance) * onward(balance) + SEA_RULES.lotteryChance * onward(balance + SEA_RULES.lotteryPrize));
+      }
+      if (node.special === 'dragonSnake' && afterSalary >= SEA_RULES.captainPrice) return risk + odds * onward(afterSalary - SEA_RULES.captainPrice, protectedFromHazards, true);
+      if (node.special === 'revival') return risk + odds * onward(afterSalary, true);
       if (node.event === 'storm') {
         const stormRisk = [50, 75, 100].reduce(
-          (sum, repair) => sum + forecast(next, afterSalary - repair, turns - 1),
+          (sum, repair) => sum + onward(afterSalary - repair),
           0,
         );
         return risk + odds * stormRisk / 3;
       }
       if (turns > 1 && node.event === 'treasure') {
         const treasureRisk = [50, 100, 150, 200].reduce(
-          (sum, payout) => sum + forecast(next, afterSalary + payout, turns - 1),
+          (sum, payout) => sum + onward(afterSalary + payout),
           0,
         );
         return risk + odds * treasureRisk / 4;
       }
       if (turns > 1 && node.event === 'tradeWind') {
-        return risk + odds * forecast(next, afterSalary + tradeIncome, turns - 1);
+        return risk + odds * onward(afterSalary + tradeIncome);
       }
-      const toll = owner !== null && owner !== player.id ? (node.toll ?? 0) : 0;
-      return risk + odds * forecast(next, afterSalary - toll, turns - 1);
+      const paysToll = node.kind === 'island' && owner !== null && owner !== player.id;
+      const toll = paysToll ? (node.toll ?? 0) : 0;
+      return risk + odds * onward(afterSalary - (captain ? Math.ceil(toll / 2) : toll), protectedFromHazards, paysToll ? false : captain);
     }, 0);
   }
-  return forecast(player.position, gold, horizon);
+  return forecast(player.position, gold, horizon, player.revivalProtection, player.captain);
 }
 
 function estimatedTolls(state: GameState, player: Player, node: MapNode): number {

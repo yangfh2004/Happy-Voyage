@@ -14,8 +14,8 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
   const start = () => {
     const others = NATIONS.filter((_, i) => i !== nation).slice(0, rivals);
     const players: PlayerSetup[] = [
-      { name: name.trim() || 'Captain', color: NATIONS[nation].color, isAI: false },
-      ...others.map((n) => ({ name: n.name, color: n.color, isAI: true })),
+      { name: name.trim() || 'Captain', nation: NATIONS[nation].name, color: NATIONS[nation].color, isAI: false },
+      ...others.map((n) => ({ name: n.name, nation: n.name, color: n.color, isAI: true })),
     ];
     gameController.newGame(players);
   };
