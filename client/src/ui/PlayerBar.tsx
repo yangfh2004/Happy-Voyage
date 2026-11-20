@@ -13,7 +13,7 @@ export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRul
       <div className="player-header">
         <div className="round">
           Round {hasRoundLimit(state.config) ? `${Math.min(state.round, state.config.maxRounds)} / ${state.config.maxRounds}` : state.round} · goal:{' '}
-          {requiresEveryIsland(state.config, islandCount(state)) ? `all ${state.config.islandsToWin} new continents` : `${state.config.islandsToWin} islands`}
+          {state.campaign ? 'king’s missions' : requiresEveryIsland(state.config, islandCount(state)) ? `all ${state.config.islandsToWin} new continents` : `${state.config.islandsToWin} islands`}
         </div>
         <div className="player-controls">
           <button className="sound" onClick={() => gameController.toggleMute()} aria-pressed={!gameController.muted}>

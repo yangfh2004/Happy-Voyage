@@ -5,6 +5,7 @@ import { gameController } from './game/GameController';
 import { SetupMenu } from './ui/SetupMenu';
 import { PlayerBar } from './ui/PlayerBar';
 import { ActionPanel } from './ui/ActionPanel';
+import { CampaignPanel } from './ui/CampaignPanel';
 import { LogPanel } from './ui/LogPanel';
 import { RulesPanel } from './ui/RulesPanel';
 import { EventBus } from './game/EventBus';
@@ -53,6 +54,7 @@ export function App() {
           <div className="hud">
             <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>Fit chart</button><button onClick={() => EventBus.emit('follow-ship')}>Follow ship</button></div>
             <ActionPanel state={state} />
+            {state.campaign && <CampaignPanel campaign={state.campaign} />}
             <PlayerBar state={state} onRules={() => setRulesOpen(true)} onFleet={() => setFleetOpen(true)} />
             <LogPanel log={gameController.visibleLog(state)} tones={gameController.feedback.logTones} />
             <RouteDetails state={state} />
@@ -61,7 +63,7 @@ export function App() {
           <SetupMenu onRules={() => setRulesOpen(true)} />
         )}
         {state && fleetOpen && <FleetPanel players={state.players} onClose={() => setFleetOpen(false)} />}
-        {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} islandCount={state?.map.filter((node) => node.kind === 'island').length} onClose={() => setRulesOpen(false)} />}
+        {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} islandCount={state?.map.filter((node) => node.kind === 'island').length} campaign={state?.campaign} onClose={() => setRulesOpen(false)} />}
       </div>
     </div>
   );
