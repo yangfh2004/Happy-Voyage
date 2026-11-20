@@ -79,11 +79,11 @@ export function App() {
       window.removeEventListener('blur', shortcuts.blur);
     };
   }, [rulesOpen, fleetOpen, tutorialOpen, menuOpen]);
-  const menu = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     if (!menuOpen) return;
-    if (menu.current) return trapMenuFocus(menu.current, () => setMenuOpen(false));
-  }, [menuOpen]);
+    if (menu) return trapMenuFocus(menu, () => setMenuOpen(false));
+  }, [menuOpen, menu]);
   useEffect(() => {
     const start = () => gameController.startSoundtrack();
     window.addEventListener('pointerdown', start, { once: true });
@@ -127,7 +127,7 @@ export function App() {
             {!tutorialOpen && <TurnCoach state={state} atHelm={atHelm} target={chartFocus} />}
             <div className={`secondary-hud ${menuOpen ? 'is-open' : ''}`}>
             {menuOpen && <button className="menu-scrim" aria-label={t('Close menu', '关闭菜单')} onClick={() => setMenuOpen(false)} />}
-            <div ref={menu} id="voyage-menu" className="voyage-menu" role={menuOpen ? 'dialog' : undefined} aria-modal={menuOpen || undefined} aria-label={t('Menu', '菜单')} tabIndex={-1}>
+            <div ref={setMenu} id="voyage-menu" className="voyage-menu" role={menuOpen ? 'dialog' : undefined} aria-modal={menuOpen || undefined} aria-label={t('Menu', '菜单')} tabIndex={-1}>
             <button className="menu-close" onClick={() => setMenuOpen(false)}>{t('Close menu', '关闭菜单')} ✕</button>
             <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>{t('Fit chart', '查看全图')}</button><button onClick={() => EventBus.emit('follow-ship')}>{t('Follow ship', '跟随船只')}</button></div>
             {room && (
@@ -136,7 +136,10 @@ export function App() {
                   t('Online · You are {p}', '在线 · 你是 {p}', { p: playerName(state.players[gameController.viewerId!], locale) }) : t('Room connection lost. Trying to reconnect…', '与房间的连接已断开，正在重新连接……')}</span>
                 {room.error && <span role="alert">{roomError(room.error, locale)}</span>}
                 {state.phase !== 'gameOver' && <button onClick={() => {
-                  if (window.confirm(t('Leave this voyage? You can reopen your invite in this tab to return to your seat.', '离开本次航程？在此标签页重新打开邀请链接即可回到你的座位。'))) gameController.quit();
+                  if (window.confirm(t('Leave this voyage? You can reopen your invite in this tab to return to your seat.', '离开本次航程？在此标签页重新打开邀请链接即可回到你的座位。'))) {
+                    setMenuOpen(false);
+                    gameController.quit();
+                  }
                 }}>{t('Leave room', '离开房间')}</button>}
               </div>
             )}
