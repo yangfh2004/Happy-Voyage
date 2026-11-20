@@ -69,7 +69,15 @@ export function specialIslandTexture(scene: Phaser.Scene, node: MapNode): string
           g.fillStyle(0xd89a20).fillRect(49 + i * 20, 59 - i * 4, 20, 14);
           g.fillStyle(0xffe27c).fillTriangle(49 + i * 20, 59 - i * 4, 58 + i * 20, 49 - i * 4, 69 + i * 20, 59 - i * 4);
         }
-        coin(113, 88, true); coin(125, 98, true); coin(48, 97);
+        for (const [x, y] of [[119, 105], [119, 97], [111, 88]]) {
+          g.fillStyle(0x71889e).fillEllipse(x, y + 4, 34, 20);
+          g.lineStyle(3, ink).strokeEllipse(x, y + 4, 34, 20);
+          g.fillStyle(0xf2faff).fillEllipse(x, y, 34, 20);
+          g.lineStyle(3, ink).strokeEllipse(x, y, 34, 20);
+          g.lineStyle(2, 0x92a9bd).strokeEllipse(x, y, 24, 12);
+          g.lineStyle(3, 0xffffff).lineBetween(x - 7, y - 4, x + 3, y - 4);
+        }
+        coin(48, 97);
         g.fillStyle(0xffebac).fillRect(75, 77, 11, 12);
         break;
       case 'mist':
