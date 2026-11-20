@@ -9,6 +9,7 @@ export * from './navigators';
 export * from './compass';
 export * from './engine';
 export * from './gameView';
+export * from './atmosphere';
 export * from './online';
 export * from './modes';
 export * from './campaign';

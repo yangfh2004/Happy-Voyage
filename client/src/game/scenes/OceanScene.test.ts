@@ -86,6 +86,7 @@ describe('colony ownership', () => {
     Object.assign(scene, { flags });
     Object.assign(ship, { setAlpha: vi.fn() });
     Object.assign(gameController, { state: {
+      round: 1, market: { stock: {}, repairDemandThroughRound: 0 },
       owners: [null, 0], players: [{ id: 0, color: 0xe85d4a, position: 1 }], currentPlayer: 0, phase: 'gameOver',
     } });
     scene.syncFromState();
@@ -102,6 +103,24 @@ describe('colony ownership', () => {
     scene.syncFromState();
     expect(flags.clear).toHaveBeenCalledOnce();
     expect(flags.strokeCircle).not.toHaveBeenCalled();
+  });
+});
+
+describe('fleet cleanup', () => {
+  it('kills rocking tweens before destroying ships and does not repeat cleanup', () => {
+    const destroy = vi.fn();
+    const sprite = { destroy };
+    const killTweensOf = vi.fn();
+    Object.assign(scene, {
+      ships: new Map([[0, sprite]]), flags: { clear: vi.fn() },
+      tweens: { killTweensOf },
+    });
+    scene.syncFromState();
+    scene.syncFromState();
+    expect(killTweensOf).toHaveBeenCalledOnce();
+    expect(killTweensOf).toHaveBeenCalledWith(sprite);
+    expect(destroy).toHaveBeenCalledOnce();
+    expect(killTweensOf.mock.invocationCallOrder[0]).toBeLessThan(destroy.mock.invocationCallOrder[0]);
   });
 });
 
