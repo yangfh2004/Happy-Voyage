@@ -3,7 +3,7 @@ import { barterOffers, fleetQuantity } from './barter';
 import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, buildingValue, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
-import { RANKS, playerMerit } from './ranks';
+import { RANKS, playerMerit, foreignTaxDue } from './ranks';
 export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
@@ -214,11 +214,7 @@ export class GameEngine {
       case 'port':
         if (node.id !== player.homePort) {
           const host = this.state.players.find((p) => p.homePort === node.id && !p.bankrupt);
-          const tax = Math.ceil(SEA_RULES.foreignTax * (1 - RANKS[player.rank].taxDiscount));
-          const paid = Math.min(player.gold, tax);
-          this.log(`${player.name} pays ${tax}g foreign tax to ${host?.name ?? 'the crown'} at ${node.name}.`);
-          this.changeGold(player, -tax, 'foreign tax');
-          if (host) this.changeGold(host, paid, 'foreign tax');
+          this.payForeignTax(player, host, node);
         } else this.royalAudience(player);
         break;
       case 'special':
@@ -686,10 +682,33 @@ export class GameEngine {
     this.emit({ type: 'tollPaid', from: player.id, to: owner.id, amount });
   }
 
+  private payForeignTax(player: Player, host: Player | undefined, node: MapNode): void {
+    const tax = foreignTaxDue(player.rank);
+    const paid = Math.min(player.gold, tax);
+    let shortfall = tax - paid;
+    this.log(`${player.name} pays ${paid}g foreign tax to ${host?.name ?? 'the crown'} at ${node.name} (${tax}g due).`);
+    this.changeGold(player, -paid, 'foreign tax');
+    if (host) this.changeGold(host, paid, 'foreign tax');
+    const cheapestFirst = [...player.fleet].sort((a, b) => shipSalePrice(a) - shipSalePrice(b) || a.id - b.id);
+    for (const ship of cheapestFirst) {
+      if (shortfall <= 0) break;
+      const value = shipSalePrice(ship);
+      player.fleet.splice(player.fleet.indexOf(ship), 1);
+      if (host) host.fleet.push(ship);
+      shortfall -= value;
+      this.log(`${player.name}'s ${ship.name} is seized by ${host?.name ?? 'the crown'} for ${value}g toward foreign tax.`);
+    }
+    if (shortfall > 0 || player.fleet.length === 0) this.declareBankrupt(player);
+  }
+
   private changeGold(player: Player, delta: number, reason: string): void {
     player.gold += delta;
     this.emit({ type: 'goldChanged', playerId: player.id, delta, reason });
-    if (player.gold < 0 && !player.bankrupt) {
+    if (player.gold < 0) this.declareBankrupt(player);
+  }
+
+  private declareBankrupt(player: Player): void {
+    if (!player.bankrupt) {
       player.gold = 0;
       player.bankrupt = true;
       // A bankrupt navigator's colonies return to the wild.

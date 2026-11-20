@@ -22,6 +22,58 @@ function claimOffer(maxRounds = 30, islandsToWin = 8, nodeId = 17) {
 }
 
 describe('AI colony decisions', () => {
+  function portRoute(maxRounds: number) {
+    const map = Array.from({ length: 40 }, (_, id) => ({
+      id, name: `Stop ${id}`, x: id, y: 0,
+      kind: id === 1 || id === 35 ? 'island' as const : 'port' as const,
+      price: 100,
+    }));
+    const engine = new GameEngine({
+      players: [{ name: 'Rival', color: 0, isAI: true }],
+      map, config: { maxRounds, islandsToWin: 2, homeSalary: 0 },
+    });
+    engine.currentPlayer.position = 1;
+    return engine;
+  }
+
+  it('uses rank-discounted tax before forecasting loss of the last ship', () => {
+    const { state, currentPlayer: player } = portRoute(2);
+    player.gold = 120;
+    player.fleet = [player.fleet[0]];
+    expect(aiShouldClaim(state, player, 1)).toBe(false);
+    player.rank = 5;
+    expect(aiShouldClaim(state, player, 1)).toBe(true);
+  });
+
+  it('tracks seized ships across both forecast moves without mutating the fleet', () => {
+    const { state, currentPlayer: player } = portRoute(3);
+    player.gold = 100;
+    expect(aiShouldClaim(state, player, 1)).toBe(true);
+    expect(player.fleet).toHaveLength(3);
+    player.fleet.pop();
+    expect(aiShouldClaim(state, player, 1)).toBe(false);
+    expect(player.fleet).toHaveLength(2);
+  });
+
+  it('includes rank salary bonuses when forecasting a home pass before tolls', () => {
+    const map = forecastMap().slice(0, 4);
+    map[1] = { ...map[1], price: 0 };
+    map[2] = { ...map[2], kind: 'island', toll: 60 };
+    map[3] = { ...map[3], kind: 'island', toll: 60 };
+    const engine = new GameEngine({
+      players: [{ name: 'Rival', color: 0, isAI: true }, { name: 'Host', color: 1, isAI: false }],
+      map, config: { homeSalary: 0, maxRounds: 2, islandsToWin: 3 },
+    });
+    const { state, currentPlayer: player } = engine;
+    player.position = 1;
+    player.gold = map[1].price! + 20;
+    state.owners[2] = 1;
+    state.owners[3] = 1;
+    expect(aiShouldClaim(state, player, 1)).toBe(false);
+    player.rank = 1;
+    expect(aiShouldClaim(state, player, 1)).toBe(true);
+  });
+
   it.each(['port', 'pirates', 'seaMonster', 'whirlpool', 'skeleton', 'treasure', 'dragonSnake'] as const)('reserves cash for reachable %s costs before a subsequent toll', (stop) => {
     const { state, player, node } = claimOffer(30, 8, 1);
     state.config.homeSalary = 0;

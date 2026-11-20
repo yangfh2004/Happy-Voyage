@@ -1,4 +1,5 @@
 import type { GameState } from './types';
+import { SEA_RULES } from './seaRules';
 
 export const RANKS = [
   { name: 'Commoner', chineseName: '平民', merit: 0, salary: 0, taxDiscount: 0, purse: 0 },
@@ -8,6 +9,10 @@ export const RANKS = [
   { name: 'Earl', chineseName: '伯爵', merit: 700, salary: 250, taxDiscount: 0.4, purse: 700 },
   { name: 'Duke', chineseName: '公爵', merit: 1000, salary: 350, taxDiscount: 0.5, purse: 1000 },
 ] as const;
+
+export function foreignTaxDue(rank: number): number {
+  return Math.ceil(SEA_RULES.foreignTax * (1 - RANKS[rank].taxDiscount));
+}
 
 /** Durable achievements only: cash gifts from the crown cannot generate more merit. */
 export function playerMerit(state: GameState, playerId: number): number {
