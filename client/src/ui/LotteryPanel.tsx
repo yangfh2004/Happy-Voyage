@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { LOTTERY, lotteryOdds, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
+import { StatTooltip } from './StatTooltip';
 
 const NUMBERS = Array.from({ length: LOTTERY.balls }, (_, i) => i + 1);
 const percent = (chance: number) => `${chance >= 0.01 ? Math.round(chance * 100) : (chance * 100).toFixed(2)}%`;
@@ -22,7 +23,7 @@ export function LotteryPanel({ state }: { state: GameState }) {
         the {LOTTERY.balls} balls are drawn from the glass jar.
       </p>
       <p className="lottery-timer" role="timer" aria-live="off">
-        Draw in <strong>{lottery.secondsLeft}s</strong> · Treasury {player.gold}g · {lottery.picks.length}/{LOTTERY.maxPicks} numbers
+        Draw in <strong>{lottery.secondsLeft}s</strong> · <StatTooltip stat="gold">Treasury {player.gold}g</StatTooltip> · <StatTooltip stat="lotteryPicks">{lottery.picks.length}/{LOTTERY.maxPicks} numbers</StatTooltip>
       </p>
       <div className="lottery-grid" role="group" aria-label="Lottery numbers">
         {NUMBERS.map((n) => {
@@ -34,7 +35,7 @@ export function LotteryPanel({ state }: { state: GameState }) {
       <table className="lottery-payouts">
         <caption>Prizes · odds with {Math.max(1, lottery.picks.length)} number{lottery.picks.length > 1 ? 's' : ''}</caption>
         <tbody>{LOTTERY.payouts.slice(1).map((prize, i) => <tr key={i}>
-          <th>{i + 1} match{i ? 'es' : ''}</th><td>{prize}g</td><td>{percent(odds[i + 1])}</td>
+          <th>{i + 1} match{i ? 'es' : ''}</th><td>{prize}g</td><td><StatTooltip stat="lotteryOdds">{percent(odds[i + 1])}</StatTooltip></td>
         </tr>)}</tbody>
       </table>
       <button className="primary" onClick={() => gameController.drawLottery()}>Draw now <kbd>D</kbd></button>

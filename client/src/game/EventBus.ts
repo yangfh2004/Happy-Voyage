@@ -8,6 +8,7 @@ import Phaser from 'phaser';
  *   'animate-move'           ({ playerId, path, id }) scene animates a fleet along `path`
  *   'move-complete'          (id)                     scene finished animating
  *   'pacing-changed'         ()                       update active movement speed
+ *   'palette-changed'        (enabled)                redraw chart colors and seat markers
  *   'cancel-move'            ()                       discard an old game's movement
  *   'engine-event'           (GameEvent)              every engine event, for board effects
  */

@@ -11,14 +11,15 @@ import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
-import { CAMPAIGN_STAGES, STRATEGIES, campaignStage } from '@happy-voyage/shared';
+import { CAMPAIGN_STAGES, STRATEGIES, campaignStage, chartIdentity } from '@happy-voyage/shared';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { seatTag } from './seats';
+import { StatTooltip } from './StatTooltip';
 
 const BUILDING_SIZES = ['None', 'Small', 'Medium', 'Large'];
 
 /** What the human can do right now: spin, claim or decline, or start over. */
-export function ActionPanel({ state }: { state: GameState }) {
+export function ActionPanel({ state, colorBlind = false }: { state: GameState; colorBlind?: boolean }) {
   const [transfersOpen, setTransfersOpen] = useState(false);
   const [destination, setDestination] = useState(state.map[0].id);
   const player = state.players[state.currentPlayer];
@@ -33,7 +34,7 @@ export function ActionPanel({ state }: { state: GameState }) {
   if (handoff && state.phase !== 'gameOver') {
     return (
       <div className="panel actions handoff" role="dialog" aria-label="Pass the device">
-        {handoff.navigator && <NavigatorPortrait navigator={handoff.navigator} color={handoff.color} size={64} />}
+        {handoff.navigator && <NavigatorPortrait navigator={handoff.navigator} color={chartIdentity(handoff, colorBlind).color} size={64} />}
         {gameController.handoffNote && (
           <div className={`headline ${gameController.handoffNote.tone}`}>
             {state.players[gameController.handoffNote.playerId].name}: {gameController.handoffNote.text}
@@ -81,7 +82,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         <p>{state.log[state.log.length - 1]}</p>
         <table className="standings">
           <caption>Final standings · winner first, then afloat navigators by net worth</caption>
-          <thead><tr><th>Navigator</th><th>Gold</th><th>Islands</th><th>Net worth</th><th>Status</th></tr></thead>
+          <thead><tr><th>Navigator</th><th><StatTooltip stat="gold" /></th><th><StatTooltip stat="islands">Islands</StatTooltip></th><th><StatTooltip stat="netWorth" /></th><th>Status</th></tr></thead>
           <tbody>{state.players.map((p) => ({
             ...p,
             islands: gameController.islandsOwnedBy(p.id),
@@ -116,17 +117,17 @@ export function ActionPanel({ state }: { state: GameState }) {
   } else if (state.phase === 'awaitingMarket') {
     body = <>
       <h2>Skeleton Island ship market</h2>
-      <p>Treasury {player.gold}g · Second-hand ships have {USED_SHIP_CONDITION * 100}% durability.</p>
+      <p><StatTooltip stat="gold">Treasury {player.gold}g</StatTooltip> · Second-hand ships have <StatTooltip stat="durability">{USED_SHIP_CONDITION * 100}% durability</StatTooltip>.</p>
       <h3>Pirate stock</h3>
       {state.marketStock.length === 0 && <p>Sold out. New stock arrives next visit.</p>}
       {state.marketStock.map((type) => <div className="building-option" key={type}>
-        <strong>{SHIP_TYPES[type].label}</strong> · {Math.floor(SHIP_TYPES[type].maxDurability * USED_SHIP_CONDITION)}/{SHIP_TYPES[type].maxDurability} durability
+        <strong>{SHIP_TYPES[type].label}</strong> · <StatTooltip stat="durability">{Math.floor(SHIP_TYPES[type].maxDurability * USED_SHIP_CONDITION)}/{SHIP_TYPES[type].maxDurability} durability</StatTooltip>
         <button disabled={!gameController.canBuyUsedShip(type)} onClick={() => gameController.buyUsedShip(type)}>Buy {SHIP_TYPES[type].label} ({USED_SHIP_PRICES[type]}g)</button>
       </div>)}
       <h3>Your fleet</h3>
       <p>Keep at least one ship. Only empty ships can be sold; unload cargo at a colony first. Sales are final.</p>
       {player.fleet.map((ship) => <div className="building-option" key={ship.id}>
-        <strong>{ship.name}</strong> · {ship.durability}/{ship.maxDurability} durability
+        <strong>{ship.name}</strong> · <StatTooltip stat="durability">{ship.durability}/{ship.maxDurability} durability</StatTooltip>
         <button disabled={!gameController.canSellShip(ship.id)} onClick={() => gameController.sellShip(ship.id)}>Sell {ship.name} ({shipSalePrice(ship)}g)</button>
       </div>)}
       <button className="primary" onClick={() => gameController.finishMarket()}>Sail on</button>
@@ -137,7 +138,7 @@ export function ActionPanel({ state }: { state: GameState }) {
     body = (
       <>
         <h2>Build at {state.map[nodeId].name}</h2>
-        <p>Your colony · Toll {colonyToll(state, nodeId)}g · Treasury {player.gold}g</p>
+        <p>Your colony · <StatTooltip stat="toll">Toll {colonyToll(state, nodeId)}g</StatTooltip> · <StatTooltip stat="gold">Treasury {player.gold}g</StatTooltip></p>
         <ColonyGoods state={state} nodeId={nodeId} />
         <button onClick={() => setTransfersOpen(true)}>Transfers</button>
         {(Object.keys(BUILDINGS) as BuildingKind[]).map((kind) => {
@@ -146,7 +147,7 @@ export function ActionPanel({ state }: { state: GameState }) {
           const cost = nextBuildingCost(state, nodeId, kind);
           return (
             <div className="building-option" key={kind}>
-              <div><strong>{building.label}</strong> · {building.chineseName} · {BUILDING_SIZES[level]}</div>
+              <div><strong>{building.label}</strong> · {building.chineseName} · <StatTooltip stat="buildingLevel">{BUILDING_SIZES[level]}</StatTooltip></div>
               <small>{building.description}</small>
               <button disabled={!gameController.canBuild(kind)} onClick={() => gameController.build(kind)}>
                 {cost === null ? 'Max level' : `${level ? 'Upgrade' : 'Build'} (${cost}g)`}
@@ -190,8 +191,8 @@ export function ActionPanel({ state }: { state: GameState }) {
         <h2>{owner.name}'s colony at {island.name}</h2>
         <p>Pay <strong>{tollDue(state, player, island.id)}g</strong> toll, or open fire on {fromFleet ? `${owner.name}'s fleet` : 'the docked ships'}?</p>
         <p>
-          Your fleet: {player.fleet.length} ships · {firepower(player.fleet)} firepower · {hull(player.fleet)} durability.<br />
-          Defenders: {defenders.length} ships · {firepower(defenders)} firepower · {hull(defenders)} durability ({forecast}).
+          Your fleet: <StatTooltip stat="ships">{player.fleet.length} ships</StatTooltip> · <StatTooltip stat="firepower">{firepower(player.fleet)} firepower</StatTooltip> · <StatTooltip stat="durability">{hull(player.fleet)} durability</StatTooltip>.<br />
+          Defenders: {defenders.length} ships · <StatTooltip stat="firepower">{firepower(defenders)} firepower</StatTooltip> · <StatTooltip stat="durability">{hull(defenders)} durability</StatTooltip> ({forecast}).
         </p>
         <p>
           Sink every defender within {COMBAT.rounds} volleys to take the colony. Lose every ship and you pay {tollDue(state, player, island.id, COMBAT.defeatTollMultiplier)}g double toll; otherwise both fleets sail home.
@@ -214,8 +215,8 @@ export function ActionPanel({ state }: { state: GameState }) {
       <>
         <h2>{island.name}</h2>
         <p>
-          Uncharted land rich in <strong>{island.specialty}</strong>. Found a colony for <strong>{island.price}g</strong>?
-          Rivals landing here must pay you {island.toll}g or attack your ships.
+          Uncharted land rich in <strong>{island.specialty}</strong>. Found a colony for <StatTooltip stat="price">{island.price}g</StatTooltip>?
+          Rivals landing here must pay you <StatTooltip stat="toll">{island.toll}g</StatTooltip> or attack your ships.
         </p>
         <p>
           Claiming leaves you {player.gold - island.price!}g in cash.
@@ -236,7 +237,7 @@ export function ActionPanel({ state }: { state: GameState }) {
   return (
     <div className="panel actions">
       {!player.isAI && state.phase !== 'gameOver' && <section aria-label="Strategy cards" style={{ fontFamily: "'Sea Names', sans-serif" }}>
-        <h3>Strategy cards ({player.strategies.length}/5)</h3>
+        <h3><StatTooltip stat="cards">Strategy cards ({player.strategies.length}/5)</StatTooltip></h3>
         {player.strategies.length === 0 && <p>No strategy cards.</p>}
         {player.strategies.includes('navigate') && <label>Navigate destination <select value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
           {state.map.map((node) => <option key={node.id} value={node.id}>{node.name}</option>)}

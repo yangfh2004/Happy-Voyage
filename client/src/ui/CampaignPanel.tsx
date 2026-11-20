@@ -1,4 +1,5 @@
 import { campaignStage, type CampaignState } from '@happy-voyage/shared';
+import { StatTooltip } from './StatTooltip';
 
 export function CampaignPanel({ campaign }: { campaign: CampaignState }) {
   const stage = campaignStage(campaign.stage);
@@ -14,7 +15,7 @@ export function CampaignPanel({ campaign }: { campaign: CampaignState }) {
           return (
             <li key={mission.objective}>
               <span>{mission.description}</span>
-              <small>{complete ? `Complete · ${mission.reward}g awarded` : `${progress} / ${mission.target} · ${mission.reward}g reward`}</small>
+              <small><StatTooltip stat="progress">{complete ? `Complete · ${mission.reward}g awarded` : `${progress} / ${mission.target} · ${mission.reward}g reward`}</StatTooltip></small>
             </li>
           );
         })}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { CAMPAIGN_STAGES, campaignStage, createNationRoster, DEFAULT_ISLAND_COUNT, GAME_MODES, gameMode, hasRoundLimit, NATIONS, navigatorForNation, winConditionText, type AIDifficulty, type CampaignStageId, type GameModeId, type Nation } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
@@ -17,7 +17,7 @@ interface Seat {
 const seatName = (seat: Seat) => seat.customName ?? navigatorForNation(seat.nation)!.name;
 
 /** Start screen: seat one or more people on this device, each with a nation; AI takes the rest. */
-export function SetupMenu({ onRules }: { onRules: () => void }) {
+export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; paletteToggle?: ReactNode }) {
   const [seats, setSeats] = useState<Seat[]>([{ customName: null, nation: NATIONS[0].name }]);
   const [active, setActive] = useState(0);
   const [modeId, setModeId] = useState<GameModeId | 'campaign'>(GAME_MODES[0].id);
@@ -165,7 +165,10 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         )}
       </div>
 
-      <button className="setup-rules" onClick={onRules}>How to play</button>
+      <div className="setup-rules">
+        <button onClick={onRules}>How to play</button>
+        {paletteToggle}
+      </div>
       <SpeedControl />
       <ShortcutLegend />
       <button className="primary big" onClick={start}>

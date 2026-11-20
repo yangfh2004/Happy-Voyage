@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import dialogPolyfill from 'dialog-polyfill';
 import { GOODS, cargoLoad, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
+import { StatTooltip } from './StatTooltip';
 
 export function TransferContents({ state }: { state: GameState }) {
   const player = state.players[state.currentPlayer];
@@ -25,7 +26,7 @@ export function TransferContents({ state }: { state: GameState }) {
     <h3>Island dock</h3>
     {state.docks[player.position].length === 0 && <p>No docked ships.</p>}
     {state.docks[player.position].map((ship) => <p key={ship.id}>
-      {ship.name} · Cargo {cargoLoad(ship)}/{ship.cargoCapacity}{' '}
+      {ship.name} · <StatTooltip stat="cargoCapacity">Cargo {cargoLoad(ship)}/{ship.cargoCapacity}</StatTooltip>{' '}
       <button onClick={() => act(() => gameController.boardShip(ship.id))}>Board {ship.name}</button>
     </p>)}
     <h3>Fleet ships</h3>
@@ -36,7 +37,7 @@ export function TransferContents({ state }: { state: GameState }) {
     </label>{' '}
     <label>Amount <input type="number" min="1" step="1" value={qty} onChange={(event) => setQty(Number(event.target.value))} /></label>
     {player.fleet.map((ship) => <section key={ship.id} aria-label={ship.name}>
-      <h4>{ship.name} · Cargo {cargoLoad(ship)}/{ship.cargoCapacity}</h4>
+      <h4>{ship.name} · <StatTooltip stat="cargoCapacity">Cargo {cargoLoad(ship)}/{ship.cargoCapacity}</StatTooltip></h4>
       <button disabled={player.fleet.length <= 1} onClick={() => act(() => gameController.dockShip(ship.id))}>Dock {ship.name}</button>
       {GOODS.filter((good) => (ship.cargo[good] ?? 0) > 0).map((good) => <p key={good}>
         {good}: {ship.cargo[good]}{' '}
@@ -44,7 +45,7 @@ export function TransferContents({ state }: { state: GameState }) {
         <button onClick={() => act(() => gameController.unloadCargo(ship.id, good, ship.cargo[good]!))}>Unload all {good} from {ship.name}</button>
       </p>)}
     </section>)}
-    <h3>Colony stock</h3>
+    <h3><StatTooltip stat="storage">Colony stock</StatTooltip></h3>
     {GOODS.map((good) => {
       const stored = good === 'lumber' || good === 'iron' ? stock[good] : stock.specialties[good] ?? 0;
       return <p key={good}>{good}: {stored}{' '}

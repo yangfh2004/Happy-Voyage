@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { colonyToll, createDefaultMap, WORLD, type GameEvent, type MapNode } from '@happy-voyage/shared';
+import { chartIdentity, colonyToll, createDefaultMap, WORLD, type GameEvent, type MapNode } from '@happy-voyage/shared';
+import { readPreference } from '../../ui/accessibilityPreferences';
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 import { sfx } from '../sfx';
@@ -33,6 +34,10 @@ export class OceanScene extends Phaser.Scene {
   private following = true;
   private pinch: { distance: number; zoom: number } | null = null;
   private ships = new Map<number, Phaser.GameObjects.Image>();
+  private colorBlind = false;
+  private ocean!: Phaser.GameObjects.Graphics;
+  private colonyBadges = new Map<number, Phaser.GameObjects.Text>();
+  private shipBadges = new Map<number, Phaser.GameObjects.Text>();
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
   private labels!: Phaser.GameObjects.Layer;
@@ -82,6 +87,7 @@ export class OceanScene extends Phaser.Scene {
     this.scale.on('resize', onResize);
     EventBus.on('fit-chart', onFit);
     EventBus.on('follow-ship', onFollow);
+    this.colorBlind = readPreference('color-blind');
     this.drawOcean();
     this.drawRoute();
     this.labels = this.add.layer();
@@ -101,6 +107,14 @@ export class OceanScene extends Phaser.Scene {
     const onPacing = () => this.updatePacing();
     const onCancel = () => this.cancelMove();
     const onEngine = (event: GameEvent) => this.onEngineEvent(event);
+    const onPalette = (enabled: boolean) => {
+      this.colorBlind = enabled;
+      this.drawOceanBackground();
+      gameController.state?.players.forEach((player) => {
+        this.ships.get(player.id)?.setTint(chartIdentity(player, enabled).color);
+      });
+      this.syncFromState();
+    };
     EventBus.on('state-changed', onState);
     EventBus.on('animate-move', onMove);
     const onGold = (event: Extract<GameEvent, { type: 'goldChanged' }>) => this.showGold(event);
@@ -108,6 +122,7 @@ export class OceanScene extends Phaser.Scene {
     EventBus.on('pacing-changed', onPacing);
     EventBus.on('cancel-move', onCancel);
     EventBus.on('engine-event', onEngine);
+    EventBus.on('palette-changed', onPalette);
     const cleanup = () => {
       this.scale.off('resize', onResize);
       EventBus.off('fit-chart', onFit);
@@ -121,6 +136,7 @@ export class OceanScene extends Phaser.Scene {
       EventBus.off('pacing-changed', onPacing);
       EventBus.off('cancel-move', onCancel);
       EventBus.off('engine-event', onEngine);
+      EventBus.off('palette-changed', onPalette);
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
@@ -131,6 +147,10 @@ export class OceanScene extends Phaser.Scene {
 
   update() {
     this.updatePinch();
+    this.shipBadges.forEach((badge, id) => {
+      const ship = this.ships.get(id)!;
+      badge.setPosition(ship.x + 12, ship.y - 13);
+    });
   }
 
   private updatePinch() {
@@ -146,9 +166,8 @@ export class OceanScene extends Phaser.Scene {
   }
 
   private drawOcean() {
-    const bg = this.add.graphics();
-    bg.fillGradientStyle(0x1e88c7, 0x1e88c7, 0x0a3d62, 0x0a3d62, 1);
-    bg.fillRect(0, 0, WORLD.width, WORLD.height);
+    this.ocean = this.add.graphics();
+    this.drawOceanBackground();
     ['ATLANTIC OCEAN', 'THE AMERICAS', 'AFRICA · INDIAN OCEAN', 'ASIAN SEAS'].forEach((name, i) => {
       this.add.text(WORLD.width / 2, 24 + i * 280, name, { fontFamily: 'Georgia', fontSize: '24px', color: '#b8dfdd' }).setOrigin(0.5).setAlpha(0.4);
     });
@@ -168,6 +187,30 @@ export class OceanScene extends Phaser.Scene {
         repeat: -1,
         ease: 'Sine.easeInOut',
       });
+    }
+  }
+
+  private drawOceanBackground() {
+    const [top, bottom] = this.colorBlind ? [0x315574, 0x17273e] : [0x1e88c7, 0x0a3d62];
+    this.ocean.clear();
+    this.ocean.fillStyle(top);
+    this.ocean.fillGradientStyle(top, top, bottom, bottom, 1);
+    this.ocean.fillRect(0, 0, WORLD.width, WORLD.height);
+  }
+
+  private syncBadge(badges: Map<number, Phaser.GameObjects.Text>, id: number, label: string | null, x: number, y: number, depth: number) {
+    const previous = badges.get(id);
+    if (label === null) {
+      previous?.destroy();
+      badges.delete(id);
+    } else if (previous) {
+      previous.setText(label).setPosition(x, y);
+    } else {
+      const badge = this.add.text(x, y, label, {
+        fontFamily: 'system-ui, sans-serif', fontStyle: 'bold', fontSize: '17px',
+        color: '#ffffff', backgroundColor: '#142235', padding: { x: 4, y: 0 },
+      }).setOrigin(0.5).setDepth(depth);
+      badges.set(id, badge);
     }
   }
 
@@ -253,6 +296,10 @@ export class OceanScene extends Phaser.Scene {
     this.flags.clear();
     this.marker.clear();
     if (!state) {
+      for (const badges of [this.colonyBadges, this.shipBadges]) {
+        badges.forEach((badge) => badge.destroy());
+        badges.clear();
+      }
       this.ships.forEach((ship) => ship.destroy());
       this.ships.clear();
       this.sailing.clear();
@@ -261,20 +308,25 @@ export class OceanScene extends Phaser.Scene {
 
     // Colony flags in the owner's colour.
     state.owners.forEach((owner, nodeId) => {
-      if (owner === null) return;
+      if (owner === null) {
+        this.syncBadge(this.colonyBadges, nodeId, null, 0, 0, 0);
+        return;
+      }
       const node = this.map[nodeId];
-      const color = state.players[owner].color;
+      const { color, badge } = chartIdentity(state.players[owner], this.colorBlind);
       this.flags.lineStyle(10, 0x06283d, 1).strokeCircle(node.x, node.y, 28);
       this.flags.lineStyle(6, color, 1).strokeCircle(node.x, node.y, 28);
       this.flags.lineStyle(2, 0x3e2723).lineBetween(node.x + 10, node.y - 6, node.x + 10, node.y - 30);
       this.flags.fillStyle(color).fillTriangle(node.x + 10, node.y - 30, node.x + 10, node.y - 18, node.x + 26, node.y - 24);
+      this.syncBadge(this.colonyBadges, nodeId, badge, node.x + 21, node.y - 27, 13);
     });
 
     // Fleets.
     for (const player of state.players) {
+      const { color, badge } = chartIdentity(player, this.colorBlind);
       let ship = this.ships.get(player.id);
       if (!ship) {
-        ship = this.add.image(0, 0, 'ship').setTint(player.color).setDepth(10);
+        ship = this.add.image(0, 0, 'ship').setTint(color).setDepth(10);
         this.ships.set(player.id, ship);
       }
       ship.setAlpha(player.bankrupt ? 0.25 : 1);
@@ -282,6 +334,7 @@ export class OceanScene extends Phaser.Scene {
         const [x, y] = this.tokenPosition(player.id, player.position);
         ship.setPosition(x, y);
       }
+      this.syncBadge(this.shipBadges, player.id, player.bankrupt ? null : badge, ship.x + 12, ship.y - 13, 14);
     }
 
     // Ring under the fleet whose turn it is.
@@ -400,7 +453,7 @@ export class OceanScene extends Phaser.Scene {
       }
       case 'claimed': {
         const node = this.map[event.nodeId];
-        const color = state.players[event.playerId].color;
+        const { color } = chartIdentity(state.players[event.playerId], this.colorBlind);
         this.bounce(node.id);
         this.confetti(node.x, node.y, color);
         break;
@@ -486,7 +539,8 @@ export class OceanScene extends Phaser.Scene {
     const offset = Math.ceil(lane / 2) * (lane % 2 === 1 ? 110 : -110);
     const popup = this.add.text(0, 0, `${delta < 0 ? '−' : '+'}${Math.abs(delta)}g\n${shortReason}`, {
       fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
-      color: delta < 0 ? '#ff9c9c' : '#9dffb0', align: 'center', stroke: '#06283d', strokeThickness: 4,
+      color: delta < 0 ? (this.colorBlind ? '#ffd18a' : '#ff9c9c') : (this.colorBlind ? '#a9deff' : '#9dffb0'),
+      align: 'center', stroke: '#06283d', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(30);
     const distance = 32 + Math.abs(dx) * popup.width / 2 + Math.abs(dy) * popup.height / 2;
     const clampX = (x: number) => Phaser.Math.Clamp(x, popup.width / 2 + 8, WORLD.width - popup.width / 2 - 8);

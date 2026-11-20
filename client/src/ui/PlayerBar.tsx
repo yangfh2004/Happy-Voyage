@@ -1,47 +1,55 @@
+import type { ReactNode } from 'react';
 import type { GameState } from '@happy-voyage/shared';
-import { RANKS, hasRoundLimit, requiresEveryIsland } from '@happy-voyage/shared';
+import { RANKS, chartIdentity, hasRoundLimit, requiresEveryIsland } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { SpeedControl } from './SpeedControl';
 import { seatTag } from './seats';
+import { StatTooltip } from './StatTooltip';
 
 /** Gold and colonies for every navigator; the current one is highlighted. */
-export function PlayerBar({ state, onRules, onFleet }: { state: GameState; onRules: () => void; onFleet: () => void }) {
+export function PlayerBar({ state, colorBlind, paletteToggle, onRules, onFleet, onTutorial }: { state: GameState; colorBlind: boolean; paletteToggle: ReactNode; onRules: () => void; onFleet: () => void; onTutorial: () => void }) {
   return (
     <div className="panel players">
       <SpeedControl />
       <div className="player-header">
         <div className="round">
-          Round {hasRoundLimit(state.config) ? `${Math.min(state.round, state.config.maxRounds)} / ${state.config.maxRounds}` : state.round} · goal:{' '}
-          {state.campaign ? 'king’s missions' : requiresEveryIsland(state.config, islandCount(state)) ? `all ${state.config.islandsToWin} new continents` : `${state.config.islandsToWin} islands`}
+          <StatTooltip stat="round">Round {hasRoundLimit(state.config) ? `${Math.min(state.round, state.config.maxRounds)} / ${state.config.maxRounds}` : state.round}</StatTooltip> ·{' '}
+          <StatTooltip stat="goal">goal: {state.campaign ? 'king’s missions' : requiresEveryIsland(state.config, islandCount(state)) ? `all ${state.config.islandsToWin} new continents` : `${state.config.islandsToWin} islands`}</StatTooltip>
         </div>
         <div className="player-controls">
           <button className="sound" onClick={() => gameController.toggleMute()} aria-pressed={!gameController.muted}>
             {gameController.muted ? 'Sound off' : 'Sound on'}
           </button>
           <button onClick={onFleet}>Fleet</button>
+          <button onClick={onTutorial}>Tutorial</button>
           <button onClick={onRules}>? Rules</button>
+          {paletteToggle}
         </div>
       </div>
       <div className="player-list">
-        {state.players.map((p) => (
+        {state.players.map((p) => {
+          const { color, badge } = chartIdentity(p, colorBlind);
+          return (
           <div
             key={p.id}
             className={['player', p.id === state.currentPlayer && 'current', p.bankrupt && 'bankrupt'].filter(Boolean).join(' ')}
           >
             {p.navigator
-              ? <NavigatorPortrait navigator={p.navigator} color={p.color} size={26} />
-              : <span className="dot" style={{ background: cssColor(p.color) }} />}
+              ? <NavigatorPortrait navigator={p.navigator} color={color} size={26} />
+              : <span className="dot" style={{ background: cssColor(color) }} />}
+            {badge && <span className="chart-badge" aria-label={`Chart marker ${badge}`}>{badge}</span>}
             <strong>{p.name}</strong>
             <span className="tag">{seatTag(state.players, p)}</span>
             <div className="stats">
-              {RANKS[p.rank].name} ({RANKS[p.rank].chineseName})<br />
+              <StatTooltip stat="rank">{RANKS[p.rank].name} ({RANKS[p.rank].chineseName})</StatTooltip><br />
               {p.nation && <>{p.nation}<br /></>}
-              {gameController.displayGold(p)}g · {islands(gameController.islandsOwnedBy(p.id))} · {p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}
+              <StatTooltip stat="gold">{gameController.displayGold(p)}g</StatTooltip> · <StatTooltip stat="islands">{islands(gameController.islandsOwnedBy(p.id))}</StatTooltip> · <StatTooltip stat="ships">{p.fleet.length} {p.fleet.length === 1 ? 'ship' : 'ships'}</StatTooltip>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

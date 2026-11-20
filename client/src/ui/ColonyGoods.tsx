@@ -1,4 +1,5 @@
 import { colonyProduction, type GameState } from '@happy-voyage/shared';
+import { StatTooltip } from './StatTooltip';
 
 export function ColonyGoods({ state, nodeId }: { state: GameState; nodeId: number }) {
   const { specialty } = state.map[nodeId];
@@ -6,8 +7,8 @@ export function ColonyGoods({ state, nodeId }: { state: GameState; nodeId: numbe
   const rate = colonyProduction(state, nodeId);
   return (
     <>
-      <div>Stored: {stored.lumber} lumber · {stored.iron} iron{specialty && ` · ${stored.specialties[specialty] ?? 0} ${specialty}`}</div>
-      <div>Per round: +{rate.lumber} lumber · +{rate.iron} iron{specialty && ` · +${rate.specialty} ${specialty}`}</div>
+      <div><StatTooltip stat="storage">{`Stored: ${stored.lumber} lumber · ${stored.iron} iron${specialty ? ` · ${stored.specialties[specialty] ?? 0} ${specialty}` : ''}`}</StatTooltip></div>
+      <div><StatTooltip stat="production">{`Per round: +${rate.lumber} lumber · +${rate.iron} iron${specialty ? ` · +${rate.specialty} ${specialty}` : ''}`}</StatTooltip></div>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { BUILDINGS, colonyToll, type BuildingKind, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
+import { StatTooltip } from './StatTooltip';
 
 /** A readable key for the chart when the canvas labels are too small. */
 export function RouteDetails({ state }: { state: GameState }) {
@@ -19,10 +20,10 @@ export function RouteDetails({ state }: { state: GameState }) {
               {stop.kind === 'event' && <div>Sea encounter</div>}
               {stop.kind === 'island' && (
                 <div>
-                  {stop.price}g · toll {colonyToll(state, stop.id)}g{owner !== null && ` · Colony of ${state.players[owner].name}`}
+                  <StatTooltip stat="price">{stop.price}g</StatTooltip> · <StatTooltip stat="toll">toll {colonyToll(state, stop.id)}g</StatTooltip>{owner !== null && ` · Colony of ${state.players[owner].name}`}
                   {owner !== null && <ColonyGoods state={state} nodeId={stop.id} />}
                   {Object.entries(state.buildings[stop.id]).map(([kind, level]) => (
-                    <div key={kind}>{BUILDINGS[kind as BuildingKind].label}: {['None', 'Small', 'Medium', 'Large'][level]}</div>
+                    <div key={kind}>{BUILDINGS[kind as BuildingKind].label}: <StatTooltip stat="buildingLevel">{['None', 'Small', 'Medium', 'Large'][level]}</StatTooltip></div>
                   ))}
                 </div>
               )}

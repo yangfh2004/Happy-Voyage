@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CAPTAINS, RANKS, SHIP_TYPES, captainDescription, cargoLoad, type Player } from '@happy-voyage/shared';
+import { CAPTAINS, MAX_CAPTAINS, RANKS, SHIP_TYPES, captainDescription, cargoLoad, type Player } from '@happy-voyage/shared';
 import dialogPolyfill from 'dialog-polyfill';
 import { gameController } from '../game/GameController';
 import { seatTag } from './seats';
+import { StatTooltip } from './StatTooltip';
 
 export function FleetPanel({ players, onClose }: { players: Player[]; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -38,7 +39,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
           ))}
         </select>
       </label>
-      <h3>Captains aboard ({captains.length}/3)</h3>
+      <h3><StatTooltip stat="captains">Captains aboard ({captains.length}/{MAX_CAPTAINS})</StatTooltip></h3>
       {captains.length === 0 && <p>No captains recruited.</p>}
       {CAPTAINS.filter((captain) => captains.includes(captain.id)).map((captain) => <p key={captain.id}><strong>{captain.name}</strong> · {captainDescription(captain)}</p>)}
       {fleet.length > 0 ? (
@@ -47,11 +48,11 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
             <thead>
               <tr>
                 <th scope="col">Ship</th>
-                <th scope="col">Durability</th>
-                <th scope="col">Firepower</th>
-                <th scope="col">Cargo capacity</th>
-                <th scope="col">Speed</th>
-                <th scope="col">Crew capacity</th>
+                <th scope="col"><StatTooltip stat="durability" /></th>
+                <th scope="col"><StatTooltip stat="firepower" /></th>
+                <th scope="col"><StatTooltip stat="cargoCapacity" /></th>
+                <th scope="col"><StatTooltip stat="speed" /></th>
+                <th scope="col"><StatTooltip stat="crewCapacity" /></th>
               </tr>
             </thead>
             <tbody>
