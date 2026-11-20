@@ -19,6 +19,17 @@ export function ActionPanel({ state }: { state: GameState }) {
       <>
         <h2>{winner.isAI ? `${winner.name} wins the seas.` : 'Victory! The crown celebrates you.'}</h2>
         <p>{state.log[state.log.length - 1]}</p>
+        <table className="standings">
+          <caption>Final standings · winner first, then afloat navigators by net worth</caption>
+          <thead><tr><th>Navigator</th><th>Gold</th><th>Islands</th><th>Net worth</th><th>Status</th></tr></thead>
+          <tbody>{state.players.map((p) => {
+            const colonies = state.map.filter((node) => state.owners[node.id] === p.id);
+            return { ...p, islands: colonies.length, worth: p.gold + colonies.reduce((sum, node) => sum + (node.price ?? 0), 0) };
+          }).sort((a, b) => Number(b.id === state.winner) - Number(a.id === state.winner)
+            || Number(a.bankrupt) - Number(b.bankrupt) || b.worth - a.worth || a.id - b.id).map((p) => (
+            <tr key={p.id}><th>{p.name}{!p.isAI && ' (You)'}</th><td>{p.gold}g</td><td>{p.islands}</td><td>{p.worth}g</td><td>{p.bankrupt ? 'Bankrupt' : p.id === state.winner ? 'Winner' : 'Afloat'}</td></tr>
+          ))}</tbody>
+        </table>
         <button className="primary" onClick={() => gameController.quit()}>
           New voyage
         </button>

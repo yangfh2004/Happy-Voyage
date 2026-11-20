@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GameEngine } from './engine';
+import { EVENT_GOLD, GameEngine } from './engine';
 import type { Rng } from './dice';
 import { createDefaultMap } from './map';
 
@@ -12,6 +12,44 @@ const twoPlayers = [
 ];
 
 describe('GameEngine', () => {
+  it.each([
+    ['treasure', 0, EVENT_GOLD.treasure.min],
+    ['treasure', 0.999, EVENT_GOLD.treasure.max],
+    ['storm', 0, -EVENT_GOLD.storm.min],
+    ['storm', 0.999, -EVENT_GOLD.storm.max],
+    ['tradeWind', 0, EVENT_GOLD.tradeWind.base],
+  ] as const)('uses the published %s reward with rng %s', (event, rng, delta) => {
+    const engine = new GameEngine({ players: twoPlayers, rng: () => rng });
+    engine.state.map[2] = { ...engine.state.map[2], kind: 'event', event };
+    engine.currentPlayer.position = 2;
+    engine.state.phase = 'moving';
+    engine.resolveLanding();
+    expect(engine.state.players[0].gold).toBe(1000 + delta);
+  });
+
+  it('adds colony income to trade winds', () => {
+    const engine = new GameEngine({ players: twoPlayers });
+    engine.state.owners[1] = 0;
+    engine.currentPlayer.position = 11;
+    engine.state.phase = 'moving';
+    engine.resolveLanding();
+    expect(engine.state.players[0].gold).toBe(1000 + EVENT_GOLD.tradeWind.base + EVENT_GOLD.tradeWind.perColony);
+  });
+
+  it('announces a storm loss before bankruptcy and neutralizes colonies', () => {
+    const engine = new GameEngine({ players: twoPlayers, rng: () => 0.999 });
+    engine.currentPlayer.gold = 1;
+    engine.currentPlayer.position = 7;
+    engine.state.owners[1] = 0;
+    engine.state.phase = 'moving';
+    const events: string[] = [];
+    engine.on((event) => events.push(event.type));
+    engine.resolveLanding();
+    expect(events.indexOf('goldChanged')).toBeLessThan(events.indexOf('bankrupt'));
+    expect(engine.state.players[0].bankrupt).toBe(true);
+    expect(engine.state.owners[1]).toBeNull();
+  });
+
   it('moves the fleet by the dice total', () => {
     const engine = new GameEngine({ players: twoPlayers, rng: fixedDice(1) });
     const path = engine.roll();

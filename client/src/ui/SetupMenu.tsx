@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import type { PlayerSetup } from '@happy-voyage/shared';
+import { DEFAULT_CONFIG, type PlayerSetup } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { NATIONS, cssColor } from './nations';
 
 /** Start screen: pick a name, a nation and how many AI rivals to face. */
-export function SetupMenu() {
+export function SetupMenu({ onRules }: { onRules: () => void }) {
   const [name, setName] = useState('Captain');
   const [nation, setNation] = useState(0);
   const [rivals, setRivals] = useState(2);
@@ -24,7 +24,7 @@ export function SetupMenu() {
       <p className="subtitle">Seven Seas Domination · 欢乐大航海</p>
       <p>
         Roll the dice, sail the route and plant your flag on new lands. Rivals pay you a toll when they
-        land on your colonies. First to claim 8 islands, or the richest after 30 rounds, wins.
+        land on your colonies. Claim {DEFAULT_CONFIG.islandsToWin} islands, be last afloat, or be richest after {DEFAULT_CONFIG.maxRounds} rounds to win.
       </p>
 
       <label>
@@ -60,6 +60,7 @@ export function SetupMenu() {
         </div>
       </div>
 
+      <button onClick={onRules}>How to play</button>
       <button className="primary big" onClick={start}>
         Set sail
       </button>

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { createDefaultMap, WORLD, type MapNode } from '@happy-voyage/shared';
+import { createDefaultMap, WORLD, type MapNode, type GameEvent } from '@happy-voyage/shared';
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 
@@ -41,9 +41,12 @@ export class OceanScene extends Phaser.Scene {
     const onMove = (move: { playerId: number; path: number[] }) => void this.animateMove(move);
     EventBus.on('state-changed', onState);
     EventBus.on('animate-move', onMove);
+    const onGold = (event: Extract<GameEvent, { type: 'goldChanged' }>) => this.showGold(event);
+    EventBus.on('gold-changed', onGold);
     const cleanup = () => {
       EventBus.off('state-changed', onState);
       EventBus.off('animate-move', onMove);
+      EventBus.off('gold-changed', onGold);
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
@@ -80,11 +83,18 @@ export class OceanScene extends Phaser.Scene {
     this.map.forEach((node, i) => {
       const next = this.map[(i + 1) % this.map.length];
       g.lineBetween(node.x, node.y, next.x, next.y);
+      const angle = Math.atan2(next.y - node.y, next.x - node.x);
+      const x = (node.x + next.x) / 2;
+      const y = (node.y + next.y) / 2;
+      g.lineStyle(2, 0xffffff, 0.65);
+      for (const side of [-1, 1]) {
+        g.lineBetween(x, y, x - 9 * Math.cos(angle) + side * 5 * Math.sin(angle), y - 9 * Math.sin(angle) - side * 5 * Math.cos(angle));
+      }
+      g.lineStyle(4, 0xffffff, 0.25);
     });
   }
 
   private drawStops() {
-    const cy = WORLD.height / 2;
     for (const node of this.map) {
       if (node.kind === 'island') {
         this.add.image(node.x, node.y, 'island');
@@ -104,10 +114,13 @@ export class OceanScene extends Phaser.Scene {
           .setOrigin(0.5);
       }
 
-      const below = node.y >= cy;
+      const angle = Math.PI * 0.75 + (node.id / this.map.length) * Math.PI * 2;
+      const labelY = Math.abs(Math.cos(angle)) > 0.85
+        ? node.y + (node.y >= WORLD.height / 2 + 10 ? 40 : -40)
+        : WORLD.height / 2 + 10 + 320 * Math.sin(angle);
       const label = node.kind === 'island' ? `${node.name}\n${node.price}g · toll ${node.toll}g` : node.name;
       this.add
-        .text(node.x, node.y + (below ? 30 : -30), label, {
+        .text(WORLD.width / 2 + 560 * Math.cos(angle), labelY, label, {
           fontFamily: 'Georgia, serif',
           fontSize: '13px',
           color: '#ffffff',
@@ -115,7 +128,7 @@ export class OceanScene extends Phaser.Scene {
           stroke: '#06283d',
           strokeThickness: 4,
         })
-        .setOrigin(0.5, below ? 0 : 1);
+        .setOrigin(0.5);
     }
   }
 
@@ -180,5 +193,16 @@ export class OceanScene extends Phaser.Scene {
     const node = this.map[nodeId];
     const [dx, dy] = TOKEN_OFFSETS[playerId % TOKEN_OFFSETS.length];
     return [node.x + dx, node.y + dy];
+  }
+
+  private showGold({ playerId, delta, reason }: Extract<GameEvent, { type: 'goldChanged' }>) {
+    const ship = this.ships.get(playerId);
+    if (!ship) return;
+    const shortReason = reason.startsWith('royal') ? 'salary' : reason.split(' ')[0];
+    const popup = this.add.text(ship.x, Math.max(100, ship.y - 30), `${delta < 0 ? '−' : '+'}${Math.abs(delta)}g\n${shortReason}`, {
+      fontFamily: 'system-ui, sans-serif', fontSize: '18px', fontStyle: 'bold',
+      color: delta < 0 ? '#ff9c9c' : '#9dffb0', align: 'center', stroke: '#06283d', strokeThickness: 4,
+    }).setOrigin(0.5, 1).setDepth(30);
+    this.tweens.add({ targets: popup, y: Math.max(65, popup.y - 48), alpha: 0, duration: 1800, onComplete: () => popup.destroy() });
   }
 }
