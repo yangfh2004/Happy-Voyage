@@ -146,6 +146,7 @@ export class GameController {
 
   decline(): void {
     if (this.isHumanTurn('awaitingClaim')) this.engine!.decline();
+    else this.declineBarter();
   }
 
   acceptBarter(index: number): void {
