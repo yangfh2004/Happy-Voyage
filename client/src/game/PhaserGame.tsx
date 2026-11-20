@@ -9,12 +9,19 @@ export function PhaserGame() {
   useEffect(() => {
     const parent = container.current!;
     const game = new Phaser.Game(createGameConfig(parent));
+    let resizeFrame = 0;
     const resize = new ResizeObserver(() => {
-      if (game.isBooted && game.scale.getParentBounds()) game.scale.refresh();
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        if (!game.isBooted) return;
+        game.scale.getParentBounds();
+        game.scale.refresh();
+      });
     });
     resize.observe(parent);
     return () => {
       resize.disconnect();
+      cancelAnimationFrame(resizeFrame);
       game.destroy(true);
     };
   }, []);

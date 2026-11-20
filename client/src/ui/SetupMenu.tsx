@@ -61,7 +61,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         </div>
       </div>
 
-      <button onClick={onRules}>How to play</button>
+      <button className="setup-rules" onClick={onRules}>How to play</button>
       <button className="primary big" onClick={start}>
         Set sail
       </button>
