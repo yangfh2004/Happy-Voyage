@@ -45,6 +45,26 @@ describe('campaign UI', () => {
   });
 });
 
+describe('turn controls', () => {
+  it('puts the first spin and landing actions before strategy cards', () => {
+    const engine = new GameEngine({ players: createNationRoster([{ name: 'You', nation: 'Spain' }]), rng: () => 0 });
+    const { state } = engine;
+    const expectBeforeStrategyCards = (action: string) => {
+      const html = renderToStaticMarkup(<ActionPanel state={state} />);
+      const strategyCards = html.indexOf('<section aria-label="Strategy cards">');
+      expect(strategyCards).toBeGreaterThan(-1);
+      expect(html.slice(0, strategyCards)).toContain(action);
+    };
+
+    expectBeforeStrategyCards('Spin compass <kbd>');
+    engine.spinCompass();
+    engine.sail();
+    engine.resolveLanding();
+    expect(state.phase).toBe('awaitingClaim');
+    expectBeforeStrategyCards('Sail on <kbd>');
+  });
+});
+
 describe('build menu', () => {
   it('updates the toll battle forecast after playing Inspire without changing ship stats', () => {
     const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }] });
