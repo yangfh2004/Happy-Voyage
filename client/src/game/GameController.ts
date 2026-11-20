@@ -1,4 +1,4 @@
-import { GameEngine, GameView, LOTTERY, ONLINE_PACING, quoteMarketTrade, type Good, type BuildingKind, type GameConfig, type GameEvent, type GameState, type LotteryDraw, type MarketOrder, type Player, type PlayerSetup, type RoomAction, type RoomSnapshot, type ShipType } from '@happy-voyage/shared';
+import { CAMPAIGN_STAGES, GameEngine, GameView, LOTTERY, NATIONS, ONLINE_PACING, quoteMarketTrade, type Good, type BuildingKind, type CampaignSetup, type EngineOptions, type GameConfig, type GameEvent, type GameState, type LotteryDraw, type MarketOrder, type Player, type PlayerSetup, type RoomAction, type RoomSnapshot, type ShipType } from '@happy-voyage/shared';
 import { OnlineRoom, roomLink } from './OnlineRoom';
 import { EventBus } from './EventBus';
 import type { HermitId, StrategyId } from '@happy-voyage/shared';
@@ -167,6 +167,24 @@ export class GameController {
   }
 
   newGame(players: PlayerSetup[], config?: Partial<GameConfig>): void {
+    this.beginGame({ players, config });
+  }
+
+  newCampaign(campaign: CampaignSetup): void {
+    this.beginGame({ campaign });
+  }
+
+  nextCampaignStage(): void {
+    const state = this.state;
+    const campaign = state?.campaign;
+    if (!state || campaign?.status !== 'completed') return;
+    const next = CAMPAIGN_STAGES[CAMPAIGN_STAGES.findIndex((stage) => stage.id === campaign.stage) + 1];
+    const player = state.players[campaign.playerId];
+    const nation = NATIONS.find(({ name }) => name === player.nation);
+    if (next && nation) this.newCampaign({ stage: next.id, navigator: { name: player.name, nation: nation.name } });
+  }
+
+  private beginGame(options: EngineOptions): void {
     this.clearTimers();
     this.skipping = false;
     this.moveId += 1;
@@ -174,7 +192,7 @@ export class GameController {
     EventBus.emit('cancel-move');
     this.headline = null;
     this.clearSeaNotices();
-    this.engine = new GameEngine({ players, config });
+    this.engine = new GameEngine(options);
     this.viewerId = this.engine.state.players.find((player) => !player.isAI)?.id ?? null;
     this.handoffTo = null;
     this.handoffNote = null;
@@ -474,6 +492,10 @@ export class GameController {
       case 'royalAudience':
         if (isViewer(event.audience.playerId)) this.headline = { text: event.audience.message, tone: 'gain', royal: true };
         break;
+      case 'campaignMissionCompleted':
+        this.headline = { text: `King’s mission complete: ${event.mission.description}. +${event.mission.reward}g`, tone: 'gain', royal: true };
+        sfx.coin();
+        break;
       case 'compassSpun':
         this.spinSequence += 1;
         this.departure = { playerId: event.playerId, position: players[event.playerId].position };
@@ -602,6 +624,8 @@ export class GameController {
         break;
       case 'gameOver':
         if (isHuman(event.winner)) sfx.win();
+        // Fall through: a completed or failed stage stops all game timers.
+      case 'campaignFailed':
         this.skipping = false;
         this.clearTimers();
         break;

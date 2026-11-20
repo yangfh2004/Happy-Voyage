@@ -14,9 +14,35 @@ vi.mock('../game/GameController', () => ({ gameController: {
 vi.mock('./Compass', () => ({ Compass: () => null }));
 vi.mock('dialog-polyfill', () => ({ default: { registerDialog: vi.fn() } }));
 import { ActionPanel } from './ActionPanel';
+import { CampaignPanel } from './CampaignPanel';
 import { RouteDetails } from './RouteDetails';
 import { TransferContents } from './TransferPanel';
 import { gameController } from '../game/GameController';
+
+describe('campaign UI', () => {
+  it('shows distinct pending and paid missions after claiming a real colony', () => {
+    const game = new GameEngine({ campaign: { stage: 'first-voyage', navigator: { name: 'You', nation: 'Spain' } } });
+    const { state } = game;
+    const island = state.map.find((node) => node.kind === 'island')!;
+    game.useStrategy('navigate', island.id);
+    game.claim();
+    const html = renderToStaticMarkup(<CampaignPanel campaign={state.campaign!} />);
+    expect(html).toContain('First Voyage');
+    expect(html).toContain('Complete · 150g awarded');
+    expect(html).toContain('0 / 1 · 250g reward');
+  });
+
+  it('shows a campaign loss without treating it as a rival victory', () => {
+    const game = new GameEngine({ campaign: { stage: 'merchant-charter', navigator: { name: 'You', nation: 'Spain' } } });
+    const { state } = game;
+    game.currentPlayer.gold = 0;
+    game.useStrategy('navigate', state.map.find((node) => node.event === 'storm')!.id);
+    const html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(html).toContain('Stage failed: The Merchant Charter');
+    expect(html).toContain('Your navigator went bankrupt.');
+    expect(html).not.toContain('Next stage');
+  });
+});
 
 describe('build menu', () => {
   it('updates the toll battle forecast after playing Inspire without changing ship stats', () => {

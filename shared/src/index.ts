@@ -10,6 +10,7 @@ export * from './engine';
 export * from './gameView';
 export * from './online';
 export * from './modes';
+export * from './campaign';
 export * from './ai';
 export { marketDemand, marketPrices, quoteMarketTrade } from './market';
 export * from './barter';
