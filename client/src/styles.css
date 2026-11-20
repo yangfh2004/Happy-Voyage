@@ -99,7 +99,18 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .standings caption { color: #6d4c41; margin-bottom: 6px; }
 .standings th, .standings td { text-align: left; padding: 5px 3px; border-bottom: 1px solid #8d6e6355; }
 
-.fleet { color: inherit; width: min(570px, 94vw); max-height: 90vh; overflow: auto; padding: 20px 24px; }
+.fleet {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  color: inherit;
+  width: min(570px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 20px 24px;
+}
 .fleet::backdrop { background: #06283dbb; }
 .fleet + .backdrop { background: #06283dbb; }
 .fleet-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }

@@ -13,10 +13,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
     const element = dialog.current;
     if (!element || element.open) return;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    if (typeof element.showModal !== 'function') {
-      dialogPolyfill.registerDialog(element);
-      element.classList.add('fixed');
-    }
+    dialogPolyfill.registerDialog(element);
     element.showModal();
   }, []);
 
