@@ -18,7 +18,7 @@ import { FleetPanel } from './ui/FleetPanel';
 import { SeaNotifications } from './ui/SeaNotifications';
 import { TutorialPanel } from './ui/TutorialPanel';
 import { readPreference, writePreference } from './ui/accessibilityPreferences';
-import { HelmCard, VoyageBottomBar, VoyageTopBar } from './ui/BoardChrome';
+import { HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } from './ui/BoardChrome';
 import { ShortcutLegend } from './ui/ShortcutLegend';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
@@ -36,6 +36,7 @@ export function App() {
   const state = gameController.state;
   const room = gameController.room;
   const atHelm = !!state && !state.players[state.currentPlayer].isAI && (!room || gameController.canHelm) && !gameController.awaitingHandoff && state.phase !== 'gameOver';
+  const landing = atHelm && state.phase.startsWith('awaiting') && state.phase !== 'awaitingSpin';
   const tutorialOpen = !!state && (!tutorialDismissed || tutorialRequested);
   function dismissTutorial() {
     writePreference('tutorial-dismissed', true);
@@ -85,13 +86,15 @@ export function App() {
     };
   }, []);
   const overlay = useRef<HTMLDivElement>(null);
+  const actionSurface = useRef<HTMLElement>(null);
   const needsInput = state && !state.players[state.currentPlayer].isAI &&
     (state.phase === 'awaitingSpin' || state.phase === 'awaitingClaim' ||
       state.phase === 'awaitingRecruit' || state.phase === 'awaitingLottery' || state.phase === 'awaitingBarter' || state.phase === 'awaitingCargoMarket' || state.phase === 'awaitingToll' ||
       state.phase === 'awaitingMerchant' || state.phase === 'awaitingWyvern');
-  const prompt = needsInput ? `${state.round}:${state.currentPlayer}:${state.phase}` : null;
+  const prompt = state && (needsInput || landing) ? `${state.round}:${state.currentPlayer}:${state.phase}` : null;
   useLayoutEffect(() => {
     if (prompt && overlay.current) overlay.current.scrollTop = 0;
+    if (prompt && actionSurface.current) actionSurface.current.scrollTop = 0;
   }, [prompt]);
 
   return (
@@ -106,7 +109,12 @@ export function App() {
         {state ? (
           <div className="hud">
             <HelmCard state={state} colorBlind={colorBlind} atHelm={atHelm} />
+            <NextStop state={state} />
+            {landing && <p className="landing-hint">⚓ {t('Choose an action on the card', '请在卡片上选择行动')}</p>}
+            <section ref={actionSurface} className={landing ? 'landing-placement' : 'turn-action-panel'}>
+            {landing && <LandingHeading state={state} />}
             <ActionPanel state={state} colorBlind={colorBlind} />
+            </section>
             <div className={`secondary-hud ${menuOpen ? 'is-open' : ''}`}>
             {menuOpen && <button className="menu-scrim" aria-label={t('Close menu', '关闭菜单')} onClick={() => setMenuOpen(false)} />}
             <div id="voyage-menu" className="voyage-menu">

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { atmosphere, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type GameEvent, type GameState, type MapNode } from '@happy-voyage/shared';
-import { getLocale, subscribeLocale } from '../../i18n';
+import { getLocale, pick, subscribeLocale } from '../../i18n';
 import { readPreference } from '../../ui/accessibilityPreferences';
 
 const REGIONS = [['ATLANTIC OCEAN', '大西洋'], ['THE AMERICAS', '美洲'], ['AFRICA · INDIAN OCEAN', '非洲 · 印度洋'], ['ASIAN SEAS', '亚洲海域']];
@@ -9,6 +9,7 @@ import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 import { sfx } from '../sfx';
 import { CHART_DEPTH, drawAtmosphere } from '../atmosphereArt';
+import { landingTarget, type NavigatePreview } from '../landingTarget';
 
 const HOP_HEIGHT = 10;
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈', pirates: '⚔', smallMonster: 'm', largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '?', floatingCargo: '▣', merchant: '¤', wyvern: 'W' };
@@ -55,6 +56,9 @@ export class OceanScene extends Phaser.Scene {
   private goldPopups = new Map<Phaser.GameObjects.Text, { x: number; y: number; lane: number }>();
   private movement: { playerId: number; path: number[]; id: number; index: number } | null = null;
   private moveTween: Phaser.Tweens.Tween | null = null;
+  private landingMarker?: Phaser.GameObjects.Graphics;
+  private landingBadge?: Phaser.GameObjects.Text;
+  private navigatePreview: NavigatePreview | null = null;
 
   constructor() {
     super('Ocean');
@@ -105,6 +109,8 @@ export class OceanScene extends Phaser.Scene {
     // Flags and the turn ring sit above the fleets so a moored ship never hides who owns an island.
     this.flags = this.add.graphics().setDepth(11);
     this.marker = this.add.graphics().setDepth(12);
+    this.landingMarker = this.add.graphics().setDepth(13);
+    this.landingBadge = this.add.text(0, 0, '', { fontFamily: '"Sea Names", system-ui, sans-serif', fontSize: '24px', fontStyle: 'bold', color: '#fff8d8', backgroundColor: '#092f46', padding: { x: 7, y: 3 } }).setOrigin(0.5).setDepth(14).setVisible(false);
 
     const syncLabels = () => {
       const showLabels = getComputedStyle(this.scale.parent).getPropertyValue('--chart-labels').trim() !== 'hidden';
@@ -133,6 +139,8 @@ export class OceanScene extends Phaser.Scene {
     EventBus.on('cancel-move', onCancel);
     EventBus.on('engine-event', onEngine);
     EventBus.on('palette-changed', onPalette);
+    const onPreview = (preview: NavigatePreview | null) => { this.navigatePreview = preview; };
+    EventBus.on('navigate-preview', onPreview);
     const unsubscribeLocale = subscribeLocale(() => this.relabel(gameController.state));
     const cleanup = () => {
       unsubscribeLocale();
@@ -149,6 +157,7 @@ export class OceanScene extends Phaser.Scene {
       EventBus.off('cancel-move', onCancel);
       EventBus.off('engine-event', onEngine);
       EventBus.off('palette-changed', onPalette);
+      EventBus.off('navigate-preview', onPreview);
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
@@ -159,11 +168,27 @@ export class OceanScene extends Phaser.Scene {
 
   update() {
     this.updatePinch();
+    this.drawLandingTarget();
     if (this.atmosphereLayer) drawAtmosphere(this.atmosphereLayer, gameController.state, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : this.time.now);
     this.shipBadges.forEach((badge, id) => {
       const ship = this.ships.get(id)!;
       badge.setPosition(ship.x + 12, ship.y - 13);
     });
+  }
+
+  private drawLandingTarget() {
+    if (!this.landingMarker || !this.landingBadge) return;
+    this.landingMarker.clear();
+    const state = gameController.state;
+    const target = gameController.landingTarget ?? landingTarget(state, null, this.navigatePreview);
+    if (!state || !target) { this.landingBadge.setVisible(false); return; }
+    const node = state.map.find((stop) => stop.id === target.nodeId)!;
+    const { color } = chartIdentity(state.players[target.playerId], this.colorBlind);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const pulse = reduced ? 0 : (Math.sin(this.time.now / 180) + 1) / 2;
+    this.landingMarker.lineStyle(8, 0xffffff, 0.9).strokeCircle(node.x, node.y, 34 + pulse * 8);
+    this.landingMarker.lineStyle(5, color, 1).strokeCircle(node.x, node.y, 34 + pulse * 8);
+    this.landingBadge.setText(target.preview ? pick(getLocale(), 'Preview', '预览') : String(target.steps)).setPosition(node.x + 32, node.y - 40).setVisible(true);
   }
 
   private updatePinch() {
@@ -207,7 +232,9 @@ export class OceanScene extends Phaser.Scene {
     this.ocean.clear();
     this.ocean.fillStyle(top);
     this.ocean.fillGradientStyle(top, top, bottom, bottom, 1);
-    this.ocean.fillRect(0, 0, WORLD.width, WORLD.height);
+    this.ocean.fillRect(-WORLD.width * 4, 0, WORLD.width * 9, WORLD.height);
+    this.ocean.fillStyle(top).fillRect(-WORLD.width * 4, -WORLD.height * 4, WORLD.width * 9, WORLD.height * 4);
+    this.ocean.fillStyle(bottom).fillRect(-WORLD.width * 4, WORLD.height, WORLD.width * 9, WORLD.height * 4);
   }
 
   private syncBadge(badges: Map<number, Phaser.GameObjects.Text>, id: number, label: string | null, x: number, y: number, depth: number) {

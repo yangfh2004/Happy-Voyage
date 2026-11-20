@@ -13,6 +13,7 @@ vi.mock('../game/GameController', () => ({ gameController: {
   shownPosition: (player: { position: number }) => player.position,
 } }));
 vi.mock('./Compass', () => ({ Compass: () => null }));
+vi.mock('../game/EventBus', () => ({ EventBus: { emit: vi.fn() } }));
 vi.mock('dialog-polyfill', () => ({ default: { registerDialog: vi.fn() } }));
 import { ActionPanel } from './ActionPanel';
 import { CampaignPanel } from './CampaignPanel';

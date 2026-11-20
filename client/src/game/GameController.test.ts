@@ -50,6 +50,32 @@ function humanTurn() {
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
 }
 
+it('publishes a compass target through sailing and clears it on arrival', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  expect(controller.landingTarget).toBeNull();
+  controller.spinCompass();
+  const target = controller.landingTarget!;
+  expect(target.steps).toBe(2);
+  expect(target.nodeId).toBe((state.players[0].position + 2) % state.map.length);
+  controller.finishSpin(controller.spinId);
+  expect(controller.landingTarget).toEqual(target);
+  EventBus.emit('move-complete', moveId);
+  expect(controller.landingTarget).toBeNull();
+});
+
+it('clears Navigate previews on its immediate landing without inventing a compass roll', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  const target = state.map.find((node) => node.kind === 'island')!.id;
+  state.players[0].strategies = ['navigate'];
+  controller.useStrategy('navigate', target);
+  expect(state.players[0].position).toBe(target);
+  expect(state.phase).toBe('awaitingClaim');
+  expect(state.lastSpin).toBeNull();
+  expect(controller.landingTarget).toBeNull();
+});
+
 it('routes recruitment and decline actions only during human recruiting visits', () => {
   controller.newGame(players);
   const state = controller.state!;

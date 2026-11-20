@@ -5,6 +5,7 @@
 .secondary-hud, .voyage-menu { display: contents; }
 .menu-shortcuts { display: none; }
 .resource-icon { width: 18px; height: 18px; vertical-align: middle; }
+.next-stop, .landing-heading, .landing-hint { display: none; }
 .atmosphere-status { position: absolute; bottom: 12px; left: 12px; padding: 7px 12px; border: 2px solid #a9f6ef; border-radius: 20px; background: #103c5bed; color: #fff9d9; font-family: 'Sea Names', system-ui, sans-serif; font-size: 13px; font-weight: 700; text-transform: capitalize; pointer-events: none; }
 .building-option small { display: block; margin: 3px 0; }
 .sea-map { position: absolute; inset: 0; }
@@ -337,8 +338,9 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .voyage-top { grid-row: 1; }
   .voyage-logo { width: 115px; flex-shrink: 0; color: #f5d381; font: bold 20px Georgia, serif; }
   .voyage-logo span { display: block; }
-  .voyage-seats { display: flex; gap: 6px; overflow-x: auto; min-width: 0; flex: 1; padding: 4px; }
-  .voyage-chip { position: relative; display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 2px 4px; flex: 0 0 110px; padding: 16px 6px 5px; border: 2px solid; border-radius: 12px; font-size: 11px; background: #103450; }
+  .voyage-seats { display: flex; gap: 6px; overflow-x: auto; min-width: 0; flex: 1; padding: 4px; scrollbar-width: none; }
+  .voyage-seats::-webkit-scrollbar { display: none; }
+  .voyage-chip { position: relative; display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 2px 4px; flex: 0 0 102px; padding: 16px 6px 5px; border: 2px solid; border-radius: 12px; font-size: 11px; background: #103450; }
   .voyage-chip strong { overflow: hidden; text-overflow: ellipsis; }
   .voyage-chip > span:not(.current-label), .voyage-chip small { grid-column: 1 / -1; }
   .voyage-chip small { color: #f8e2a3; }
@@ -361,7 +363,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .playing .actions { border: 0; background: transparent; box-shadow: none; border-radius: 0; padding: 0; }
   .playing .actions .primary { background: linear-gradient(#399b35, #12611c); border: 2px solid #d1a72e; border-radius: 16px; color: white; box-shadow: 0 3px 0 #214721; font-weight: 750; min-height: 52px; }
   .playing .actions .big { width: 100%; padding: 12px 8px; font-size: 19px; }
-  .playing .actions button { min-height: 44px; }
+  .playing .actions button:not(.stat-trigger) { min-height: 44px; }
   .playing .action-content { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
   .playing .compass svg { width: 80px; height: 80px; }
   .playing .decision-action .compass { display: none; }
@@ -382,4 +384,24 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .playing .voyage-menu { display: flex; flex-direction: column; gap: 10px; position: fixed; z-index: 31; top: 90px; right: 18px; width: 440px; max-height: calc(100vh - 110px); overflow: auto; padding: 18px; border: 2px solid #d4ad50; border-radius: 18px; background: #f8f0dc; box-shadow: 0 10px 40px #001424; }
   .menu-close { display: block; align-self: flex-end; min-height: 44px; }
   .playing .mobile-log { display: none; }
+  .next-stop { display: flex; align-items: center; gap: 12px; border: 2px dashed #b59751; padding: 12px; border-radius: 14px; background: #fff9e9; color: #123d59; }
+  .next-stop > span { font-size: 32px; }
+  .next-stop > div { display: grid; gap: 2px; }
+  .next-stop small { font-weight: 800; letter-spacing: .1em; color: #87672a; }
+  .next-stop strong { font-size: 20px; }
+  .landing-hint { display: block; padding: 20px 10px; border: 2px dashed #b59751; border-radius: 14px; text-align: center; color: #174365; font-weight: 650; }
+  .landing-placement { position: fixed; z-index: 15; left: 24px; bottom: 122px; width: calc(100vw - 412px); max-height: min(420px, calc(100vh - 280px)); overflow-y: auto; overscroll-behavior: contain; border: 2px solid #ddb953; border-radius: 20px; padding: 14px 20px; background: linear-gradient(#fffdf4, #f3ecd9); box-shadow: 0 8px 28px #001b35aa; animation: landfall .25s ease-out; }
+  .landing-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid #cfbc8c; padding-bottom: 8px; margin-bottom: 8px; }
+  .landing-heading small { color: #8b6426; letter-spacing: .1em; font-weight: 800; }
+  .landing-heading h2 { font-size: 24px; margin: 4px 0; }
+  .landing-heading > div:last-child { text-align: right; font-size: 14px; }
+  .playing .landing-placement .actions { text-align: left; }
+  .playing .landing-placement .actions .action-content > div > h2 { display: none; }
+  .playing .landing-placement .actions .row { justify-content: flex-start; margin-top: 12px; }
+  .playing .landing-placement .actions button:not(.stat-trigger) { min-height: 44px; }
+  .playing .landing-placement .actions button.primary::before { content: '⚓ '; }
+  .playing .landing-placement .actions .row > button:not(.primary)::before { content: '➜ '; }
+  .playing .landing-placement .strategy-cards { margin-top: 12px; }
+  @keyframes landfall { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) { .landing-placement { animation: none; } }
 }

@@ -1,4 +1,4 @@
-import { chartIdentity, playerName, rankName, type GameState } from '@happy-voyage/shared';
+import { chartIdentity, nodeName, playerName, rankName, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
@@ -48,4 +48,22 @@ export function HelmCard({ state, colorBlind, atHelm }: { state: GameState; colo
 export function VoyageBottomBar({ state, atHelm }: { state: GameState; atHelm: boolean }) {
   const { t } = useT();
   return <footer className="voyage-bottom"><strong>📜 {t('EVENT LOG', '航海日志')}</strong><LogPanel state={state} log={gameController.visibleLogText(state)} tones={gameController.feedback.logTones} limit={3} /><button disabled={!canEndTurn(state, atHelm)} onClick={() => gameController.decline()}>{t('End Turn', '结束回合')} ↪</button></footer>;
+}
+
+export function NextStop({ state }: { state: GameState }) {
+  const { t, locale } = useT();
+  const target = gameController.landingTarget;
+  if (!target) return null;
+  const node = state.map.find((stop) => stop.id === target.nodeId);
+  if (!node) return null;
+  return <div className="next-stop" role="status"><span aria-hidden="true">⚓</span><div><small>{t('NEXT STOP', '下一站')}</small><strong>{nodeName(node, locale)}</strong><span>{t('{n} steps', '{n} 步', { n: target.steps ?? 0 })}</span></div></div>;
+}
+
+export function LandingHeading({ state }: { state: GameState }) {
+  const { t, locale } = useT();
+  const player = state.players[state.currentPlayer];
+  const node = state.map[state.pendingClaim ?? player.position];
+  const ownerId = state.owners[node.id];
+  const owner = ownerId == null ? state.players.find((p) => p.homePort === node.id) : state.players[ownerId];
+  return <header className="landing-heading"><div><small>⚓ {t('LANDFALL', '抵达')}</small><h2>{nodeName(node, locale)}</h2></div><div><strong>{owner ? t('Owned by {p}', '属于 {p}', { p: playerName(owner, locale) }) : t('Unowned', '无主之地')}</strong><p>{t('Treasury: {g}g', '金库：{g} 金币', { g: gameController.displayGold(player) })}{node.price != null && state.phase === 'awaitingClaim' && t(' · Cost: {g}g', ' · 费用：{g} 金币', { g: node.price })}</p></div></header>;
 }

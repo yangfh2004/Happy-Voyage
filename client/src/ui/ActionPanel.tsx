@@ -3,7 +3,7 @@ import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BarterPanel } from './BarterPanel';
 import { LotteryPanel } from './LotteryPanel';
 import { MistPanel } from './MistPanel';
@@ -16,6 +16,7 @@ import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { seatTag } from './seats';
 import { StatTooltip } from './StatTooltip';
+import { EventBus } from '../game/EventBus';
 
 const BUILDING_SIZES = { en: ['None', 'Small', 'Medium', 'Large'], zh: ['无', '小型', '中型', '大型'] };
 
@@ -29,9 +30,15 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
   const lastLog = () => { const text = state.logText?.length === state.log.length ? state.logText.at(-1) : undefined; return text ? l(text, state) : state.log.at(-1) ?? ''; };
   const [transfersOpen, setTransfersOpen] = useState(false);
   const [destination, setDestination] = useState(state.map[0].id);
+  const [previewing, setPreviewing] = useState(false);
   const player = state.players[state.currentPlayer];
   const room = gameController.room;
   const atHelm = !player.isAI && (!room || gameController.canHelm);
+  const canPreview = atHelm && state.phase === 'awaitingSpin' && player.strategies.includes('navigate') && !state.strategyUsed;
+  useEffect(() => {
+    EventBus.emit('navigate-preview', previewing && canPreview ? { playerId: player.id, nodeId: destination } : null);
+    return () => { EventBus.emit('navigate-preview', null); };
+  }, [previewing, canPreview, player.id, destination]);
   const spinning = state.phase === 'spinning';
   const trading = state.phase === 'awaitingCargoMarket' && atHelm;
   const spinId = gameController.spinId;
@@ -248,10 +255,10 @@ export function ActionPanel({ state, colorBlind = false }: { state: GameState; c
   }
 
   const strategies = (
-      <details className="strategy-cards">
+      <details className="strategy-cards" onToggle={(event) => { if (!event.currentTarget.open) setPreviewing(false); }}>
         <summary>{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</summary>
         {player.strategies.length === 0 && <p>{t('No strategy cards.', '没有谋略卡。')}</p>}
-        {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onChange={(e) => setDestination(Number(e.target.value))}>
+        {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onFocus={() => setPreviewing(true)} onBlur={() => setPreviewing(false)} onChange={(e) => { setDestination(Number(e.target.value)); setPreviewing(true); }}>
           {state.map.map((node) => <option key={node.id} value={node.id}>{nodeName(node, locale)}</option>)}
         </select></label>}
         {player.strategies.map((id, index) => <div key={`${id}-${index}`}>

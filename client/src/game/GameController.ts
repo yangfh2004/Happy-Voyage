@@ -6,6 +6,7 @@ import type { HermitId, StrategyId } from '@happy-voyage/shared';
 import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, setVolume, sfx, startSoundtrack, type SoundChannel } from './sfx';
 import type { SeaEventResult } from '@happy-voyage/shared';
+import { landingTarget } from './landingTarget';
 
 export interface SeaNotice {
   id: number;
@@ -90,7 +91,7 @@ export class GameController {
       if (this.engine?.state.phase === 'moving') {
         this.departure = { playerId: this.engine.currentPlayer.id, position: this.engine.currentPlayer.position };
         this.engine.resolveLanding();
-      }
+      } else this.changed();
     });
   }
 
@@ -115,6 +116,10 @@ export class GameController {
 
   get spinId(): number {
     return this.spinSequence;
+  }
+
+  get landingTarget() {
+    return landingTarget(this.state, this.pendingMove);
   }
 
   get waiting(): boolean {
