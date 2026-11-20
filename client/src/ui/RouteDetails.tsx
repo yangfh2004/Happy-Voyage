@@ -1,0 +1,25 @@
+import type { GameState } from '@happy-voyage/shared';
+
+/** A readable key for the chart when the canvas labels are too small. */
+export function RouteDetails({ state }: { state: GameState }) {
+  return (
+    <details className="panel route-details">
+      <summary>Route details</summary>
+      <ol className="route-stops">
+        {state.map.map((stop) => {
+          const owner = state.owners[stop.id];
+          const fleets = state.players.filter((player) => !player.bankrupt && player.position === stop.id);
+          return (
+            <li key={stop.id}>
+              <strong>{stop.name}</strong>
+              {stop.kind === 'island' && (
+                <div>{stop.price}g · toll {stop.toll}g{owner !== null && ` · Colony of ${state.players[owner].name}`}</div>
+              )}
+              {fleets.length > 0 && <div>Fleets: {fleets.map((player) => player.name).join(', ')}</div>}
+            </li>
+          );
+        })}
+      </ol>
+    </details>
+  );
+}

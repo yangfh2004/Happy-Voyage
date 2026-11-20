@@ -12,13 +12,14 @@ function point(angle: number, radius: number) {
 }
 
 interface CompassProps {
+  spinId: number;
   result: number | null;
   spinning: boolean;
   duration: number;
   onSettled: () => void;
 }
 
-export function Compass({ result, spinning, duration, onSettled }: CompassProps) {
+export function Compass({ spinId, result, spinning, duration, onSettled }: CompassProps) {
   const angle = sectors.find(({ steps }) => steps === result)?.center ?? 0;
   const needleStyle = {
     transform: `rotate(${angle}deg)`,
@@ -49,7 +50,7 @@ export function Compass({ result, spinning, duration, onSettled }: CompassProps)
             </g>
           );
         })}
-        <g className={spinning ? 'compass-needle is-spinning' : 'compass-needle'} style={needleStyle} onAnimationEnd={onSettled}>
+        <g key={spinId} className={spinning ? 'compass-needle is-spinning' : 'compass-needle'} style={needleStyle} onAnimationEnd={onSettled}>
           <path d="M0 -35 L6 0 L0 25 L-6 0 Z" fill="#0a3d62" />
           <path d="M0 -35 L6 0 L-6 0 Z" fill="#c24127" />
           <circle r="3.5" fill="#ffe082" />

@@ -1,11 +1,13 @@
 import type { GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
+import { SpeedControl } from './SpeedControl';
 
 /** Gold and colonies for every navigator; the current one is highlighted. */
 export function PlayerBar({ state, onRules }: { state: GameState; onRules: () => void }) {
   return (
     <div className="panel players">
+      <SpeedControl />
       <div className="player-header"><div className="round">
         Round {Math.min(state.round, state.config.maxRounds)} / {state.config.maxRounds} · goal: {state.config.islandsToWin}{' '}
         islands

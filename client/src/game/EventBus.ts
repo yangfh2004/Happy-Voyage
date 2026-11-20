@@ -5,8 +5,9 @@ import Phaser from 'phaser';
  *
  * Events:
  *   'state-changed'          ()                       any game state change; scenes redraw
- *   'animate-move'           ({ playerId, path, stepMs })  scene animates a fleet along `path`
- *   'skip-move'              ()                            scene finishes the current move immediately
- *   'move-complete'          ()                            scene finished animating
+ *   'animate-move'           ({ playerId, path, id }) scene animates a fleet along `path`
+ *   'move-complete'          (id)                     scene finished animating
+ *   'pacing-changed'         ()                       update active movement speed
+ *   'cancel-move'            ()                       discard an old game's movement
  */
 export const EventBus = new Phaser.Events.EventEmitter();

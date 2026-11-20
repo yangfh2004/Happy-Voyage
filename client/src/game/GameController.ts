@@ -1,12 +1,22 @@
 import { GameEngine, type GameEvent, type GameState, type PlayerSetup } from '@happy-voyage/shared';
 import { EventBus } from './EventBus';
+import { TurnFeedback } from './TurnFeedback';
 
-/** Pause before an AI acts, so the human can follow what happens. */
-const AI_DELAY_MS = 700;
-const SPIN_MS = 1400;
-const STEP_MS = 200;
-export const ANIMATION_SPEEDS = [1, 2, 4] as const;
-type AnimationSpeed = (typeof ANIMATION_SPEEDS)[number];
+export const SPEEDS = {
+  Normal: { ai: 700, step: 200, spin: 1400 },
+  Fast: { ai: 250, step: 70, spin: 500 },
+  Instant: { ai: 0, step: 0, spin: 0 },
+};
+export type GameSpeed = keyof typeof SPEEDS;
+const SPEED_KEY = 'happy-voyage-speed';
+
+function savedSpeed(): GameSpeed {
+  try {
+    const saved = localStorage.getItem(SPEED_KEY);
+    if (saved && Object.hasOwn(SPEEDS, saved)) return saved as GameSpeed;
+  } catch {}
+  return 'Normal';
+}
 
 /**
  * Owns the rules engine for a single-player match and wires it to the UI:
@@ -16,17 +26,22 @@ type AnimationSpeed = (typeof ANIMATION_SPEEDS)[number];
  * A multiplayer version would replace this with a socket client that relays
  * the same engine events from the server.
  */
-class GameController {
+export class GameController {
   private engine: GameEngine | null = null;
   private version = 0;
   private readonly subscribers = new Set<() => void>();
-  private timers: ReturnType<typeof setTimeout>[] = [];
-  private speed: AnimationSpeed = 1;
-  private skipSailing = false;
+  speed = savedSpeed();
+  feedback = new TurnFeedback();
+  private skipping = false;
+  private moveId = 0;
+  private spinSequence = 0;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private pending: (() => void) | null = null;
+  private pendingSince = 0;
 
   constructor() {
-    EventBus.on('move-complete', () => {
-      if (this.engine?.state.phase === 'moving') this.engine.resolveLanding();
+    EventBus.on('move-complete', (id: number) => {
+      if (id === this.moveId && this.engine?.state.phase === 'moving') this.engine.resolveLanding();
     });
   }
 
@@ -34,9 +49,45 @@ class GameController {
     return this.engine?.state ?? null;
   }
 
+  get timings() {
+    return SPEEDS[this.skipping ? 'Instant' : this.speed];
+  }
+
+  get spinId(): number {
+    return this.spinSequence;
+  }
+
+  get waiting(): boolean {
+    return !!this.engine && this.engine.state.phase !== 'gameOver' &&
+      (this.engine.state.phase === 'spinning' || this.engine.state.phase === 'moving' || this.engine.currentPlayer.isAI);
+  }
+
+  setSpeed(speed: GameSpeed): void {
+    this.speed = speed;
+    try { localStorage.setItem(SPEED_KEY, speed); } catch {}
+    this.refreshPacing();
+  }
+
+  skipToMyTurn(): void {
+    if (!this.waiting) return;
+    this.skipping = true;
+    this.refreshPacing();
+  }
+
+  private refreshPacing(): void {
+    this.schedulePending();
+    if (this.timings.spin === 0) this.finishSpin(this.spinId);
+    EventBus.emit('pacing-changed');
+    this.changed();
+  }
+
   newGame(players: PlayerSetup[]): void {
     this.clearTimers();
+    this.skipping = false;
+    this.moveId += 1;
+    EventBus.emit('cancel-move');
     this.engine = new GameEngine({ players });
+    this.feedback = new TurnFeedback();
     this.engine.on((event) => this.onEngineEvent(event));
     this.engine.start();
     this.changed();
@@ -45,45 +96,26 @@ class GameController {
   /** Back to the setup menu. */
   quit(): void {
     this.clearTimers();
+    this.skipping = false;
+    this.moveId += 1;
+    EventBus.emit('cancel-move');
     this.engine = null;
+    this.feedback = new TurnFeedback();
     this.changed();
   }
 
   /** Human actions; ignored when it is not the human's move. */
   spinCompass(): void {
-    if (this.isHumanTurn('awaitingSpin')) this.engine!.spinCompass();
+    if (this.isHumanTurn('awaitingSpin')) this.beginSpin(this.engine!);
   }
 
-  get animationSpeed(): AnimationSpeed {
-    return this.speed;
+  finishSpin(id: number): void {
+    if (id === this.spinId && this.engine?.state.phase === 'spinning') this.engine.sail();
   }
 
-  get spinDuration(): number {
-    return SPIN_MS / this.speed;
-  }
-
-  setAnimationSpeed(speed: AnimationSpeed): void {
-    this.speed = speed;
-    this.changed();
-  }
-
-  finishSpin(): void {
-    if (this.engine?.state.phase === 'spinning') this.engine.sail();
-  }
-
-  skipAnimation(): void {
-    const engine = this.engine;
-    if (engine?.state.phase === 'spinning') {
-      this.skipSailing = true;
-      try {
-        engine.sail();
-      } finally {
-        this.skipSailing = false;
-      }
-      engine.resolveLanding();
-    } else if (engine?.state.phase === 'moving') {
-      EventBus.emit('skip-move');
-    }
+  private beginSpin(engine: GameEngine): void {
+    engine.spinCompass();
+    if (this.timings.spin === 0) this.finishSpin(this.spinId);
   }
 
   claim(): void {
@@ -111,20 +143,28 @@ class GameController {
 
   private onEngineEvent(event: GameEvent): void {
     const engine = this.engine!;
+    this.feedback.observe(event, engine.state);
     switch (event.type) {
       case 'goldChanged':
         EventBus.emit('gold-changed', event);
         break;
+      case 'compassSpun':
+        this.spinSequence += 1;
+        break;
       case 'moved':
-        if (!this.skipSailing) {
-          EventBus.emit('animate-move', { playerId: event.playerId, path: event.path, stepMs: STEP_MS / this.speed });
-        }
+        EventBus.emit('animate-move', { playerId: event.playerId, path: event.path, id: ++this.moveId });
         break;
       case 'turnStarted':
-        if (engine.currentPlayer.isAI) this.later(() => engine.spinCompass());
+        if (!engine.currentPlayer.isAI) this.skipping = false;
+        if (engine.currentPlayer.isAI) this.later(() => this.beginSpin(engine));
         break;
       case 'claimOffered':
+        if (!engine.currentPlayer.isAI) this.skipping = false;
         if (engine.currentPlayer.isAI) this.later(() => engine.decideForAI());
+        break;
+      case 'gameOver':
+        this.skipping = false;
+        this.clearTimers();
         break;
     }
     this.changed();
@@ -136,13 +176,24 @@ class GameController {
 
   private later(action: () => void): void {
     const engine = this.engine;
-    // Drop the action if a new game started in the meantime.
-    this.timers.push(setTimeout(() => this.engine === engine && action(), AI_DELAY_MS));
+    this.pending = () => { if (this.engine === engine) action(); };
+    this.pendingSince = Date.now();
+    this.schedulePending();
+  }
+
+  private schedulePending(): void {
+    clearTimeout(this.timer);
+    if (!this.pending) return;
+    this.timer = setTimeout(() => {
+      const action = this.pending;
+      this.pending = null;
+      action?.();
+    }, Math.max(0, this.timings.ai - (Date.now() - this.pendingSince)));
   }
 
   private clearTimers(): void {
-    this.timers.forEach(clearTimeout);
-    this.timers = [];
+    clearTimeout(this.timer);
+    this.pending = null;
   }
 
   private changed(): void {

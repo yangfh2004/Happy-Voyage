@@ -5,12 +5,6 @@ import { gameController } from '../GameController';
 
 const EVENT_SYMBOL: Record<string, string> = { treasure: '$', storm: '!', tradeWind: '≈' };
 
-interface FleetMove {
-  playerId: number;
-  path: number[];
-  stepMs: number;
-}
-
 /** Small offsets so several fleets on one stop don't overlap. */
 const TOKEN_OFFSETS = [
   [-14, -16],
@@ -33,9 +27,11 @@ export class OceanScene extends Phaser.Scene {
   private ships = new Map<number, Phaser.GameObjects.Image>();
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
+  private labels!: Phaser.GameObjects.Layer;
   private animatingPlayer: number | null = null;
-  private skipMove: (() => void) | null = null;
   private goldPopups = new Map<Phaser.GameObjects.Text, { x: number; y: number; lane: number }>();
+  private movement: { playerId: number; path: number[]; id: number; index: number } | null = null;
+  private moveTween: Phaser.Tweens.Tween | null = null;
 
   constructor() {
     super('Ocean');
@@ -45,23 +41,35 @@ export class OceanScene extends Phaser.Scene {
     this.drawOcean();
     this.drawRoute();
     this.flags = this.add.graphics();
+    this.labels = this.add.layer();
     this.drawStops();
     this.marker = this.add.graphics();
 
+    const syncLabels = () => {
+      const showLabels = getComputedStyle(this.scale.parent).getPropertyValue('--chart-labels').trim() !== 'hidden';
+      this.labels.setVisible(showLabels);
+    };
+    syncLabels();
+    this.scale.on(Phaser.Scale.Events.RESIZE, syncLabels);
     const onState = () => this.syncFromState();
-    const onMove = (move: FleetMove) => this.animateMove(move);
-    const onSkip = () => this.skipMove?.();
+    const onMove = (move: { playerId: number; path: number[]; id: number }) => this.animateMove(move);
+    const onPacing = () => this.updatePacing();
+    const onCancel = () => this.cancelMove();
     EventBus.on('state-changed', onState);
     EventBus.on('animate-move', onMove);
-    EventBus.on('skip-move', onSkip);
     const onGold = (event: Extract<GameEvent, { type: 'goldChanged' }>) => this.showGold(event);
     EventBus.on('gold-changed', onGold);
+    EventBus.on('pacing-changed', onPacing);
+    EventBus.on('cancel-move', onCancel);
     const cleanup = () => {
       this.goldPopups.clear();
+      this.scale.off(Phaser.Scale.Events.RESIZE, syncLabels);
+      this.cancelMove();
       EventBus.off('state-changed', onState);
       EventBus.off('animate-move', onMove);
-      EventBus.off('skip-move', onSkip);
       EventBus.off('gold-changed', onGold);
+      EventBus.off('pacing-changed', onPacing);
+      EventBus.off('cancel-move', onCancel);
     };
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
     this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
@@ -145,6 +153,7 @@ export class OceanScene extends Phaser.Scene {
       const dy = Math.sin(angle);
       const distance = 36 + Math.abs(dx) * text.width / 2 + Math.abs(dy) * text.height / 2;
       text.setPosition(node.x + dx * distance, node.y + dy * distance);
+      this.labels.add(text);
     }
   }
 
@@ -189,31 +198,68 @@ export class OceanScene extends Phaser.Scene {
     }
   }
 
-  private animateMove({ playerId, path, stepMs }: FleetMove) {
-    const ship = this.ships.get(playerId);
-    if (!ship) return;
-    this.animatingPlayer = playerId;
+  private cancelMove() {
+    this.moveTween?.stop();
+    this.moveTween = null;
+    this.movement = null;
+    this.animatingPlayer = null;
+  }
+
+  private animateMove(move: { playerId: number; path: number[]; id: number }) {
+    this.cancelMove();
+    this.movement = { ...move, index: 0 };
+    this.animatingPlayer = move.playerId;
     this.marker.clear();
-    let previousX = ship.x;
-    const steps = path.map((nodeId) => {
-      const [x, y] = this.tokenPosition(playerId, nodeId);
-      const westbound = x < previousX;
-      previousX = x;
-      return { x, y, duration: stepMs, ease: 'Sine.easeInOut', onStart: () => ship.setFlipX(westbound) };
+    this.nextStep();
+  }
+
+  private updatePacing() {
+    if (!this.movement) return;
+    if (gameController.timings.step === 0) {
+      this.moveTween?.stop();
+      this.moveTween = null;
+      const move = this.movement;
+      queueMicrotask(() => {
+        if (this.movement === move) this.finishMove();
+      });
+    } else {
+      this.moveTween?.setTimeScale(200 / gameController.timings.step);
+    }
+  }
+
+  private nextStep() {
+    const move = this.movement;
+    if (!move) return;
+    if (gameController.timings.step === 0 || move.index >= move.path.length) {
+      this.updatePacing();
+      if (gameController.timings.step !== 0) this.finishMove();
+      return;
+    }
+    const ship = this.ships.get(move.playerId);
+    if (!ship) { this.finishMove(); return; }
+    const [x, y] = this.tokenPosition(move.playerId, move.path[move.index++]);
+    ship.setFlipX(x < ship.x);
+    this.moveTween = this.tweens.add({
+      targets: ship, x, y, duration: 200, ease: 'Sine.easeInOut',
+      onComplete: () => {
+        if (this.movement !== move) return;
+        this.moveTween = null;
+        this.nextStep();
+      },
     });
-    const finish = () => {
-      this.animatingPlayer = null;
-      this.skipMove = null;
-      EventBus.emit('move-complete');
-    };
-    const tween = this.tweens.chain({ targets: ship, tweens: steps, onComplete: finish });
-    this.skipMove = () => {
-      tween.stop();
-      const last = steps[steps.length - 1];
-      ship.setPosition(last.x, last.y);
-      last.onStart();
-      finish();
-    };
+    this.updatePacing();
+  }
+
+  private finishMove() {
+    const move = this.movement;
+    if (!move) return;
+    const destination = move.path[move.path.length - 1];
+    if (destination !== undefined) {
+      const [x, y] = this.tokenPosition(move.playerId, destination);
+      this.ships.get(move.playerId)?.setPosition(x, y);
+    }
+    this.cancelMove();
+    EventBus.emit('move-complete', move.id);
   }
 
   private tokenPosition(playerId: number, nodeId: number): [number, number] {
