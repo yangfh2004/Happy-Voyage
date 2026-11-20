@@ -21,8 +21,7 @@ export function App() {
       <div className="overlay">
         {state ? (
           <div className="hud">
-            <button className="rules-toggle" onClick={() => setRulesOpen(true)}> ? Rules</button>
-            <PlayerBar state={state} />
+            <PlayerBar state={state} onRules={() => setRulesOpen(true)} />
             <ActionPanel state={state} />
             <LogPanel log={state.log} />
           </div>

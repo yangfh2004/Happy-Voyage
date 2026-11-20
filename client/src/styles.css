@@ -80,7 +80,9 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .log { font-size: 13px; color: #5d4037; max-height: 132px; overflow: hidden; }
 .log .latest { color: #2b1d0e; font-weight: 600; }
 
-.rules-toggle { align-self: flex-end; font-size: 12px; padding: 3px 10px; }
+.player-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.player-header .round { margin-bottom: 0; }
+.rules-toggle { font-size: 12px; padding: 3px 10px; flex-shrink: 0; }
 .rules-backdrop { position: absolute; inset: 0; background: #06283dbb; display: grid; place-items: center; padding: 20px; }
 .rules { width: min(570px, 94vw); max-height: 90vh; overflow: auto; padding: 20px 24px; }
 .rules-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
