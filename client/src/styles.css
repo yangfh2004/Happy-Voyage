@@ -77,7 +77,7 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .action-content { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; }
 .compass { display: grid; justify-items: center; color: #0a3d62; font-size: 13px; font-weight: 700; }
 .compass svg { width: 112px; height: 112px; font-size: 9px; }
-.compass-needle { transform-origin: center; }
+.compass-needle { transform-box: view-box; transform-origin: 0 0; }
 .compass-needle.is-spinning { animation: compass-spin var(--compass-duration) cubic-bezier(.18, .65, .2, 1) both; }
 @keyframes compass-spin {
   from { transform: rotate(0deg); }
