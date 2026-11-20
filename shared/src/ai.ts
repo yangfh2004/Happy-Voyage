@@ -26,7 +26,7 @@ export function aiBarterChoice(player: Player, offers: BarterOffer[]): number | 
 export function aiWyvernTarget(state: GameState, player: Player): number {
   const score = (node: MapNode): number => {
     if (node.kind === 'island' && state.owners[node.id] === null && player.gold >= (node.price ?? Infinity))
-      return aiShouldClaim(state, player, node.id) ? 1000 - (node.price ?? 0) : 0;
+      return aiShouldClaim(state, { ...player, position: node.id }, node.id) ? 1000 - (node.price ?? 0) : 0;
     if (node.special === 'revival') return 150;
     if (node.event === 'treasure') return 125;
     if (node.event === 'tradeWind') return 100;
