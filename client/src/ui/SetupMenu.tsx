@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createNationRoster, DEFAULT_CONFIG, NATIONS, navigatorForNation, type Nation } from '@happy-voyage/shared';
+import { createNationRoster, DEFAULT_CONFIG, NATIONS, navigatorForNation, type AIDifficulty, type Nation } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { cssColor } from './nations';
 import { NavigatorCard } from './NavigatorCard';
@@ -20,6 +20,7 @@ const seatName = (seat: Seat) => seat.customName ?? navigatorForNation(seat.nati
 export function SetupMenu({ onRules }: { onRules: () => void }) {
   const [seats, setSeats] = useState<Seat[]>([{ customName: null, nation: NATIONS[0].name }]);
   const [active, setActive] = useState(0);
+  const [difficulty, setDifficulty] = useState<AIDifficulty>('normal');
   const seat = seats[active];
   const navigator = navigatorForNation(seat.nation)!;
   const color = NATIONS.find((n) => n.name === seat.nation)!.color;
@@ -43,7 +44,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
     gameController.newGame(createNationRoster(seats.map((s) => ({
       name: seatName(s).trim() || navigatorForNation(s.nation)!.name,
       nation: s.nation,
-    }))));
+    })), difficulty));
   };
 
   return (
@@ -82,7 +83,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
         )}
       </div>
 
-      <label>
+      <label className="setup-name">
         {multi ? `Player ${active + 1} navigator name` : 'Navigator name'}
         <input value={seatName(seat)} maxLength={16} onChange={(e) => update({ customName: e.target.value })} />
       </label>
@@ -114,6 +115,16 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
           {multi ? `${seats.length} players start at their home ports.` : `Start at ${seat.nation} Port.`} The other {NATIONS.length - seats.length} nations are AI rivals.
         </small>
       </div>
+
+      <label className="setup-difficulty">
+        Rival difficulty
+        <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as AIDifficulty)}>
+          <option value="easy">Easy</option>
+          <option value="normal">Normal</option>
+          <option value="hard">Hard</option>
+        </select>
+        <small className="nation-note">Changes rival decisions, not starting resources or rules.</small>
+      </label>
 
       <button className="setup-rules" onClick={onRules}>How to play</button>
       <SpeedControl />

@@ -453,8 +453,9 @@ export class GameController {
           }
         }
         if (engine.currentPlayer.isAI) this.later(() => {
+          const round = engine.state.round;
           engine.decideForAI();
-          if (engine.state.phase === 'awaitingSpin' && engine.currentPlayer.id === event.playerId) this.beginSpin(engine);
+          if (engine.state.phase === 'awaitingSpin' && engine.currentPlayer.id === event.playerId && engine.state.round === round) this.beginSpin(engine);
         });
         break;
       case 'tollPaid': {
