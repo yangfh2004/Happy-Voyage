@@ -152,7 +152,7 @@ export function ActionPanel({ state }: { state: GameState }) {
         <h2>{island.name}</h2>
         <p>
           Uncharted land rich in <strong>{island.specialty}</strong>. Found a colony for <strong>{island.price}g</strong>?
-          Rivals landing here will pay you {island.toll}g.
+          Rivals landing here must pay you {island.toll}g or attack your ships.
         </p>
         <p>
           Claiming leaves you {player.gold - island.price!}g in cash. This colony adds {colonyValue(island)}g to your final score.
@@ -194,7 +194,7 @@ export function ActionPanel({ state }: { state: GameState }) {
               Toll {toll.direction}: {gold(toll.direction === 'received' ? toll.amount : -toll.amount)} {toll.direction === 'received' ? 'from' : 'to'} {toll.name}
             </div>
           ))}
-          {summary.claims.map((claim, i) => <div key={i}>{claim.name} claimed {claim.island}.</div>)}
+          {summary.claims.map((claim, i) => <div key={i}>{claim.name} {claim.captured ? `sank your defenders and captured ${claim.island}` : `claimed ${claim.island}`}.</div>)}
           <div>Net gold: <strong className={summary.netGold < 0 ? 'expense' : 'income'}>{gold(summary.netGold)}</strong></div>
         </div>
       )}
