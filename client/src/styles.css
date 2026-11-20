@@ -93,6 +93,10 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .choices { display: flex; flex-wrap: wrap; gap: 6px; font-weight: 400; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; }
 .chip.selected { background: #ffe082; box-shadow: inset 0 0 0 1px #8d6e63; }
+.chip:disabled { opacity: 0.45; cursor: not-allowed; }
+.seat-count { display: flex; align-items: center; gap: 10px; font-weight: 400; }
+.seat-count button { min-width: 32px; font-size: 18px; }
+.handoff { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
 .speed { align-items: center; justify-content: center; margin-bottom: 6px; font-size: 13px; }
 
 .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.4); }

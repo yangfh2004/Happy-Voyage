@@ -12,6 +12,8 @@ import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
 import { CAMPAIGN_STAGES, STRATEGIES, campaignStage } from '@happy-voyage/shared';
+import { NavigatorPortrait } from './NavigatorPortrait';
+import { seatTag } from './seats';
 
 const BUILDING_SIZES = ['None', 'Small', 'Medium', 'Large'];
 
@@ -26,6 +28,25 @@ export function ActionPanel({ state }: { state: GameState }) {
   const summary = !player.isAI && state.phase === 'awaitingSpin' ? gameController.feedback.summary : null;
   const gold = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value)}g`;
   const headline = gameController.headline;
+
+  const handoff = gameController.awaitingHandoff ? player : null;
+  if (handoff && state.phase !== 'gameOver') {
+    return (
+      <div className="panel actions handoff" role="dialog" aria-label="Pass the device">
+        {handoff.navigator && <NavigatorPortrait navigator={handoff.navigator} color={handoff.color} size={64} />}
+        {gameController.handoffNote && (
+          <div className={`headline ${gameController.handoffNote.tone}`}>
+            {state.players[gameController.handoffNote.playerId].name}: {gameController.handoffNote.text}
+          </div>
+        )}
+        <h2>Pass the device to {handoff.name}</h2>
+        <p>{seatTag(state.players, handoff)} · {handoff.nation ?? 'Navigator'} · Round {state.round}</p>
+        <button className="primary big" onClick={() => gameController.confirmHandoff()}>
+          I'm {handoff.name}, take the helm <kbd>Space / Enter</kbd>
+        </button>
+      </div>
+    );
+  }
 
   let body;
   if (state.phase === 'gameOver' && state.campaign) {
@@ -51,11 +72,11 @@ export function ActionPanel({ state }: { state: GameState }) {
         {everyContinent ? (
           <div className="victory-screen" role="status">
             <div className="victory-flag" aria-hidden="true">⚑</div>
-            <h2>{winner.isAI ? `${winner.name} rules the Seven Seas.` : 'Victory! Every new continent flies your flag.'}</h2>
+            <h2>{winner.isAI ? `${winner.name} rules the Seven Seas.` : gameController.humanCount > 1 ? `Victory for ${winner.name}! Every new continent flies your flag.` : 'Victory! Every new continent flies your flag.'}</h2>
             <p className="victory-count">All {state.config.islandsToWin} new continents are colonies of {flag}.</p>
           </div>
         ) : (
-          <h2>{winner.isAI ? `${winner.name} wins the seas.` : 'Victory! The crown celebrates you.'}</h2>
+          <h2>{winner.isAI ? `${winner.name} wins the seas.` : gameController.humanCount > 1 ? `Victory for ${winner.name}! The crown celebrates you.` : 'Victory! The crown celebrates you.'}</h2>
         )}
         <p>{state.log[state.log.length - 1]}</p>
         <table className="standings">
@@ -67,7 +88,7 @@ export function ActionPanel({ state }: { state: GameState }) {
             worth: gameController.netWorth(p.id),
           })).sort((a, b) => Number(b.id === state.winner) - Number(a.id === state.winner)
             || Number(a.bankrupt) - Number(b.bankrupt) || b.worth - a.worth || a.id - b.id).map((p) => (
-            <tr key={p.id}><th>{p.name}{!p.isAI && ' (You)'}</th><td>{p.gold}g</td><td>{p.islands}</td><td>{p.worth}g</td><td>{p.bankrupt ? 'Bankrupt' : p.id === state.winner ? 'Winner' : 'Afloat'}</td></tr>
+            <tr key={p.id}><th>{p.name}{!p.isAI && ` (${seatTag(state.players, p)})`}</th><td>{p.gold}g</td><td>{p.islands}</td><td>{p.worth}g</td><td>{p.bankrupt ? 'Bankrupt' : p.id === state.winner ? 'Winner' : 'Afloat'}</td></tr>
           ))}</tbody>
         </table>
         <button className="primary" onClick={() => gameController.quit()}>
@@ -241,11 +262,11 @@ export function ActionPanel({ state }: { state: GameState }) {
         </div>
       )}
       {gameController.waiting && (
-        <button onClick={() => gameController.skipToMyTurn()}>Skip to my turn <kbd>K</kbd></button>
+        <button onClick={() => gameController.skipToMyTurn()}>{gameController.humanCount > 1 ? 'Skip to the next player' : 'Skip to my turn'} <kbd>K</kbd></button>
       )}
       {summary && (
         <div className="turn-summary">
-          <strong>Since your last turn</strong>
+          <strong>Since your last turn{gameController.humanCount > 1 ? `, ${player.name}` : ''}</strong>
           {summary.tolls.map((toll, i) => (
             <div key={i} className={toll.direction === 'received' ? 'income' : 'expense'}>
               Toll {toll.direction}: {gold(toll.direction === 'received' ? toll.amount : -toll.amount)} {toll.direction === 'received' ? 'from' : 'to'} {toll.name}

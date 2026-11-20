@@ -9,9 +9,14 @@ export function keyboardShortcuts(controller: GameController) {
     } else if (controller.state?.phase === 'awaitingCargoMarket') controller.finishTrading();
     else controller.finishBuilding();
   };
+  const primary = () => {
+    if (controller.state?.phase === 'gameOver') controller.quit();
+    else if (controller.awaitingHandoff) controller.confirmHandoff();
+    else controller.spinCompass();
+  };
   const actions: Record<string, () => void> = {
-    ' ': () => controller.state?.phase === 'gameOver' ? controller.quit() : controller.spinCompass(),
-    enter: () => controller.state?.phase === 'gameOver' ? controller.quit() : controller.spinCompass(),
+    ' ': primary,
+    enter: primary,
     c: () => controller.claim(),
     s: () => controller.decline(),
     escape: () => {
