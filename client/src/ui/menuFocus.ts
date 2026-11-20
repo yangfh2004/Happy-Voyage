@@ -8,7 +8,7 @@ export function menuTabTarget<T>(items: T[], active: T | null, backwards: boolea
 
 export function trapMenuFocus(menu: HTMLElement, close: () => void) {
   const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const items = () => Array.from(menu.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled), input:not(:disabled), summary, a[href], [tabindex]:not([tabindex="-1"])')).filter(item => item.getClientRects().length > 0 && item.tabIndex >= 0);
+  const items = () => Array.from(menu.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled), input:not(:disabled), summary, a[href], [tabindex]:not([tabindex="-1"])')).filter(item => item.getClientRects().length > 0 && item.tabIndex >= 0 && !item.closest('details:not([open]) > :not(summary)'));
   const focusFirst = () => (items()[0] ?? menu).focus();
   const keydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {

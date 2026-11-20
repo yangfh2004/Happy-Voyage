@@ -22,11 +22,13 @@ describe('voyage menu keyboard focus', () => {
       tabIndex = 0;
       focus() { active = this; }
       getClientRects() { return [{}]; }
+      closest(_selector: string): object | null { return null; }
     }
     const opener = new Control();
     const close = new Control();
+    const collapsed = Object.assign(new Control(), { closest: () => ({}) });
     const menu = Object.assign(new Control(), {
-      querySelectorAll: () => [close],
+      querySelectorAll: () => [close, collapsed],
       contains: (node: Control) => node === close,
     });
     active = opener;
@@ -39,6 +41,8 @@ describe('voyage menu keyboard focus', () => {
     const dispose = trapMenuFocus(menu as unknown as HTMLElement, vi.fn());
     expect(active).toBe(close);
     expect([...listeners.keys()]).toEqual(['keydown', 'focusin']);
+    listeners.get('keydown')!({ key: 'Tab', shiftKey: true, preventDefault: vi.fn() } as unknown as Event);
+    expect(active).toBe(close);
     menu.isConnected = false;
     dispose();
     expect(listeners.size).toBe(0);
