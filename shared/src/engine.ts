@@ -96,7 +96,7 @@ export class GameEngine {
   addShipToFleet(playerId: number, type: ShipType): Ship {
     const player = this.state.players[playerId];
     if (!player) throw new Error(`Unknown player: ${playerId}`);
-    if (!Object.hasOwn(SHIP_TYPES, type)) throw new Error(`Unknown ship type: ${type}`);
+    if (!Object.prototype.hasOwnProperty.call(SHIP_TYPES, type)) throw new Error(`Unknown ship type: ${type}`);
 
     const id = this.state.nextShipId++;
     const { label, ...stats } = SHIP_TYPES[type];
