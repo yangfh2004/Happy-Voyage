@@ -1,10 +1,11 @@
 import { aiShouldClaim } from './ai';
 import { rollDice, type Rng } from './dice';
 import { createDefaultMap } from './map';
+import { colonyValue, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
 import type { GameConfig, GameEvent, GameState, MapNode, Player, PlayerSetup } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
-  startingGold: 1000,
+  startingGold: 750,
   homeSalary: 200,
   islandsToWin: 8,
   maxRounds: 30,
@@ -85,11 +86,11 @@ export class GameEngine {
     return this.state.owners.filter((o) => o === playerId).length;
   }
 
-  /** Gold plus the purchase value of every colony. */
+  /** Gold plus the end-of-voyage value of every colony. */
   netWorth(playerId: number): number {
     const colonies = this.state.map
       .filter((n) => this.state.owners[n.id] === playerId)
-      .reduce((sum, n) => sum + (n.price ?? 0), 0);
+      .reduce((sum, n) => sum + colonyValue(n), 0);
     return this.state.players[playerId].gold + colonies;
   }
 
@@ -231,20 +232,26 @@ export class GameEngine {
     this.state.pendingClaim = null;
     if (this.checkVictory()) return;
 
-    const { players } = this.state;
-    let next = this.state.currentPlayer;
-    do {
-      next = (next + 1) % players.length;
-      if (next === 0) {
-        this.state.round += 1;
-        if (this.checkVictory()) return;
-        this.log(`Round ${this.state.round} begins.`);
-      }
-    } while (players[next].bankrupt);
+    const lastPosition = turnOrderPosition(this.state, this.state.currentPlayer);
+    let next = this.nextActivePlayer(lastPosition + 1);
+    if (next === undefined) {
+      this.state.round += 1;
+      if (this.checkVictory()) return;
+      this.log(`Round ${this.state.round} begins.`);
+      next = this.nextActivePlayer(0)!;
+    }
 
     this.state.currentPlayer = next;
     this.state.phase = 'awaitingRoll';
     this.emit({ type: 'turnStarted', playerId: next });
+  }
+
+  private nextActivePlayer(fromPosition: number): number | undefined {
+    const { players } = this.state;
+    for (let i = fromPosition; i < players.length; i++) {
+      const seat = seatAtTurnOrderPosition(this.state, i);
+      if (!players[seat].bankrupt) return seat;
+    }
   }
 
   private checkVictory(): boolean {

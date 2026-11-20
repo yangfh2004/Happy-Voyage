@@ -25,6 +25,7 @@ export function SetupMenu({ onRules }: { onRules: () => void }) {
       <p>
         Roll the dice, sail the route and plant your flag on new lands. Rivals pay you a toll when they
         land on your colonies. Claim {DEFAULT_CONFIG.islandsToWin} islands, be last afloat, or be richest after {DEFAULT_CONFIG.maxRounds} rounds to win.
+        The starting navigator rotates each round. Final wealth is cash plus 75% of colony costs.
       </p>
 
       <label>

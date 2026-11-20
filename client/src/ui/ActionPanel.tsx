@@ -1,4 +1,4 @@
-import type { GameState } from '@happy-voyage/shared';
+import { colonyValue, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 
 const DIE_FACES = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
@@ -22,10 +22,11 @@ export function ActionPanel({ state }: { state: GameState }) {
         <table className="standings">
           <caption>Final standings · winner first, then afloat navigators by net worth</caption>
           <thead><tr><th>Navigator</th><th>Gold</th><th>Islands</th><th>Net worth</th><th>Status</th></tr></thead>
-          <tbody>{state.players.map((p) => {
-            const colonies = state.map.filter((node) => state.owners[node.id] === p.id);
-            return { ...p, islands: colonies.length, worth: p.gold + colonies.reduce((sum, node) => sum + (node.price ?? 0), 0) };
-          }).sort((a, b) => Number(b.id === state.winner) - Number(a.id === state.winner)
+          <tbody>{state.players.map((p) => ({
+            ...p,
+            islands: gameController.islandsOwnedBy(p.id),
+            worth: gameController.netWorth(p.id),
+          })).sort((a, b) => Number(b.id === state.winner) - Number(a.id === state.winner)
             || Number(a.bankrupt) - Number(b.bankrupt) || b.worth - a.worth || a.id - b.id).map((p) => (
             <tr key={p.id}><th>{p.name}{!p.isAI && ' (You)'}</th><td>{p.gold}g</td><td>{p.islands}</td><td>{p.worth}g</td><td>{p.bankrupt ? 'Bankrupt' : p.id === state.winner ? 'Winner' : 'Afloat'}</td></tr>
           ))}</tbody>
@@ -54,6 +55,9 @@ export function ActionPanel({ state }: { state: GameState }) {
         <p>
           Uncharted land rich in <strong>{island.specialty}</strong>. Found a colony for <strong>{island.price}g</strong>?
           Rivals landing here will pay you {island.toll}g.
+        </p>
+        <p>
+          Claiming leaves you {player.gold - island.price!}g in cash. This colony adds {colonyValue(island)}g to your final score.
         </p>
         <div className="row">
           <button className="primary" onClick={() => gameController.claim()}>

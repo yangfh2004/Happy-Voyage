@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EVENT_GOLD, GameEngine } from './engine';
+import { DEFAULT_CONFIG, EVENT_GOLD, GameEngine } from './engine';
 import type { Rng } from './dice';
 import { createDefaultMap } from './map';
 
@@ -24,7 +24,7 @@ describe('GameEngine', () => {
     engine.currentPlayer.position = 2;
     engine.state.phase = 'moving';
     engine.resolveLanding();
-    expect(engine.state.players[0].gold).toBe(1000 + delta);
+    expect(engine.state.players[0].gold).toBe(DEFAULT_CONFIG.startingGold + delta);
   });
 
   it('adds colony income to trade winds', () => {
@@ -33,7 +33,7 @@ describe('GameEngine', () => {
     engine.currentPlayer.position = 11;
     engine.state.phase = 'moving';
     engine.resolveLanding();
-    expect(engine.state.players[0].gold).toBe(1000 + EVENT_GOLD.tradeWind.base + EVENT_GOLD.tradeWind.perColony);
+    expect(engine.state.players[0].gold).toBe(DEFAULT_CONFIG.startingGold + EVENT_GOLD.tradeWind.base + EVENT_GOLD.tradeWind.perColony);
   });
 
   it('announces a storm loss before bankruptcy and neutralizes colonies', () => {
@@ -59,7 +59,7 @@ describe('GameEngine', () => {
   });
 
   it('offers and claims an unowned island', () => {
-    const engine = new GameEngine({ players: twoPlayers, rng: fixedDice(1) });
+    const engine = new GameEngine({ players: twoPlayers, config: { startingGold: 1000 }, rng: fixedDice(1) });
     engine.roll();
     engine.resolveLanding();
     expect(engine.state.phase).toBe('awaitingClaim');
@@ -71,7 +71,7 @@ describe('GameEngine', () => {
   });
 
   it('charges a toll on a rival colony', () => {
-    const engine = new GameEngine({ players: twoPlayers, rng: fixedDice(1) });
+    const engine = new GameEngine({ players: twoPlayers, config: { startingGold: 1000 }, rng: fixedDice(1) });
     engine.roll();
     engine.resolveLanding();
     engine.claim();
@@ -113,5 +113,33 @@ describe('GameEngine', () => {
     }
     expect(engine.state.phase).toBe('gameOver');
     expect(engine.state.winner).not.toBeNull();
+  });
+
+  it('rotates the first navigator without skipping or repeating a navigator within a round', () => {
+    const engine = new GameEngine({ players: [...twoPlayers, twoPlayers[1]], rng: fixedDice(1) });
+    const turns: number[][] = [];
+    engine.on((event, { round }) => {
+      if (event.type === 'turnStarted') (turns[round - 1] ??= []).push(event.playerId);
+    });
+    engine.start();
+    for (let i = 0; i < 8; i++) {
+      engine.roll();
+      engine.resolveLanding();
+      if (engine.state.phase === 'awaitingClaim') engine.decline();
+    }
+    expect(turns).toEqual([[0, 1, 2], [1, 2, 0], [2, 0, 1]]);
+  });
+
+  it('awards the round-limit win by cash plus discounted colony value', () => {
+    const engine = new GameEngine({ players: twoPlayers, config: { maxRounds: 1 }, rng: fixedDice(1) });
+    engine.state.players[1].gold += 85;
+    engine.roll();
+    engine.resolveLanding();
+    engine.claim();
+    expect(engine.netWorth(0)).toBe(DEFAULT_CONFIG.startingGold - 130 + 97);
+    expect(engine.state.phase).toBe('awaitingRoll');
+    engine.roll();
+    engine.resolveLanding();
+    expect(engine.state.winner).toBe(1);
   });
 });

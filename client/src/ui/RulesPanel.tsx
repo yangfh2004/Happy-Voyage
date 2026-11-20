@@ -28,7 +28,7 @@ export function RulesPanel({ config, onClose }: { config: GameConfig; onClose: (
         </dl>
         <p><strong>Stay afloat:</strong> below 0 gold means bankruptcy. Your colonies go neutral.</p>
         <p><strong>Win:</strong> claim {config.islandsToWin} islands, be the last navigator afloat, or have the highest net worth after {config.maxRounds} rounds.</p>
-        <p>Net worth = gold + the purchase prices of your colonies.</p>
+        <p>The starting navigator rotates each round. Net worth = gold + 75% of each colony's purchase price, rounded down.</p>
       </section>
     </div>
   );
