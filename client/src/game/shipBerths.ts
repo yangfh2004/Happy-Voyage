@@ -8,9 +8,10 @@ const angle = 5 * Math.PI / 180;
 export const SHIP_BERTH_WIDTH = .95 * (112 * Math.cos(angle) + 124 * Math.sin(angle));
 export const SHIP_BERTH_HEIGHT = .95 * (124 * Math.cos(angle) + 112 * Math.sin(angle));
 export const MAX_BERTH_OFFSET = 270;
-export const MIN_BERTH_SCALE = .75;
+export const MIN_BERTH_SCALE = .65;
 export const SINGLE_SHORE_DISTANCE = 100;
-const SCALES = [1, .95, .9, .85, .8, MIN_BERTH_SCALE];
+export const SHARED_SHORE_DISTANCE = 110;
+const SCALES = [1, .95, .9, .85, .8, .75, .7, MIN_BERTH_SCALE];
 
 export function shipBounds(x: number, y: number, scale = 1): BerthBox {
   return { left: x - SHIP_BERTH_WIDTH * scale / 2, right: x + SHIP_BERTH_WIDTH * scale / 2, top: y - SHIP_BERTH_HEIGHT * scale / 2, bottom: y + SHIP_BERTH_HEIGHT * scale / 2 };
@@ -97,17 +98,19 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
     const { x, y, scale } = berth;
     if (![x, y, scale].every(Number.isFinite) || scale < MIN_BERTH_SCALE || scale > 1) continue;
     const distance = Math.hypot(x - node.x, y - node.y), box = shipBounds(x, y, scale);
-    if (distance > MAX_BERTH_OFFSET || map.some(other => other.id !== node.id && Math.hypot(x - other.x, y - other.y) <= distance)) continue;
+    if (distance > SHARED_SHORE_DISTANCE || map.some(other => other.id !== node.id && Math.hypot(x - other.x, y - other.y) <= distance)) continue;
     if (box.left < 8 || box.top < 8 || box.right > WORLD.width - 8 || box.bottom > WORLD.height - 8) continue;
     if ([...names, ...reserved].some(other => boxesOverlap(box, other))) continue;
     fixed.set(player.id, { x, y, scale }); reserved.push(box);
   }
   const fixedBoxes = [...reserved];
+  let shoreLimit = SHARED_SHORE_DISTANCE;
   const layoutsFor = (node: MapNode, count: number, scale: number): Candidate[][] => {
     const solo = players.filter(player => player.position === node.id).length === 1;
-    const id = `${node.id}:${count}:${scale}:${solo}`;
+    const limit = solo ? Math.min(SINGLE_SHORE_DISTANCE, shoreLimit) : shoreLimit;
+    const id = `${node.id}:${count}:${scale}:${limit}`;
     if (!fixed.size && stored.layouts.has(id)) return stored.layouts.get(id)!;
-    const candidates = candidatesFor(node, scale).filter(c => (!solo || Math.hypot(c.x - node.x, c.y - node.y) <= SINGLE_SHORE_DISTANCE) && fixedBoxes.every(box => !boxesOverlap(c.box, box))), layouts: Candidate[][] = [];
+    const candidates = candidatesFor(node, scale).filter(c => Math.hypot(c.x - node.x, c.y - node.y) <= limit && fixedBoxes.every(box => !boxesOverlap(c.box, box))), layouts: Candidate[][] = [];
     for (let seed = 0; seed < candidates.length; seed++) {
       const chosen = [candidates[seed]];
       for (const candidate of candidates) {
@@ -157,6 +160,11 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
     const next = groups.filter(g => g.level < SCALES.length - 1).sort((a, b) => layoutsFor(a.node, a.occupants.length, SCALES[a.level]).length - layoutsFor(b.node, b.occupants.length, SCALES[b.level]).length || a.node.id - b.node.id)[0];
     if (!next) {
       if (fixed.size) return occupiedShipPlacements(map, players, labels);
+      if (shoreLimit < MAX_BERTH_OFFSET) {
+        shoreLimit = MAX_BERTH_OFFSET;
+        visits = 0;
+        continue;
+      }
       break;
     }
     next.level++; visits = 0;
