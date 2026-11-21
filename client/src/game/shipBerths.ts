@@ -28,7 +28,22 @@ export function boxesOverlap(a: BerthBox, b: BerthBox, gap = 8): boolean {
 export function shipBerths(map: MapNode[], nodeId: number, count: number, labels?: Map<number, BerthBox>): [number, number][] {
   const node = map.find(node => node.id === nodeId);
   if (!node || count === 0) return [];
+  return placeBerths(node, count, berthObstacles(map, labels));
+}
+
+export function occupiedShipBerths(map: MapNode[], players: { id: number; position: number }[], labels?: Map<number, BerthBox>): Map<number, [number, number]> {
   const obstacles = berthObstacles(map, labels);
+  const positions = new Map<number, [number, number]>();
+  for (const node of [...map].sort((a, b) => a.id - b.id)) {
+    const occupants = players.filter(player => player.position === node.id).sort((a, b) => a.id - b.id);
+    if (!occupants.length) continue;
+    const berths = placeBerths(node, occupants.length, obstacles);
+    occupants.forEach((player, index) => positions.set(player.id, berths[index]));
+  }
+  return positions;
+}
+
+function placeBerths(node: MapNode, count: number, obstacles: BerthBox[]): [number, number][] {
   const berths: [number, number][] = [];
   for (let radius = 240; berths.length < count; radius += 240) {
     const candidates: [number, number][] = [];

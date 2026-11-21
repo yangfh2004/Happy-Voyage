@@ -1,8 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultMap, WORLD } from '@happy-voyage/shared';
-import { boxesOverlap, shipBerths, shipBounds } from './shipBerths';
+import { berthObstacles, boxesOverlap, occupiedShipBerths, shipBerths, shipBounds } from './shipBerths';
 
 describe('nearby-water ship berths', () => {
+  it.each(Array.from({ length: 16 }, (_, i) => [1 + Math.floor(i / 4), 1 + i % 4]))('reserves ships across all neighbouring stop pairs with %s and %s occupants', (firstCount, secondCount) => {
+    const map = createDefaultMap();
+    const obstacles = berthObstacles(map);
+    for (const [index, first] of map.entries()) for (const second of map.slice(index + 1)) {
+      if (Math.hypot(first.x - second.x, first.y - second.y) > 700) continue;
+      const players = Array.from({ length: firstCount + secondCount }, (_, id) => ({ id, position: id < firstCount ? first.id : second.id }));
+      const berths = occupiedShipBerths(map, players);
+      expect(berths.size).toBe(players.length);
+      const bounds = [...berths.values()].map(([x, y]) => shipBounds(x, y));
+      for (const [i, box] of bounds.entries()) {
+        for (const other of bounds.slice(i + 1)) expect(boxesOverlap(box, other), `${first.name} + ${second.name}`).toBe(false);
+        for (const obstacle of obstacles) expect(boxesOverlap(box, obstacle)).toBe(false);
+      }
+    }
+  }, 20000);
+
+  it('keeps Portugal Port and Revival Island fleets separate and independent of input order', () => {
+    const map = createDefaultMap();
+    const port = map.find(node => node.kind === 'port' && node.nation === 'Portugal')!;
+    const revival = map.find(node => node.special === 'revival')!;
+    const players = Array.from({ length: 8 }, (_, id) => ({ id, position: id < 4 ? port.id : revival.id }));
+    const positions = occupiedShipBerths(map, players);
+    const boxes = [...positions.values()].map(([x, y]) => shipBounds(x, y));
+    for (const [i, box] of boxes.entries()) for (const other of boxes.slice(i + 1)) expect(boxesOverlap(box, other)).toBe(false);
+    expect(occupiedShipBerths([...map].reverse(), [...players].reverse())).toEqual(positions);
+    expect(occupiedShipBerths(map, [])).toEqual(new Map());
+  });
+
   it.each([1, 2, 3, 4])('keeps %s full-size, maximally bobbed portraits and hulls clear of every island and label at every stop', count => {
     const map = createDefaultMap();
     for (const node of map) {

@@ -15,7 +15,7 @@ import { islandTexture } from '../islandArt';
 import { bindStopHelp, stopHelpPosition } from '../stopHelp';
 import { addNauticalSea, shipTexture } from '../nauticalArt';
 import { captainShipTexture, sailingStepDuration } from '../captainShip';
-import { shipBerths } from '../shipBerths';
+import { occupiedShipBerths } from '../shipBerths';
 import { specialIslandTexture } from '../specialIslandArt';
 
 const HOP_HEIGHT = 10;
@@ -701,15 +701,12 @@ export class OceanScene extends Phaser.Scene {
   }
 
   private tokenPosition(playerId: number, nodeId: number): [number, number] {
-    const occupants = new Set(gameController.state?.players.filter((player) => player.position === nodeId).map((player) => player.id));
-    occupants.add(playerId);
-    const ids = [...occupants].sort((a, b) => a - b);
-    const index = ids.indexOf(playerId);
+    const players = (gameController.state?.players ?? []).filter(player => player.id !== playerId);
     const labels = new Map([...this.stopLabels].map(([id, text]) => {
       const bounds = text.getBounds();
       return [id, { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom }] as const;
     }));
-    return shipBerths(this.map, nodeId, ids.length, labels)[index];
+    return occupiedShipBerths(this.map, [...players, { id: playerId, position: nodeId }], labels).get(playerId)!;
   }
 
   private showGold({ playerId, delta, reason }: Extract<GameEvent, { type: 'goldChanged' }>) {
