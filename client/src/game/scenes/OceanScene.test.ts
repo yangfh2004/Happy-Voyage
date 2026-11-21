@@ -105,8 +105,8 @@ describe('shared stop ship berths', () => {
     const players = Array.from({ length: count }, (_, id) => ({ id, position: 0 }));
     Object.assign(gameController, { state: { players } });
     const angle = 5 * Math.PI / 180;
-    const width = .95 * (80 * Math.cos(angle) + 76 * Math.sin(angle));
-    const height = .95 * (76 * Math.cos(angle) + 80 * Math.sin(angle));
+    const width = .95 * (112 * Math.cos(angle) + 124 * Math.sin(angle));
+    const height = .95 * (124 * Math.cos(angle) + 112 * Math.sin(angle));
     const bounds = players.map(({ id }) => {
       const [x, y] = scene.tokenPosition(id, 0);
       return { left: x - width / 2, right: x + width / 2, top: y - height / 2, bottom: y + height / 2 };
@@ -123,9 +123,9 @@ describe('shared stop ship berths', () => {
 
   it('provides a berth before state is available and while sailing through an unoccupied stop', () => {
     Object.assign(scene, { map: [{ id: 0, x: 100, y: 200 }] });
-    expect(scene.tokenPosition(3, 0)).toEqual([100, 146]);
+    expect(scene.tokenPosition(3, 0)).toEqual([100, 122]);
     Object.assign(gameController, { state: { players: [{ id: 1, position: 1 }] } });
-    expect(scene.tokenPosition(3, 0)).toEqual([100, 146]);
+    expect(scene.tokenPosition(3, 0)).toEqual([100, 122]);
   });
 });
 
@@ -324,12 +324,12 @@ describe('fleet cleanup', () => {
 describe('movement pacing', () => {
   it('retimes active and subsequent steps, resolving exactly once', () => {
     scene.animateMove({ playerId: 0, path: [1, 2], id: 7 });
-    expect(tweens[0].setTimeScale).toHaveBeenLastCalledWith(1);
+    expect(tweens[0].setTimeScale).toHaveBeenLastCalledWith(200 / 480);
     gameController.timings.step = 70;
     scene.updatePacing();
-    expect(tweens[0].setTimeScale).toHaveBeenLastCalledWith(200 / 70);
+    expect(tweens[0].setTimeScale).toHaveBeenLastCalledWith(200 / 168);
     completions[0]();
-    expect(tweens[1].setTimeScale).toHaveBeenLastCalledWith(200 / 70);
+    expect(tweens[1].setTimeScale).toHaveBeenLastCalledWith(200 / 168);
     completions[1]();
     completions[1]();
     expect(EventBus.emit).toHaveBeenCalledOnce();

@@ -14,6 +14,7 @@ import { routeEdge } from '../routeEdge';
 import { islandTexture } from '../islandArt';
 import { bindStopHelp, stopHelpPosition } from '../stopHelp';
 import { addNauticalSea, shipTexture } from '../nauticalArt';
+import { captainShipTexture, sailingStepDuration } from '../captainShip';
 import { specialIslandTexture } from '../specialIslandArt';
 
 const HOP_HEIGHT = 10;
@@ -136,7 +137,7 @@ export class OceanScene extends Phaser.Scene {
       this.colorBlind = enabled;
       this.drawOceanBackground();
       gameController.state?.players.forEach((player) => {
-        this.ships.get(player.id)?.setTexture(shipTexture(this, chartIdentity(player, enabled).color));
+        this.applyCaptain(player.id, player.navigator, chartIdentity(player, enabled).color);
       });
       this.syncFromState();
     };
@@ -483,6 +484,7 @@ export class OceanScene extends Phaser.Scene {
         ship.setScale(0.8 + Math.min(0.15, Math.max(0, ...player.fleet.map(vessel => vessel.cargoCapacity)) / 1000));
         if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.tweens.add({ targets: ship, angle: { from: -5, to: 5 }, duration: 1500 + player.id * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         this.ships.set(player.id, ship);
+        this.applyCaptain(player.id, player.navigator, color);
       }
       ship.setAlpha(player.bankrupt ? 0.25 : 1);
       if (!this.sailing.has(player.id)) {
@@ -530,7 +532,7 @@ export class OceanScene extends Phaser.Scene {
         if (this.movement === move) this.finishMove();
       });
     } else {
-      this.moveTween?.setTimeScale(200 / gameController.timings.step);
+      this.moveTween?.setTimeScale(200 / this.stepDuration());
     }
   }
 
@@ -545,7 +547,7 @@ export class OceanScene extends Phaser.Scene {
     const ship = this.ships.get(move.playerId);
     if (!ship) { this.finishMove(); return; }
     const [x, y] = this.tokenPosition(move.playerId, move.path[move.index++]);
-    if (this.following) this.cameras.main.pan(x, y, gameController.timings.step);
+    if (this.following) this.cameras.main.pan(x, y, this.stepDuration());
     this.moveTween = this.hop(ship, x, y, () => {
       if (this.movement !== move) return;
       this.moveTween = null;
@@ -568,11 +570,25 @@ export class OceanScene extends Phaser.Scene {
     EventBus.emit('move-complete', move.id);
   }
 
+  private stepDuration() {
+    const player = gameController.state?.players.find(player => player.id === this.movement?.playerId);
+    return sailingStepDuration(gameController.timings.step, player?.isAI ?? false);
+  }
+
+  private applyCaptain(id: number, navigator: string | undefined, color: number) {
+    const ship = this.ships.get(id);
+    if (!ship) return;
+    ship.setTexture(shipTexture(this, color));
+    void captainShipTexture(this, navigator ?? 'columbus', color).then(key => {
+      const player = gameController.state?.players.find(player => player.id === id);
+      if (player && this.ships.get(id) === ship && chartIdentity(player, this.colorBlind).color === color) ship.setTexture(key);
+    }).catch(() => {});
+  }
+
   /** One step along the route: a little arc, like a ship riding a swell. */
   private hop(ship: Phaser.GameObjects.Image, x: number, y: number, onComplete: () => void): Phaser.Tweens.Tween {
     const fromX = ship.x;
     const fromY = ship.y;
-    ship.setFlipX(x < fromX);
     return this.tweens.addCounter({
       from: 0,
       to: 1,
@@ -691,7 +707,7 @@ export class OceanScene extends Phaser.Scene {
     const index = ids.indexOf(playerId);
     const row = Math.floor(index / 2);
     const rowSize = Math.min(2, ids.length - row * 2);
-    return [node.x + (index % 2 - (rowSize - 1) / 2) * 92, node.y - 54 - (Math.ceil(ids.length / 2) - row - 1) * 92];
+    return [node.x + (index % 2 - (rowSize - 1) / 2) * 126, node.y - 78 - (Math.ceil(ids.length / 2) - row - 1) * 132];
   }
 
   private showGold({ playerId, delta, reason }: Extract<GameEvent, { type: 'goldChanged' }>) {
