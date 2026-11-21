@@ -2,6 +2,7 @@ import { nodeName, WORLD, type MapNode } from '@happy-voyage/shared';
 
 export interface BerthBox { left: number; right: number; top: number; bottom: number }
 export interface ShipBerth { x: number; y: number; scale: number }
+export interface MooredBerth extends ShipBerth { nodeId: number }
 const angle = 5 * Math.PI / 180;
 export const SHIP_BERTH_WIDTH = .95 * (112 * Math.cos(angle) + 124 * Math.sin(angle));
 export const SHIP_BERTH_HEIGHT = .95 * (124 * Math.cos(angle) + 112 * Math.sin(angle));
@@ -44,7 +45,7 @@ function overlapArea(a: BerthBox, b: BerthBox): number {
 interface Candidate extends ShipBerth { box: BerthBox; score: number }
 const cache = new WeakMap<MapNode[], { key: string; candidates: Map<string, Candidate[]>; layouts: Map<string, Candidate[][]> }>();
 
-export function occupiedShipPlacements(map: MapNode[], players: { id: number; position: number }[], labels?: Map<number, BerthBox>): Map<number, ShipBerth> {
+export function occupiedShipPlacements(map: MapNode[], players: { id: number; position: number }[], labels?: Map<number, BerthBox>, previous: ReadonlyMap<number, MooredBerth> = new Map()): Map<number, ShipBerth> {
   const key = JSON.stringify(labels ? [...labels].sort(([a], [b]) => a - b) : []);
   let stored = cache.get(map);
   if (!stored || stored.key !== key) {
@@ -75,10 +76,24 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
     stored.candidates.set(id, candidates);
     return candidates;
   };
+  const fixed = new Map<number, ShipBerth>();
+  const reserved: BerthBox[] = [];
+  for (const player of [...players].sort((a, b) => a.id - b.id)) {
+    const berth = previous.get(player.id), node = map.find(n => n.id === player.position);
+    if (!berth || !node || berth.nodeId !== node.id) continue;
+    const { x, y, scale } = berth;
+    if (![x, y, scale].every(Number.isFinite) || scale < MIN_BERTH_SCALE || scale > 1) continue;
+    const distance = Math.hypot(x - node.x, y - node.y), box = shipBounds(x, y, scale);
+    if (distance > MAX_BERTH_OFFSET || map.some(other => other.id !== node.id && Math.hypot(x - other.x, y - other.y) <= distance)) continue;
+    if (box.left < 8 || box.top < 8 || box.right > WORLD.width - 8 || box.bottom > WORLD.height - 8) continue;
+    if ([...names, ...reserved].some(other => boxesOverlap(box, other))) continue;
+    fixed.set(player.id, { x, y, scale }); reserved.push(box);
+  }
+  const fixedBoxes = [...reserved];
   const layoutsFor = (node: MapNode, count: number, scale: number): Candidate[][] => {
     const id = `${node.id}:${count}:${scale}`;
-    if (stored.layouts.has(id)) return stored.layouts.get(id)!;
-    const candidates = candidatesFor(node, scale), layouts: Candidate[][] = [];
+    if (!fixed.size && stored.layouts.has(id)) return stored.layouts.get(id)!;
+    const candidates = candidatesFor(node, scale).filter(c => fixedBoxes.every(box => !boxesOverlap(c.box, box))), layouts: Candidate[][] = [];
     for (let seed = 0; seed < candidates.length; seed++) {
       const chosen = [candidates[seed]];
       for (const candidate of candidates) {
@@ -100,14 +115,13 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
       complete([], candidates);
     }
     layouts.sort((a, b) => a.reduce((sum, c) => sum + c.score, 0) - b.reduce((sum, c) => sum + c.score, 0));
-    stored.layouts.set(id, layouts);
+    if (!fixed.size) stored.layouts.set(id, layouts);
     return layouts;
   };
   const groups = [...map].sort((a, b) => a.id - b.id).flatMap(node => {
-    const occupants = players.filter(p => p.position === node.id).sort((a, b) => a.id - b.id);
+    const occupants = players.filter(p => p.position === node.id && !fixed.has(p.id)).sort((a, b) => a.id - b.id);
     return occupants.length ? [{ node, occupants, level: 0, chosen: [] as Candidate[] }] : [];
   });
-  const reserved: BerthBox[] = [];
   let visits = 0;
   const search = (): boolean => {
     if (++visits > 10000) return false;
@@ -127,10 +141,13 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
   };
   while (!search()) {
     const next = groups.filter(g => g.level < SCALES.length - 1).sort((a, b) => layoutsFor(a.node, a.occupants.length, SCALES[a.level]).length - layoutsFor(b.node, b.occupants.length, SCALES[b.level]).length || a.node.id - b.node.id)[0];
-    if (!next) break;
+    if (!next) {
+      if (fixed.size) return occupiedShipPlacements(map, players, labels);
+      break;
+    }
     next.level++; visits = 0;
   }
-  const positions = new Map<number, ShipBerth>();
+  const positions = new Map<number, ShipBerth>(fixed);
   for (const group of groups) {
     if (!group.chosen.length) {
       for (let i = 0; i < group.occupants.length; i++) {

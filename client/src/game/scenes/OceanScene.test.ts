@@ -142,6 +142,43 @@ describe('shared stop ship berths', () => {
   });
 });
 
+describe('moored reflows', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([false, true])('repositions a forced reflow without teleporting during animation (reduced motion: %s)', reduced => {
+    vi.stubGlobal('window', { matchMedia: () => ({ matches: reduced }) });
+    const tween = { stop: vi.fn() }, add = vi.fn((_options: unknown) => tween);
+    const label = { left: 500, right: 700, top: 200, bottom: 400 };
+    ship.setPosition.mockReturnThis();
+    Object.assign(ship, { x: 600, y: 320, setAlpha: vi.fn() });
+    Object.assign(scene, {
+      map: [{ ...createDefaultMap()[0], x: 600, y: 500 }],
+      berths: new Map([[0, { x: 600, y: 320, scale: 1, nodeId: 0 }]]),
+      stopLabels: new Map([[0, { getBounds: () => label, setText: vi.fn() }]]),
+      tweens: { add }, flags: { clear: vi.fn() },
+    });
+    Object.assign(gameController, { state: {
+      round: 1, market: { stock: {}, repairDemandThroughRound: 0 }, owners: [],
+      players: [{ id: 0, color: 0xe85d4a, position: 0, fleet: [] }], currentPlayer: 0, phase: 'gameOver',
+    } });
+    const [x, y] = scene.tokenPosition(0, 0);
+    if (reduced) {
+      expect(add).not.toHaveBeenCalled();
+      expect(ship.setPosition).toHaveBeenCalledWith(x, y);
+    } else {
+      expect(add).toHaveBeenCalledWith(expect.objectContaining({ targets: ship, x, y, duration: 300 }));
+      expect(ship.setPosition).not.toHaveBeenCalled();
+      scene.syncFromState();
+      expect(add).toHaveBeenCalledOnce();
+      expect(ship.setPosition).not.toHaveBeenCalled();
+      const options = add.mock.calls[0][0] as unknown as { onComplete(): void };
+      options.onComplete();
+      scene.syncFromState();
+      expect(ship.setPosition).toHaveBeenCalledWith(x, y);
+    }
+  });
+});
+
 describe('fork routes', () => {
   function routeGraphics() {
     return { clear: vi.fn(), lineStyle: vi.fn().mockReturnThis(), strokeCircle: vi.fn().mockReturnThis(), lineBetween: vi.fn().mockReturnThis(), fillStyle: vi.fn().mockReturnThis(), fillTriangle: vi.fn().mockReturnThis() };
