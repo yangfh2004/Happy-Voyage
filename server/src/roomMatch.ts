@@ -1,4 +1,4 @@
-import { GameEngine, ONLINE_PACING, createNationRoster, gameMode, type GameEvent, type Rng, type RoomOptions, type RoomPick } from '@happy-voyage/shared';
+import { GameEngine, ONLINE_PACING, createNationRoster, gameMode, sailingStepDuration, type GameEvent, type Rng, type RoomOptions, type RoomPick } from '@happy-voyage/shared';
 import { applyRoomAction } from './roomActions';
 
 export interface RoomMatchOptions {
@@ -74,7 +74,7 @@ export class RoomMatch {
     const pace = ai ? ONLINE_PACING.rival : ONLINE_PACING.human;
     const scale = this.timing.paceMultiplier ?? 1;
     if (phase === 'spinning') later(pace.spin * scale, () => engine.sail());
-    else if (phase === 'moving') later(pace.step * (lastSpin ?? 1) * scale, () => engine.resolveLanding());
+    else if (phase === 'moving') later((sailingStepDuration(pace.step, ai) * (lastSpin ?? 1) + 100) * scale, () => engine.resolveLanding());
     else if (ai) later(ONLINE_PACING.rival.decision * scale, () => {
       const { currentPlayer, round } = engine.state;
       engine.decideForAI();

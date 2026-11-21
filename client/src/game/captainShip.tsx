@@ -3,9 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { NavigatorPortrait } from '../ui/NavigatorPortrait';
 import { shipTexture } from './nauticalArt';
 
-export function sailingStepDuration(step: number, isAI: boolean): number {
-  return step * (isAI ? 0.7 : 2.4);
-}
+export { sailingStepDuration } from '@happy-voyage/shared';
 
 export async function captainShipTexture(scene: Phaser.Scene, navigator: string, color: number): Promise<string> {
   const key = `captain-fleet-${navigator}-${color}`;
