@@ -1,4 +1,5 @@
 import { nodeName, WORLD, type MapNode } from '@happy-voyage/shared';
+import { islandLandscape } from './islandArt';
 
 export interface BerthBox { left: number; right: number; top: number; bottom: number }
 export interface ShipBerth { x: number; y: number; scale: number }
@@ -8,6 +9,7 @@ export const SHIP_BERTH_WIDTH = .95 * (112 * Math.cos(angle) + 124 * Math.sin(an
 export const SHIP_BERTH_HEIGHT = .95 * (124 * Math.cos(angle) + 112 * Math.sin(angle));
 export const MAX_BERTH_OFFSET = 270;
 export const MIN_BERTH_SCALE = .75;
+export const SINGLE_SHORE_DISTANCE = 100;
 const SCALES = [1, .95, .9, .85, .8, MIN_BERTH_SCALE];
 
 export function shipBounds(x: number, y: number, scale = 1): BerthBox {
@@ -52,12 +54,15 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
     stored = { key, candidates: new Map(), layouts: new Map() };
     cache.set(map, stored);
   }
-  const obstacles = berthObstacles([...map].sort((a, b) => a.id - b.id), labels), art = obstacles.filter((_, i) => i % 2 === 0), names = obstacles.filter((_, i) => i % 2 === 1);
+  const ordered = [...map].sort((a, b) => a.id - b.id);
+  const obstacles = berthObstacles(ordered, labels), art = obstacles.filter((_, i) => i % 2 === 0), names = obstacles.filter((_, i) => i % 2 === 1);
   const candidatesFor = (node: MapNode, scale: number, allowLabels = false): Candidate[] => {
     const id = `${node.id}:${scale}:${allowLabels}`;
     if (stored.candidates.has(id)) return stored.candidates.get(id)!;
     const candidates: Candidate[] = [];
     const neighbours = map.filter(other => other.id !== node.id);
+    const ownIndex = ordered.findIndex(other => other.id === node.id);
+    const coast = node.kind === 'island' ? islandLandscape(node).coast : null;
     for (let dy = -MAX_BERTH_OFFSET; dy <= MAX_BERTH_OFFSET; dy += 6) for (let dx = -MAX_BERTH_OFFSET; dx <= MAX_BERTH_OFFSET; dx += 6) {
       const distance = Math.hypot(dx, dy), x = node.x + dx, y = node.y + dy;
       if (distance > MAX_BERTH_OFFSET) continue;
@@ -68,9 +73,17 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
       if (box.left < 8 || box.top < 8 || box.right > WORLD.width - 8 || box.bottom > WORLD.height - 8) continue;
       const collisions = names.filter(label => boxesOverlap(box, label));
       if (!allowLabels && collisions.length) continue;
-      const area = art.reduce((sum, island) => sum + overlapArea(box, island), 0);
+      const area = art.reduce((sum, island, index) => sum + (index === ownIndex ? 0 : overlapArea(box, island)), 0);
       const penalty = collisions.reduce((sum, label) => sum + 1e9 + overlapArea(box, label), 0);
-      candidates.push({ x, y, scale, box, score: penalty + area * 10 + distance - clearance * .2 });
+      const hullY = dy + 39 * .95 * scale;
+      const hullDistance = Math.hypot(dx, hullY);
+      const ux = hullDistance ? dx / hullDistance : 0, uy = hullDistance ? hullY / hullDistance : -1;
+      const radius = coast ? Math.max(...coast.map(point => (point.x - 80) * ux + (point.y - 76) * uy))
+        : node.kind === 'port' ? Math.abs(ux) * 26 + Math.abs(uy) * 22 : Math.hypot(45 * ux, 30 * uy);
+      const shore = radius + Math.hypot(ux * 38, uy * 10) * .95 * scale - 4;
+      const shoreGap = Math.abs(hullDistance - shore);
+      const remote = Math.max(0, distance - SINGLE_SHORE_DISTANCE);
+      candidates.push({ x, y, scale, box, score: penalty + remote * remote * 10000 + shoreGap * shoreGap * 20 + area * 2 + distance - clearance * .1 });
     }
     candidates.sort((a, b) => a.score - b.score || a.y - b.y || a.x - b.x);
     stored.candidates.set(id, candidates);
@@ -91,9 +104,10 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
   }
   const fixedBoxes = [...reserved];
   const layoutsFor = (node: MapNode, count: number, scale: number): Candidate[][] => {
-    const id = `${node.id}:${count}:${scale}`;
+    const solo = players.filter(player => player.position === node.id).length === 1;
+    const id = `${node.id}:${count}:${scale}:${solo}`;
     if (!fixed.size && stored.layouts.has(id)) return stored.layouts.get(id)!;
-    const candidates = candidatesFor(node, scale).filter(c => fixedBoxes.every(box => !boxesOverlap(c.box, box))), layouts: Candidate[][] = [];
+    const candidates = candidatesFor(node, scale).filter(c => (!solo || Math.hypot(c.x - node.x, c.y - node.y) <= SINGLE_SHORE_DISTANCE) && fixedBoxes.every(box => !boxesOverlap(c.box, box))), layouts: Candidate[][] = [];
     for (let seed = 0; seed < candidates.length; seed++) {
       const chosen = [candidates[seed]];
       for (const candidate of candidates) {

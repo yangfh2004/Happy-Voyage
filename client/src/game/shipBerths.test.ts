@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultMap, WORLD, type MapNode } from '@happy-voyage/shared';
-import { berthObstacles, boxesOverlap, MAX_BERTH_OFFSET, MIN_BERTH_SCALE, occupiedShipPlacements, shipBerths, shipBounds, type BerthBox, type MooredBerth } from './shipBerths';
+import { berthObstacles, boxesOverlap, MAX_BERTH_OFFSET, MIN_BERTH_SCALE, SINGLE_SHORE_DISTANCE, occupiedShipPlacements, shipBerths, shipBounds, type BerthBox, type MooredBerth } from './shipBerths';
 
 function check(map: MapNode[], players: { id: number; position: number }[], labels?: Map<number, BerthBox>, previous?: Map<number, MooredBerth>) {
   const placements = occupiedShipPlacements(map, players, labels, previous);
@@ -112,12 +112,20 @@ describe('attached ship berths', () => {
     check(map, [{ id: 0, position: 0 }], new Map([[0, { left: node.x - 230, right: node.x + 230, top: node.y - 250, bottom: node.y - 80 }]]));
   });
 
-  it('prefers clear water when a full-size clear berth exists', () => {
+  it('places a single ship at the shore of every stop', () => {
+    for (const node of map) {
+      const berth = check(map, [{ id: 0, position: node.id }]).get(0)!;
+      expect(Math.hypot(berth.x - node.x, berth.y - node.y), node.name).toBeLessThanOrEqual(SINGLE_SHORE_DISTANCE);
+    }
+  });
+
+  it('prefers its own shoreline rather than clear open water', () => {
     const node = { ...map[0], x: 600, y: 500 };
     const positions = check([node], [{ id: 0, position: 0 }]);
     const p = positions.get(0)!;
     expect(p.scale).toBe(1);
-    expect(boxesOverlap(shipBounds(p.x, p.y), berthObstacles([node])[0], 0)).toBe(false);
+    expect(Math.hypot(p.x - node.x, p.y - node.y)).toBeLessThanOrEqual(SINGLE_SHORE_DISTANCE);
+    expect(boxesOverlap(shipBounds(p.x, p.y), berthObstacles([node])[0], 0)).toBe(true);
   });
 
   it('never throws for impossible labels or excessive occupancy', () => {

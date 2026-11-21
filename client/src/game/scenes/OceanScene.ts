@@ -17,6 +17,7 @@ import { addNauticalSea, shipTexture } from '../nauticalArt';
 import { captainShipTexture, sailingStepDuration } from '../captainShip';
 import { occupiedShipPlacements, type MooredBerth } from '../shipBerths';
 import { specialIslandTexture } from '../specialIslandArt';
+import { playLanding, reducedLandingMotion } from '../landingEffects';
 
 const HOP_HEIGHT = 10;
 const SPECIAL_HELP: Record<string, [string, string]> = {
@@ -48,6 +49,7 @@ export class OceanScene extends Phaser.Scene {
   private ships = new Map<number, Phaser.GameObjects.Image>();
   private berths = new Map<number, MooredBerth>();
   private berthTweens = new Map<number, Phaser.Tweens.Tween>();
+  private landingEffects = new Map<number, { stop(): void }>();
   private colorBlind = false;
   private ocean!: Phaser.GameObjects.Graphics;
   private route?: Phaser.GameObjects.Graphics;
@@ -450,6 +452,8 @@ export class OceanScene extends Phaser.Scene {
     this.flags.clear();
     this.marker.clear();
     if (!state) {
+      this.landingEffects.forEach(effect => effect.stop());
+      this.landingEffects.clear();
       for (const badges of [this.colonyBadges, this.shipBadges]) {
         badges.forEach((badge) => badge.destroy());
         badges.clear();
@@ -520,6 +524,7 @@ export class OceanScene extends Phaser.Scene {
 
   private animateMove(move: { playerId: number; path: number[]; id: number }) {
     this.cancelMove();
+    this.landingEffects.get(move.playerId)?.stop();
     this.berthTweens.get(move.playerId)?.stop();
     this.berthTweens.delete(move.playerId);
     if (this.cameras?.main) this.following = true;
@@ -560,7 +565,7 @@ export class OceanScene extends Phaser.Scene {
       this.moveTween = null;
       sfx.step();
       this.nextStep();
-    });
+    }, move.index === move.path.length && !reducedLandingMotion());
     this.updatePacing();
   }
 
@@ -572,6 +577,12 @@ export class OceanScene extends Phaser.Scene {
       const [x, y] = this.tokenPosition(move.playerId, destination);
       this.ships.get(move.playerId)?.setPosition(x, y);
       if (this.following) this.cameras.main.centerOn(x, y);
+      const ship = this.ships.get(move.playerId);
+      if (ship && gameController.timings.step > 0) {
+        this.landingEffects.get(move.playerId)?.stop();
+        const effect = playLanding(this, ship, () => this.landingEffects.delete(move.playerId));
+        if (effect) this.landingEffects.set(move.playerId, effect);
+      }
     }
     this.cancelMove();
     EventBus.emit('move-complete', move.id);
@@ -593,17 +604,17 @@ export class OceanScene extends Phaser.Scene {
   }
 
   /** One step along the route: a little arc, like a ship riding a swell. */
-  private hop(ship: Phaser.GameObjects.Image, x: number, y: number, onComplete: () => void): Phaser.Tweens.Tween {
+  private hop(ship: Phaser.GameObjects.Image, x: number, y: number, onComplete: () => void, landing = false): Phaser.Tweens.Tween {
     const fromX = ship.x;
     const fromY = ship.y;
     return this.tweens.addCounter({
       from: 0,
       to: 1,
       duration: 200,
-      ease: 'Sine.easeInOut',
+      ease: landing ? 'Cubic.easeOut' : 'Sine.easeInOut',
       onUpdate: (tween) => {
         const t = tween.getValue() ?? 0;
-        ship.setPosition(fromX + (x - fromX) * t, fromY + (y - fromY) * t - Math.sin(Math.PI * t) * HOP_HEIGHT);
+        ship.setPosition(fromX + (x - fromX) * t, fromY + (y - fromY) * t - Math.sin(Math.PI * t) * (landing ? 2 : HOP_HEIGHT));
       },
       onComplete,
     });
