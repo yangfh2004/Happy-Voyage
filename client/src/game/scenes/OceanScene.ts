@@ -15,7 +15,7 @@ import { islandTexture } from '../islandArt';
 import { bindStopHelp, stopHelpPosition } from '../stopHelp';
 import { addNauticalSea, shipTexture } from '../nauticalArt';
 import { captainShipTexture, sailingStepDuration } from '../captainShip';
-import { occupiedShipBerths } from '../shipBerths';
+import { occupiedShipPlacements } from '../shipBerths';
 import { specialIslandTexture } from '../specialIslandArt';
 
 const HOP_HEIGHT = 10;
@@ -706,7 +706,14 @@ export class OceanScene extends Phaser.Scene {
       const bounds = text.getBounds();
       return [id, { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom }] as const;
     }));
-    return occupiedShipBerths(this.map, [...players, { id: playerId, position: nodeId }], labels).get(playerId)!;
+    const placements = occupiedShipPlacements(this.map, [...players, { id: playerId, position: nodeId }], labels);
+    for (const [id, berth] of placements) {
+      const player = gameController.state?.players.find(player => player.id === id);
+      const scale = player ? 0.8 + Math.min(0.15, Math.max(0, ...(player.fleet ?? []).map(vessel => vessel.cargoCapacity)) / 1000) : .95;
+      this.ships.get(id)?.setScale(scale * berth.scale);
+    }
+    const berth = placements.get(playerId);
+    return berth ? [berth.x, berth.y] : [this.map[nodeId]?.x ?? 0, this.map[nodeId]?.y ?? 0];
   }
 
   private showGold({ playerId, delta, reason }: Extract<GameEvent, { type: 'goldChanged' }>) {

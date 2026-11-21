@@ -31,7 +31,7 @@ type SceneHarness = {
 let scene: SceneHarness;
 let completions: (() => void)[];
 let tweens: { stop: ReturnType<typeof vi.fn>; setTimeScale: ReturnType<typeof vi.fn> }[];
-let ship: { setFlipX: ReturnType<typeof vi.fn>; setPosition: ReturnType<typeof vi.fn>; x: number };
+let ship: { setFlipX: ReturnType<typeof vi.fn>; setPosition: ReturnType<typeof vi.fn>; setScale: ReturnType<typeof vi.fn>; x: number };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -39,7 +39,7 @@ beforeEach(() => {
   Object.assign(gameController, { state: null });
   completions = [];
   tweens = [];
-  ship = { x: 0, setFlipX: vi.fn(), setPosition: vi.fn() };
+  ship = { x: 0, setFlipX: vi.fn(), setPosition: vi.fn(), setScale: vi.fn() };
   scene = Object.assign(new OceanScene(), {
     following: false,
     ships: new Map([[0, ship]]),
@@ -100,8 +100,9 @@ describe('map label language and themed stop hover', () => {
 
 describe('shared stop ship berths', () => {
   it.each([1, 2, 3, 4])('keeps %s ships clear of each other and the name/price label at maximum scale and bob angle', (count) => {
-    const node = { id: 0, x: 600, y: 400 };
-    Object.assign(scene, { map: [node] });
+    const node = { ...createDefaultMap()[0], x: 600, y: 400 };
+    const label = { left: node.x - 77, right: node.x + 77, top: node.y + 31, bottom: node.y + 110 };
+    Object.assign(scene, { map: [node], stopLabels: new Map([[0, { getBounds: () => label }]]) });
     const players = Array.from({ length: count }, (_, id) => ({ id, position: 0 }));
     Object.assign(gameController, { state: { players } });
     const angle = 5 * Math.PI / 180;
@@ -111,7 +112,6 @@ describe('shared stop ship berths', () => {
       const [x, y] = scene.tokenPosition(id, 0);
       return { left: x - width / 2, right: x + width / 2, top: y - height / 2, bottom: y + height / 2 };
     });
-    const label = { left: node.x - 77, right: node.x + 77, top: node.y + 31, bottom: node.y + 110 };
     const overlaps = (a: typeof label, b: typeof label) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
     for (const [i, ship] of bounds.entries()) {
       expect(overlaps(ship, label)).toBe(false);
@@ -122,11 +122,23 @@ describe('shared stop ship berths', () => {
   });
 
   it('provides a berth before state is available and while sailing through an unoccupied stop', () => {
-    Object.assign(scene, { map: [{ id: 0, x: 100, y: 200 }] });
+    Object.assign(scene, { map: [{ ...createDefaultMap()[0], x: 100, y: 200 }] });
     const berth = scene.tokenPosition(3, 0);
     expect(Math.hypot(berth[0] - 100, berth[1] - 200)).toBeGreaterThanOrEqual(144);
     Object.assign(gameController, { state: { players: [{ id: 1, position: 1 }] } });
     expect(scene.tokenPosition(3, 0)).toEqual(berth);
+  });
+
+  it('applies the crowded-stop scale to all of that stop\'s sprites', () => {
+    const players = Array.from({ length: 4 }, (_, id) => ({ id, position: 11, fleet: [] }));
+    const sprites = players.map(() => ({ setScale: vi.fn() }));
+    Object.assign(scene, { map: createDefaultMap(), ships: new Map(sprites.map((sprite, id) => [id, sprite])) });
+    Object.assign(gameController, { state: { players } });
+    scene.tokenPosition(0, 11);
+    const scale = sprites[0].setScale.mock.calls[0][0];
+    expect(scale).toBeLessThan(.8);
+    expect(scale).toBeGreaterThanOrEqual(.8 * .75);
+    for (const sprite of sprites) expect(sprite.setScale).toHaveBeenCalledWith(scale);
   });
 });
 
