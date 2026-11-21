@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {}, Math: { Clamp: (value: number, min: number, max: number) => Math.min(max, Math.max(min, value)) } } }));
 vi.mock('../EventBus', () => ({ EventBus: { emit: vi.fn() } }));
 vi.mock('../GameController', () => ({ gameController: { timings: { step: 200 } } }));
+vi.mock('../landingEffects', () => ({ playLanding: vi.fn(), reducedLandingMotion: vi.fn(() => false) }));
 
 import { OceanScene } from './OceanScene';
 import { EventBus } from '../EventBus';
@@ -10,6 +11,7 @@ import { gameController } from '../GameController';
 import { routeEdge } from '../routeEdge';
 import { createDefaultMap, createNationRoster, GameEngine, WORLD, type GameEvent, type GameState, type MapNode, type WindDirection } from '@happy-voyage/shared';
 import { setLocale } from '../../i18n';
+import { playLanding, reducedLandingMotion } from '../landingEffects';
 
 type Move = { playerId: number; path: number[]; id: number };
 type SceneHarness = {
@@ -36,6 +38,7 @@ let ship: { setFlipX: ReturnType<typeof vi.fn>; setPosition: ReturnType<typeof v
 beforeEach(() => {
   vi.clearAllMocks();
   gameController.timings.step = 200;
+  vi.mocked(reducedLandingMotion).mockReturnValue(false);
   Object.assign(gameController, { state: null });
   completions = [];
   tweens = [];
@@ -124,7 +127,7 @@ describe('shared stop ship berths', () => {
   it('provides a berth before state is available and while sailing through an unoccupied stop', () => {
     Object.assign(scene, { map: [{ ...createDefaultMap()[0], x: 100, y: 200 }] });
     const berth = scene.tokenPosition(3, 0);
-    expect(Math.hypot(berth[0] - 100, berth[1] - 200)).toBeGreaterThanOrEqual(144);
+    expect(Math.hypot(berth[0] - 100, berth[1] - 200)).toBeLessThanOrEqual(100);
     Object.assign(gameController, { state: { players: [{ id: 1, position: 1 }] } });
     expect(scene.tokenPosition(3, 0)).toEqual(berth);
   });
@@ -372,6 +375,26 @@ describe('fleet cleanup', () => {
 });
 
 describe('movement pacing', () => {
+  it('decelerates only the final step and starts landing effects without delaying move completion', () => {
+    const options: { ease: string; onComplete(): void }[] = [];
+    Object.assign(scene, { tweens: { addCounter: (option: typeof options[number]) => { options.push(option); return { setTimeScale: vi.fn(), stop: vi.fn() }; } } });
+    scene.animateMove({ playerId: 0, path: [1, 2], id: 40 });
+    expect(options[0].ease).toBe('Sine.easeInOut');
+    options[0].onComplete();
+    expect(playLanding).not.toHaveBeenCalled();
+    expect(options[1].ease).toBe('Cubic.easeOut');
+    options[1].onComplete();
+    expect(playLanding).toHaveBeenCalledOnce();
+    expect(EventBus.emit).toHaveBeenCalledWith('move-complete', 40);
+  });
+
+  it('keeps ordinary approach pacing with reduced motion', () => {
+    vi.mocked(reducedLandingMotion).mockReturnValue(true);
+    const addCounter = vi.fn(() => ({ setTimeScale: vi.fn() }));
+    Object.assign(scene, { tweens: { addCounter } });
+    scene.animateMove({ playerId: 0, path: [1], id: 41 });
+    expect(addCounter).toHaveBeenCalledWith(expect.objectContaining({ ease: 'Sine.easeInOut' }));
+  });
   it('retimes active and subsequent steps, resolving exactly once', () => {
     scene.animateMove({ playerId: 0, path: [1, 2], id: 7 });
     expect(tweens[0].setTimeScale).toHaveBeenLastCalledWith(200 / 480);
