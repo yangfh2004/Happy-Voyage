@@ -11,6 +11,10 @@ export const ONLINE_PACING = {
   rival: { spin: 160, step: 30, decision: 120 },
 };
 
+export function sailingStepDuration(step: number, isAI: boolean): number {
+  return step * (isAI ? 0.7 : 2.4);
+}
+
 export interface RoomPick {
   name: string;
   nation: Nation;

@@ -14,6 +14,8 @@ import { routeEdge } from '../routeEdge';
 import { islandTexture } from '../islandArt';
 import { bindStopHelp, stopHelpPosition } from '../stopHelp';
 import { addNauticalSea, shipTexture } from '../nauticalArt';
+import { captainShipTexture, sailingStepDuration } from '../captainShip';
+import { occupiedShipPlacements, type MooredBerth } from '../shipBerths';
 import { specialIslandTexture } from '../specialIslandArt';
 
 const HOP_HEIGHT = 10;
@@ -44,6 +46,8 @@ export class OceanScene extends Phaser.Scene {
   private following = true;
   private pinch: { distance: number; zoom: number } | null = null;
   private ships = new Map<number, Phaser.GameObjects.Image>();
+  private berths = new Map<number, MooredBerth>();
+  private berthTweens = new Map<number, Phaser.Tweens.Tween>();
   private colorBlind = false;
   private ocean!: Phaser.GameObjects.Graphics;
   private route?: Phaser.GameObjects.Graphics;
@@ -136,7 +140,7 @@ export class OceanScene extends Phaser.Scene {
       this.colorBlind = enabled;
       this.drawOceanBackground();
       gameController.state?.players.forEach((player) => {
-        this.ships.get(player.id)?.setTexture(shipTexture(this, chartIdentity(player, enabled).color));
+        this.applyCaptain(player.id, player.navigator, chartIdentity(player, enabled).color);
       });
       this.syncFromState();
     };
@@ -455,6 +459,8 @@ export class OceanScene extends Phaser.Scene {
         ship.destroy();
       });
       this.ships.clear();
+      this.berths.clear();
+      this.berthTweens.clear();
       this.sailing.clear();
       return;
     }
@@ -483,11 +489,12 @@ export class OceanScene extends Phaser.Scene {
         ship.setScale(0.8 + Math.min(0.15, Math.max(0, ...player.fleet.map(vessel => vessel.cargoCapacity)) / 1000));
         if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) this.tweens.add({ targets: ship, angle: { from: -5, to: 5 }, duration: 1500 + player.id * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         this.ships.set(player.id, ship);
+        this.applyCaptain(player.id, player.navigator, color);
       }
       ship.setAlpha(player.bankrupt ? 0.25 : 1);
       if (!this.sailing.has(player.id)) {
         const [x, y] = this.tokenPosition(player.id, player.position);
-        ship.setPosition(x, y);
+        if (!this.berthTweens.has(player.id)) ship.setPosition(x, y);
       }
       this.syncBadge(this.shipBadges, player.id, player.bankrupt ? null : badge, ship.x + 12, ship.y - 13, 14);
       if (atmosphere(state).phase === 'night' && !player.bankrupt) {
@@ -513,6 +520,8 @@ export class OceanScene extends Phaser.Scene {
 
   private animateMove(move: { playerId: number; path: number[]; id: number }) {
     this.cancelMove();
+    this.berthTweens.get(move.playerId)?.stop();
+    this.berthTweens.delete(move.playerId);
     if (this.cameras?.main) this.following = true;
     this.movement = { ...move, index: 0 };
     this.sailing.add(move.playerId);
@@ -530,7 +539,7 @@ export class OceanScene extends Phaser.Scene {
         if (this.movement === move) this.finishMove();
       });
     } else {
-      this.moveTween?.setTimeScale(200 / gameController.timings.step);
+      this.moveTween?.setTimeScale(200 / this.stepDuration());
     }
   }
 
@@ -545,7 +554,7 @@ export class OceanScene extends Phaser.Scene {
     const ship = this.ships.get(move.playerId);
     if (!ship) { this.finishMove(); return; }
     const [x, y] = this.tokenPosition(move.playerId, move.path[move.index++]);
-    if (this.following) this.cameras.main.pan(x, y, gameController.timings.step);
+    if (this.following) this.cameras.main.pan(x, y, this.stepDuration());
     this.moveTween = this.hop(ship, x, y, () => {
       if (this.movement !== move) return;
       this.moveTween = null;
@@ -568,11 +577,25 @@ export class OceanScene extends Phaser.Scene {
     EventBus.emit('move-complete', move.id);
   }
 
+  private stepDuration() {
+    const player = gameController.state?.players.find(player => player.id === this.movement?.playerId);
+    return sailingStepDuration(gameController.timings.step, player?.isAI ?? false);
+  }
+
+  private applyCaptain(id: number, navigator: string | undefined, color: number) {
+    const ship = this.ships.get(id);
+    if (!ship) return;
+    ship.setTexture(shipTexture(this, color));
+    void captainShipTexture(this, navigator ?? 'columbus', color).then(key => {
+      const player = gameController.state?.players.find(player => player.id === id);
+      if (player && this.ships.get(id) === ship && chartIdentity(player, this.colorBlind).color === color) ship.setTexture(key);
+    }).catch(() => {});
+  }
+
   /** One step along the route: a little arc, like a ship riding a swell. */
   private hop(ship: Phaser.GameObjects.Image, x: number, y: number, onComplete: () => void): Phaser.Tweens.Tween {
     const fromX = ship.x;
     const fromY = ship.y;
-    ship.setFlipX(x < fromX);
     return this.tweens.addCounter({
       from: 0,
       to: 1,
@@ -684,14 +707,37 @@ export class OceanScene extends Phaser.Scene {
   }
 
   private tokenPosition(playerId: number, nodeId: number): [number, number] {
-    const node = this.map[nodeId];
-    const occupants = new Set(gameController.state?.players.filter((player) => player.position === nodeId).map((player) => player.id));
-    occupants.add(playerId);
-    const ids = [...occupants].sort((a, b) => a - b);
-    const index = ids.indexOf(playerId);
-    const row = Math.floor(index / 2);
-    const rowSize = Math.min(2, ids.length - row * 2);
-    return [node.x + (index % 2 - (rowSize - 1) / 2) * 92, node.y - 54 - (Math.ceil(ids.length / 2) - row - 1) * 92];
+    const players = (gameController.state?.players ?? []).filter(player => player.id !== playerId).map(player => ({
+      id: player.id, position: this.sailing.has(player.id) ? this.berths.get(player.id)?.nodeId ?? player.position : player.position,
+    }));
+    const occupants = [...players, { id: playerId, position: nodeId }];
+    const labels = new Map([...this.stopLabels].map(([id, text]) => {
+      const bounds = text.getBounds();
+      return [id, { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom }] as const;
+    }));
+    const placements = occupiedShipPlacements(this.map, occupants, labels, this.berths);
+    const previous = this.berths;
+    this.berths = new Map([...placements].map(([id, berth]) => [id, { ...berth, nodeId: occupants.find(player => player.id === id)!.position }]));
+    for (const [id, berth] of placements) {
+      const player = gameController.state?.players.find(player => player.id === id);
+      const scale = player ? 0.8 + Math.min(0.15, Math.max(0, ...(player.fleet ?? []).map(vessel => vessel.cargoCapacity)) / 1000) : .95;
+      const ship = this.ships.get(id), old = previous.get(id);
+      if (!ship) continue;
+      if (old?.nodeId === this.berths.get(id)!.nodeId && (old.x !== berth.x || old.y !== berth.y || old.scale !== berth.scale) && !this.sailing.has(id)) {
+        this.berthTweens.get(id)?.stop();
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          this.berthTweens.delete(id);
+          ship.setPosition(berth.x, berth.y).setScale(scale * berth.scale);
+        } else {
+          const tween = this.tweens.add({ targets: ship, x: berth.x, y: berth.y, scaleX: scale * berth.scale, scaleY: scale * berth.scale, duration: 300, ease: 'Sine.easeOut', onComplete: () => {
+            if (this.berthTweens.get(id) === tween) this.berthTweens.delete(id);
+          } });
+          this.berthTweens.set(id, tween);
+        }
+      } else if (!this.berthTweens.has(id)) ship.setScale(scale * berth.scale);
+    }
+    const berth = placements.get(playerId);
+    return berth ? [berth.x, berth.y] : [this.map[nodeId]?.x ?? 0, this.map[nodeId]?.y ?? 0];
   }
 
   private showGold({ playerId, delta, reason }: Extract<GameEvent, { type: 'goldChanged' }>) {

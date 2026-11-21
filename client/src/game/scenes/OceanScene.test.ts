@@ -31,7 +31,7 @@ type SceneHarness = {
 let scene: SceneHarness;
 let completions: (() => void)[];
 let tweens: { stop: ReturnType<typeof vi.fn>; setTimeScale: ReturnType<typeof vi.fn> }[];
-let ship: { setFlipX: ReturnType<typeof vi.fn>; setPosition: ReturnType<typeof vi.fn>; x: number };
+let ship: { setFlipX: ReturnType<typeof vi.fn>; setPosition: ReturnType<typeof vi.fn>; setScale: ReturnType<typeof vi.fn>; x: number };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -39,7 +39,7 @@ beforeEach(() => {
   Object.assign(gameController, { state: null });
   completions = [];
   tweens = [];
-  ship = { x: 0, setFlipX: vi.fn(), setPosition: vi.fn() };
+  ship = { x: 0, setFlipX: vi.fn(), setPosition: vi.fn(), setScale: vi.fn() };
   scene = Object.assign(new OceanScene(), {
     following: false,
     ships: new Map([[0, ship]]),
@@ -100,18 +100,18 @@ describe('map label language and themed stop hover', () => {
 
 describe('shared stop ship berths', () => {
   it.each([1, 2, 3, 4])('keeps %s ships clear of each other and the name/price label at maximum scale and bob angle', (count) => {
-    const node = { id: 0, x: 600, y: 400 };
-    Object.assign(scene, { map: [node] });
+    const node = { ...createDefaultMap()[0], x: 600, y: 400 };
+    const label = { left: node.x - 77, right: node.x + 77, top: node.y + 31, bottom: node.y + 110 };
+    Object.assign(scene, { map: [node], stopLabels: new Map([[0, { getBounds: () => label }]]) });
     const players = Array.from({ length: count }, (_, id) => ({ id, position: 0 }));
     Object.assign(gameController, { state: { players } });
     const angle = 5 * Math.PI / 180;
-    const width = .95 * (80 * Math.cos(angle) + 76 * Math.sin(angle));
-    const height = .95 * (76 * Math.cos(angle) + 80 * Math.sin(angle));
+    const width = .95 * (112 * Math.cos(angle) + 124 * Math.sin(angle));
+    const height = .95 * (124 * Math.cos(angle) + 112 * Math.sin(angle));
     const bounds = players.map(({ id }) => {
       const [x, y] = scene.tokenPosition(id, 0);
       return { left: x - width / 2, right: x + width / 2, top: y - height / 2, bottom: y + height / 2 };
     });
-    const label = { left: node.x - 77, right: node.x + 77, top: node.y + 31, bottom: node.y + 110 };
     const overlaps = (a: typeof label, b: typeof label) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
     for (const [i, ship] of bounds.entries()) {
       expect(overlaps(ship, label)).toBe(false);
@@ -122,10 +122,60 @@ describe('shared stop ship berths', () => {
   });
 
   it('provides a berth before state is available and while sailing through an unoccupied stop', () => {
-    Object.assign(scene, { map: [{ id: 0, x: 100, y: 200 }] });
-    expect(scene.tokenPosition(3, 0)).toEqual([100, 146]);
+    Object.assign(scene, { map: [{ ...createDefaultMap()[0], x: 100, y: 200 }] });
+    const berth = scene.tokenPosition(3, 0);
+    expect(Math.hypot(berth[0] - 100, berth[1] - 200)).toBeGreaterThanOrEqual(144);
     Object.assign(gameController, { state: { players: [{ id: 1, position: 1 }] } });
-    expect(scene.tokenPosition(3, 0)).toEqual([100, 146]);
+    expect(scene.tokenPosition(3, 0)).toEqual(berth);
+  });
+
+  it('applies the crowded-stop scale to all of that stop\'s sprites', () => {
+    const players = Array.from({ length: 4 }, (_, id) => ({ id, position: 11, fleet: [] }));
+    const sprites = players.map(() => ({ setScale: vi.fn() }));
+    Object.assign(scene, { map: createDefaultMap(), ships: new Map(sprites.map((sprite, id) => [id, sprite])) });
+    Object.assign(gameController, { state: { players } });
+    scene.tokenPosition(0, 11);
+    const scale = sprites[0].setScale.mock.calls[0][0];
+    expect(scale).toBeLessThan(.8);
+    expect(scale).toBeGreaterThanOrEqual(.8 * .75);
+    for (const sprite of sprites) expect(sprite.setScale).toHaveBeenCalledWith(scale);
+  });
+});
+
+describe('moored reflows', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([false, true])('repositions a forced reflow without teleporting during animation (reduced motion: %s)', reduced => {
+    vi.stubGlobal('window', { matchMedia: () => ({ matches: reduced }) });
+    const tween = { stop: vi.fn() }, add = vi.fn((_options: unknown) => tween);
+    const label = { left: 500, right: 700, top: 200, bottom: 400 };
+    ship.setPosition.mockReturnThis();
+    Object.assign(ship, { x: 600, y: 320, setAlpha: vi.fn() });
+    Object.assign(scene, {
+      map: [{ ...createDefaultMap()[0], x: 600, y: 500 }],
+      berths: new Map([[0, { x: 600, y: 320, scale: 1, nodeId: 0 }]]),
+      stopLabels: new Map([[0, { getBounds: () => label, setText: vi.fn() }]]),
+      tweens: { add }, flags: { clear: vi.fn() },
+    });
+    Object.assign(gameController, { state: {
+      round: 1, market: { stock: {}, repairDemandThroughRound: 0 }, owners: [],
+      players: [{ id: 0, color: 0xe85d4a, position: 0, fleet: [] }], currentPlayer: 0, phase: 'gameOver',
+    } });
+    const [x, y] = scene.tokenPosition(0, 0);
+    if (reduced) {
+      expect(add).not.toHaveBeenCalled();
+      expect(ship.setPosition).toHaveBeenCalledWith(x, y);
+    } else {
+      expect(add).toHaveBeenCalledWith(expect.objectContaining({ targets: ship, x, y, duration: 300 }));
+      expect(ship.setPosition).not.toHaveBeenCalled();
+      scene.syncFromState();
+      expect(add).toHaveBeenCalledOnce();
+      expect(ship.setPosition).not.toHaveBeenCalled();
+      const options = add.mock.calls[0][0] as unknown as { onComplete(): void };
+      options.onComplete();
+      scene.syncFromState();
+      expect(ship.setPosition).toHaveBeenCalledWith(x, y);
+    }
   });
 });
 
@@ -324,12 +374,12 @@ describe('fleet cleanup', () => {
 describe('movement pacing', () => {
   it('retimes active and subsequent steps, resolving exactly once', () => {
     scene.animateMove({ playerId: 0, path: [1, 2], id: 7 });
-    expect(tweens[0].setTimeScale).toHaveBeenLastCalledWith(1);
+    expect(tweens[0].setTimeScale).toHaveBeenLastCalledWith(200 / 480);
     gameController.timings.step = 70;
     scene.updatePacing();
-    expect(tweens[0].setTimeScale).toHaveBeenLastCalledWith(200 / 70);
+    expect(tweens[0].setTimeScale).toHaveBeenLastCalledWith(200 / 168);
     completions[0]();
-    expect(tweens[1].setTimeScale).toHaveBeenLastCalledWith(200 / 70);
+    expect(tweens[1].setTimeScale).toHaveBeenLastCalledWith(200 / 168);
     completions[1]();
     completions[1]();
     expect(EventBus.emit).toHaveBeenCalledOnce();
