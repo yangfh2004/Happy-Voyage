@@ -123,9 +123,10 @@ describe('shared stop ship berths', () => {
 
   it('provides a berth before state is available and while sailing through an unoccupied stop', () => {
     Object.assign(scene, { map: [{ id: 0, x: 100, y: 200 }] });
-    expect(scene.tokenPosition(3, 0)).toEqual([100, 122]);
+    const berth = scene.tokenPosition(3, 0);
+    expect(Math.hypot(berth[0] - 100, berth[1] - 200)).toBeGreaterThanOrEqual(144);
     Object.assign(gameController, { state: { players: [{ id: 1, position: 1 }] } });
-    expect(scene.tokenPosition(3, 0)).toEqual([100, 122]);
+    expect(scene.tokenPosition(3, 0)).toEqual(berth);
   });
 });
 
