@@ -12,6 +12,7 @@ import { routeEdge } from '../routeEdge';
 import { createDefaultMap, createNationRoster, GameEngine, WORLD, type GameEvent, type GameState, type MapNode, type WindDirection } from '@happy-voyage/shared';
 import { setLocale } from '../../i18n';
 import { playLanding, reducedLandingMotion } from '../landingEffects';
+import { shipBounds, type MooredBerth } from '../shipBerths';
 
 type Move = { playerId: number; path: number[]; id: number };
 type SceneHarness = {
@@ -108,12 +109,13 @@ describe('shared stop ship berths', () => {
     Object.assign(scene, { map: [node], stopLabels: new Map([[0, { getBounds: () => label }]]) });
     const players = Array.from({ length: count }, (_, id) => ({ id, position: 0 }));
     Object.assign(gameController, { state: { players } });
-    const angle = 5 * Math.PI / 180;
-    const width = .95 * (112 * Math.cos(angle) + 124 * Math.sin(angle));
-    const height = .95 * (124 * Math.cos(angle) + 112 * Math.sin(angle));
+    const positions: [number, number][] = [];
     const bounds = players.map(({ id }) => {
       const [x, y] = scene.tokenPosition(id, 0);
-      return { left: x - width / 2, right: x + width / 2, top: y - height / 2, bottom: y + height / 2 };
+      positions.push([x, y]);
+      expect(Math.hypot(x - node.x, y - node.y)).toBeLessThanOrEqual(110);
+      const berth = (scene as unknown as { berths: Map<number, MooredBerth> }).berths.get(id)!;
+      return shipBounds(x, y, berth.scale);
     });
     const overlaps = (a: typeof label, b: typeof label) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
     for (const [i, ship] of bounds.entries()) {
@@ -121,7 +123,7 @@ describe('shared stop ship berths', () => {
       for (const other of bounds.slice(i + 1)) expect(overlaps(ship, other)).toBe(false);
     }
     Object.assign(gameController, { state: { players: [...players].reverse() } });
-    players.forEach(({ id }, i) => expect(scene.tokenPosition(id, 0)).toEqual([bounds[i].left + width / 2, bounds[i].top + height / 2]));
+    players.forEach(({ id }, i) => expect(scene.tokenPosition(id, 0)).toEqual(positions[i]));
   });
 
   it('provides a berth before state is available and while sailing through an unoccupied stop', () => {

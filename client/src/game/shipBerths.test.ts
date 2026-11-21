@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultMap, WORLD, type MapNode } from '@happy-voyage/shared';
-import { berthObstacles, boxesOverlap, MAX_BERTH_OFFSET, MIN_BERTH_SCALE, SINGLE_SHORE_DISTANCE, occupiedShipPlacements, shipBerths, shipBounds, type BerthBox, type MooredBerth } from './shipBerths';
+import { berthObstacles, boxesOverlap, MAX_BERTH_OFFSET, MIN_BERTH_SCALE, SINGLE_SHORE_DISTANCE, SHARED_SHORE_DISTANCE, occupiedShipPlacements, shipBerths, shipBounds, type BerthBox, type MooredBerth } from './shipBerths';
 
 function check(map: MapNode[], players: { id: number; position: number }[], labels?: Map<number, BerthBox>, previous?: Map<number, MooredBerth>) {
   const placements = occupiedShipPlacements(map, players, labels, previous);
@@ -57,12 +57,12 @@ describe('attached ship berths', () => {
       { ...map[0], x: 600, y: 500 },
       ...[[100, 100], [3300, 100], [100, 2500], [3300, 2500]].map(([x, y], i) => ({ ...map[0], id: i + 1, x, y })),
     ];
-    const left = { left: 0, right: 460, top: 0, bottom: WORLD.height };
+    const left = { left: 0, right: 470, top: 0, bottom: WORLD.height };
     const labels = new Map([
       [0, left],
-      [1, { left: 740, right: WORLD.width, top: 0, bottom: WORLD.height }],
-      [2, { left: 460, right: 740, top: 0, bottom: 433 }],
-      [3, { left: 460, right: 740, top: 567, bottom: WORLD.height }],
+      [1, { left: 730, right: WORLD.width, top: 0, bottom: WORLD.height }],
+      [2, { left: 470, right: 730, top: 0, bottom: 433 }],
+      [3, { left: 470, right: 730, top: 567, bottom: WORLD.height }],
       [4, left],
     ]);
     const previous = new Map([[3, { x: 600, y: 500, scale: 1, nodeId: 0 }]]);
@@ -91,7 +91,31 @@ describe('attached ship berths', () => {
   }, 60000);
 
   it.each([1, 2, 3, 4])('keeps %s ships attached at every node without covering labels or other ships', count => {
-    for (const node of map) check(map, Array.from({ length: count }, (_, id) => ({ id, position: node.id })));
+    for (const node of map) {
+      const placements = check(map, Array.from({ length: count }, (_, id) => ({ id, position: node.id })));
+      for (const berth of placements.values()) expect(Math.hypot(berth.x - node.x, berth.y - node.y), `${node.name}: ${count} ships`).toBeLessThanOrEqual(SHARED_SHORE_DISTANCE);
+    }
+  });
+
+  it('packs Portugal and Revival together at their own shores', () => {
+    const portugal = map.find(n => n.kind === 'port' && n.nation === 'Portugal')!;
+    const revival = map.find(n => n.special === 'revival')!;
+    const players = Array.from({ length: 4 }, (_, id) => ({ id, position: id < 2 ? portugal.id : revival.id }));
+    const placements = check(map, players);
+    for (const player of players) {
+      const node = map.find(n => n.id === player.position)!, berth = placements.get(player.id)!;
+      expect(Math.hypot(berth.x - node.x, berth.y - node.y)).toBeLessThanOrEqual(SHARED_SHORE_DISTANCE);
+    }
+    const previous = new Map(players.map(p => [p.id, { ...placements.get(p.id)!, nodeId: p.position }]));
+    expect(check(map, players, undefined, previous)).toEqual(placements);
+  });
+
+  it('replaces distant legacy reservations but keeps packed berths stable', () => {
+    const node = map[0], players = Array.from({ length: 4 }, (_, id) => ({ id, position: node.id }));
+    const placements = check(map, players, undefined, new Map([[0, { x: node.x, y: node.y - 170, scale: 1, nodeId: node.id }]]));
+    for (const berth of placements.values()) expect(Math.hypot(berth.x - node.x, berth.y - node.y)).toBeLessThanOrEqual(SHARED_SHORE_DISTANCE);
+    const previous = new Map([...placements].map(([id, berth]) => [id, { ...berth, nodeId: node.id }]));
+    expect(check(map, players, undefined, previous)).toEqual(placements);
   });
 
   it('is independent of input order, including Portugal and Revival', () => {
