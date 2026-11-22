@@ -12,7 +12,7 @@ export const SHIP_TYPES = {
   explorer: { label: 'Explorer', maxDurability: 80, firepower: 12, cargoCapacity: 40, speed: 7, crewCapacity: 25 },
 } as const satisfies Record<ShipType, ShipStats & { label: string }>;
 
-export const STARTING_FLEET: readonly ShipType[] = ['warship', 'cargo', 'explorer'];
+export const STARTING_FLEET: readonly ShipType[] = ['warship', 'cargo', 'explorer', 'explorer', 'explorer'];
 
 export const USED_SHIP_PRICES: Record<ShipType, number> = { explorer: 180, cargo: 300, warship: 450 };
 export const USED_SHIP_CONDITION = 0.6;

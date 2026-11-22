@@ -150,4 +150,30 @@ describe('Colony ship trading and free Skeleton Island visits', () => {
     expect(engine.state.phase).toBe('awaitingSpin');
     expect(engine.state.currentPlayer).toBe(1);
   });
+
+  it('keeps the last sailing ship when selling at a colony, avoiding fleet-loss defeat', () => {
+    const engine = colony();
+    const player = engine.currentPlayer;
+    expect(player.fleet).toHaveLength(5);
+    for (const ship of [...player.fleet].slice(1)) engine.sellShip(ship.id);
+    expect(player.fleet).toHaveLength(1);
+    const before = structuredClone(engine.state);
+    expect(engine.canSellShip(player.fleet[0].id)).toBe(false);
+    expect(() => engine.sellShip(player.fleet[0].id)).toThrow();
+    expect(engine.state).toEqual(before);
+    engine.finishBuilding();
+    expect(player.fleetLost).not.toBe(true);
+  });
+
+  it.each(['colony', 'skeleton'] as const)('does not let eliminated players trade at %s', (location) => {
+    const engine = location === 'colony' ? colony() : visit();
+    const player = engine.currentPlayer;
+    player.fleetLost = true;
+    const before = structuredClone(engine.state);
+    expect(engine.canBuyUsedShip('explorer')).toBe(false);
+    expect(engine.canSellShip(player.fleet[0].id)).toBe(false);
+    expect(() => engine.buyUsedShip('explorer')).toThrow();
+    expect(() => engine.sellShip(player.fleet[0].id)).toThrow();
+    expect(engine.state).toEqual(before);
+  });
 });
