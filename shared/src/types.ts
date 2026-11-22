@@ -101,7 +101,7 @@ export interface ColonyStockpile {
 
 export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' |
   'awaitingMarket' | 'awaitingRecruit' | 'awaitingLottery' | 'awaitingBarter' | 'awaitingMistDuel' |
-  'awaitingMerchant' | 'awaitingWyvern' | 'awaitingCargoMarket' | 'awaitingRevival' | 'awaitingToll' | 'gameOver';
+  'awaitingMerchant' | 'awaitingWyvern' | 'awaitingCargoMarket' | 'awaitingRevival' | 'awaitingToll' | 'awaitingBattle' | 'gameOver';
 
 export interface RevivalReport {
   damage: number;
@@ -167,6 +167,7 @@ export interface BattleReport {
 }
 
 export interface GameConfig {
+  battleMode: 'realtime' | 'auto';
   startingStrategies: number;
   startingGold: number;
   /** Paid by the crown every time a fleet passes or lands on the home port. */
@@ -180,6 +181,7 @@ export interface GameConfig {
 export type WindDirection = 'N' | 'E' | 'S' | 'W';
 
 export interface GameState {
+  pendingBattle: PendingBattle | null;
   roamers: { id: number; kind: 'pirates' | 'smallMonster'; node: number }[];
   wind: { direction: WindDirection; turnsLeft: number };
   hoardNode: number | null;
@@ -229,6 +231,7 @@ export interface GameState {
 
 /** Everything the engine announces; renderers and the network layer subscribe. */
 export type GameEvent =
+  | { type: 'battleStarted'; battle: PendingBattle }
   | { type: 'windChanged'; direction: WindDirection; turnsLeft: number }
   | SeaEventResult
   | { type: 'merchantOffered'; playerId: number; offer: MerchantOffer }
@@ -269,3 +272,15 @@ export type GameEvent =
   | { type: 'bankrupt'; playerId: number }
   | { type: 'gameOver'; reason: string } & ({ winner: number; victory: VictoryKind } | { winner: null; victory: null })
   | { type: 'log'; message: string; text?: import('./i18n').Text };
+
+export interface PendingBattle {
+  kind: 'colony' | 'pirates';
+  nodeId: number;
+  attacker: number;
+  defender: number | null;
+  seed: number;
+  setup: import('./battle').BattleSetup;
+  commanders: import('./battle').BattleSide[];
+  /** Pirate encounters resume landing; pirate event stops end the turn. */
+  resumeLanding: boolean;
+}

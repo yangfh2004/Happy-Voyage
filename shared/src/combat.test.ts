@@ -40,7 +40,7 @@ describe('naval combat', () => {
 
   it('takes the colony when every defender is sunk', () => {
     const { engine, state, island, owner, raider, events } = siege(100, 1);
-    const report = engine.fight();
+    const report = engine.fight()!;
     expect(report).toMatchObject({ outcome: 'victory', attacker: raider.id, defender: owner.id, nodeId: island.id, rounds: 1, tollPaid: 0 });
     expect(report.defenderSunk).toHaveLength(5);
     expect(report.attackerSunk).toEqual([]);
@@ -58,7 +58,7 @@ describe('naval combat', () => {
   it('sinks the attackers and charges double toll on defeat', () => {
     const { engine, state, island, owner, raider } = siege(1, 100);
     const toll = colonyToll(state, island.id) * 2;
-    const report = engine.fight();
+    const report = engine.fight()!;
     expect(report).toMatchObject({ outcome: 'defeat', tollPaid: toll });
     expect(report.attackerSunk).toHaveLength(5);
     expect(raider.fleet).toEqual([]);
@@ -99,7 +99,7 @@ describe('naval combat', () => {
 
   it('sends both fleets home after a drawn battle', () => {
     const { engine, state, island, owner, raider } = siege(1000, 1000);
-    const report = engine.fight();
+    const report = engine.fight()!;
     expect(report).toMatchObject({ outcome: 'draw', rounds: 3, attackerSunk: [], defenderSunk: [], tollPaid: 0 });
     expect(raider.position).toBe(raider.homePort);
     expect(owner.position).toBe(owner.homePort);
@@ -128,7 +128,7 @@ describe('naval combat', () => {
     const guard = owner.fleet.shift()!;
     guard.durability = 1;
     state.docks[island.id] = [guard];
-    const report = engine.fight();
+    const report = engine.fight()!;
     expect(report.outcome).toBe('victory');
     expect(report.defenderSunk).toEqual([guard.name]);
     expect(state.docks[island.id]).toEqual([]);

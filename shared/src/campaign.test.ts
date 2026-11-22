@@ -7,6 +7,7 @@ import type { GameEvent, MarketOrder } from './types';
 
 function voyage(stage: CampaignStageId, roll = 0) {
   const game = new GameEngine({ campaign: { stage, navigator: { name: 'Admiral', nation: 'Spain' } }, rng: () => roll });
+  game.state.config.battleMode = 'auto';
   const { state } = game;
   const missions: GameEvent[] = [];
   game.on((event) => { if (event.type === 'campaignMissionCompleted') missions.push(event); });
@@ -108,7 +109,7 @@ describe('royal campaign', () => {
     expect(state.campaign!.progress).toEqual({ holdColonies: 1 });
 
     landAs(game, 0, rivalColony.id);
-    expect(game.fight().outcome).toBe('victory');
+    expect(game.fight()!.outcome).toBe('victory');
     expect(state.owners[rivalColony.id]).toBe(captain.id);
     expect(missions).toHaveLength(2);
     expect(state.campaign).toMatchObject({ status: 'completed', progress: { holdColonies: 2, captureColony: 1 } });

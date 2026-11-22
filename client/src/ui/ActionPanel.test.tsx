@@ -45,7 +45,7 @@ describe('colony return', () => {
 
 describe('fleet-loss defeat', () => {
   it.each(['en', 'zh'] as const)('explains a player’s defeat after battle in %s', (locale) => {
-    const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }], rng: () => 0.5 });
+    const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }], rng: () => 0.5, config: { battleMode: 'auto' } });
     const { state } = game;
     const island = state.map.find((node) => node.kind === 'island')!;
     state.owners[island.id] = 1;
@@ -114,7 +114,7 @@ describe('turn controls', () => {
     vi.mocked(gameController.canUseStrategy).mockReturnValue(false);
   });
   it('puts the first spin and landing actions before strategy cards', () => {
-    const engine = new GameEngine({ players: createNationRoster([{ name: 'You', nation: 'Spain' }]), rng: () => 0 });
+    const engine = new GameEngine({ players: createNationRoster([{ name: 'You', nation: 'Spain' }]), rng: () => 0, config: { battleMode: 'auto' } });
     const { state } = engine;
     const expectBeforeStrategyCards = (action: string) => {
       const html = renderToStaticMarkup(<ActionPanel state={state} />);

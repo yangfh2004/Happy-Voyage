@@ -2,6 +2,9 @@ import { aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLott
   aiTravelTarget, aiBattleStrategy, aiSeaStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase, aiMistTake } from './ai';
 import { STRATEGIES, STRATEGY_RULES, strategyTarget, defectionCount, type StrategyId } from './strategies';
 import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
+import type { BattleResult } from './combat';
+import { replayBattle, type BattleLog, type BattleControllers } from './battle';
+import type { PendingBattle } from './types';
 import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { HERMITS, NIM_MAX_TAKE, hermitStoneTake, type HermitId, type MistResult } from './mist';
@@ -27,6 +30,7 @@ import { navigatorById, type SignatureShip } from './navigators';
 import type { VictoryKind, BattleReport, ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, MarketOrder, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
+  battleMode: 'realtime',
   startingStrategies: 3,
   startingGold: 1400,
   homeSalary: 400,
@@ -98,6 +102,7 @@ export class GameEngine extends GameView {
       if (port) usedPorts.add(port.id);
     });
     super({
+      pendingBattle: null,
       wind: { direction: 'N', turnsLeft: 3 },
       hoardNode: null,
       strategyUsed: false,
@@ -364,7 +369,7 @@ export class GameEngine extends GameView {
         let roll = this.rng() * entries.reduce((sum, [, weight]) => sum + weight, 0);
         event = entries.find(([, weight]) => (roll -= weight) < 0)![0];
       }
-      if (event && this.resolveEvent(player, { ...node, event })) return;
+      if (event && this.resolveEvent(player, { ...node, event }, true)) return;
       if (isEliminated(player) || player.fleet.length === 0) {
         this.endTurn();
         return;
@@ -505,15 +510,27 @@ export class GameEngine extends GameView {
    * Attack the rival colony instead of paying: sinking every defender takes the colony,
    * losing every ship costs the sunk ships plus double toll, and a draw sends both fleets home.
    */
-  fight(): BattleReport {
+  fight(): BattleReport | null {
     this.assertPhase('awaitingToll');
     const player = this.currentPlayer;
     const node = this.node(player.position);
     const { ships: defenders, owner, fromFleet } = colonyDefenders(this.state, node.id);
+    if (this.state.config.battleMode === 'realtime' && (!player.isAI || !owner.isAI)) {
+      this.startBattle('colony', defenders, owner.id);
+      return null;
+    }
     const sides = { p: ref.player(player.id), o: ref.player(owner.id), n: ref.node(node.id) };
     this.log(fromFleet ? tx("{p} opens fire on {o}'s fleet at {n}!", '{p} 在{n}向 {o} 的舰队开火！', sides)
       : tx("{p} opens fire on {o}'s docked ships at {n}!", '{p} 在{n}向 {o} 停靠的船只开火！', sides));
     const result = fightNavalBattle(player.fleet, defenders, this.rng, { attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: this.state.ambush });
+    return this.settleColonyBattle(result);
+  }
+
+  private settleColonyBattle(result: BattleResult): BattleReport {
+    const player = this.currentPlayer;
+    const node = this.node(player.position);
+    const { ships: defenders, owner, fromFleet } = colonyDefenders(this.state, node.id);
+    const sides = { p: ref.player(player.id), o: ref.player(owner.id), n: ref.node(node.id) };
     const sink = (fleet: Ship[], sunk: Ship[]) => {
       for (const ship of sunk) fleet.splice(fleet.indexOf(ship), 1);
     };
@@ -552,6 +569,48 @@ export class GameEngine extends GameView {
     if (report.outcome === 'victory') this.updateCampaignMission(player.id, 'captureColony', (progress) => progress + 1);
     this.endTurn();
     return report;
+  }
+
+  private startBattle(kind: PendingBattle['kind'], defenders: Ship[], defender: number | null, resumeLanding = false): void {
+    const player = this.currentPlayer;
+    const seed = Math.floor(this.rng() * 4294967296) >>> 0;
+    const battle: PendingBattle = {
+      kind, nodeId: player.position, attacker: player.id, defender, seed, resumeLanding,
+      setup: { seed, attackers: player.fleet.map((s) => ({ ...s, cargo: { ...s.cargo } })), defenders: defenders.map((s) => ({ ...s, cargo: { ...s.cargo } })),
+        attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1, ambush: this.state.ambush },
+      commanders: [!player.isAI ? 'attacker' : 'defender'],
+    };
+    this.state.pendingBattle = battle;
+    this.state.phase = 'awaitingBattle';
+    this.log(tx('The fleets begin their battle.', '双方舰队开始交战。'));
+    this.emit({ type: 'battleStarted', battle });
+  }
+
+  finishBattle(log: BattleLog): BattleReport | null {
+    this.assertPhase('awaitingBattle');
+    const pending = this.state.pendingBattle!;
+    const controllers: BattleControllers = {};
+    if (!pending.commanders.includes('attacker')) controllers.attacker = this.state.players[pending.attacker].aiDifficulty ?? 'normal';
+    if (!pending.commanders.includes('defender')) controllers.defender = pending.defender === null ? 'normal' : this.state.players[pending.defender].aiDifficulty ?? 'normal';
+    const replay = replayBattle(pending.setup, log.filter((entry) => pending.commanders.includes(entry.side)), controllers);
+    const attackers = this.currentPlayer.fleet;
+    const defenders = pending.kind === 'colony' ? colonyDefenders(this.state, pending.nodeId).ships : pending.setup.defenders.map((s) => ({ ...s }));
+    for (const [side, ships] of [['attacker', attackers], ['defender', defenders]] as const) {
+      for (const ship of ships) ship.durability = replay.durability.find((s) => s.id === ship.id && s.side === side)!.durability;
+    }
+    const result: BattleResult = { outcome: replay.outcome, rounds: replay.ticks,
+      attackerSunk: attackers.filter((s) => replay.attackerSunk.includes(s.id)),
+      defenderSunk: defenders.filter((s) => replay.defenderSunk.includes(s.id)) };
+    this.state.pendingBattle = null;
+    this.state.inspired = false;
+    this.state.ambush = false;
+    if (pending.kind === 'colony') return this.settleColonyBattle(result);
+    const before = pending.setup.attackers.reduce((sum, s) => sum + s.durability, 0);
+    this.settlePirates(result, before);
+    this.state.phase = 'moving';
+    if (pending.resumeLanding) this.resolveLanding();
+    else this.endTurn();
+    return null;
   }
 
   acceptBarter(index: number): void {
@@ -819,6 +878,7 @@ export class GameEngine extends GameView {
 
   /** Let the built-in AI make the current player's pending decision. */
   decideForAI(): void {
+    if (this.state.phase === 'awaitingBattle') return;
     if (this.state.phase === 'awaitingMerchant') {
       const offer = this.state.pendingMerchant!;
       if (offer.quantity) this.acceptMerchant();
@@ -1125,7 +1185,7 @@ export class GameEngine extends GameView {
     this.emit({ type: 'moved', playerId: player.id, path: [nodeId] });
   }
 
-  private resolveEvent(player: Player, node: MapNode): boolean {
+  private resolveEvent(player: Player, node: MapNode, resumeLanding = false): boolean {
     const event = node.event!;
     const announce = (outcome: SeaEventResult['outcome'], details: Partial<Omit<SeaEventResult, 'type' | 'playerId' | 'event' | 'outcome'>> = {}) =>
       this.emit({ type: 'seaEvent', playerId: player.id, event, outcome, ...details });
@@ -1145,21 +1205,13 @@ export class GameEngine extends GameView {
       case 'pirates': {
         const pirate: Ship = { id: -1, name: 'Pirate', type: 'warship', cargo: {}, ...SHIP_TYPES.warship,
           durability: SEA_RULES.pirateDurability, maxDurability: SEA_RULES.pirateDurability, firepower: SEA_RULES.pirateFirepower };
+        if (this.state.config.battleMode === 'realtime' && !player.isAI) {
+          this.startBattle('pirates', [pirate], null, resumeLanding);
+          return true;
+        }
         const before = player.fleet.reduce((sum, ship) => sum + ship.durability, 0);
         const result = fightNavalBattle(player.fleet, [pirate], this.rng, { attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1 });
-        const lost = result.attackerSunk.map((ship) => ship.id);
-        player.fleet = player.fleet.filter((ship) => !lost.includes(ship.id));
-        if (!player.fleet.length && result.attackerSunk.length) {
-          const survivor = result.attackerSunk.pop()!;
-          survivor.durability = 1;
-          player.fleet.push(survivor);
-          lost.splice(lost.indexOf(survivor.id), 1);
-        }
-        const won = result.outcome === 'victory';
-        const gold = won ? SEA_RULES.pirateLoot : -SEA_RULES.pirates;
-        this.changeGold(player, gold, 'pirates');
-        announce(won ? 'victory' : 'defeat', { gold, shipsLost: lost,
-          damage: before - player.fleet.reduce((sum, ship) => sum + ship.durability, 0) });
+        this.settlePirates(result, before);
         break;
       }
       case 'smallMonster':
@@ -1300,6 +1352,23 @@ export class GameEngine extends GameView {
     this.changeGold(owner, amount, `toll at ${node.name}`);
     this.emit({ type: 'tollPaid', from: player.id, to: owner.id, amount });
     return amount;
+  }
+
+  private settlePirates(result: BattleResult, before: number): void {
+    const player = this.currentPlayer;
+    const lost = result.attackerSunk.map((ship) => ship.id);
+    player.fleet = player.fleet.filter((ship) => !lost.includes(ship.id));
+    if (!player.fleet.length && result.attackerSunk.length) {
+      const survivor = result.attackerSunk[result.attackerSunk.length - 1];
+      survivor.durability = 1;
+      player.fleet.push(survivor);
+      lost.splice(lost.indexOf(survivor.id), 1);
+    }
+    const won = result.outcome === 'victory';
+    const gold = won ? SEA_RULES.pirateLoot : -SEA_RULES.pirates;
+    this.changeGold(player, gold, 'pirates');
+    this.emit({ type: 'seaEvent', playerId: player.id, event: 'pirates', outcome: won ? 'victory' : 'defeat', gold,
+      shipsLost: lost, damage: before - player.fleet.reduce((sum, ship) => sum + ship.durability, 0) });
   }
 
   private payForeignTax(player: Player, host: Player | undefined, node: MapNode): void {

@@ -8,6 +8,7 @@ vi.mock('../game/GameController', () => ({ gameController: {} }));
 
 function open(scene: Exclude<Scenario, 'landing'>) {
   const engine = new GameEngine(scenarioOptions(scene));
+  engine.state.config.battleMode = 'auto';
   const events: GameEvent[] = [];
   engine.on((event) => events.push(event));
   engine.start();

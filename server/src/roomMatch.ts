@@ -22,7 +22,7 @@ export class RoomMatch {
     private readonly onError: () => void,
     private readonly timing: RoomMatchOptions = {},
   ) {
-    this.engine = new GameEngine({ players: createNationRoster(seats, options.difficulty), config: gameMode(options.mode).config, rng: timing.rng });
+    this.engine = new GameEngine({ players: createNationRoster(seats, options.difficulty), config: { ...gameMode(options.mode).config, battleMode: 'auto' }, rng: timing.rng });
     this.engine.on((event) => this.events.push(event));
   }
 

@@ -7,7 +7,7 @@ import { walkPath } from './graph';
 import { aiSeaStrategy } from './ai';
 
 function setup(card: StrategyId) {
-  const g = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }], rng: () => 0, config: { startingStrategies: 0, islandsToWin: 99 } });
+  const g = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }], rng: () => 0, config: { startingStrategies: 0, islandsToWin: 99, battleMode: 'auto' } });
   g.currentPlayer.strategies = [card];
   const node = g.state.map.find((n) => n.kind === 'island')!.id;
   g.state.owners[node] = 1;

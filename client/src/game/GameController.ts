@@ -638,6 +638,9 @@ export class GameController {
       case 'cargoMoved':
         if (isViewer(event.playerId)) sfx.cargo();
         break;
+      case 'battleStarted':
+        this.engine!.finishBattle([]);
+        break;
       case 'battleFought': {
         const { report } = event;
         const params = { n: ref.node(report.nodeId), r: ref.player(isViewer(report.attacker) ? report.defender : report.attacker), g: report.tollPaid ?? 0 };
