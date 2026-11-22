@@ -157,11 +157,11 @@ describe('living sea board', () => {
     const p = g.currentPlayer;
     p.gold = 0;
     land(g, g.state.map.find((n) => n.special === special)!.id);
-    expect(p.gold).toBe(special === 'skeleton' ? SEA_RULES.scrap : 0);
+    expect(p.gold).toBe(0);
     expect(p.bankrupt).toBe(false);
   });
 
-  it('loses a lottery and keeps a captain after a discounted toll', () => {
+  it('loses a lottery and keeps a captain after a full toll', () => {
     const g = game(0.99);
     const p = g.currentPlayer;
     land(g, g.state.map.find((n) => n.special === 'treasure')!.id);
@@ -175,7 +175,7 @@ describe('living sea board', () => {
     const gold = p.gold;
     land(g, 1);
     g.payToll();
-    expect(p.gold).toBe(gold - Math.ceil(g.state.map[1].toll! * 0.9));
+    expect(p.gold).toBe(gold - g.state.map[1].toll!);
     expect(p.captains).toEqual(['ines']);
   });
 

@@ -5,7 +5,7 @@ import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
 import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { HERMITS, NIM_MAX_TAKE, hermitStoneTake, type HermitId, type MistResult } from './mist';
-import { CAPTAINS, MAX_CAPTAINS, captainBonus, discountedByCaptains, recruitOffers, aiRecruitChoice } from './captains';
+import { CAPTAINS, MAX_CAPTAINS, recruitOffers, aiRecruitChoice } from './captains';
 import { BUILDINGS, buildingLevel, nextBuildingCost, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
@@ -293,7 +293,7 @@ export class GameEngine extends GameView {
     const homePasses = this.pendingPath.filter((id) => id === player.homePort).length;
     this.pendingPath = [];
     if (homePasses > 0) {
-      const salary = (this.state.config.homeSalary + RANKS[player.rank].salary + captainBonus(player, 'salary')) * homePasses;
+      const salary = (this.state.config.homeSalary + RANKS[player.rank].salary) * homePasses;
       this.log(tx('The crown pays {p} a {g}g royal salary.', '王室向 {p} 支付 {g} 金币薪俸。', { p: ref.player(player.id), g: salary }));
       this.changeGold(player, salary, 'royal salary');
     }
@@ -344,6 +344,7 @@ export class GameEngine extends GameView {
           this.collectToll(player, this.state.players[owner], node);
         } else {
           this.log(tx('{p} inspects the colony at {n}.', '{p} 视察{n}的殖民地。', { p: ref.player(player.id), n: ref.node(node.id) }));
+          this.state.marketStock = ['explorer', 'cargo', 'warship'];
           this.state.phase = 'awaitingBuild';
           this.emit({ type: 'buildOffered', playerId: player.id, nodeId: node.id });
           return;
@@ -410,6 +411,7 @@ export class GameEngine extends GameView {
     if (player.gold < captain.fee) throw new Error('Not enough gold');
     this.changeGold(player, -captain.fee, 'captain recruitment');
     player.captains.push(captain.id);
+    for (const type of captain.ships) this.addShipToFleet(player.id, type);
     this.log(tx("{c} joins {p}'s fleet.", '{c} 加入了 {p} 的舰队。', { p: ref.player(player.id), c: ref.captain(captain.id) }));
     this.endTurn();
   }
@@ -833,6 +835,10 @@ export class GameEngine extends GameView {
       }
       const ship = aiShipChoice(player, (type) => this.canBuildShip(type));
       if (ship) this.buildShip(ship);
+      const sale = aiUsedShipSale(this.state, player, (id) => this.canSellShip(id));
+      if (sale !== undefined) this.sellShip(sale);
+      const purchase = aiUsedShipChoice(this.state, player, (type) => this.canBuyUsedShip(type));
+      if (purchase) this.buyUsedShip(purchase);
       this.autoLoad();
       this.finishBuilding();
       return;
@@ -864,7 +870,7 @@ export class GameEngine extends GameView {
     this.changeGold(this.currentPlayer, -USED_SHIP_PRICES[type], 'second-hand ship');
     const ship = this.addShipToFleet(this.currentPlayer.id, type);
     ship.durability = Math.floor(ship.maxDurability * USED_SHIP_CONDITION);
-    this.log(tx('{p} buys {s} at Skeleton Island.', '{p} 在骷髅岛买下{s}。', { p: ref.player(this.currentPlayer.id), s: ref.ship(ship.name) }));
+    this.log(tx('{p} buys {s} at {n}.', '{p} 在{n}买下{s}。', { p: ref.player(this.currentPlayer.id), s: ref.ship(ship.name), n: ref.node(this.currentPlayer.position) }));
     return ship;
   }
 
@@ -875,10 +881,11 @@ export class GameEngine extends GameView {
     const price = shipSalePrice(ship);
     this.changeGold(this.currentPlayer, price, 'ship sale');
     this.emit({ type: 'shipSold', playerId: this.currentPlayer.id, shipName: ship.name, price });
-    this.log(tx('{p} sells {s} at Skeleton Island.', '{p} 在骷髅岛卖出{s}。', { p: ref.player(this.currentPlayer.id), s: ref.ship(ship.name) }));
+    this.log(tx('{p} sells {s} at {n}.', '{p} 在{n}卖出{s}。', { p: ref.player(this.currentPlayer.id), s: ref.ship(ship.name), n: ref.node(this.currentPlayer.position) }));
   }
 
   finishMarket(): void {
+    this.assertPhase('awaitingMarket');
     if (!this.atMarket()) throw new Error('Not at Skeleton Island market');
     this.state.marketStock = [];
     this.endTurn();
@@ -894,13 +901,6 @@ export class GameEngine extends GameView {
     this.log(tx('{p} visits {n}.', '{p} 造访{n}。', { p: ref.player(player.id), n: ref.node(node.id) }));
     switch (node.special) {
       case 'skeleton':
-        if (player.gold >= r.tribute) {
-          this.log(tx('The pirates demand tribute from {p} at their second-hand ship market.', '海盗在二手船市场向 {p} 索取贡金。', { p: ref.player(player.id) }));
-          this.changeGold(player, -r.tribute, 'pirate tribute');
-        } else {
-          this.log(tx("The pirates buy {p}'s scrap ship fittings.", '海盗收购了 {p} 的废旧船具。', { p: ref.player(player.id) }));
-          this.changeGold(player, r.scrap, 'scrap sale');
-        }
         break;
       case 'treasure':
         if (player.gold < LOTTERY.ticketPrice) { this.log(tx('{p} cannot afford a lottery number.', '{p} 买不起彩票号码。', { p: ref.player(player.id) })); break; }
@@ -1174,7 +1174,7 @@ export class GameEngine extends GameView {
   }
 
   private payForeignTax(player: Player, host: Player | undefined, node: MapNode): void {
-    const tax = discountedByCaptains(player, 'tax', foreignTaxDue(player.rank));
+    const tax = foreignTaxDue(player.rank);
     const paid = Math.min(player.gold, tax);
     let shortfall = tax - paid;
     this.log(tx('{p} pays {g}g foreign tax to {h} at {n} ({t}g due).', '{p} 在{n}向 {h} 缴纳 {g} 金币外国税金（应缴 {t} 金币）。', { p: ref.player(player.id), g: paid, h: host ? ref.player(host.id) : tx('the crown', '王室'), n: ref.node(node.id), t: tax }));

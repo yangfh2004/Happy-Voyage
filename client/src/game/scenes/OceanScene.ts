@@ -22,13 +22,13 @@ import { harbourTexture } from '../harbourArt';
 
 const HOP_HEIGHT = 10;
 const SPECIAL_HELP: Record<string, [string, string]> = {
-  skeleton: ['Trade used ships after tribute or scrap trading.', '缴纳贡金或交易废料后买卖二手船。'],
+  skeleton: ['Buy and sell second-hand ships.', '买卖二手船。'],
   treasure: ['Buy lottery numbers and match the draw to win gold.', '购买彩票号码，匹配开奖赢取金币。'],
   mist: ['Duel a hermit to learn a strategy card.', '与隐士对决，学习谋略卡。'],
   revival: ['Pay for fleet repairs and block the next sea hazard.', '付费修理舰队，并抵挡下一次海上灾难。'],
   nightless: ['Buy and sell cargo at changing market prices.', '按变化的市场价格买卖货物。'],
   wind: ['Exchange fleet cargo for more valuable native goods.', '用船上货物交换更有价值的当地特产。'],
-  dragonSnake: ['Recruit a captain for royal benefits and discounts.', '招募船长，获得王室福利和折扣。'],
+  dragonSnake: ['Recruit a captain and their ships into your fleet.', '招募船长与船只加入舰队。'],
 };
 
 /**

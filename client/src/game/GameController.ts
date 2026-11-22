@@ -454,7 +454,7 @@ export class GameController {
   }
 
   canBuyUsedShip(type: ShipType): boolean {
-    return this.isHumanTurn('awaitingMarket') && this.view!.canBuyUsedShip(type);
+    return (this.isHumanTurn('awaitingMarket') || this.isHumanTurn('awaitingBuild')) && this.view!.canBuyUsedShip(type);
   }
 
   buyUsedShip(type: ShipType): void {
@@ -462,7 +462,7 @@ export class GameController {
   }
 
   canSellShip(shipId: number): boolean {
-    return this.isHumanTurn('awaitingMarket') && this.view!.canSellShip(shipId);
+    return (this.isHumanTurn('awaitingMarket') || this.isHumanTurn('awaitingBuild')) && this.view!.canSellShip(shipId);
   }
 
   sellShip(shipId: number): void {

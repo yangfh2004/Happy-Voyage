@@ -1,5 +1,5 @@
 export const SEA_RULES = {
-  foreignTax: 40, tribute: 35, scrap: 60,
+  foreignTax: 40,
   nimStones: 12, nimPrize: 130,
   barterPerColony: 25, pirates: 80,
   pirateLoot: 140, pirateDurability: 90, pirateFirepower: 24,
