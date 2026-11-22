@@ -14,6 +14,12 @@ function setup(card: StrategyId) {
   return { g, p: g.currentPlayer, rival: g.state.players[1], node };
 }
 
+function eventStop(g: GameEngine, event: 'whirlpool' | 'pirates') {
+  const node = g.state.map.find((n) => n.event === 'openSea')!;
+  node.event = event;
+  return node.id;
+}
+
 describe('expanded strategy legality', () => {
   it.each(Object.keys(STRATEGIES) as StrategyId[])('%s declares and enforces phases and targets', (id) => {
     const { g, p, rival, node } = setup(id);
@@ -112,7 +118,7 @@ describe('sea strategy effects', () => {
     const ship = rival.fleet[0];
     ship.durability = 5;
     g.state.currentPlayer = rival.id;
-    rival.position = g.state.map.find((n) => n.event === event)!.id;
+    rival.position = event === 'storm' ? g.state.map.find((n) => n.event === 'storm')!.id : eventStop(g, event);
     g.state.phase = 'moving';
     g.resolveLanding();
     expect(rival.fleet).toContain(ship);
@@ -286,7 +292,7 @@ describe('battle strategies', () => {
       if (inspired) g.useStrategy('inspire');
       const events: number[] = [];
       g.on((e) => { if (e.type === 'seaEvent') events.push(e.gold ?? 0); });
-      p.position = g.state.map.find((n) => n.event === 'pirates')!.id;
+      p.position = eventStop(g, 'pirates');
       g.state.phase = 'moving';
       g.resolveLanding();
       expect(p.fleet.every((s) => s.firepower === 10)).toBe(true);
@@ -320,7 +326,8 @@ describe('AI strategy safety', () => {
       kind: id >= 28 && id <= 38 ? 'island' as const : 'event' as const,
       event: 'floatingCargo' as const, price,
     }));
-    const g = new GameEngine({ map, players: [{ name: 'AI', color: 0, isAI: true, aiDifficulty: 'hard' }], config: { homeSalary: 0 } });
+    const g = new GameEngine({ map, players: [{ name: 'AI', color: 0, isAI: true, aiDifficulty: 'hard' }], rng: () => 0.5, config: { homeSalary: 0 } });
+    g.state.roamers = [];
     const p = g.currentPlayer;
     p.position = 0;
     p.gold = 0;

@@ -58,7 +58,7 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
   const canWin = owned + 1 >= state.config.islandsToWin;
   const score = (node: MapNode): number => {
     if (node.id === player.position) return 0;
-    if (state.roamers.some((r) => r.node === node.id) && !player.revivalProtection) return -180;
+    if (state.roamers.some((r) => r.node === node.id) && !player.escortProtection) return -180;
     if (node.event === 'openSea') return -20;
     if (node.kind === 'island') {
       const owner = state.owners[node.id];
@@ -105,7 +105,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
 
   // Use gold-equivalent scores for immediate results and the next compass spin.
   const landing = (node: MapNode, cash: number, direct: boolean): number => {
-    if (state.roamers.some((r) => r.node === node.id) && !player.revivalProtection) return -180;
+    if (state.roamers.some((r) => r.node === node.id) && !player.escortProtection) return -180;
     if (node.event === 'openSea') return -20;
     if (node.kind === 'island') {
       const owner = state.owners[node.id];
@@ -139,13 +139,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
     if (node.kind === 'port') return node.id === player.homePort ? Math.max(0, audience) : -foreignTaxDue(player.rank);
     if (node.event === 'treasure') return 125 + (node.id === player.knownHoard ? STRATEGY_RULES.hoardGold : 0);
     if (node.event === 'tradeWind') return 50 + 30 * owned;
-    if (node.event === 'bottle') return 100 + Math.min(120, repair);
-    if (node.event === 'floatingCargo') return 70;
-    if (node.event === 'wyvern') return direct ? -Infinity : 220;
-    if (node.event === 'pirates' || node.event === 'smallMonster' || node.event === 'largeMonster') {
-      return player.escortProtection ? 0 : -SEA_RULES[node.event] - 50;
-    }
-    if (node.event === 'storm' || node.event === 'turtle' || node.event === 'whirlpool') return player.escortProtection ? 0 : -100;
+    if (node.event === 'storm') return player.escortProtection ? 0 : -100;
     if (node.special === 'mist') return SEA_RULES.nimPrize + 150;
     if (node.special === 'skeleton' && direct && aiUsedShipChoice(state, { ...player, gold: cash }, () => true) === 'warship') {
       const warships = player.fleet.filter((ship) => ship.type === 'warship' && ship.durability >= ship.maxDurability / 2);
@@ -167,7 +161,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       if (!scores) spinLandings.set(arrivalCash, scores = new Map());
       let score = scores.get(next.id);
       if (score === undefined) scores.set(next.id, score = landing(next, arrivalCash, false));
-      const hazard = !player.revivalProtection && state.roamers.some((r) => path.includes(r.node)) ? 180 : 0;
+      const hazard = !player.escortProtection && state.roamers.some((r) => path.includes(r.node)) ? 180 : 0;
       return value + odds * (pay + Math.min(400, score) - hazard);
     }, 0);
   };
@@ -390,8 +384,9 @@ export function aiSeaStrategy(state: GameState, player: Player, canUse: (card: S
     const owner = state.owners[node.id];
     const salary = path.filter((id) => id === player.homePort).length * state.config.homeSalary;
     const value = node.kind === 'island' ? owner === null ? 180 : owner !== player.id ? -tollDue(state, player, node.id) : 20
-      : node.event === 'pirates' || node.event === 'storm' || node.event === 'largeMonster' ? -100 : 0;
-    return sum + odds * (salary + value);
+      : node.event === 'storm' && !player.escortProtection ? -100 : node.event === 'openSea' ? -20 : 0;
+    const hazard = !player.escortProtection && state.roamers.some((r) => path.includes(r.node)) ? 180 : 0;
+    return sum + odds * (salary + value - hazard);
   }, 0);
   const baseline = player.aiDifficulty === 'hard' ? movementValue(1) : 0;
   for (const card of ['tailwind', 'reverse'] as const) candidates.push({ card, useful: player.aiDifficulty !== 'hard' || movementValue(card === 'tailwind' ? 2 : -1) > baseline + 25 });

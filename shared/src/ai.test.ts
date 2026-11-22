@@ -40,6 +40,7 @@ describe('AI colony decisions', () => {
     const engine = new GameEngine({
       players: [{ name: 'AI', color: 0, isAI: true }, { name: 'Rival', color: 1, isAI: false }],
       map: forecastMap(),
+      rng: () => 0.5,
       config: { islandsToWin: 1, startingStrategies: 0 },
     });
     const { state, currentPlayer: player } = engine;
