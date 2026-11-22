@@ -161,4 +161,24 @@ describe('strategies during random encounters', () => {
     p.escortProtection = true;
     expect(aiSeaStrategy(g.state, p, (id, target) => g.canUseStrategy(id, target))).toBeUndefined();
   });
+
+  it.each([false, true])('Hard spends Escort on the route before estimating the destination storm (roamer: %s)', (roamer) => {
+    const { g, p, events, sail, roll } = voyage();
+    for (const node of g.state.map) {
+      node.kind = 'event';
+      node.event = node.id >= 2 && node.id <= 12 ? 'storm' : 'openSea';
+    }
+    p.strategies = ['reverse'];
+    p.escortProtection = true;
+    if (roamer) g.state.roamers = [{ id: 0, kind: 'pirates', node: 1 }];
+    const choice = aiSeaStrategy(g.state, p, (id, target) => g.canUseStrategy(id, target));
+    if (roamer) expect(choice).toMatchObject({ card: 'reverse' });
+    else expect(choice).toBeUndefined();
+    roll([0]);
+    sail();
+    expect(events.filter((e) => e.type === 'seaEvent')).toMatchObject(roamer
+      ? [{ event: 'pirates', outcome: 'protected' }, { event: 'storm', outcome: 'damaged' }]
+      : [{ event: 'storm', outcome: 'protected' }]);
+    expect(p.escortProtection).toBe(false);
+  });
 });
