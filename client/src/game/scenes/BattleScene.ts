@@ -4,11 +4,12 @@ import { getLocale, pick } from '../../i18n';
 import { gameController } from '../GameController';
 import { BattleSession } from '../BattleSession';
 import { sfx } from '../sfx';
-import { shipTexture } from '../nauticalArt';
+import { battleShipTexture, broadsideMuzzles } from '../battleShipArt';
 
 const font = '"Sea Names", Georgia, serif';
 const text = (en: string, zh: string) => pick(getLocale(), en, zh);
 type Effect = { x: number; y: number; age: number; damage: number };
+type Smoke = { x: number; y: number; dx: number; dy: number; age: number };
 
 export class BattleScene extends Phaser.Scene {
   private session!: BattleSession;
@@ -29,6 +30,7 @@ export class BattleScene extends Phaser.Scene {
   private previous = new Map<number, { x: number; y: number; heading: number }>();
   private sunkAt = new Map<number, number>();
   private effects: Effect[] = [];
+  private smoke: Smoke[] = [];
   private clock = 0;
   private endedAt: number | null = null;
   private completed = false;
@@ -42,7 +44,7 @@ export class BattleScene extends Phaser.Scene {
     const state = gameController.state!;
     this.session = new BattleSession(state.pendingBattle!, state.players);
     this.labels.clear(); this.ships.clear(); this.selected.clear(); this.previous.clear(); this.sunkAt.clear();
-    this.buttons = []; this.effects = []; this.clock = 0; this.endedAt = null; this.completed = false;
+    this.buttons = []; this.effects = []; this.smoke = []; this.clock = 0; this.endedAt = null; this.completed = false;
     this.accumulator = 0; this.paused = false; this.drag = null; this.marker = null; this.formation = 'column';
     this.cameras.main.setBackgroundColor('#041b2d');
     this.field = this.add.container();
@@ -52,7 +54,7 @@ export class BattleScene extends Phaser.Scene {
       const pending = state.pendingBattle!;
       const owner = s.side === 'attacker' ? pending.attacker : pending.defender;
       const color = owner === null ? 0xc33535 : state.players[owner].color;
-      const image = this.add.image(0, 0, shipTexture(this, color)).setTint(color).setDisplaySize(104, 98.8);
+      const image = this.add.image(0, 0, battleShipTexture(this, s.type, color, owner === null, !!s.signature)).setDisplaySize(132, 99);
       this.field.add(image); this.ships.set(s.id, image);
       const label = this.add.text(0, 0, '', { fontFamily: font, fontSize: '19px', color: '#fff4d5', stroke: '#062335', strokeThickness: 4 }).setOrigin(.5, 0);
       label.setDepth(1);
@@ -145,6 +147,10 @@ export class BattleScene extends Phaser.Scene {
         if (b.ships.some((s, i) => s.reload > old[i].reload)) sfx.cannon();
         for (const s of b.ships) {
           const before = old.find((o) => o.id === s.id)!;
+          if (s.reload > before.reload) {
+            const shot = b.cannonballs.find((ball) => !balls.includes(ball) && ball.side === s.side && Math.hypot(ball.x - s.x, ball.y - s.y) < 25);
+            if (shot) this.smoke.push(...broadsideMuzzles(s, { x: shot.landingX, y: shot.landingY }).map((m) => ({ ...m, age: 0 })));
+          }
           if (s.durability < before.durability) { this.effects.push({ x: s.x, y: s.y, age: 0, damage: before.durability - s.durability }); sfx.splash(); }
           if (s.sunk && !before.sunk) this.sunkAt.set(s.id, this.clock);
         }
@@ -154,6 +160,8 @@ export class BattleScene extends Phaser.Scene {
     }
     for (const e of this.effects) e.age += dt;
     this.effects = this.effects.filter((e) => e.age < 1.2);
+    for (const puff of this.smoke) puff.age += dt;
+    this.smoke = this.smoke.filter((puff) => puff.age < 1.1);
     if (this.session.battle.outcome && this.endedAt === null) this.endedAt = this.clock;
     this.draw();
     if (this.endedAt !== null && this.clock - this.endedAt > 3.5 && !this.completed) {
@@ -202,7 +210,7 @@ export class BattleScene extends Phaser.Scene {
       if (s.signature) g.lineStyle(3, 0xffd65d, fade).strokeEllipse(x, y, 94, 83);
       const flash = this.effects.some((e) => e.damage && e.age < .2 && Math.hypot(e.x - s.x, e.y - s.y) < 30);
       const turn = Phaser.Math.Angle.WrapDegrees(s.heading - old.heading);
-      this.ships.get(s.id)!.setPosition(x, y).setAngle(old.heading + turn * alpha + (s.sunk ? (1 - fade) * 70 : 0)).setAlpha(fade).setTint(flash ? 0xff3333 : color);
+      this.ships.get(s.id)!.setPosition(x, y).setAngle(old.heading + turn * alpha + (s.sunk ? (1 - fade) * 70 : 0)).setAlpha(fade).setTint(flash ? 0xff7777 : 0xffffff);
       label.setText(pirate ? text('Pirate', '海盗') : shipName(s.name, getLocale()));
       let labelY = y + 57;
       while (labelBoxes.some((b) => Math.abs(b.x - x) < (b.width + label.width) / 2 + 8 && Math.abs(b.y - labelY) < 33)) labelY += 34;
@@ -215,6 +223,11 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     for (const b of this.session.battle.cannonballs) g.fillStyle(0xffefb1).fillCircle(b.x, b.y, 5);
+    for (const puff of this.smoke) {
+      const x = puff.x + puff.dx * puff.age * 26, y = puff.y + puff.dy * puff.age * 26;
+      if (puff.age < .16) g.fillStyle(0xffd485, 1 - puff.age / .16).fillCircle(x, y, 8 - puff.age * 25);
+      for (let i = 0; i < 3; i++) g.fillStyle(0xcbd1ca, (1 - puff.age / 1.1) * .24).fillCircle(x - puff.dy * (i - 1) * 5, y + puff.dx * (i - 1) * 5, 4 + puff.age * 13 + i);
+    }
     for (const e of this.effects) {
       g.lineStyle(3, e.damage ? 0xffbd5c : 0xa6ecff, 1 - e.age / 1.2).strokeCircle(e.x, e.y, 8 + e.age * 35);
       if (e.damage) for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.lineBetween(e.x + Math.cos(a) * 10, e.y + Math.sin(a) * 10, e.x + Math.cos(a) * (20 + e.age * 45), e.y + Math.sin(a) * (20 + e.age * 45)); }
