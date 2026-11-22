@@ -20,6 +20,7 @@ describe('islandWindowFor', () => {
     ['skeleton', 'awaitingMarket'],
     ['dragonSnake', 'awaitingRecruit'],
     ['wind', 'awaitingBarter'],
+    ['nightless', 'awaitingCargoMarket'],
   ] as const)('opens only for the human at the helm at %s', (island, phase) => {
     const state = visit(island, phase);
     expect(islandWindowFor(state, true)?.island).toBe(island);

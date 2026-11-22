@@ -233,3 +233,47 @@
 }
 .barter-exchange p:last-child { background: #dfefe6; }
 .barter-exchange span { font-weight: 800; color: #205760; }
+
+.island-window--nightless {
+  --island-ink: #2e2b49;
+  --island-deep: #312a54;
+  --island-paper: #fbf4e9;
+  --island-gold: #f3cd83;
+}
+.nightless-ticker {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 10px 12px;
+  color: #2e2b49;
+  background: #ebe1f3;
+  border-radius: 10px;
+}
+.nightless-counter {
+  display: grid;
+  gap: 12px;
+  margin-block: 14px;
+  padding: 12px;
+  background: #fffaf2;
+  border: 1px solid #b9a6c6;
+  border-radius: 12px;
+}
+.market-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(64px, .55fr);
+  gap: 8px;
+  margin: 0;
+}
+.market-fields label { display: grid; gap: 4px; font-size: .9rem; min-width: 0; }
+.market-fields label:first-child { grid-column: 1 / -1; }
+.market-fields :is(input, select) { width: 100%; min-height: 44px; font: inherit; padding: 6px; }
+.nightless-quote { padding: 8px 10px; border-radius: 8px; background: #f3ebdd; }
+.nightless-quote p { margin: 4px 0; }
+.nightless-orders { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.nightless-orders button { min-height: 44px; }
+@media (min-width: 560px) {
+  .market-fields { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) 80px; }
+  .market-fields label:first-child { grid-column: auto; }
+}
