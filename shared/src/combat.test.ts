@@ -87,11 +87,14 @@ describe('naval combat', () => {
   });
 
   it('does not declare a winner if both remaining fleets are sunk', () => {
-    const { engine, state, owner, raider } = siege(1, 1);
+    const { engine, state, owner, raider, events } = siege(1, 1);
     engine.fight();
     expect(owner.fleetLost).toBe(true);
     expect(raider.fleetLost).toBe(true);
     expect(state).toMatchObject({ phase: 'gameOver', winner: null, victory: null });
+    expect(events.filter((event) => event.type === 'gameOver')).toEqual([
+      { type: 'gameOver', winner: null, victory: null, reason: 'No navigators remain afloat.' },
+    ]);
   });
 
   it('sends both fleets home after a drawn battle', () => {

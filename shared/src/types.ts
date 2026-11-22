@@ -260,5 +260,5 @@ export type GameEvent =
   | { type: 'tollPaid'; from: number; to: number; amount: number }
   | { type: 'goldChanged'; playerId: number; delta: number; reason: string }
   | { type: 'bankrupt'; playerId: number }
-  | { type: 'gameOver'; winner: number; victory: VictoryKind; reason: string }
+  | { type: 'gameOver'; reason: string } & ({ winner: number; victory: VictoryKind } | { winner: null; victory: null })
   | { type: 'log'; message: string; text?: import('./i18n').Text };

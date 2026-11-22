@@ -33,7 +33,7 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?:
   scenariosRun++;
   const byLevel = { easy: stats(), normal: stats(), hard: stats() };
   const nationWins = Object.fromEntries(NATIONS.map(({ name }) => [name, 0]));
-  const endings = { conquest: 0, survival: 0, wealth: 0 };
+  const endings = { conquest: 0, survival: 0, wealth: 0, draw: 0 };
   let games = 0;
   let rounds = 0;
 
@@ -60,7 +60,8 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?:
             break;
           case 'strategyUsed': row(event.playerId).cards++; break;
           case 'gameOver':
-            if (event.victory === 'everyContinent' || event.victory === 'islandGoal') endings.conquest++;
+            if (event.winner === null) endings.draw++;
+            else if (event.victory === 'everyContinent' || event.victory === 'islandGoal') endings.conquest++;
             else if (event.victory === 'richest') endings.wealth++;
             else endings.survival++;
             break;

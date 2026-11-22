@@ -698,7 +698,7 @@ export class GameController {
         }
         break;
       case 'gameOver':
-        if (isHuman(event.winner)) sfx.win();
+        if (event.winner !== null && isHuman(event.winner)) sfx.win();
         // Fall through: a completed or failed stage stops all game timers.
       case 'campaignFailed':
         this.skipping = false;

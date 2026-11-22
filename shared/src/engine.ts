@@ -1313,8 +1313,7 @@ export class GameEngine extends GameView {
       reason = tx('is the last navigator afloat', '是最后一位仍在海上的航海家');
     } else if (alive.length === 0) {
       if (players.some((p) => p.fleetLost)) {
-        this.state.phase = 'gameOver';
-        this.log(tx('No navigators remain afloat.', '没有航海家仍在海上。'));
+        this.finishGame(null, null, tx('No navigators remain afloat.', '没有航海家仍在海上。'));
         return true;
       }
       winner = players[0];
@@ -1368,12 +1367,13 @@ export class GameEngine extends GameView {
     return true;
   }
 
-  private finishGame(winner: Player, victory: VictoryKind, reason: Text): void {
+  private finishGame(...[winner, victory, reason]: [Player, VictoryKind, Text] | [null, null, Text]): void {
     this.state.phase = 'gameOver';
-    this.state.winner = winner.id;
+    this.state.winner = winner?.id ?? null;
     this.state.victory = victory;
-    this.log(tx('{w} {r}!', '{w} {r}！', { w: ref.player(winner.id), r: reason }));
-    this.emit({ type: 'gameOver', winner: winner.id, victory, reason: localize('en', reason, this.state) });
+    if (winner) this.log(tx('{w} {r}!', '{w} {r}！', { w: ref.player(winner.id), r: reason }));
+    else this.log(reason);
+    this.emit({ type: 'gameOver', reason: localize('en', reason, this.state), ...(winner ? { winner: winner.id, victory } : { winner, victory }) });
   }
 
   private node(id: number): MapNode {
