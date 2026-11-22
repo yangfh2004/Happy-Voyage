@@ -1,0 +1,68 @@
+.voyage-cover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: auto;
+  isolation: isolate;
+  background: #082431 url('../assets/voyage-cover.webp') 64% center / cover no-repeat;
+  color: #f9efd8;
+}
+.voyage-cover::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: linear-gradient(90deg, #061b26f5, #082430ce 30%, #08243012 72%);
+}
+.voyage-cover-header {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(20px, env(safe-area-inset-right));
+}
+.voyage-cover-header .language { align-items: center; }
+.voyage-cover-header .language span { display: none; }
+.voyage-cover-copy {
+  width: min(53%, 640px);
+  margin-block: auto;
+  margin-inline: clamp(24px, 8vw, 132px) 0;
+  padding-block: 76px 36px;
+}
+.voyage-cover-mark { display: inline-block; color: #e8c27e; font-size: 38px; margin-bottom: 12px; }
+.voyage-cover-kicker { color: #e8c27e; font-weight: 750; text-transform: uppercase; letter-spacing: .24em; font-size: clamp(.7rem, 1.4vw, .9rem); }
+.voyage-cover h1 {
+  color: inherit;
+  max-width: 9ch;
+  font-size: clamp(3rem, 8.5vw, 8.5rem);
+  line-height: .89;
+  letter-spacing: -.042em;
+  text-wrap: balance;
+  text-shadow: 0 3px 24px #031420c0;
+}
+.voyage-cover-deck { max-width: 35ch; margin-block: 24px; font-size: clamp(.95rem, 1.6vw, 1.2rem); line-height: 1.55; }
+.voyage-cover-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.voyage-cover-actions button {
+  min-height: 48px;
+  padding: 10px 18px;
+  color: #fff4db;
+  background: #0a293be8;
+  border: 1px solid #e8c27e;
+  font-weight: 700;
+}
+.voyage-cover-actions button:hover { background: #1a4c5f; }
+.voyage-cover-actions .voyage-start { color: #1b252b; background: #f5d288; }
+.voyage-cover-actions .voyage-start:hover { background: #ffe2a3; }
+.voyage-start span { margin-inline-start: .5em; }
+.voyage-cover :focus-visible { outline: 3px solid white; outline-offset: 3px; }
+@media (max-width: 720px) {
+  .voyage-cover { justify-content: flex-end; background-position: 75% 36%; }
+  .voyage-cover::before { background: linear-gradient(0deg, #061b26 6%, #061b26ef 35%, #061b2630 76%); }
+  .voyage-cover-copy {
+    width: auto;
+    margin: auto 22px 0;
+    padding-block: max(170px, 27dvh) max(24px, env(safe-area-inset-bottom));
+  }
+  .voyage-cover h1 { font-size: clamp(3rem, 11vw, 5.2rem); }
+  .voyage-cover-deck { margin-block: 18px; }
+}
