@@ -12,7 +12,6 @@
   padding: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  touch-action: pan-y;
   color: var(--island-ink);
   background: var(--island-paper);
   border: 1px solid var(--island-gold);
