@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { GOOD_VALUES, goodName, type GameState } from '@happy-voyage/shared';
+import { GOODS, GOOD_VALUES, goodName, shipName, type GameState } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { gameController } from '../game/GameController';
 
 export function BarterPanel({ state }: { state: GameState }) {
   const [error, setError] = useState('');
   const { t, locale } = useT();
+  const { fleet } = state.players[state.currentPlayer];
   function accept(index: number) {
     try { gameController.acceptBarter(index); }
     catch (cause) { setError(cause instanceof Error ? cause.message : t('Barter failed', '交换失败')); }
@@ -13,6 +14,15 @@ export function BarterPanel({ state }: { state: GameState }) {
   return <section aria-labelledby="barter-title">
     <h2 id="barter-title">{t('Wind Island · Native barter', '风之岛 · 与土人交换')}</h2>
     <p>{t('Trade cheap fleet cargo for higher-value goods. Choose one offer or sail on.', '用舰队上的便宜货物换取更值钱的货物。选择一个报价，或继续航行。')}</p>
+    <details className="barter-cargo">
+      <summary>{t('Fleet cargo', '舰队货物')}</summary>
+      <ul>
+        {fleet.map((ship) => <li key={ship.id}>
+          <strong>{shipName(ship.name, locale)}</strong> · {GOODS.filter((good) => (ship.cargo[good] ?? 0) > 0)
+            .map((good) => `${ship.cargo[good]} ${goodName(good, locale)}`).join(' · ') || t('Empty', '空')}
+        </li>)}
+      </ul>
+    </details>
     {error && <p role="alert">{error}</p>}
     <div className="barter-offers">
       {(state.pendingBarter ?? []).map((offer, index) => <div className="barter-offer" key={index}>
