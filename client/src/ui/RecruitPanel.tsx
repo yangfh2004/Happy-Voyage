@@ -4,6 +4,8 @@ import { useT } from '../i18n';
 import { gameController } from '../game/GameController';
 import { StatTooltip } from './StatTooltip';
 
+const bonusBadge = { toll: '⚓', tax: '⚑', salary: '✦' };
+
 export function RecruitPanel({ state }: { state: GameState }) {
   const [error, setError] = useState('');
   const { t, locale } = useT();
@@ -19,14 +21,19 @@ export function RecruitPanel({ state }: { state: GameState }) {
     <p><StatTooltip stat="captains">{t('Captains aboard: {n}/{m}', '船上的船长：{n}/{m}', { n: player.captains.length, m: MAX_CAPTAINS })}</StatTooltip>{t('. ', '。')}<StatTooltip stat="gold">{t('Treasury: {g}g', '金库：{g} 金币', { g: player.gold })}</StatTooltip>{t('.', '。')}</p>
     {full && <p>{t('Crew is full. No more captains can join.', '船员已满，无法再招募船长。')}</p>}
     {error && <p role="alert">{error}</p>}
-    {(state.pendingRecruits ?? []).map((id, index) => {
-      const captain = CAPTAINS.find((candidate) => candidate.id === id)!;
-      return <div className="building-option" key={id}>
-        <strong>{captainName(captain.id, locale)}</strong>
-        <p>{captainDescriptionText(captain.id, locale)} · {t('Requires {r}', '需要{r}', { r: rankName(captain.minRank, locale) })} · {captain.fee}{t('g', ' 金币')}</p>
-        <button className="primary" disabled={full || player.gold < captain.fee || player.rank < captain.minRank || player.captains.includes(id)} onClick={() => recruit(index)}>{t('Recruit {c}', '招募{c}', { c: captainName(captain.id, locale) })}</button>
-      </div>;
-    })}
+    <div className="tavern-roster">
+      {(state.pendingRecruits ?? []).map((id, index) => {
+        const captain = CAPTAINS.find((candidate) => candidate.id === id)!;
+        const name = captainName(captain.id, locale);
+        return <article className="tavern-captain" key={id}>
+          <span className="tavern-badge" aria-hidden="true">{bonusBadge[captain.bonus]}</span>
+          <h3>{name}</h3>
+          <p className="tavern-bonus">{captainDescriptionText(captain.id, locale)}</p>
+          <p>{t('Requires {r}', '需要{r}', { r: rankName(captain.minRank, locale) })} · {captain.fee}{t('g', ' 金币')}</p>
+          <button className="primary" disabled={full || player.gold < captain.fee || player.rank < captain.minRank || player.captains.includes(id)} onClick={() => recruit(index)}>{t('Recruit {c}', '招募{c}', { c: name })}</button>
+        </article>;
+      })}
+    </div>
     <button onClick={() => gameController.declineRecruit()}>{t('Decline recruitment', '婉拒招募')}</button>
   </section>;
 }

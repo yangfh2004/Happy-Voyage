@@ -6,7 +6,6 @@ import { ShortcutLegend } from './ShortcutLegend';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BarterPanel } from './BarterPanel';
-import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
@@ -177,8 +176,6 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
         <button className="primary" onClick={() => gameController.finishBuilding()}>{t('Done', '完成')} <kbd>D / Esc</kbd></button>
       </>
     );
-  } else if (state.phase === 'awaitingRecruit') {
-    body = <RecruitPanel state={state} />;
   } else if (state.phase === 'awaitingToll') {
     const island = state.map[player.position];
     const { ships: defenders, owner, fromFleet } = colonyDefenders(state, island.id);
