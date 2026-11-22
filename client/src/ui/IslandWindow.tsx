@@ -4,6 +4,7 @@ import { nodeName, type GameState, type SpecialKind } from '@happy-voyage/shared
 import { useT } from '../i18n';
 import { LotteryPanel } from './LotteryPanel';
 import { MistPanel } from './MistPanel';
+import { ShipMarketPanel } from './ShipMarketPanel';
 import './IslandWindow.css';
 
 interface IslandActivity {
@@ -15,6 +16,7 @@ interface IslandActivity {
 const islandActivities: Partial<Record<GameState['phase'], IslandActivity>> = {
   awaitingLottery: { island: 'treasure', titleId: 'lottery-title', Panel: LotteryPanel },
   awaitingMistDuel: { island: 'mist', titleId: 'mist-title', Panel: MistPanel },
+  awaitingMarket: { island: 'skeleton', titleId: 'ship-market-title', Panel: ShipMarketPanel },
 };
 
 export function islandWindowFor(state: GameState, canHelm: boolean): IslandActivity | null {

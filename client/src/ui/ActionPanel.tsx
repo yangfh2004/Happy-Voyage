@@ -1,4 +1,4 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COMBAT, forecastColonyBattle, tollDue, SHIP_RECIPES, SHIP_TYPES, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COMBAT, forecastColonyBattle, tollDue, SHIP_RECIPES, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
@@ -10,7 +10,7 @@ import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
-import { CAMPAIGN_STAGES, SPIN_COMPASS_LABEL, buildingDescription, buildingName, campaignStage, chartIdentity, goodName, nationName, nodeName, playerName, shipName, shipTypeName, stageText, strategyText } from '@happy-voyage/shared';
+import { CAMPAIGN_STAGES, SPIN_COMPASS_LABEL, buildingDescription, buildingName, campaignStage, chartIdentity, goodName, nationName, nodeName, playerName, shipTypeName, stageText, strategyText } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { seatTag } from './seats';
@@ -133,24 +133,6 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
     body = <SeaChoicePanel key={`${player.id}:${state.phase}`} state={state} />;
   } else if (trading) {
     body = <MarketPanel key={player.id} state={state} />;
-  } else if (state.phase === 'awaitingMarket') {
-    body = <>
-      <h2>{t('Skeleton Island ship market', '骷髅岛船只市场')}</h2>
-      <p><StatTooltip stat="gold">{t('Treasury {g}g', '金库 {g} 金币', { g: player.gold })}</StatTooltip> · {t('Second-hand ships have', '二手船只有')} <StatTooltip stat="durability">{t('{d}% durability', '{d}% 耐久', { d: USED_SHIP_CONDITION * 100 })}</StatTooltip>{t('.', '。')}</p>
-      <h3>{t('Pirate stock', '海盗库存')}</h3>
-      {state.marketStock.length === 0 && <p>{t('Sold out. New stock arrives next visit.', '已售罄。下次造访时会有新货。')}</p>}
-      {state.marketStock.map((type) => <div className="building-option" key={type}>
-        <strong>{shipTypeName(type, locale)}</strong> · <StatTooltip stat="durability">{Math.floor(SHIP_TYPES[type].maxDurability * USED_SHIP_CONDITION)}/{SHIP_TYPES[type].maxDurability} {t('durability', '耐久')}</StatTooltip>
-        <button disabled={!gameController.canBuyUsedShip(type)} onClick={() => gameController.buyUsedShip(type)}>{t('Buy {s} ({g}g)', '购买{s}（{g} 金币）', { s: shipTypeName(type, locale), g: USED_SHIP_PRICES[type] })}</button>
-      </div>)}
-      <h3>{t('Your fleet', '你的舰队')}</h3>
-      <p>{t('Keep at least one ship. Only empty ships can be sold; unload cargo at a colony first. Sales are final.', '至少保留一艘船。只能出售空船，请先在殖民地卸货。出售后不可撤销。')}</p>
-      {player.fleet.map((ship) => <div className="building-option" key={ship.id}>
-        <strong>{shipName(ship.name, locale)}</strong> · <StatTooltip stat="durability">{ship.durability}/{ship.maxDurability} {t('durability', '耐久')}</StatTooltip>
-        <button disabled={!gameController.canSellShip(ship.id)} onClick={() => gameController.sellShip(ship.id)}>{t('Sell {s} ({g}g)', '出售{s}（{g} 金币）', { s: shipName(ship.name, locale), g: shipSalePrice(ship) })}</button>
-      </div>)}
-      <button className="primary" onClick={() => gameController.finishMarket()}>{t('Sail on', '继续航行')}</button>
-    </>;
   } else if (state.phase === 'awaitingBuild') {
     const nodeId = player.position;
     const yardLevel = buildingLevel(state, nodeId, 'shipyard');

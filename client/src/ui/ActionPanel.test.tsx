@@ -16,6 +16,7 @@ vi.mock('./Compass', () => ({ Compass: () => null }));
 vi.mock('../game/EventBus', () => ({ EventBus: { emit: vi.fn() } }));
 vi.mock('dialog-polyfill', () => ({ default: { registerDialog: vi.fn() } }));
 import { ActionPanel } from './ActionPanel';
+import { ShipMarketPanel } from './ShipMarketPanel';
 import { CampaignPanel } from './CampaignPanel';
 import { RouteDetails } from './RouteDetails';
 import { TransferContents } from './TransferPanel';
@@ -131,7 +132,7 @@ describe('build menu', () => {
     engine.resolveLanding();
     vi.mocked(gameController.canBuyUsedShip).mockImplementation((type) => engine.canBuyUsedShip(type));
     vi.mocked(gameController.canSellShip).mockImplementation((id) => engine.canSellShip(id));
-    let html = renderToStaticMarkup(<ActionPanel state={state} />);
+    let html = renderToStaticMarkup(<ShipMarketPanel state={state} />);
     expect(html).toContain('Skeleton Island ship market');
     expect(html).toContain('Buy Explorer (180g)');
     expect(html).toContain('48/80 durability');
@@ -139,11 +140,11 @@ describe('build menu', () => {
     state.marketStock = [];
     engine.currentPlayer.fleet.splice(1);
     engine.currentPlayer.gold = 0;
-    html = renderToStaticMarkup(<ActionPanel state={state} />);
+    html = renderToStaticMarkup(<ShipMarketPanel state={state} />);
     expect(html).toContain('Sold out.');
     expect(html).toContain('<button disabled="">Sell Warship 1');
     state.marketStock = ['explorer'];
-    html = renderToStaticMarkup(<ActionPanel state={state} />);
+    html = renderToStaticMarkup(<ShipMarketPanel state={state} />);
     expect(html).toContain('<button disabled="">Buy Explorer');
   });
   it('shows empty, upgraded and maxed buildings with costs and disabled actions', () => {
