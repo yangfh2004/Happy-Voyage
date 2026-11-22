@@ -195,3 +195,33 @@
 @media (min-width: 600px) {
   .tavern-roster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+.island-window--wind {
+  --island-ink: #1a4249;
+  --island-deep: #205760;
+  --island-paper: #eff8f4;
+  --island-gold: #f1d695;
+}
+.barter-offers { display: grid; gap: 10px; margin-block: 16px; }
+.barter-offer {
+  border: 1px solid #82afa7;
+  border-radius: 12px;
+  background: #fffdf4;
+  padding: 10px;
+}
+.barter-exchange {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.barter-exchange p {
+  margin: 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: #f8ebd2;
+  font-weight: 650;
+}
+.barter-exchange p:last-child { background: #dfefe6; }
+.barter-exchange span { font-weight: 800; color: #205760; }

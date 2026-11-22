@@ -869,7 +869,7 @@ export class GameEngine extends GameView {
 
   private resolveSpecial(player: Player, node: MapNode): void {
     const r = SEA_RULES;
-    this.log(tx('{p} visits {n} ({zh}).', '{p} 造访{n}。', { p: ref.player(player.id), n: ref.node(node.id), zh: node.chineseName ?? '' }));
+    this.log(tx('{p} visits {n}.', '{p} 造访{n}。', { p: ref.player(player.id), n: ref.node(node.id) }));
     switch (node.special) {
       case 'skeleton':
         if (player.gold >= r.tribute) {
