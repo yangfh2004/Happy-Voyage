@@ -5,6 +5,7 @@ import { gameController } from '../GameController';
 import { BattleSession } from '../BattleSession';
 import { sfx } from '../sfx';
 import { battleShipTexture, broadsideMuzzles } from '../battleShipArt';
+import { battleLayout, battleTapRadius, battleToScreen, isBattleDrag, screenToBattle } from '../battleLayout';
 
 const font = '"Sea Names", Georgia, serif';
 const text = (en: string, zh: string) => pick(getLocale(), en, zh);
@@ -22,6 +23,7 @@ export class BattleScene extends Phaser.Scene {
   private banner!: Phaser.GameObjects.Text;
   private buttons: Phaser.GameObjects.Text[] = [];
   private labels = new Map<number, Phaser.GameObjects.Text>();
+  private damageLabels: Phaser.GameObjects.Text[] = [];
   private ships = new Map<number, Phaser.GameObjects.Image>();
   private selected = new Set<number>();
   private formation: Formation = 'column';
@@ -34,7 +36,7 @@ export class BattleScene extends Phaser.Scene {
   private clock = 0;
   private endedAt: number | null = null;
   private completed = false;
-  private drag: { x: number; y: number } | null = null;
+  private drag: { x: number; y: number; screenX: number; screenY: number; touch: boolean } | null = null;
   private cursor = { x: 0, y: 0 };
   private marker: { x: number; y: number } | null = null;
 
@@ -44,6 +46,7 @@ export class BattleScene extends Phaser.Scene {
     const state = gameController.state!;
     this.session = new BattleSession(state.pendingBattle!, state.players);
     this.labels.clear(); this.ships.clear(); this.selected.clear(); this.previous.clear(); this.sunkAt.clear();
+    this.damageLabels = [];
     this.buttons = []; this.effects = []; this.smoke = []; this.clock = 0; this.endedAt = null; this.completed = false;
     this.accumulator = 0; this.paused = false; this.drag = null; this.marker = null; this.formation = 'column';
     this.cameras.main.setBackgroundColor('#041b2d');
@@ -58,10 +61,10 @@ export class BattleScene extends Phaser.Scene {
       this.field.add(image); this.ships.set(s.id, image);
       const label = this.add.text(0, 0, '', { fontFamily: font, fontSize: '19px', color: '#fff4d5', stroke: '#062335', strokeThickness: 4 }).setOrigin(.5, 0);
       label.setDepth(1);
-      this.field.add(label); this.labels.set(s.id, label);
+      this.labels.set(s.id, label);
     }
     this.field.sort('depth');
-    this.health = this.add.graphics(); this.field.add(this.health);
+    this.health = this.add.graphics();
     const style = { fontFamily: font, fontSize: '18px', color: '#ffedbb', align: 'center' };
     this.hud = this.add.text(0, 12, '', style).setOrigin(.5, 0);
     this.help = this.add.text(0, 0, '', { ...style, fontSize: '13px', color: '#aed0dd' }).setOrigin(.5, 0);
@@ -97,9 +100,10 @@ export class BattleScene extends Phaser.Scene {
     this.selected = new Set(this.session.battle.ships.filter((s) => s.side === this.session.side && !s.sunk && !s.escaped).map((s) => s.id));
   }
 
-  private point(p: Phaser.Input.Pointer) { return { x: (p.x - this.field.x) / this.field.scaleX, y: (p.y - this.field.y) / this.field.scaleY }; }
+  private layout() { return battleLayout(this.scale.width, this.scale.height); }
+  private point(p: Phaser.Input.Pointer) { return screenToBattle(this.layout(), p); }
   private shipAt(p: { x: number; y: number }) {
-    return this.session.battle.ships.filter((s) => !s.sunk && !s.escaped && Math.hypot(s.x - p.x, s.y - p.y) < 38)
+    return this.session.battle.ships.filter((s) => !s.sunk && !s.escaped && Math.hypot(s.x - p.x, s.y - p.y) <= battleTapRadius(this.layout().zoom))
       .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
   }
 
@@ -115,19 +119,20 @@ export class BattleScene extends Phaser.Scene {
     if (point.x < 0 || point.x > 1600 || point.y < 0 || point.y > 900 || this.session.battle.outcome) return;
     const target = this.shipAt(point);
     if (p.rightButtonDown()) { this.order(point, target); return; }
-    if (p.wasTouch && (!target || target.side !== this.session.side)) { this.order(point, target); return; }
-    this.drag = point; this.cursor = point;
+    this.drag = { ...point, screenX: p.x, screenY: p.y, touch: p.wasTouch }; this.cursor = point;
   }
 
   private pointerUp(p: Phaser.Input.Pointer) {
     if (!this.drag) return;
     const start = this.drag; this.drag = null;
     const end = this.point(p);
-    this.selected.clear();
-    if (Math.hypot(start.x - end.x, start.y - end.y) > 15) {
+    if (isBattleDrag({ x: start.screenX, y: start.screenY }, p)) {
+      this.selected.clear();
       for (const s of this.session.battle.ships) if (s.side === this.session.side && !s.sunk && !s.escaped && s.x >= Math.min(start.x, end.x) && s.x <= Math.max(start.x, end.x) && s.y >= Math.min(start.y, end.y) && s.y <= Math.max(start.y, end.y)) this.selected.add(s.id);
     } else {
-      const s = this.shipAt(end);
+      const s = this.shipAt(start.touch ? start : end);
+      if (start.touch && (!s || s.side !== this.session.side)) { this.order(end, s); return; }
+      this.selected.clear();
       if (s?.side === this.session.side) this.selected.add(s.id);
     }
   }
@@ -172,8 +177,8 @@ export class BattleScene extends Phaser.Scene {
 
   private draw() {
     const { width, height } = this.scale;
-    const zoom = Math.min(width / 1600, Math.max(1, height - 190) / 900);
-    this.field.setPosition((width - 1600 * zoom) / 2, 86 + (height - 190 - 900 * zoom) / 2).setScale(zoom);
+    const layout = this.layout(), { zoom } = layout;
+    this.field.setPosition(layout.x, layout.y).setScale(zoom).setAngle(layout.angle);
     const g = this.ink.clear();
     const health = this.health.clear();
     g.fillGradientStyle(0x0c435d, 0x12546b, 0x167a88, 0x0a536d).fillRect(0, 0, 1600, 900);
@@ -194,6 +199,7 @@ export class BattleScene extends Phaser.Scene {
       const fade = s.sunk ? Math.max(0, 1 - (this.clock - (this.sunkAt.get(s.id) ?? 0)) / 1.5) : s.escaped ? 0 : 1;
       const old = this.previous.get(s.id) ?? s;
       const x = Phaser.Math.Linear(old.x, s.x, alpha), y = Phaser.Math.Linear(old.y, s.y, alpha);
+      const screen = battleToScreen(layout, { x, y });
       const pirate = s.side === 'defender' && pending.defender === null;
       const color = pirate ? 0xb93435 : state.players[s.side === 'attacker' ? pending.attacker : pending.defender!].color;
       if (!s.sunk && !s.escaped && Math.hypot(s.vx, s.vy) > 1) {
@@ -212,14 +218,18 @@ export class BattleScene extends Phaser.Scene {
       const turn = Phaser.Math.Angle.WrapDegrees(s.heading - old.heading);
       this.ships.get(s.id)!.setPosition(x, y).setAngle(old.heading + turn * alpha + (s.sunk ? (1 - fade) * 70 : 0)).setAlpha(fade).setTint(flash ? 0xff7777 : 0xffffff);
       label.setText(pirate ? text('Pirate', '海盗') : shipName(s.name, getLocale()));
-      let labelY = y + 57;
-      while (labelBoxes.some((b) => Math.abs(b.x - x) < (b.width + label.width) / 2 + 8 && Math.abs(b.y - labelY) < 33)) labelY += 34;
-      if (fade > 0) labelBoxes.push({ x, y: labelY, width: label.width });
-      label.setPosition(x, labelY).setAlpha(fade);
+      const labelSize = Math.max(11, 19 * zoom);
+      label.setFontSize(labelSize);
+      const labelX = Phaser.Math.Clamp(screen.x, label.width / 2 + 4, width - label.width / 2 - 4);
+      let labelY = screen.y + Math.max(24, 57 * zoom);
+      while (labelBoxes.some((b) => Math.abs(b.x - labelX) < (b.width + label.width) / 2 + 8 && Math.abs(b.y - labelY) < labelSize + 11)) labelY += labelSize + 12;
+      if (fade > 0) labelBoxes.push({ x: labelX, y: labelY, width: label.width });
+      label.setPosition(labelX, labelY).setAlpha(fade);
       if (!s.sunk && !s.escaped) {
-        if (labelY > y + 57) health.lineStyle(1, 0xb5d0d2, .5).lineBetween(x, y + 43, x, labelY - 9);
-        health.fillStyle(0x051b29).fillRect(x - 32, labelY - 9, 64, 7);
-        health.fillStyle(color).fillRect(x - 32, labelY - 9, 64 * Math.min(1, s.durability / s.maxDurability), 7);
+        const barWidth = Math.max(32, 64 * zoom), barHeight = Math.max(4, 7 * zoom);
+        if (labelY > screen.y + Math.max(24, 57 * zoom)) health.lineStyle(1, 0xb5d0d2, .5).lineBetween(screen.x, screen.y + 16, labelX, labelY - barHeight - 2);
+        health.fillStyle(0x051b29).fillRect(labelX - barWidth / 2, labelY - barHeight - 2, barWidth, barHeight);
+        health.fillStyle(color).fillRect(labelX - barWidth / 2, labelY - barHeight - 2, barWidth * Math.min(1, s.durability / s.maxDurability), barHeight);
       }
     }
     for (const b of this.session.battle.cannonballs) g.fillStyle(0xffefb1).fillCircle(b.x, b.y, 5);
@@ -232,11 +242,13 @@ export class BattleScene extends Phaser.Scene {
       g.lineStyle(3, e.damage ? 0xffbd5c : 0xa6ecff, 1 - e.age / 1.2).strokeCircle(e.x, e.y, 8 + e.age * 35);
       if (e.damage) for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.lineBetween(e.x + Math.cos(a) * 10, e.y + Math.sin(a) * 10, e.x + Math.cos(a) * (20 + e.age * 45), e.y + Math.sin(a) * (20 + e.age * 45)); }
     }
-    // Floating numbers share the field transform with the ships.
-    this.field.getAll('name', 'damage').forEach((o) => (o as Phaser.GameObjects.Text).destroy());
-    for (const e of this.effects.filter((e) => e.damage)) this.field.add(this.add.text(e.x, e.y - 35 - e.age * 38, `−${e.damage}`, { fontFamily: font, fontSize: '24px', color: '#ffb39b' }).setOrigin(.5).setAlpha(1 - e.age / 1.2).setName('damage'));
+    this.damageLabels.forEach((label) => label.destroy()); this.damageLabels = [];
+    for (const e of this.effects.filter((e) => e.damage)) {
+      const screen = battleToScreen(layout, e);
+      this.damageLabels.push(this.add.text(screen.x, screen.y - 20 - e.age * 38, `−${e.damage}`, { fontFamily: font, fontSize: `${Math.max(12, 24 * zoom)}px`, color: '#ffb39b' }).setOrigin(.5).setAlpha(1 - e.age / 1.2));
+    }
     if (this.marker) g.lineStyle(3, 0xffe39a, .8).strokeCircle(this.marker.x, this.marker.y, 16).lineBetween(this.marker.x - 24, this.marker.y, this.marker.x + 24, this.marker.y).lineBetween(this.marker.x, this.marker.y - 24, this.marker.x, this.marker.y + 24);
-    if (this.drag) g.lineStyle(2, 0xffe5a4).strokeRect(Math.min(this.drag.x, this.cursor.x), Math.min(this.drag.y, this.cursor.y), Math.abs(this.drag.x - this.cursor.x), Math.abs(this.drag.y - this.cursor.y));
+    if (this.drag && isBattleDrag({ x: this.drag.screenX, y: this.drag.screenY }, battleToScreen(layout, this.cursor))) g.lineStyle(2, 0xffe5a4).strokeRect(Math.min(this.drag.x, this.cursor.x), Math.min(this.drag.y, this.cursor.y), Math.abs(this.drag.x - this.cursor.x), Math.abs(this.drag.y - this.cursor.y));
     const totals = (side: 'attacker' | 'defender') => this.session.battle.ships.filter((s) => s.side === side).reduce((sum, s) => sum + s.durability, 0);
     const a = playerName(state.players[pending.attacker], getLocale());
     const d = pending.defender === null ? text('Pirates', '海盗') : playerName(state.players[pending.defender], getLocale());
@@ -251,7 +263,9 @@ export class BattleScene extends Phaser.Scene {
     const names = [text('Whole fleet [A]', '全舰队 [A]'), text('Column [1]', '纵队 [1]'), text('Line [2]', '横队 [2]'), text('Spread [3]', '散开 [3]'), this.paused ? text('Resume', '继续') : text('Pause [Space]', '暂停 [空格]'), text('Retreat', '撤退')];
     const cols = width < 650 ? 3 : this.buttons.length;
     this.buttons.forEach((b, i) => b.setText(names[i]).setPosition(width / 2 + ((i % cols) - (cols - 1) / 2) * Math.min(155, width / cols), height - (width < 650 ? 76 : 53) + Math.floor(i / cols) * 40).setBackgroundColor(i >= 1 && i <= 3 && (['column', 'line', 'spread'][i - 1] === this.formation) ? '#725d30' : '#163e54'));
-    this.help.setPosition(width / 2, 62).setText(text('Select · Right-click to order / Tap sea to move · Broadside auto-fire', '选择舰船 · 右键下令／点击海面移动 · 侧舷自动开火')).setFontSize(width < 600 ? 10 : 13);
+    this.help.setPosition(width / 2, 62).setText(this.sys.game.device.input.touch
+      ? text('Tap ship to select · Tap sea to move · Tap enemy to attack', '点击选择 · 点击海面移动 · 点击敌舰攻击')
+      : text('Select · Right-click to order / Tap sea to move · Broadside auto-fire', '选择舰船 · 右键下令／点击海面移动 · 侧舷自动开火')).setFontSize(width < 600 ? 10 : 13);
     const outcome = this.session.battle.outcome;
     if (outcome && this.endedAt !== null && this.clock - this.endedAt >= 1.5) {
       const win = outcome === (this.session.side === 'attacker' ? 'victory' : 'defeat');
