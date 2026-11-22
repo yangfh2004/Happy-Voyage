@@ -1,4 +1,4 @@
-import { tx } from '@happy-voyage/shared';
+import { tx, STRATEGIES, type StrategyId } from '@happy-voyage/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createNationRoster, GameEngine, type ShipType } from '@happy-voyage/shared';
@@ -91,6 +91,28 @@ describe('campaign UI', () => {
 });
 
 describe('turn controls', () => {
+  it('offers rival and eligible colony targets and renders the entire deck in English', () => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Leader', color: 1, isAI: true }, { name: 'Bankrupt', color: 2, isAI: true }], config: { startingStrategies: 0 } });
+    const { state } = engine;
+    state.players[2].bankrupt = true;
+    const islands = state.map.filter((n) => n.kind === 'island').slice(0, 2);
+    islands.forEach((n) => { state.owners[n.id] = 1; });
+    state.docks[islands[1].id] = [state.players[1].fleet.pop()!];
+    engine.currentPlayer.strategies = Object.keys(STRATEGIES) as StrategyId[];
+    vi.mocked(gameController.canUseStrategy).mockImplementation((id, target) => engine.canUseStrategy(id, target));
+    const html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(html).toContain('Target for Plunder');
+    expect(html).toContain('Target for Incite Revolt');
+    expect(html).toContain('<option value="1" selected="">Leader</option>');
+    expect(html).not.toContain('>Bankrupt</option>');
+    for (const card of Object.values(STRATEGIES)) {
+      expect(html).toContain(card.name);
+      expect(html).not.toContain(card.chineseName);
+    }
+    expect(vi.mocked(gameController.canUseStrategy)).toHaveBeenCalledWith('plunder', 1);
+    expect(vi.mocked(gameController.canUseStrategy)).toHaveBeenCalledWith('revolt', islands[0].id);
+    vi.mocked(gameController.canUseStrategy).mockReturnValue(false);
+  });
   it('puts the first spin and landing actions before strategy cards', () => {
     const engine = new GameEngine({ players: createNationRoster([{ name: 'You', nation: 'Spain' }]), rng: () => 0 });
     const { state } = engine;

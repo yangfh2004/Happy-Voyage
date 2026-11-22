@@ -46,13 +46,8 @@ const actions: Record<RoomAction[0], Handler> = {
   fight: noArgs((e) => e.fight()),
   useStrategy: (e, [card, target, ...extra]) => {
     if (!keyOf(STRATEGIES)(card) || extra.length) invalid();
-    if (card === 'navigate') {
-      if (!integer(target)) invalid();
-      e.useStrategy(card, target);
-    } else {
-      if (target !== undefined && target !== null) invalid();
-      e.useStrategy(card);
-    }
+    if (target !== undefined && target !== null && !integer(target)) invalid();
+    e.useStrategy(card, target === null ? undefined : target as number | undefined);
   },
   acceptBarter: oneArg(integer, (e, index) => e.acceptBarter(index)),
   recruitCaptain: oneArg(integer, (e, index) => e.recruitCaptain(index)),

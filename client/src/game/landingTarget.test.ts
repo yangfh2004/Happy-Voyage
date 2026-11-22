@@ -83,7 +83,7 @@ describe('landing target', () => {
     const { state } = game();
     expect(landingTarget(null)).toBeNull();
     state.phase = 'spinning';
-    for (const value of [null, 0, -1, NaN, 1.5]) {
+    for (const value of [null, 0, NaN, 1.5]) {
       state.lastSpin = value;
       expect(landingTarget(state)).toBeNull();
     }
@@ -95,5 +95,21 @@ describe('landing target', () => {
     expect(landingTarget(state, null, { playerId: 0, nodeId: -1 })).toBeNull();
     state.map = [];
     expect(landingTarget(state)).toBeNull();
+  });
+  it('previews and verifies Reverse Course and doubled compass routes', () => {
+    for (const card of ['reverse', 'tailwind'] as const) {
+      const engine = game();
+      const { state } = engine;
+      const from = engine.currentPlayer.position;
+      engine.currentPlayer.strategies = [card];
+      engine.useStrategy(card);
+      engine.spinCompass();
+      const target = landingTarget(state)!;
+      const route = sailingRoute(state);
+      const path = engine.sail();
+      expect(target.nodeId).toBe(path.at(-1));
+      expect(route).toEqual([from, ...path]);
+      expect(sailingRoute(state, { playerId: 0, path, sailFrom: from })).toEqual(route);
+    }
   });
 });

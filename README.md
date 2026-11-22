@@ -30,6 +30,13 @@ Refreshing the invite in the same tab restores your seat; a match waits when a d
 
 ## Royal campaign
 
+The 20 strategy cards can be played before spinning or, where specified, at a rival
+colony before paying or fighting. Play at most one per turn and hold up to five.
+Sea cards include fleet repair, escort protection, backward sailing, trade income,
+rival fleet and colony targets, and direct travel. Battle cards include Inspire,
+Mislead, Betray, Toll Exemption and Surprise Attack. The hand lists each card’s
+effect and offers eligible destinations, rivals or colonies as targets.
+
 Choose **Campaign** at setup and start any stage. Each stage gives you a **Navigate**
 card to reach a destination of your choice without spinning. The king pays a gold
 reward for each mission; finish both without going bankrupt to clear the stage.
