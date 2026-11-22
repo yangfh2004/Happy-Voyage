@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { createDefaultMap } from '@happy-voyage/shared';
 import { specialIslandTexture } from '../specialIslandArt';
+import { harbourTexture } from '../harbourArt';
 
 /** Generates shared coin and wave icons. */
 export class BootScene extends Phaser.Scene {
@@ -34,6 +35,7 @@ export class BootScene extends Phaser.Scene {
     g.destroy();
 
     for (const node of createDefaultMap()) {
+      if (node.kind === 'port') harbourTexture(this, node);
       if (node.kind === 'special' || node.kind === 'event') specialIslandTexture(this, node);
     }
     this.scene.start('Ocean');

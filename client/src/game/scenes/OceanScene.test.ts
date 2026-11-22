@@ -189,6 +189,19 @@ describe('fork routes', () => {
     return { clear: vi.fn(), lineStyle: vi.fn().mockReturnThis(), strokeCircle: vi.fn().mockReturnThis(), lineBetween: vi.fn().mockReturnThis(), fillStyle: vi.fn().mockReturnThis(), fillTriangle: vi.fn().mockReturnThis() };
   }
 
+  it('dashes main-course edges and curved shortcuts, including their outlines, but preserves arrows', () => {
+    const route = routeGraphics(), map = createDefaultMap();
+    Object.assign(scene, { map, route });
+    scene.drawRoute();
+    for (const call of route.lineBetween.mock.calls) {
+      const [x, y, ex, ey] = call as number[];
+      expect(Math.hypot(ex - x, ey - y)).toBeLessThan(25);
+    }
+    expect(route.lineStyle).toHaveBeenCalledWith(4, 0xffffff, .7);
+    expect(route.lineStyle).toHaveBeenCalledWith(7, 0xffd369, 1);
+    expect(route.fillTriangle.mock.calls.length).toBeGreaterThan(map.length);
+  });
+
   it('draws bold dashed gold shortcuts and highlights the wind-selected exit', () => {
     const route = routeGraphics();
     const map = [

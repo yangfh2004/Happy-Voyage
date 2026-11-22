@@ -1,5 +1,6 @@
 import { nodeName, WORLD, type MapNode } from '@happy-voyage/shared';
 import { islandLandscape } from './islandArt';
+import { harbourLandscape } from './harbourArt';
 
 export interface BerthBox { left: number; right: number; top: number; bottom: number }
 export interface ShipBerth { x: number; y: number; scale: number }
@@ -19,7 +20,7 @@ export function shipBounds(x: number, y: number, scale = 1): BerthBox {
 
 export function berthObstacles(map: MapNode[], labels = new Map<number, BerthBox>()): BerthBox[] {
   return map.flatMap(node => {
-    const offset = node.kind === 'island' ? 63 : node.kind === 'port' ? 35 : 55;
+    const offset = node.kind === 'island' || node.kind === 'port' ? 63 : 55;
     const lines = [0];
     for (const word of node.name.split(' ')) {
       const width = word.length * 9.75;
@@ -57,16 +58,18 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
   }
   const ordered = [...map].sort((a, b) => a.id - b.id);
   const obstacles = berthObstacles(ordered, labels), art = obstacles.filter((_, i) => i % 2 === 0), names = obstacles.filter((_, i) => i % 2 === 1);
-  const candidatesFor = (node: MapNode, scale: number, allowLabels = false): Candidate[] => {
-    const id = `${node.id}:${scale}:${allowLabels}`;
+  const candidatesFor = (node: MapNode, scale: number, allowLabels = false, fine = false): Candidate[] => {
+    const id = `${node.id}:${scale}:${allowLabels}:${fine}`;
     if (stored.candidates.has(id)) return stored.candidates.get(id)!;
     const candidates: Candidate[] = [];
     const neighbours = map.filter(other => other.id !== node.id);
     const ownIndex = ordered.findIndex(other => other.id === node.id);
-    const coast = node.kind === 'island' ? islandLandscape(node).coast : null;
-    for (let dy = -MAX_BERTH_OFFSET; dy <= MAX_BERTH_OFFSET; dy += 6) for (let dx = -MAX_BERTH_OFFSET; dx <= MAX_BERTH_OFFSET; dx += 6) {
+    const coast = node.kind === 'island' ? islandLandscape(node).coast : node.kind === 'port' ? harbourLandscape(node).coast : null;
+    const step = fine ? 3 : 6;
+    for (let dy = -MAX_BERTH_OFFSET; dy <= MAX_BERTH_OFFSET; dy += step) for (let dx = -MAX_BERTH_OFFSET; dx <= MAX_BERTH_OFFSET; dx += step) {
       const distance = Math.hypot(dx, dy), x = node.x + dx, y = node.y + dy;
       if (distance > MAX_BERTH_OFFSET) continue;
+      if (fine && distance > SHARED_SHORE_DISTANCE && (dx % 6 !== 0 || dy % 6 !== 0)) continue;
       let clearance = 400;
       for (const other of neighbours) clearance = Math.min(clearance, Math.hypot(x - other.x, y - other.y));
       if (clearance <= distance) continue;
@@ -80,7 +83,7 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
       const hullDistance = Math.hypot(dx, hullY);
       const ux = hullDistance ? dx / hullDistance : 0, uy = hullDistance ? hullY / hullDistance : -1;
       const radius = coast ? Math.max(...coast.map(point => (point.x - 80) * ux + (point.y - 76) * uy))
-        : node.kind === 'port' ? Math.abs(ux) * 26 + Math.abs(uy) * 22 : Math.hypot(45 * ux, 30 * uy);
+        : Math.hypot(45 * ux, 30 * uy);
       const shore = radius + Math.hypot(ux * 38, uy * 10) * .95 * scale - 4;
       const shoreGap = Math.abs(hullDistance - shore);
       const remote = Math.max(0, distance - SINGLE_SHORE_DISTANCE);
@@ -110,7 +113,7 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
     const limit = solo ? Math.min(SINGLE_SHORE_DISTANCE, shoreLimit) : shoreLimit;
     const id = `${node.id}:${count}:${scale}:${limit}`;
     if (!fixed.size && stored.layouts.has(id)) return stored.layouts.get(id)!;
-    const candidates = candidatesFor(node, scale).filter(c => Math.hypot(c.x - node.x, c.y - node.y) <= limit && fixedBoxes.every(box => !boxesOverlap(c.box, box))), layouts: Candidate[][] = [];
+    const candidates = candidatesFor(node, scale, false, scale === MIN_BERTH_SCALE).filter(c => Math.hypot(c.x - node.x, c.y - node.y) <= limit && fixedBoxes.every(box => !boxesOverlap(c.box, box))), layouts: Candidate[][] = [];
     for (let seed = 0; seed < candidates.length; seed++) {
       const chosen = [candidates[seed]];
       for (const candidate of candidates) {

@@ -59,6 +59,7 @@ describe('themed special stops', () => {
     for (const node of createDefaultMap().filter(node => node.kind === 'special' || node.kind === 'event')) {
       expect(traces.has(`stop-${node.kind}-${node.special ?? node.event}-${node.id}`)).toBe(true);
     }
+    for (const node of createDefaultMap().filter(node => node.kind === 'port')) expect(traces.has(`harbour-${node.id}-${node.nation}`)).toBe(true);
     expect(raw.scene.start).toHaveBeenCalledWith('Ocean');
   });
 });

@@ -18,6 +18,7 @@ import { captainShipTexture, sailingStepDuration } from '../captainShip';
 import { occupiedShipPlacements, type MooredBerth } from '../shipBerths';
 import { specialIslandTexture } from '../specialIslandArt';
 import { playLanding, reducedLandingMotion } from '../landingEffects';
+import { harbourTexture } from '../harbourArt';
 
 const HOP_HEIGHT = 10;
 const SPECIAL_HELP: Record<string, [string, string]> = {
@@ -28,13 +29,6 @@ const SPECIAL_HELP: Record<string, [string, string]> = {
   nightless: ['Buy and sell cargo at changing market prices.', '按变化的市场价格买卖货物。'],
   wind: ['Exchange fleet cargo for more valuable native goods.', '用船上货物交换更有价值的当地特产。'],
   dragonSnake: ['Recruit a captain for royal benefits and discounts.', '招募船长，获得王室福利和折扣。'],
-};
-const PORT_FLAGS: Record<string, [number, number, number]> = {
-  Spain: [0xc62632, 0xf6c945, 0xc62632], Netherlands: [0xc62632, 0xffffff, 0x23478e],
-  England: [0xffffff, 0xc62632, 0xffffff], Portugal: [0x147549, 0xc62632, 0xc62632],
-  China: [0xc62632, 0xc62632, 0xc62632], France: [0x23478e, 0xffffff, 0xc62632],
-  Japan: [0xffffff, 0xffffff, 0xffffff], Germany: [0x202020, 0xc62632, 0xf6c945],
-  Italy: [0x147549, 0xffffff, 0xc62632], Korea: [0xffffff, 0xffffff, 0xffffff],
 };
 
 /**
@@ -331,23 +325,28 @@ export class OceanScene extends Phaser.Scene {
             g.lineBetween(a.x, a.y, b.x, b.y);
           }
         };
-        if (shortcut || selected) {
-          g.lineStyle(selected ? 18 : 13, 0x06283d, 1);
-          line(0, 1);
-        }
+        const dashed = () => {
+          const span = length - 2 * inset;
+          for (let distance = 0; distance < span; distance += 25) line(distance / span, Math.min(distance + 16, span) / span);
+        };
         if (selected) {
+          g.lineStyle(18, 0x06283d, 1);
+          line(0, 1);
           g.lineStyle(12, 0x7ffff0, 1);
           line(0, 1);
         }
         if (shortcut) {
-          g.lineStyle(7, 0xffd369, 1);
-          for (let distance = inset; distance < length - inset; distance += 25) {
-            const to = Math.min(distance + 16, length - inset);
-            line((distance - inset) / (length - 2 * inset), (to - inset) / (length - 2 * inset));
+          if (!selected) {
+            g.lineStyle(13, 0x06283d, .8);
+            dashed();
           }
+          g.lineStyle(7, 0xffd369, 1);
+          dashed();
         } else if (!selected) {
-          g.lineStyle(4, 0xffffff, 0.35);
-          line(0, 1);
+          g.lineStyle(7, 0x06283d, .4);
+          dashed();
+          g.lineStyle(4, 0xffffff, .7);
+          dashed();
         }
         const { x, y } = point(.62);
         const ahead = point(.63);
@@ -367,25 +366,7 @@ export class OceanScene extends Phaser.Scene {
       if (node.kind === 'island') {
         this.islands.set(node.id, this.add.image(node.x, node.y, islandTexture(this, node)));
       } else if (node.kind === 'port') {
-        const g = this.add.graphics();
-        const flag = this.add.graphics({ x: 50, y: 27 });
-        const nation = node.nation ?? '';
-        const stripes = PORT_FLAGS[nation] ?? [0xffffff, 0xffffff, 0xffffff];
-        const vertical = ['Portugal', 'France', 'Italy'].includes(nation);
-        stripes.forEach((color, i) => {
-          flag.fillStyle(color).fillRect(node.x - 21 + (vertical ? i * 14 : 0), node.y - 55 + (vertical ? 0 : i * 8), vertical ? 14 : 42, vertical ? 24 : 8);
-        });
-        if (nation === 'England') flag.fillStyle(0xc62632).fillRect(node.x - 4, node.y - 55, 8, 24);
-        if (nation === 'Japan' || nation === 'Korea') {
-          flag.fillStyle(0xc62632).fillCircle(node.x, node.y - 43, 7);
-          if (nation === 'Korea') flag.fillStyle(0x23478e).fillCircle(node.x, node.y - 40, 4);
-        }
-        if (nation === 'China') flag.fillStyle(0xf6c945).fillCircle(node.x - 11, node.y - 48, 4);
-        flag.lineStyle(1, 0x06283d).strokeRect(node.x - 21, node.y - 55, 42, 24);
-        g.fillStyle(0x8d6e63).fillRoundedRect(node.x - 26, node.y - 22, 52, 44, 8);
-        g.fillStyle(0xffd54f).fillRect(node.x - 16, node.y - 12, 32, 24);
-        g.fillStyle(0x6d4c41).fillRect(node.x - 5, node.y - 2, 10, 14);
-        flag.lineStyle(2, 0x3e2723).lineBetween(node.x - 21, node.y - 55, node.x - 21, node.y - 22);
+        this.islands.set(node.id, this.add.image(node.x, node.y, harbourTexture(this, node)));
       } else {
         this.add.image(node.x, node.y, specialIslandTexture(this, node));
       }
@@ -401,7 +382,7 @@ export class OceanScene extends Phaser.Scene {
           strokeThickness: 4,
         })
         .setOrigin(0.5);
-      text.setPosition(node.x, node.y + (node.kind === 'island' ? 63 : node.kind === 'port' ? 35 : 55)).setOrigin(0.5, 0);
+      text.setPosition(node.x, node.y + (node.kind === 'island' || node.kind === 'port' ? 63 : 55)).setOrigin(0.5, 0);
       this.labels.add(text);
       this.stopLabels.set(node.id, text);
       text.setInteractive({ useHandCursor: true });
@@ -420,7 +401,7 @@ export class OceanScene extends Phaser.Scene {
       };
       const hideTooltip = () => { this.stopTooltip?.destroy(); this.stopTooltip = null; };
       bindStopHelp(text, showTooltip, hideTooltip);
-      bindStopHelp(this.add.zone(node.x, node.y, node.kind === 'port' ? 60 : 140, node.kind === 'port' ? 50 : 110).setInteractive({ useHandCursor: true }), showTooltip, hideTooltip);
+      bindStopHelp(this.add.zone(node.x, node.y, 140, 110).setInteractive({ useHandCursor: true }), showTooltip, hideTooltip);
     }
   }
 
