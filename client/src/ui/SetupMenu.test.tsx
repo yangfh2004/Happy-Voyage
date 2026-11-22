@@ -37,6 +37,17 @@ function click(label: string) {
 beforeEach(() => { hooks.values = []; hooks.index = 0; vi.clearAllMocks(); });
 
 describe('total-player setup', () => {
+  it('defaults to Command and wires Auto-resolve for local and campaign games', () => {
+    click('Set sail');
+    expect(vi.mocked(gameController.newGame).mock.calls[0][1]).toMatchObject({ battleMode: 'realtime' });
+    const select = elements(screen()).find((el) => el.type === 'select' && el.props['aria-label'] === 'Battle mode')!;
+    (select.props.onChange as (e: unknown) => void)({ target: { value: 'auto' } });
+    click('Set sail');
+    expect(vi.mocked(gameController.newGame).mock.calls[1][1]).toMatchObject({ battleMode: 'auto' });
+    click('Campaign');
+    click('Set sail');
+    expect(gameController.newCampaign).toHaveBeenCalledWith(expect.anything(), 'auto');
+  });
   it('defaults to four and passes the count and difficulty to the roster', () => {
     expect(renderToStaticMarkup(screen())).toContain('1 humans + 3 AI rivals');
     click('Set sail');
@@ -62,6 +73,6 @@ describe('total-player setup', () => {
     expect(elements(screen()).some((el) => el.props['aria-label'] === 'Total players')).toBe(false);
     click('Set sail');
     expect(gameController.newGame).not.toHaveBeenCalled();
-    expect(gameController.newCampaign).toHaveBeenCalledWith(expect.objectContaining({ stage: 'first-voyage' }));
+    expect(gameController.newCampaign).toHaveBeenCalledWith(expect.objectContaining({ stage: 'first-voyage' }), 'realtime');
   });
 });

@@ -215,8 +215,11 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
           {t('Defenders:', '守军：')} {t('{n} ships', '{n} 艘船', { n: defenders.length })} · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(defenders) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(defenders) })}</StatTooltip> {t('({forecast}).', '（{forecast}）。', { forecast })}
         </p>
         <p>
-          {t('Sink every defender within {r} volleys to take the colony. Lose every ship and you pay {g}g double toll; otherwise both fleets sail home.',
-            '在 {r} 轮齐射内击沉所有守军即可夺取殖民地。若全军覆没，须缴纳 {g} 金币双倍过路费；否则双方各自归队。', { r: COMBAT.rounds, g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })}
+          {state.config.battleMode === 'realtime'
+            ? t('Sink every defender within 90 s to take the colony, or retreat for a draw. Lose every ship and you pay {g}g double toll.',
+              '在 90 秒内击沉所有守军即可夺取殖民地，也可撤退以平局结束。若全军覆没，须缴纳 {g} 金币双倍过路费。', { g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })
+            : t('Sink every defender within {r} volleys to take the colony. Lose every ship and you pay {g}g double toll; otherwise both fleets sail home.',
+              '在 {r} 轮齐射内击沉所有守军即可夺取殖民地。若全军覆没，须缴纳 {g} 金币双倍过路费；否则双方各自归队。', { r: COMBAT.rounds, g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })}
         </p>
         <div className="row">
           <button className="primary" onClick={() => gameController.payToll()}>{t('Pay toll', '缴纳过路费')} <kbd>P</kbd></button>

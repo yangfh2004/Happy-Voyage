@@ -526,7 +526,7 @@ export class GameEngine extends GameView {
     return this.settleColonyBattle(result);
   }
 
-  private settleColonyBattle(result: BattleResult): BattleReport {
+  private settleColonyBattle(result: BattleResult, realtime = false): BattleReport {
     const player = this.currentPlayer;
     const node = this.node(player.position);
     const { ships: defenders, owner, fromFleet } = colonyDefenders(this.state, node.id);
@@ -546,7 +546,9 @@ export class GameEngine extends GameView {
       defenderSunk: result.defenderSunk.map((ship) => ship.name),
       tollPaid: 0,
     };
-    this.log(tx('{r} rounds of cannon fire. Sunk: {p} {a}; {o} {d}.', '炮火交战 {r} 回合。被击沉：{p} {a}；{o} {d}。', { ...sides, r: result.rounds, a: ref.ships(report.attackerSunk), d: ref.ships(report.defenderSunk) }));
+    this.log(realtime
+      ? tx('The battle lasted {s}s. Sunk: {p} {a}; {o} {d}.', '海战持续 {s} 秒。被击沉：{p} {a}；{o} {d}。', { ...sides, s: (result.rounds / 20).toFixed(1), a: ref.ships(report.attackerSunk), d: ref.ships(report.defenderSunk) })
+      : tx('{r} rounds of cannon fire. Sunk: {p} {a}; {o} {d}.', '炮火交战 {r} 回合。被击沉：{p} {a}；{o} {d}。', { ...sides, r: result.rounds, a: ref.ships(report.attackerSunk), d: ref.ships(report.defenderSunk) }));
     switch (result.outcome) {
       case 'victory':
         this.state.owners[node.id] = player.id;
@@ -604,7 +606,7 @@ export class GameEngine extends GameView {
     this.state.pendingBattle = null;
     this.state.inspired = false;
     this.state.ambush = false;
-    if (pending.kind === 'colony') return this.settleColonyBattle(result);
+    if (pending.kind === 'colony') return this.settleColonyBattle(result, true);
     const before = pending.setup.attackers.reduce((sum, s) => sum + s.durability, 0);
     this.settlePirates(result, before);
     this.state.phase = 'moving';

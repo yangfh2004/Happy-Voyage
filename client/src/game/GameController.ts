@@ -7,6 +7,7 @@ import { TurnFeedback } from './TurnFeedback';
 import { isMuted, setMuted, setVolume, sfx, startSoundtrack, type SoundChannel } from './sfx';
 import type { SeaEventResult } from '@happy-voyage/shared';
 import { landingTarget } from './landingTarget';
+import type { BattleLog } from '@happy-voyage/shared';
 
 export interface SeaNotice {
   id: number;
@@ -199,8 +200,9 @@ export class GameController {
     this.beginGame({ players, config });
   }
 
-  newCampaign(campaign: CampaignSetup): void {
-    this.beginGame({ campaign });
+  newCampaign(campaign: CampaignSetup, battleMode: GameConfig['battleMode'] = 'realtime'): void {
+    const engine = this.beginGame({ campaign });
+    engine.state.config.battleMode = battleMode;
   }
 
   nextCampaignStage(): void {
@@ -210,7 +212,7 @@ export class GameController {
     const next = CAMPAIGN_STAGES[CAMPAIGN_STAGES.findIndex((stage) => stage.id === campaign.stage) + 1];
     const player = state.players[campaign.playerId];
     const nation = NATIONS.find(({ name }) => name === player.nation);
-    if (next && nation) this.newCampaign({ stage: next.id, navigator: { name: player.name, nation: nation.name } });
+    if (next && nation) this.newCampaign({ stage: next.id, navigator: { name: player.name, nation: nation.name } }, state.config.battleMode);
   }
 
   beginGame(options: EngineOptions): GameEngine {
@@ -354,6 +356,10 @@ export class GameController {
 
   fight(): void {
     if (this.isHumanTurn('awaitingToll')) this.perform(['fight'], () => this.engine!.fight());
+  }
+
+  finishBattle(log: BattleLog): void {
+    if (!this.room && this.engine?.state.phase === 'awaitingBattle') this.engine.finishBattle(log);
   }
 
   acceptBarter(index: number): void {
@@ -639,7 +645,7 @@ export class GameController {
         if (isViewer(event.playerId)) sfx.cargo();
         break;
       case 'battleStarted':
-        this.engine!.finishBattle([]);
+        this.skipping = false;
         break;
       case 'battleFought': {
         const { report } = event;
@@ -654,7 +660,7 @@ export class GameController {
             : this.makeHeadline(tx('{r} attacks {n}; the battle is a draw and both fleets sail home.', '{r} 进攻{n}，双方不分胜负，各自归队。', params), 'loss');
         }
         const won = isViewer(report.defender) ? report.outcome === 'defeat' : report.outcome === 'victory';
-        sfx.battle(report.rounds, report.attackerSunk.length + report.defenderSunk.length, won ? 'victory' : 'loss');
+        sfx.battle(state.config.battleMode === 'realtime' ? 1 : report.rounds, report.attackerSunk.length + report.defenderSunk.length, won ? 'victory' : 'loss');
         break;
       }
       case 'lotteryOpened':

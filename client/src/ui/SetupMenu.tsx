@@ -27,6 +27,7 @@ export function SetupMenu({ onRules, paletteToggle, onBack }: { onRules: () => v
   const [seats, setSeats] = useState<Seat[]>([{ customName: null, nation: NATIONS[0].name }]);
   const [active, setActive] = useState(0);
   const [totalPlayers, setTotalPlayers] = useState(4);
+  const [battleMode, setBattleMode] = useState<'realtime' | 'auto'>('realtime');
   const [modeId, setModeId] = useState<GameModeId | 'campaign'>(GAME_MODES[0].id);
   const [stageId, setStageId] = useState<CampaignStageId>(CAMPAIGN_STAGES[0].id);
   const mode = modeId === 'campaign' ? null : gameMode(modeId);
@@ -66,8 +67,8 @@ export function SetupMenu({ onRules, paletteToggle, onBack }: { onRules: () => v
       name: seatName(s).trim() || navigatorForNation(s.nation)!.name,
       nation: s.nation,
     });
-    if (mode) gameController.newGame(createNationRoster(seats.map(pick), { difficulty, totalPlayers }), mode.config);
-    else gameController.newCampaign({ stage: stageId, navigator: pick(campaignSeat) });
+    if (mode) gameController.newGame(createNationRoster(seats.map(pick), { difficulty, totalPlayers }), { ...mode.config, battleMode });
+    else gameController.newCampaign({ stage: stageId, navigator: pick(campaignSeat) }, battleMode);
   };
 
   return (
@@ -186,6 +187,13 @@ export function SetupMenu({ onRules, paletteToggle, onBack }: { onRules: () => v
         )}
       </div>
 
+      <label className="field">
+        {t('Battle mode', '海战方式')}
+        <select aria-label={t('Battle mode', '海战方式')} value={battleMode} onChange={(e) => setBattleMode(e.target.value as 'realtime' | 'auto')}>
+          <option value="realtime">{t('Command', '亲自指挥')}</option>
+          <option value="auto">{t('Auto-resolve', '自动结算')}</option>
+        </select>
+      </label>
       <div className="setup-rules">
         <button onClick={onRules}>{t('How to play', '玩法说明')}</button>
         {paletteToggle}

@@ -6,7 +6,7 @@ import { pick } from '../i18n';
 
 export const specialIslands = ['treasure', 'mist', 'skeleton', 'dragonSnake', 'wind', 'nightless', 'revival'] as const satisfies readonly SpecialKind[];
 export const seaEncounters = (Object.keys(SEA_EVENT_NAMES) as EventKind[]).filter((kind) => kind !== 'openSea');
-export const gameScenes = ['landing', 'colonyMarket', 'strategies', 'battle', 'defeat', 'victory'] as const;
+export const gameScenes = ['landing', 'colonyMarket', 'strategies', 'battle', 'battleCommand', 'battleDefense', 'battlePirates', 'defeat', 'victory'] as const;
 type GameScene = (typeof gameScenes)[number];
 export type Scenario = GameScene | `island-${SpecialKind}` | `sea-${EventKind}`;
 
@@ -15,6 +15,9 @@ const sceneNames: Record<GameScene, readonly [string, string]> = {
   colonyMarket: ['Colony ship market', '殖民地船只市场'],
   strategies: ['Strategy cards and targets', '谋略卡与目标'],
   battle: ['Battle decision', '海战决策'],
+  battleCommand: ['Command a colony battle', '指挥殖民地海战'],
+  battleDefense: ['Defend against an AI fleet', '抵御电脑舰队'],
+  battlePirates: ['Command against pirates', '指挥舰队迎战海盗'],
   defeat: ['Fleet defeat', '舰队覆没'],
   victory: ['Seven Seas victory', '七海霸权胜利'],
 };
@@ -55,7 +58,25 @@ export function stageScenario(engine: GameEngine, id: Exclude<Scenario, 'landing
     engine.resolveLanding();
   };
 
-  if (id.startsWith('island-')) {
+  if (id === 'battleCommand' || id === 'battleDefense' || id === 'battlePirates') {
+    state.config.battleMode = 'realtime';
+    // Leave a reserve colony so the battle returns to a continuing voyage.
+    state.owners[colonies[1].id] = captain.id;
+    state.owners[colonies[2].id] = rival.id;
+    if (id === 'battlePirates') {
+      const node = state.map.find((n) => n.event === 'openSea')!;
+      node.event = 'pirates';
+      land(node.id);
+    } else {
+      const defender = id === 'battleDefense' ? captain : rival;
+      const attacker = id === 'battleDefense' ? rival : captain;
+      state.currentPlayer = attacker.id;
+      attacker.position = colonies[0].id;
+      state.owners[colonies[0].id] = defender.id;
+      state.phase = 'awaitingToll';
+      engine.fight();
+    }
+  } else if (id.startsWith('island-')) {
     captain.fleet[0].cargo = { Wine: 6 };
     if (id === 'island-revival') captain.fleet[0].durability -= 30;
     land(state.map.find((node) => node.special === id.slice(7))!.id);
