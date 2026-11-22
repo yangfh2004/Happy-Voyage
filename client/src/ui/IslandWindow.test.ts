@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { islandWindowFor } from './IslandWindow';
 
 vi.mock('dialog-polyfill', () => ({ default: { registerDialog: vi.fn() } }));
+vi.mock('../game/GameController', () => ({ gameController: {} }));
 
 function visit(island: SpecialKind, phase: GameState['phase']) {
   const game = new GameEngine({ players: [{ name: 'Human', color: 0, isAI: false }, { name: 'AI', color: 1, isAI: true }] });
@@ -15,9 +16,10 @@ function visit(island: SpecialKind, phase: GameState['phase']) {
 describe('islandWindowFor', () => {
   it.each([
     ['treasure', 'awaitingLottery'],
+    ['mist', 'awaitingMistDuel'],
   ] as const)('opens only for the human at the helm at %s', (island, phase) => {
     const state = visit(island, phase);
-    expect(islandWindowFor(state, true)).toBe(island);
+    expect(islandWindowFor(state, true)?.island).toBe(island);
     expect(islandWindowFor(state, false)).toBeNull();
     state.currentPlayer = 1;
     expect(islandWindowFor(state, true)).toBeNull();

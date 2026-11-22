@@ -16,21 +16,24 @@ export function MistPanel({ state }: { state: GameState }) {
     <p>{t('Take 1–{m} stones in a row from the end. Whoever takes the last stone loses.', '每次从末端连续拿 1–{m} 枚棋子。拿到最后一枚者输。', { m: NIM_MAX_TAKE })}</p>
     {!hermit ? <>
       <p>{t('Choose a hermit to challenge. Win to learn their strategy.', '选择一位隐士挑战。获胜即可学到他的谋略。')}</p>
-      <div className="row mist-choices" role="group" aria-label={t('Choose a hermit', '选择隐士')}>
+      <div className="mist-choices mist-hermits" role="group" aria-label={t('Choose a hermit', '选择隐士')}>
         {HERMITS.map(({ id, reward }) => (
           <button key={id} onClick={() => gameController.challengeHermit(id)}>
             <strong>{hermitText(id, locale).name}</strong>
-            <small>{hermitText(id, locale).style} · {t('teaches {s}', '传授「{s}」', { s: sname(reward) })}</small>
+            <small>{hermitText(id, locale).style}</small>
+            <small>{t('teaches {s}', '传授「{s}」', { s: sname(reward) })}</small>
           </button>
         ))}
       </div>
       <button onClick={() => gameController.leaveMistIsland()}>{t('Sail on', '继续航行')}</button>
     </> : <>
-      <h3>{hermitText(hermit.id, locale).name}</h3>
-      <div className="mist-stones" aria-hidden="true">
-        {Array.from({ length: SEA_RULES.nimStones }, (_, i) => (
-          <span key={i} className={i < stonesLeft ? 'mist-stone' : 'mist-stone taken'} />
-        ))}
+      <div className="mist-duel-board">
+        <h3>{hermitText(hermit.id, locale).name}</h3>
+        <div className="mist-stones" aria-hidden="true">
+          {Array.from({ length: SEA_RULES.nimStones }, (_, i) => (
+            <span key={i} className={i < stonesLeft ? 'mist-stone' : 'mist-stone taken'} />
+          ))}
+        </div>
       </div>
       <div role="status">
         {lastTurn && <p>{t('You took {n}.', '你拿了 {n}。', { n: stoneCount(lastTurn.playerTake) })}{lastTurn.hermitTake !== null &&
@@ -44,7 +47,7 @@ export function MistPanel({ state }: { state: GameState }) {
           : <p><strong>{t('{n} left', '剩余 {n}', { n: stoneCount(stonesLeft) })}</strong> · {t('Your move', '轮到你')}</p>}
       </div>
       {result ? <button className="primary" onClick={() => gameController.leaveMistIsland()}>{t('Sail on', '继续航行')}</button>
-        : <div className="row mist-choices" role="group" aria-label={t('Take stones', '拿取棋子')}>
+        : <div className="mist-choices mist-moves" role="group" aria-label={t('Take stones', '拿取棋子')}>
           {Array.from({ length: NIM_MAX_TAKE }, (_, i) => i + 1).map((count) => (
             <button key={count} className="primary" disabled={count > stonesLeft} onClick={() => gameController.takeMistStones(count)}>
               {t('Take {n}', '拿 {n}', { n: stoneCount(count) })}

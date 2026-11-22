@@ -85,3 +85,38 @@
 @media (min-width: 560px) {
   .lottery-window-board { grid-template-columns: 1.35fr 1fr; gap: 22px; }
 }
+
+.island-window--mist {
+  --island-ink: #173d36;
+  --island-deep: #203e39;
+  --island-paper: #edf5ea;
+  --island-gold: #b9dbc4;
+}
+.mist-hermits { display: grid; gap: 8px; margin-block: 16px; }
+.mist-hermits button {
+  text-align: left;
+  min-height: 70px;
+  border: 1px solid #6c8f7d;
+  background: #f9fdf6;
+  color: #183b36;
+  padding: 12px;
+}
+.mist-hermits button:hover { background: #d9efdc; }
+.mist-hermits strong { display: block; margin-bottom: 4px; font-size: 1.05rem; }
+.mist-hermits small + small { color: #355f50; margin-top: 4px; }
+.mist-duel-board {
+  margin-block: 14px;
+  padding: 14px;
+  color: #effbf0;
+  border-radius: 14px;
+  background: radial-gradient(ellipse at top, #3e6e60, #1d3836);
+  text-align: center;
+}
+.mist-duel-board h3 { color: inherit; margin: 0; }
+.mist-duel-board .mist-stones { max-width: 460px; margin-bottom: 0; }
+.mist-duel-board .mist-stone.taken { border-color: #88ad9c; }
+.mist-moves { display: flex; flex-wrap: wrap; gap: 8px; }
+.mist-moves button { flex: 1 0 auto; }
+@media (min-width: 560px) {
+  .mist-hermits { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

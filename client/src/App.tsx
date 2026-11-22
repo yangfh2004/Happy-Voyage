@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { DEFAULT_CONFIG, nodeName, playerName } from '@happy-voyage/shared';
+import { DEFAULT_CONFIG, playerName } from '@happy-voyage/shared';
 import { PhaserGame } from './game/PhaserGame';
 import { Atmosphere } from './ui/Atmosphere';
 import { gameController } from './game/GameController';
@@ -25,7 +25,6 @@ import { TurnCoach } from './ui/TurnCoach';
 import { trapMenuFocus } from './ui/menuFocus';
 import { VoyageLanding } from './ui/VoyageLanding';
 import { IslandWindow, islandWindowFor } from './ui/IslandWindow';
-import { LotteryPanel } from './ui/LotteryPanel';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
@@ -170,10 +169,8 @@ export function App() {
         {tutorialOpen && <TutorialPanel onClose={dismissTutorial} />}
         {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} islandCount={state?.map.filter((node) => node.kind === 'island').length} campaign={state?.campaign} onClose={() => setRulesOpen(false)} />}
       </div>
-      {state && islandWindow === 'treasure' && !rulesOpen && !fleetOpen && !menuOpen && !tutorialOpen &&
-        <IslandWindow island="treasure" label={nodeName(state.map[state.players[state.currentPlayer].position], locale)} titleId="lottery-title">
-          <LotteryPanel state={state} />
-        </IslandWindow>}
+      {state && islandWindow && !rulesOpen && !fleetOpen && !menuOpen && !tutorialOpen &&
+        <IslandWindow key={islandWindow.island} state={state} activity={islandWindow} />}
       {state && <VoyageBottomBar state={state} atHelm={atHelm} />}
     </div>
   );

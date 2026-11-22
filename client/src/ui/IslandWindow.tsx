@@ -1,25 +1,32 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ComponentType } from 'react';
 import dialogPolyfill from 'dialog-polyfill';
-import type { GameState, SpecialKind } from '@happy-voyage/shared';
+import { nodeName, type GameState, type SpecialKind } from '@happy-voyage/shared';
+import { useT } from '../i18n';
+import { LotteryPanel } from './LotteryPanel';
+import { MistPanel } from './MistPanel';
 import './IslandWindow.css';
 
-const activityIsland: Partial<Record<GameState['phase'], SpecialKind>> = {
-  awaitingLottery: 'treasure',
-};
-
-export function islandWindowFor(state: GameState, canHelm: boolean): SpecialKind | null {
-  const player = state.players[state.currentPlayer];
-  if (!canHelm || player.isAI) return null;
-  const island = activityIsland[state.phase];
-  return island && state.map[player.position]?.special === island ? island : null;
+interface IslandActivity {
+  island: SpecialKind;
+  titleId: string;
+  Panel: ComponentType<{ state: GameState }>;
 }
 
-export function IslandWindow({ island, label, titleId, children }: {
-  island: SpecialKind;
-  label: string;
-  titleId: string;
-  children: ReactNode;
-}) {
+const islandActivities: Partial<Record<GameState['phase'], IslandActivity>> = {
+  awaitingLottery: { island: 'treasure', titleId: 'lottery-title', Panel: LotteryPanel },
+  awaitingMistDuel: { island: 'mist', titleId: 'mist-title', Panel: MistPanel },
+};
+
+export function islandWindowFor(state: GameState, canHelm: boolean): IslandActivity | null {
+  const player = state.players[state.currentPlayer];
+  if (!canHelm || player.isAI) return null;
+  const activity = islandActivities[state.phase];
+  return activity && state.map[player.position]?.special === activity.island ? activity : null;
+}
+
+export function IslandWindow({ state, activity: { island, titleId, Panel } }: { state: GameState; activity: IslandActivity }) {
+  const { locale } = useT();
+  const label = nodeName(state.map[state.players[state.currentPlayer].position], locale);
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -36,7 +43,7 @@ export function IslandWindow({ island, label, titleId, children }: {
       <div className="island-window-masthead" ref={heading} tabIndex={-1}>
         <span aria-hidden="true">✦</span>{label}
       </div>
-      <div className="island-window-content">{children}</div>
+      <div className="island-window-content"><Panel state={state} /></div>
     </dialog>
   );
 }
