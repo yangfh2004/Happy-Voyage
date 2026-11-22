@@ -5,7 +5,7 @@ import { gameController } from '../GameController';
 import { BattleSession } from '../BattleSession';
 import { sfx } from '../sfx';
 import { battleShipTexture, broadsideMuzzles } from '../battleShipArt';
-import { battleLayout, battleTapRadius, battleToScreen, isBattleDrag, screenToBattle } from '../battleLayout';
+import { battleLayout, battleTapRadius, battleToScreen, isBattleDrag, placeBattleLabel, screenToBattle, type BattleRect } from '../battleLayout';
 
 const font = '"Sea Names", Georgia, serif';
 const text = (en: string, zh: string) => pick(getLocale(), en, zh);
@@ -193,7 +193,7 @@ export class BattleScene extends Phaser.Scene {
     const state = gameController.state!;
     const pending = state.pendingBattle!;
     const alpha = this.paused || this.session.battle.outcome ? 1 : this.accumulator / TICK;
-    const labelBoxes: { x: number; y: number; width: number }[] = [];
+    const labelBoxes: BattleRect[] = [];
     for (const s of this.session.battle.ships) {
       const label = this.labels.get(s.id)!;
       const fade = s.sunk ? Math.max(0, 1 - (this.clock - (this.sunkAt.get(s.id) ?? 0)) / 1.5) : s.escaped ? 0 : 1;
@@ -219,15 +219,15 @@ export class BattleScene extends Phaser.Scene {
       this.ships.get(s.id)!.setPosition(x, y).setAngle(old.heading + turn * alpha + (s.sunk ? (1 - fade) * 70 : 0)).setAlpha(fade).setTint(flash ? 0xff7777 : 0xffffff);
       label.setText(pirate ? text('Pirate', '海盗') : shipName(s.name, getLocale()));
       const labelSize = Math.max(11, 19 * zoom);
-      label.setFontSize(labelSize);
-      const labelX = Phaser.Math.Clamp(screen.x, label.width / 2 + 4, width - label.width / 2 - 4);
-      let labelY = screen.y + Math.max(24, 57 * zoom);
-      while (labelBoxes.some((b) => Math.abs(b.x - labelX) < (b.width + label.width) / 2 + 8 && Math.abs(b.y - labelY) < labelSize + 11)) labelY += labelSize + 12;
-      if (fade > 0) labelBoxes.push({ x: labelX, y: labelY, width: label.width });
+      label.setFontSize(labelSize).setWordWrapWidth(Math.max(1, layout.bounds.width - 12), true);
+      const barWidth = Math.max(32, 64 * zoom), barHeight = Math.max(4, 7 * zoom);
+      const offset = Math.max(24, 57 * zoom);
+      const box = placeBattleLabel(layout.bounds, labelBoxes, screen, { width: Math.max(label.width, barWidth), height: label.height + barHeight + 2 }, offset - barHeight - 2);
+      const labelX = box.x + box.width / 2, labelY = box.y + barHeight + 2;
+      if (fade > 0) labelBoxes.push(box);
       label.setPosition(labelX, labelY).setAlpha(fade);
       if (!s.sunk && !s.escaped) {
-        const barWidth = Math.max(32, 64 * zoom), barHeight = Math.max(4, 7 * zoom);
-        if (labelY > screen.y + Math.max(24, 57 * zoom)) health.lineStyle(1, 0xb5d0d2, .5).lineBetween(screen.x, screen.y + 16, labelX, labelY - barHeight - 2);
+        if (Math.abs(labelX - screen.x) > 1 || Math.abs(labelY - screen.y - offset) > 1) health.lineStyle(1, 0xb5d0d2, .5).lineBetween(screen.x, screen.y + (box.y > screen.y ? 16 : -16), labelX, box.y > screen.y ? box.y : box.y + box.height);
         health.fillStyle(0x051b29).fillRect(labelX - barWidth / 2, labelY - barHeight - 2, barWidth, barHeight);
         health.fillStyle(color).fillRect(labelX - barWidth / 2, labelY - barHeight - 2, barWidth * Math.min(1, s.durability / s.maxDurability), barHeight);
       }
