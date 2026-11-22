@@ -132,11 +132,6 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .actions { text-align: center; }
 .strategy-destination { font: inherit; }
 .actions .row { display: flex; gap: 8px; justify-content: center; }
-.market-fields { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 10px; margin: 8px 0; }
-.market-fields label { display: grid; gap: 2px; text-align: left; font-size: 13px; }
-.market-fields :is(input, select) { font: inherit; padding: 4px; max-width: 100%; }
-.market-fields input { width: 64px; }
-.market-orders { margin: 8px 0; }
 .action-content { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; }
 .compass { display: grid; justify-items: center; color: #0a3d62; font-size: 13px; font-weight: 700; }
 .compass svg { width: 112px; height: 112px; font-size: 9px; }
@@ -238,7 +233,7 @@ button.big { font-size: 18px; padding: 10px 22px; }
   button, .setup :is(input, select), .route-details summary { min-width: 44px; min-height: 44px; }
   button, .route-details summary { touch-action: manipulation; }
   .setup { gap: 8px; }
-  .fleet select, .market-fields :is(input, select) { min-height: 44px; }
+  .fleet select { min-height: 44px; }
   .setup h1 { font-size: 32px; }
   .setup p { margin: 0; }
   .subtitle { color: #6d4c41; }

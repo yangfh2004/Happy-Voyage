@@ -17,6 +17,7 @@ vi.mock('../game/EventBus', () => ({ EventBus: { emit: vi.fn() } }));
 vi.mock('dialog-polyfill', () => ({ default: { registerDialog: vi.fn() } }));
 import { ActionPanel } from './ActionPanel';
 import { ShipMarketPanel } from './ShipMarketPanel';
+import { MarketPanel } from './MarketPanel';
 import { CampaignPanel } from './CampaignPanel';
 import { RouteDetails } from './RouteDetails';
 import { TransferContents } from './TransferPanel';
@@ -253,7 +254,7 @@ describe('market menu', () => {
     game.resolveLanding();
     player.fleet[1].cargo.Wine = 3;
 
-    const html = renderToStaticMarkup(<ActionPanel state={game.state} />);
+    const html = renderToStaticMarkup(<MarketPanel state={game.state} />);
     expect(html).toContain('24-hour market');
     expect(html).toContain('Market stock: 16 · Aboard: 3');
     expect(html).toContain('Buy · 26g');
@@ -262,7 +263,7 @@ describe('market menu', () => {
 
     player.gold = 0;
     player.fleet[1].cargo = {};
-    const empty = renderToStaticMarkup(<ActionPanel state={game.state} />);
+    const empty = renderToStaticMarkup(<MarketPanel state={game.state} />);
     expect(empty).toContain('<button disabled="">Buy</button>');
     expect(empty).toContain('<button disabled="">Sell</button>');
   });

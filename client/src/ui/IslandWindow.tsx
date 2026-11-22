@@ -7,6 +7,7 @@ import { MistPanel } from './MistPanel';
 import { ShipMarketPanel } from './ShipMarketPanel';
 import { RecruitPanel } from './RecruitPanel';
 import { BarterPanel } from './BarterPanel';
+import { MarketPanel } from './MarketPanel';
 import './IslandWindow.css';
 
 interface IslandActivity {
@@ -21,6 +22,7 @@ const islandActivities: Partial<Record<GameState['phase'], IslandActivity>> = {
   awaitingMarket: { island: 'skeleton', titleId: 'ship-market-title', Panel: ShipMarketPanel },
   awaitingRecruit: { island: 'dragonSnake', titleId: 'recruit-title', Panel: RecruitPanel },
   awaitingBarter: { island: 'wind', titleId: 'barter-title', Panel: BarterPanel },
+  awaitingCargoMarket: { island: 'nightless', titleId: 'market-title', Panel: MarketPanel },
 };
 
 export function islandWindowFor(state: GameState, canHelm: boolean): IslandActivity | null {

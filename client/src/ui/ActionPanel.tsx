@@ -6,7 +6,6 @@ import { ShortcutLegend } from './ShortcutLegend';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TransferPanel } from './TransferPanel';
-import { MarketPanel } from './MarketPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
 import { CAMPAIGN_STAGES, SPIN_COMPASS_LABEL, buildingDescription, buildingName, campaignStage, chartIdentity, goodName, nationName, nodeName, playerName, shipTypeName, stageText, strategyText } from '@happy-voyage/shared';
 import { useT } from '../i18n';
@@ -37,7 +36,6 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
     return () => { EventBus.emit('navigate-preview', null); };
   }, [previewing, canPreview, player.id, destination]);
   const spinning = state.phase === 'spinning';
-  const trading = state.phase === 'awaitingCargoMarket' && atHelm;
   const spinId = gameController.spinId;
   const summary = atHelm && state.phase === 'awaitingSpin' ? gameController.feedback.summary : null;
   const gold = (value: number) => `${value >= 0 ? '+' : '−'}${Math.abs(value)}${t('g', ' 金币')}`;
@@ -129,8 +127,6 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
     );
   } else if (state.phase === 'awaitingMerchant' || state.phase === 'awaitingWyvern') {
     body = <SeaChoicePanel key={`${player.id}:${state.phase}`} state={state} />;
-  } else if (trading) {
-    body = <MarketPanel key={player.id} state={state} />;
   } else if (state.phase === 'awaitingBuild') {
     const nodeId = player.position;
     const yardLevel = buildingLevel(state, nodeId, 'shipyard');
@@ -244,7 +240,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
   );
   return (
     <div className={`panel actions ${state.phase === 'awaitingSpin' || spinning || state.phase === 'moving' ? 'sailing-action' : 'decision-action'}`}>
-      {state.phase === 'gameOver' || trading ? body : (
+      {state.phase === 'gameOver' ? body : (
         <div className="action-content">
           <Compass
             spinId={spinId}
