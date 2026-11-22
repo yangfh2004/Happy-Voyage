@@ -83,6 +83,8 @@ export interface Player extends PlayerSetup {
   nextColonyReturnRound?: number;
   homePort: number;
   revivalProtection: boolean;
+  escortProtection: boolean;
+  skipNextTurn: boolean;
   captains: string[];
   fleet: Ship[];
 }
@@ -183,6 +185,8 @@ export interface GameState {
   hoardNode: number | null;
   strategyUsed: boolean;
   inspired: boolean;
+  ambush: boolean;
+  compassMultiplier: number;
   royalAudience: import('./ranks').RoyalAudience | null;
   campaign: import('./campaign').CampaignState | null;
   config: GameConfig;

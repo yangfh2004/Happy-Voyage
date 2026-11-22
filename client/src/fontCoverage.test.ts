@@ -35,6 +35,10 @@ function cmap(font: Buffer): Set<number> {
 }
 
 describe('bundled Chinese font', () => {
+  it('uses the bundled font for action and portaled strategy picker options', () => {
+    const css = readFileSync(resolve(root, 'client/src/styles.css'), 'utf8');
+    expect(css).toMatch(/\.actions :is\(select, option\), \.strategy-cards :is\(select, option\)\s*\{\s*font-family: 'Sea Names',/);
+  });
   it('has a glyph for every Chinese character the game shows', () => {
     const covered = cmap(readFileSync(resolve(root, 'client/src/assets/sea-names.ttf')));
     const files = ['client/src', 'shared/src'].flatMap((dir) =>

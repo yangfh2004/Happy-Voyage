@@ -1,6 +1,6 @@
 import { COMPASS_SECTORS } from './compass';
 import { walkPath } from './graph';
-import { colonyDefenders, forecastNavalBattle, tollDue } from './combat';
+import { colonyDefenders, forecastColonyBattle, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
 import { BUILDINGS, buildingLevel, colonyToll, nextBuildingCost } from './buildings';
 import { isEliminated, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
@@ -10,8 +10,9 @@ import { RANKS, foreignTaxDue, playerMerit } from './ranks';
 import { GOODS, SHIP_RECIPES, USED_SHIP_PRICES, cargoLoad, shipSalePrice } from './ships';
 import { normalMarketSale, quoteMarketTrade } from './market';
 import { hermitStoneTake, NIM_MAX_TAKE, type HermitId } from './mist';
-import { STRATEGY_RULES, type StrategyId } from './strategies';
+import { STRATEGY_RULES, defectionCount, type StrategyId } from './strategies';
 import { roundsLeft as roundsToPlay } from './modes';
+import { GameView } from './gameView';
 import type { BarterOffer, BuildingKind, GameState, MapNode, MarketOrder, Player, ShipType } from './types';
 
 const POLICIES = {
@@ -57,7 +58,7 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
   const canWin = owned + 1 >= state.config.islandsToWin;
   const score = (node: MapNode): number => {
     if (node.id === player.position) return 0;
-    if (state.roamers.some((r) => r.node === node.id) && !player.revivalProtection) return -180;
+    if (state.roamers.some((r) => r.node === node.id) && !player.escortProtection) return -180;
     if (node.event === 'openSea') return -20;
     if (node.kind === 'island') {
       const owner = state.owners[node.id];
@@ -104,7 +105,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
 
   // Use gold-equivalent scores for immediate results and the next compass spin.
   const landing = (node: MapNode, cash: number, direct: boolean): number => {
-    if (state.roamers.some((r) => r.node === node.id) && !player.revivalProtection) return -180;
+    if (state.roamers.some((r) => r.node === node.id) && !player.escortProtection) return -180;
     if (node.event === 'openSea') return -20;
     if (node.kind === 'island') {
       const owner = state.owners[node.id];
@@ -138,13 +139,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
     if (node.kind === 'port') return node.id === player.homePort ? Math.max(0, audience) : -foreignTaxDue(player.rank);
     if (node.event === 'treasure') return 125 + (node.id === player.knownHoard ? STRATEGY_RULES.hoardGold : 0);
     if (node.event === 'tradeWind') return 50 + 30 * owned;
-    if (node.event === 'bottle') return 100 + Math.min(120, repair);
-    if (node.event === 'floatingCargo') return 70;
-    if (node.event === 'wyvern') return direct ? -Infinity : 220;
-    if (node.event === 'pirates' || node.event === 'smallMonster' || node.event === 'largeMonster') {
-      return player.revivalProtection ? 0 : -SEA_RULES[node.event] - 50;
-    }
-    if (node.event === 'storm' || node.event === 'turtle' || node.event === 'whirlpool') return player.revivalProtection ? 0 : -100;
+    if (node.event === 'storm') return player.escortProtection ? 0 : -100;
     if (node.special === 'mist') return SEA_RULES.nimPrize + 150;
     if (node.special === 'skeleton' && direct && aiUsedShipChoice(state, { ...player, gold: cash }, () => true) === 'warship') {
       const warships = player.fleet.filter((ship) => ship.type === 'warship' && ship.durability >= ship.maxDurability / 2);
@@ -166,7 +161,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       if (!scores) spinLandings.set(arrivalCash, scores = new Map());
       let score = scores.get(next.id);
       if (score === undefined) scores.set(next.id, score = landing(next, arrivalCash, false));
-      const hazard = !player.revivalProtection && state.roamers.some((r) => path.includes(r.node)) ? 180 : 0;
+      const hazard = !player.escortProtection && state.roamers.some((r) => path.includes(r.node)) ? 180 : 0;
       return value + odds * (pay + Math.min(400, score) - hazard);
     }, 0);
   };
@@ -314,10 +309,12 @@ export function aiMarketPurchase(state: GameState, player: Player): MarketOrder 
 
 function battleQuality(state: GameState, player: Player, card?: StrategyId): number {
   const { ships, owner, fromFleet } = colonyDefenders(state, player.position);
-  const attackers = card === 'betray' ? [...player.fleet, ships[0]] : player.fleet;
+  const defectors = card === 'betray' ? [...ships].sort((a, b) => b.firepower - a.firepower).slice(0, defectionCount(ships.length, fromFleet)) : [];
+  const attackers = [...player.fleet, ...defectors];
   const removesDefender = card === 'mislead' || card === 'betray';
-  const defenders = !removesDefender ? ships : !fromFleet && ships.length === 1 ? owner.fleet : ships.slice(1);
-  const options = { attackerMultiplier: state.inspired || card === 'inspire' ? STRATEGY_RULES.inspireMultiplier : 1 };
+  const remaining = card === 'betray' ? ships.filter((s) => !defectors.includes(s)) : ships.slice(1);
+  const defenders = !removesDefender ? ships : !fromFleet && !remaining.length ? owner.fleet : remaining;
+  const options = { attackerMultiplier: state.inspired || card === 'inspire' ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: state.ambush || card === 'ambush' };
   const baseline = forecastNavalBattle(attackers, defenders, options);
   if (player.aiDifficulty !== 'hard') return baseline === 'victory' ? 4 : baseline === 'draw' ? 2 : 0;
   // Stress-test with weaker attack and stronger defense rolls, without drawing from the match RNG.
@@ -329,8 +326,10 @@ function battleQuality(state: GameState, player: Player, card?: StrategyId): num
 export function aiBattleStrategy(state: GameState, player: Player, canUse: (card: StrategyId) => boolean): StrategyId | undefined {
   const mustFight = player.gold < tollDue(state, player, player.position);
   const baseline = battleQuality(state, player);
+  if (canUse('exemption') && ((mustFight && forecastColonyBattle(state, player) !== 'victory') ||
+    (!aiShouldFight(state, player) && tollDue(state, player, player.position) >= (player.aiDifficulty === 'easy' ? 200 : 80)))) return 'exemption';
   if (baseline >= 4 && player.aiDifficulty !== 'hard') return undefined;
-  const cards: StrategyId[] = player.aiDifficulty === 'easy' ? ['inspire'] : ['betray', 'mislead', 'inspire'];
+  const cards: StrategyId[] = player.aiDifficulty === 'easy' ? ['inspire', 'ambush', 'betray', 'mislead'] : ['betray', 'ambush', 'mislead', 'inspire'];
   let best: StrategyId | undefined;
   let bestQuality = baseline;
   for (const card of cards) {
@@ -351,6 +350,58 @@ export function aiBattleStrategy(state: GameState, player: Player, canUse: (card
       (state.players.filter((rival) => !isEliminated(rival)).length === 2 || colonies(state, owner) >= colonies(state, player))) return 'mislead';
   }
   return best;
+}
+
+export function aiSeaStrategy(state: GameState, player: Player, canUse: (card: StrategyId, target?: number) => boolean): { card: StrategyId; target?: number } | undefined {
+  if (player.aiDifficulty === 'easy' && (state.round + player.id) % 3 !== 0) return undefined;
+  const view = new GameView(state);
+  const worth = (p: Player) => view.netWorth(p.id);
+  const rivals = state.players.filter((p) => p.id !== player.id && !isEliminated(p)).sort((a, b) => worth(b) - worth(a));
+  const leader = rivals[0];
+  const owned = colonies(state, player);
+  const candidates: { card: StrategyId; target?: number; useful: boolean }[] = [
+    { card: 'repair', useful: player.fleet.some((s) => s.durability < s.maxDurability * 0.6) },
+    { card: 'charter', useful: owned >= 2 },
+    { card: 'harvest', useful: owned >= 2 },
+    { card: 'escort', useful: !player.escortProtection },
+    { card: 'recall', useful: player.position !== player.homePort && player.fleet.some((s) => s.durability < s.maxDurability * 0.4) },
+  ];
+  if (leader) {
+    for (const card of ['betray', 'mislead', 'plunder', 'blockade', 'gale', 'exchange'] as const) {
+      const useful = card === 'betray' || card === 'mislead' ? leader.fleet.length >= 3 : card === 'plunder' ? leader.gold >= 300 : card === 'blockade' ? !leader.skipNextTurn : card === 'gale' ? leader.fleet.some((s) => s.durability > 30) : owned < colonies(state, leader);
+      candidates.push({ card, target: leader.id, useful });
+    }
+  }
+  const targets = state.map.filter((n) => rivals.some((p) => p.id === state.owners[n.id])).sort((a, b) => worth(state.players[state.owners[b.id]!]) - worth(state.players[state.owners[a.id]!]));
+  for (const node of targets) {
+    candidates.push({ card: 'revolt', target: node.id, useful: !state.docks[node.id].length });
+    const stock = state.stockpiles[node.id];
+    candidates.push({ card: 'scorch', target: node.id, useful: stock.lumber + stock.iron + Object.values(stock.specialties).reduce((a, b) => a + (b ?? 0), 0) >= 5 });
+  }
+  const movementValue = (multiplier: number, position = player.position) => COMPASS_SECTORS.reduce((sum, { steps, odds }) => {
+    const path = walkPath(state.map, position, steps * multiplier, state.wind.direction);
+    const node = state.map[path.at(-1)!];
+    const owner = state.owners[node.id];
+    const salary = path.filter((id) => id === player.homePort).length * state.config.homeSalary;
+    const crossesRoamer = state.roamers.some((r) => path.includes(r.node));
+    const escortAtDestination = player.escortProtection && !crossesRoamer;
+    const value = node.kind === 'island' ? owner === null ? 180 : owner !== player.id ? -tollDue(state, player, node.id) : 20
+      : node.event === 'storm' && !escortAtDestination ? -100 : node.event === 'openSea' ? -20 : 0;
+    const hazard = !player.escortProtection && crossesRoamer ? 180 : 0;
+    return sum + odds * (salary + value - hazard);
+  }, 0);
+  const baseline = player.aiDifficulty === 'hard' ? movementValue(1) : 0;
+  for (const card of ['tailwind', 'reverse'] as const) candidates.push({ card, useful: player.aiDifficulty !== 'hard' || movementValue(card === 'tailwind' ? 2 : -1) > baseline + 25 });
+  candidates.push({ card: 'inspire', useful: player.aiDifficulty !== 'hard' && player.fleet.some((s) => s.durability < s.maxDurability) });
+  if (player.aiDifficulty === 'hard') {
+    const target = canUse('navigate', player.position) ? aiTravelTarget(state, player) : undefined;
+    candidates.push({ card: 'navigate', target, useful: target !== undefined });
+    const exchange = candidates.find((c) => c.card === 'exchange');
+    if (exchange && leader) exchange.useful = movementValue(1, leader.position) > baseline + 80;
+    const priorities: StrategyId[] = ['betray', 'revolt', 'repair', 'charter', 'plunder', 'navigate', 'blockade', 'escort', 'harvest', 'mislead', 'gale', 'scorch', 'recall', 'exchange', 'tailwind', 'reverse', 'inspire'];
+    candidates.sort((a, b) => priorities.indexOf(a.card) - priorities.indexOf(b.card));
+  }
+  return candidates.find(({ card, target, useful }) => useful && canUse(card, target));
 }
 
 /** Fight if conquest is likely, or if paying the toll is not an option. */

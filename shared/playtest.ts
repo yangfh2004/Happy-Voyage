@@ -34,6 +34,7 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?:
   const byLevel = { easy: stats(), normal: stats(), hard: stats() };
   const nationWins = Object.fromEntries(NATIONS.map(({ name }) => [name, 0]));
   const endings = { conquest: 0, survival: 0, wealth: 0, draw: 0 };
+  const strategyPlays: Record<string, number> = {};
   let games = 0;
   let rounds = 0;
 
@@ -58,7 +59,10 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?:
             row(event.report.attacker).battles++;
             if (event.report.outcome === 'victory') row(event.report.attacker).battleWins++;
             break;
-          case 'strategyUsed': row(event.playerId).cards++; break;
+          case 'strategyUsed':
+            row(event.playerId).cards++;
+            strategyPlays[event.card] = (strategyPlays[event.card] ?? 0) + 1;
+            break;
           case 'gameOver':
             if (event.winner === null) endings.draw++;
             else if (event.victory === 'everyContinent' || event.victory === 'islandGoal') endings.conquest++;
@@ -100,7 +104,7 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?:
 
   const ratio = (n: number, d: number) => +(n / d).toFixed(2);
   console.log(JSON.stringify({
-    name, games, firstSeed: offset + 1, lastSeed: offset + seeds, meanRounds: ratio(rounds, games), endings, nationWins,
+    name, games, firstSeed: offset + 1, lastSeed: offset + seeds, meanRounds: ratio(rounds, games), endings, nationWins, strategyPlays,
     levels: Object.fromEntries(levels.filter((level) => byLevel[level].seats > 0).map((level) => {
       const { seats, wins, bankruptcies, score, colonies, turns, battleWins, battles, ...actions } = byLevel[level];
       return [level, {

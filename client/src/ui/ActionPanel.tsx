@@ -1,4 +1,4 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyDefenders, COLONY_RETURN_COOLDOWN, COMBAT, forecastColonyBattle, GameView, isEliminated, tollDue, SHIP_RECIPES, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyDefenders, COLONY_RETURN_COOLDOWN, COMBAT, forecastColonyBattle, GameView, isEliminated, tollDue, SHIP_RECIPES, strategyTarget, type StrategyId, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ShipMarketPanel } from './ShipMarketPanel';
 import { ColonyGoods } from './ColonyGoods';
@@ -29,6 +29,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
   const [destination, setDestination] = useState(state.map[0].id);
   const [colonyDestination, setColonyDestination] = useState<number | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [targets, setTargets] = useState<Partial<Record<StrategyId, number>>>({});
   const player = state.players[state.currentPlayer];
   const room = gameController.room;
   const defeatedHumans = state.players.filter((p) => p.fleetLost && (room ? p.id === gameController.viewerId : !p.isAI));
@@ -230,11 +231,21 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
         {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onFocus={() => setPreviewing(true)} onBlur={() => setPreviewing(false)} onChange={(e) => { setDestination(Number(e.target.value)); setPreviewing(true); }}>
           {state.map.map((node) => <option key={node.id} value={node.id}>{nodeName(node, locale)}</option>)}
         </select></label>}
-        {player.strategies.map((id, index) => <div key={`${id}-${index}`}>
+        {player.strategies.map((id, index) => {
+          const kind = strategyTarget(id, state.phase);
+          const options = kind === 'rival' ? state.players.filter((p) => p.id !== player.id && !isEliminated(p)).map((p) => ({ id: p.id, label: name(p) }))
+            : kind === 'rivalColony' ? state.map.filter((n) => gameController.canUseStrategy(id, n.id)).map((n) => ({ id: n.id, label: at(n.id) })) : [];
+          const target = kind === 'node' ? destination : kind === 'none' ? undefined : options.some((o) => o.id === targets[id]) ? targets[id] : options[0]?.id;
+          return <div key={`${id}-${index}`}>
           <strong>{strategyText(id, locale).name}</strong>
           <p>{strategyText(id, locale).description}</p>
-          <button disabled={!gameController.canUseStrategy(id, id === 'navigate' ? destination : undefined)} onClick={() => gameController.useStrategy(id, id === 'navigate' ? destination : undefined)}>{t('Use {s}', '使用「{s}」', { s: strategyText(id, locale).name })}</button>
-        </div>)}
+          {(kind === 'rival' || kind === 'rivalColony') && <label>{t('Target for {s}', '「{s}」的目标', { s: strategyText(id, locale).name })}<select value={target ?? ''} onChange={(e) => setTargets({ ...targets, [id]: Number(e.target.value) })}>
+            {options.length === 0 && <option value="">{t('No eligible targets', '没有可选目标')}</option>}
+            {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select></label>}
+          <button disabled={!gameController.canUseStrategy(id, target)} onClick={() => gameController.useStrategy(id, target)}>{t('Use {s}', '使用「{s}」', { s: strategyText(id, locale).name })}</button>
+        </div>;
+        })}
         {player.knownHoard !== null && <p>{t('Buried hoard: {n}', '埋藏的宝藏：{n}', { n: at(player.knownHoard) })}</p>}
       </details>
     </section>
@@ -247,6 +258,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
           <Compass
             spinId={spinId}
             result={state.lastSpin}
+            multiplier={state.compassMultiplier}
             spinning={spinning}
             duration={gameController.timings.spin}
             onSettled={() => gameController.finishSpin(spinId)}

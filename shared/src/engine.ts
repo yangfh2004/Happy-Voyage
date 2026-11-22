@@ -1,6 +1,6 @@
 import { aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount,
-  aiTravelTarget, aiBattleStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase, aiMistTake } from './ai';
-import { STRATEGIES, STRATEGY_RULES, type StrategyId } from './strategies';
+  aiTravelTarget, aiBattleStrategy, aiSeaStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase, aiMistTake } from './ai';
+import { STRATEGIES, STRATEGY_RULES, strategyTarget, defectionCount, type StrategyId } from './strategies';
 import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
 import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
@@ -102,6 +102,8 @@ export class GameEngine extends GameView {
       hoardNode: null,
       strategyUsed: false,
       inspired: false,
+      ambush: false,
+      compassMultiplier: 1,
       royalAudience: null,
       campaign: stage ? { stage: stage.id, playerId: 0, progress: {}, status: 'active' } : null,
       config,
@@ -115,6 +117,8 @@ export class GameEngine extends GameView {
         position: homes[id]!,
         homePort: homes[id]!,
         revivalProtection: false,
+        escortProtection: false,
+        skipNextTurn: false,
         captains: [],
         bankrupt: false,
         fleet: [],
@@ -204,8 +208,47 @@ export class GameEngine extends GameView {
     navigate: (target) => this.sailDirectly(target!),
     locate: () => { this.currentPlayer.knownHoard = this.state.hoardNode; },
     inspire: () => { this.state.inspired = true; },
-    mislead: () => { colonyDefenders(this.state, this.currentPlayer.position).ships.shift(); },
-    betray: () => { this.currentPlayer.fleet.push(colonyDefenders(this.state, this.currentPlayer.position).ships.shift()!); },
+    mislead: (target) => {
+      const ships = this.state.phase === 'awaitingSpin' ? this.state.players[target!].fleet : colonyDefenders(this.state, this.currentPlayer.position).ships;
+      ships.splice(this.state.phase === 'awaitingSpin' ? Math.floor(this.rng() * ships.length) : 0, 1);
+    },
+    betray: (target) => {
+      const { ships, fromFleet } = this.state.phase === 'awaitingSpin' ? { ships: this.state.players[target!].fleet, fromFleet: true } : colonyDefenders(this.state, this.currentPlayer.position);
+      const selected = [...ships].sort((a, b) => b.firepower - a.firepower).slice(0, defectionCount(ships.length, fromFleet));
+      for (const ship of selected) { ships.splice(ships.indexOf(ship), 1); this.currentPlayer.fleet.push(ship); }
+    },
+    tailwind: () => { this.state.compassMultiplier = 2; },
+    reverse: () => { this.state.compassMultiplier = -1; },
+    blockade: (target) => { this.state.players[target!].skipNextTurn = true; },
+    plunder: (target) => {
+      const rival = this.state.players[target!];
+      const amount = Math.min(300, Math.floor(Math.max(0, rival.gold) * 0.15));
+      this.changeGold(rival, -amount, 'plunder');
+      this.changeGold(this.currentPlayer, amount, 'plunder');
+    },
+    gale: (target) => { for (const ship of this.state.players[target!].fleet) ship.durability = Math.min(ship.durability, Math.max(1, ship.durability - 30)); },
+    escort: () => { this.currentPlayer.escortProtection = true; },
+    exemption: () => {
+      const player = this.currentPlayer;
+      this.emit({ type: 'tollPaid', from: player.id, to: this.state.owners[player.position]!, amount: 0 });
+      this.endTurn();
+    },
+    ambush: () => { this.state.ambush = true; },
+    revolt: (target) => {
+      this.state.owners[target!] = null;
+      this.state.buildings[target!] = {};
+      this.state.stockpiles[target!] = emptyStockpile();
+      this.state.docks[target!] = [];
+    },
+    harvest: () => { this.produceColonyGoods(this.currentPlayer.id); },
+    charter: () => { this.changeGold(this.currentPlayer, Math.min(600, 60 * this.islandsOwnedBy(this.currentPlayer.id)), 'trade charter'); },
+    repair: () => { for (const ship of this.currentPlayer.fleet) ship.durability = ship.maxDurability; },
+    recall: () => { this.strategyHandlers.navigate(this.currentPlayer.homePort); },
+    exchange: (target) => {
+      const rival = this.state.players[target!];
+      [this.currentPlayer.position, rival.position] = [rival.position, this.currentPlayer.position];
+    },
+    scorch: (target) => { this.state.stockpiles[target!] = emptyStockpile(); },
   };
 
   private sailDirectly(nodeId: number): void {
@@ -231,7 +274,7 @@ export class GameEngine extends GameView {
     player.strategies.splice(player.strategies.indexOf(id), 1);
     this.state.strategyUsed = true;
     this.log(target === undefined ? tx('{p} uses {s}.', '{p} 使用了「{s}」。', { p: ref.player(player.id), s: ref.strategy(id) })
-      : tx('{p} uses {s} to {n}.', '{p} 使用「{s}」前往{n}。', { p: ref.player(player.id), s: ref.strategy(id), n: ref.node(target) }));
+      : tx('{p} uses {s} on {n}.', '{p} 对{n}使用「{s}」。', { p: ref.player(player.id), s: ref.strategy(id), n: strategyTarget(id, this.state.phase) === 'rival' ? ref.player(target) : ref.node(target) }));
     this.strategyHandlers[id](target);
     this.emit({ type: 'strategyUsed', playerId: player.id, card: id, target });
   }
@@ -269,7 +312,7 @@ export class GameEngine extends GameView {
   spinCompass(): number {
     this.assertPhase('awaitingSpin');
     this.state.royalAudience = null;
-    const steps = spinCompass(this.rng);
+    const steps = spinCompass(this.rng) * this.state.compassMultiplier;
     this.state.lastSpin = steps;
     this.state.phase = 'spinning';
     this.emit({ type: 'compassSpun', playerId: this.currentPlayer.id, steps });
@@ -470,8 +513,7 @@ export class GameEngine extends GameView {
     const sides = { p: ref.player(player.id), o: ref.player(owner.id), n: ref.node(node.id) };
     this.log(fromFleet ? tx("{p} opens fire on {o}'s fleet at {n}!", '{p} 在{n}向 {o} 的舰队开火！', sides)
       : tx("{p} opens fire on {o}'s docked ships at {n}!", '{p} 在{n}向 {o} 停靠的船只开火！', sides));
-    const result = fightNavalBattle(player.fleet, defenders, this.rng, { attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1 });
-    this.state.inspired = false;
+    const result = fightNavalBattle(player.fleet, defenders, this.rng, { attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: this.state.ambush });
     const sink = (fleet: Ship[], sunk: Ship[]) => {
       for (const ship of sunk) fleet.splice(fleet.indexOf(ship), 1);
     };
@@ -802,6 +844,8 @@ export class GameEngine extends GameView {
           aiShipChoice(p, (type) => this.hasShipbuildingSupplies(id, type)));
         if (target) { this.returnToColony(target.id); return; }
       }
+      const choice = aiSeaStrategy(this.state, p, (id, target) => this.canUseStrategy(id, target));
+      if (choice) { this.useStrategy(choice.card, choice.target); return; }
       if (this.canUseStrategy('navigate', p.position)) {
         const target = aiTravelTarget(this.state, p);
         if (target !== undefined) { this.useStrategy('navigate', target); return; }
@@ -811,6 +855,7 @@ export class GameEngine extends GameView {
     if (this.state.phase === 'awaitingToll') {
       const card = aiBattleStrategy(this.state, this.currentPlayer, (id) => this.canUseStrategy(id));
       if (card) this.useStrategy(card);
+      if (this.state.phase !== 'awaitingToll') return;
       if (aiShouldFight(this.state, this.currentPlayer)) this.fight();
       else this.payToll();
       return;
@@ -1084,8 +1129,9 @@ export class GameEngine extends GameView {
     const event = node.event!;
     const announce = (outcome: SeaEventResult['outcome'], details: Partial<Omit<SeaEventResult, 'type' | 'playerId' | 'event' | 'outcome'>> = {}) =>
       this.emit({ type: 'seaEvent', playerId: player.id, event, outcome, ...details });
-    if (['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'].includes(event) && player.revivalProtection) {
-      player.revivalProtection = false;
+    if (['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'].includes(event) && (player.escortProtection || player.revivalProtection)) {
+      if (player.escortProtection) player.escortProtection = false;
+      else player.revivalProtection = false;
       announce('protected');
       return false;
     }
@@ -1100,7 +1146,7 @@ export class GameEngine extends GameView {
         const pirate: Ship = { id: -1, name: 'Pirate', type: 'warship', cargo: {}, ...SHIP_TYPES.warship,
           durability: SEA_RULES.pirateDurability, maxDurability: SEA_RULES.pirateDurability, firepower: SEA_RULES.pirateFirepower };
         const before = player.fleet.reduce((sum, ship) => sum + ship.durability, 0);
-        const result = fightNavalBattle(player.fleet, [pirate], this.rng);
+        const result = fightNavalBattle(player.fleet, [pirate], this.rng, { attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1 });
         const lost = result.attackerSunk.map((ship) => ship.id);
         player.fleet = player.fleet.filter((ship) => !lost.includes(ship.id));
         if (!player.fleet.length && result.attackerSunk.length) {
@@ -1351,20 +1397,22 @@ export class GameEngine extends GameView {
 
     const lastPosition = turnOrderPosition(this.state, this.state.currentPlayer);
     let next = this.nextActivePlayer(lastPosition + 1);
-    if (next === undefined) {
+    while (next === undefined) {
       this.produceColonyGoods();
       advanceMarket(this.state.market);
       this.state.round += 1;
       this.moveRoamers();
       if (this.checkVictory()) return;
       this.log(tx('Round {r} begins.', '第 {r} 回合开始。', { r: this.state.round }));
-      next = this.nextActivePlayer(0)!;
+      next = this.nextActivePlayer(0);
     }
 
     this.state.currentPlayer = next;
     this.state.lastSpin = null;
     this.state.strategyUsed = false;
     this.state.inspired = false;
+    this.state.ambush = false;
+    this.state.compassMultiplier = 1;
     this.state.phase = 'awaitingSpin';
     this.repairDockedShips();
     this.emit({ type: 'turnStarted', playerId: next });
@@ -1389,9 +1437,10 @@ export class GameEngine extends GameView {
     }
   }
 
-  private produceColonyGoods(): void {
+  private produceColonyGoods(playerId?: number): void {
     for (const { id, kind, specialty } of this.state.map) {
       if (kind !== 'island' || this.state.owners[id] === null) continue;
+      if (playerId !== undefined && this.state.owners[id] !== playerId) continue;
       const produced = colonyProduction(this.state, id);
       const stockpile = this.state.stockpiles[id];
       stockpile.lumber += produced.lumber;
@@ -1406,7 +1455,13 @@ export class GameEngine extends GameView {
     const { players } = this.state;
     for (let i = fromPosition; i < players.length; i++) {
       const seat = seatAtTurnOrderPosition(this.state, i);
-      if (!isEliminated(players[seat])) return seat;
+      if (isEliminated(players[seat])) continue;
+      if (players[seat].skipNextTurn) {
+        players[seat].skipNextTurn = false;
+        this.log(tx('{p} skips a turn under blockade.', '{p} 因封港跳过一次回合。', { p: ref.player(seat) }));
+        continue;
+      }
+      return seat;
     }
   }
 

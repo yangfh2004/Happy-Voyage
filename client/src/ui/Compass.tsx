@@ -15,14 +15,16 @@ function point(angle: number, radius: number) {
 interface CompassProps {
   spinId: number;
   result: number | null;
+  multiplier?: number;
   spinning: boolean;
   duration: number;
   onSettled: () => void;
 }
 
-export function Compass({ spinId, result, spinning, duration, onSettled }: CompassProps) {
+export function Compass({ spinId, result, multiplier = 1, spinning, duration, onSettled }: CompassProps) {
   const { t } = useT();
-  const angle = sectors.find(({ steps }) => steps === result)?.center ?? 0;
+  const rawResult = result === null ? null : result / multiplier;
+  const angle = sectors.find(({ steps }) => steps === rawResult)?.center ?? 0;
   const needleStyle = {
     transform: `rotate(${angle}deg)`,
     '--compass-stop': `${1080 + angle}deg`,
@@ -41,7 +43,7 @@ export function Compass({ spinId, result, spinning, duration, onSettled }: Compa
           const inner = point(start, 34);
           const outer = point(start, 52);
           const label = point(center, steps === 12 ? 46 : 42);
-          const selected = !spinning && steps === result;
+          const selected = !spinning && steps === rawResult;
           return (
             <g key={steps}>
               <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke="#8d6e63" />

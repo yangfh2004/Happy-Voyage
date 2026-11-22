@@ -52,7 +52,7 @@ function absorb(line: Ship[], damage: number): Ship[] {
  * Both lines fire simultaneously each round until one side is sunk or the rounds run out.
  * Mutates ship durability; the caller removes the sunk ships from their fleets.
  */
-export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng, options: { attackerMultiplier?: number; defenderRng?: Rng } = {}): BattleResult {
+export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng, options: { attackerMultiplier?: number; defenderRng?: Rng; skipFirstDefense?: boolean } = {}): BattleResult {
   let attackLine = [...attackers];
   let defenseLine = [...defenders];
   const attackerSunk: Ship[] = [];
@@ -61,7 +61,7 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng,
   while (attackLine.length && defenseLine.length && rounds < COMBAT.rounds) {
     rounds += 1;
     const attackFire = volley(attackLine, rng, options.attackerMultiplier);
-    const defenseFire = volley(defenseLine, options.defenderRng ?? rng);
+    const defenseFire = options.skipFirstDefense && rounds === 1 ? 0 : volley(defenseLine, options.defenderRng ?? rng);
     const lostDefenders = absorb(defenseLine, attackFire);
     const lostAttackers = absorb(attackLine, defenseFire);
     defenderSunk.push(...lostDefenders);
@@ -75,10 +75,11 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng,
 }
 
 /** Result at fixed cannon rolls (average by default), without touching the real ships or match RNG. */
-export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], options: { attackerMultiplier?: number; attackerRoll?: number; defenderRoll?: number } = {}): BattleOutcome {
+export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], options: { attackerMultiplier?: number; attackerRoll?: number; defenderRoll?: number; skipFirstDefense?: boolean } = {}): BattleOutcome {
   const copy = (ships: Ship[]) => ships.map((ship) => ({ ...ship }));
   return fightNavalBattle(copy(attackers), copy(defenders), () => options.attackerRoll ?? 0.5, {
     attackerMultiplier: options.attackerMultiplier,
+    skipFirstDefense: options.skipFirstDefense,
     defenderRng: () => options.defenderRoll ?? 0.5,
   }).outcome;
 }
@@ -86,5 +87,6 @@ export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], option
 export function forecastColonyBattle(state: GameState, player: Player): BattleOutcome {
   return forecastNavalBattle(player.fleet, colonyDefenders(state, player.position).ships, {
     attackerMultiplier: state.inspired ? STRATEGY_RULES.inspireMultiplier : 1,
+    skipFirstDefense: state.ambush,
   });
 }

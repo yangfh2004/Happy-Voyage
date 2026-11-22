@@ -35,8 +35,8 @@ describe('strategy cards', () => {
     g.currentPlayer.strategies = Object.keys(STRATEGIES) as (keyof typeof STRATEGIES)[];
     expect(g.canUseStrategy('navigate', -1)).toBe(false);
     expect(g.canUseStrategy('navigate')).toBe(false);
-    expect(g.canUseStrategy('inspire')).toBe(false);
-    expect(g.currentPlayer.strategies).toHaveLength(5);
+    expect(g.canUseStrategy('inspire')).toBe(true);
+    expect(g.currentPlayer.strategies).toHaveLength(20);
   });
   it('navigates directly into normal claim and toll resolution without salary', () => {
     const g = game();
@@ -76,9 +76,9 @@ describe('strategy cards', () => {
     const node = rival(g);
     g.currentPlayer.strategies = [id];
     const fleet = g.state.players[1].fleet;
-    const ship = fleet[0];
+    const ship = id === 'betray' ? [...fleet].sort((a, b) => b.firepower - a.firepower)[0] : fleet[0];
     g.useStrategy(id);
-    expect(fleet).toHaveLength(4);
+    expect(fleet).toHaveLength(id === 'betray' ? 3 : 4);
     expect(g.currentPlayer.fleet.includes(ship)).toBe(id === 'betray');
     expect(g.state.phase).toBe('awaitingToll');
     g.state.strategyUsed = false;
