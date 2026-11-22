@@ -1,9 +1,11 @@
 import { GameEngine, type GameState, type SpecialKind } from '@happy-voyage/shared';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { islandWindowFor } from './IslandWindow';
 
+vi.mock('dialog-polyfill', () => ({ default: { registerDialog: vi.fn() } }));
+
 function visit(island: SpecialKind, phase: GameState['phase']) {
-  const game = new GameEngine({ players: [{ name: 'Human', color: 0 }, { name: 'AI', color: 1, isAI: true }] });
+  const game = new GameEngine({ players: [{ name: 'Human', color: 0, isAI: false }, { name: 'AI', color: 1, isAI: true }] });
   const node = game.state.map.find((node) => node.special === island)!;
   game.state.players.forEach((player) => { player.position = node.id; });
   game.state.phase = phase;
