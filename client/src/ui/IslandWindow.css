@@ -112,11 +112,47 @@
   background: radial-gradient(ellipse at top, #3e6e60, #1d3836);
   text-align: center;
 }
-.mist-duel-board h3 { color: inherit; margin: 0; }
+.mist .mist-duel-board h3 { color: inherit; margin: 0; }
 .mist-duel-board .mist-stones { max-width: 460px; margin-bottom: 0; }
 .mist-duel-board .mist-stone.taken { border-color: #88ad9c; }
 .mist-moves { display: flex; flex-wrap: wrap; gap: 8px; }
 .mist-moves button { flex: 1 0 auto; }
 @media (min-width: 560px) {
   .mist-hermits { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.island-window--skeleton {
+  --island-ink: #432b26;
+  --island-deep: #462b29;
+  --island-paper: #fff2dd;
+  --island-gold: #efbe7a;
+  width: min(760px, calc(100% - 24px));
+}
+.ship-market-ledger {
+  display: grid;
+  align-items: start;
+  gap: 12px;
+  margin-block: 16px;
+}
+.ship-market-ledger section {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #ca9d71;
+  border-radius: 12px;
+  background: #f9e4c5;
+}
+.ship-market-ledger h3 {
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #ca9d71;
+}
+.ship-market-entry {
+  border-radius: 8px;
+  background: #fffaee;
+  padding: 8px;
+  margin-top: 8px;
+}
+.ship-market-entry > button { width: 100%; min-height: 44px; margin-top: 5px; }
+@media (min-width: 560px) {
+  .ship-market-ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
