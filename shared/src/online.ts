@@ -48,6 +48,7 @@ type PlayerActions = Pick<GameEngine,
   'spinCompass' | 'claim' | 'decline' | 'acceptMerchant' | 'declineMerchant' | 'wyvernFly' |
   'payToll' | 'useStrategy' | 'fight' | 'acceptBarter' | 'recruitCaptain' | 'declineRecruit' | 'declineBarter' |
   'buyLotteryNumber' | 'drawLottery' | 'finishLottery' | 'challengeHermit' | 'takeMistStones' | 'leaveMistIsland' |
+  'leaveRevivalIsland' |
   'dockShip' | 'boardShip' | 'loadCargo' | 'unloadCargo' | 'autoLoad' | 'build' | 'buildShip' |
   'finishBuilding' | 'tradeAtMarket' | 'finishTrading' | 'buyUsedShip' | 'sellShip' | 'finishMarket'
 >;

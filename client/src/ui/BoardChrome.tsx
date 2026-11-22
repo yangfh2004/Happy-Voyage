@@ -20,6 +20,7 @@ export function endTurnAction(state: GameState, atHelm: boolean, lotteryRevealed
     case 'awaitingBuild': return 'finishBuilding';
     case 'awaitingMarket': return 'finishMarket';
     case 'awaitingCargoMarket': return 'finishTrading';
+    case 'awaitingRevival': return 'leaveRevivalIsland';
     case 'awaitingLottery': return state.lottery?.draw && lotteryRevealed ? 'finishLottery' : null;
     case 'awaitingMistDuel': return state.mistDuel && (state.mistDuel.hermitId === null || state.mistDuel.result !== null) ? 'leaveMistIsland' : null;
     case 'awaitingToll': {

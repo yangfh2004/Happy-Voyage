@@ -393,6 +393,10 @@ export class GameController {
     if (this.isHumanTurn('awaitingMistDuel') && this.view!.canLeaveMistIsland()) this.perform(['leaveMistIsland'], () => this.engine!.leaveMistIsland());
   }
 
+  leaveRevivalIsland(): void {
+    if (this.isHumanTurn('awaitingRevival')) this.perform(['leaveRevivalIsland'], () => this.engine!.leaveRevivalIsland());
+  }
+
   canBuild(kind: BuildingKind): boolean {
     return this.isHumanTurn('awaitingBuild') && this.view!.canBuild(kind);
   }
@@ -678,6 +682,7 @@ export class GameController {
       case 'barterOffered':
       case 'recruitsOffered':
       case 'mistOffered':
+      case 'revivalReportReady':
       case 'buildOffered':
       case 'cargoMarketOpened':
         if (this.canHelm) this.skipping = false;

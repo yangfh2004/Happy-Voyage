@@ -97,7 +97,13 @@ export interface ColonyStockpile {
 
 export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' |
   'awaitingMarket' | 'awaitingRecruit' | 'awaitingLottery' | 'awaitingBarter' | 'awaitingMistDuel' |
-  'awaitingMerchant' | 'awaitingWyvern' | 'awaitingCargoMarket' | 'awaitingToll' | 'gameOver';
+  'awaitingMerchant' | 'awaitingWyvern' | 'awaitingCargoMarket' | 'awaitingRevival' | 'awaitingToll' | 'gameOver';
+
+export interface RevivalReport {
+  damage: number;
+  restored: number;
+  goldSpent: number;
+}
 
 export interface MerchantOffer {
   good: Specialty;
@@ -201,6 +207,7 @@ export interface GameState {
   lotteryDraws: import('./lottery').LotteryDraw[];
   mistDuel: import('./mist').MistDuel | null;
   mistResults: import('./mist').MistResult[];
+  revivalReport: RevivalReport | null;
   pendingRecruits: string[] | null;
   /** Every naval battle fought this game, oldest first. */
   battles: BattleReport[];
@@ -232,6 +239,7 @@ export type GameEvent =
   | { type: 'mistOffered'; playerId: number; nodeId: number }
   | { type: 'mistDuelUpdated'; playerId: number }
   | { type: 'mistDuelResolved'; result: import('./mist').MistResult }
+  | { type: 'revivalReportReady'; playerId: number }
   | { type: 'recruitsOffered'; playerId: number; nodeId: number }
   | { type: 'shipTransferred'; playerId: number; nodeId: number; shipId: number; direction: 'dock' | 'board' }
   | { type: 'cargoMoved'; playerId: number; nodeId: number; shipId: number; good: Good; qty: number; direction: 'load' | 'unload' }

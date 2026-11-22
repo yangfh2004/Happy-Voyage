@@ -93,6 +93,7 @@ function humanAction(state: GameState): RoomAction {
     case 'awaitingLottery': return state.lottery?.draw ? ['finishLottery'] : ['drawLottery'];
     case 'awaitingBarter': return ['declineBarter'];
     case 'awaitingMistDuel': return ['leaveMistIsland'];
+    case 'awaitingRevival': return ['leaveRevivalIsland'];
     case 'awaitingMerchant': return ['acceptMerchant'];
     case 'awaitingWyvern': return ['wyvernFly', state.players[state.currentPlayer].homePort];
     case 'awaitingCargoMarket': return ['finishTrading'];

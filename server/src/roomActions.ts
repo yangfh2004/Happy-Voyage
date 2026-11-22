@@ -62,6 +62,7 @@ const actions: Record<RoomAction[0], Handler> = {
   challengeHermit: oneArg(hermit, (e, id) => e.challengeHermit(id)),
   takeMistStones: oneArg(integer, (e, count) => e.takeMistStones(count)),
   leaveMistIsland: noArgs((e) => e.leaveMistIsland()),
+  leaveRevivalIsland: noArgs((e) => e.leaveRevivalIsland()),
   dockShip: oneArg(integer, (e, id) => e.dockShip(id)),
   boardShip: oneArg(integer, (e, id) => e.boardShip(id)),
   loadCargo: cargo('loadCargo'),

@@ -137,6 +137,7 @@ export class GameEngine extends GameView {
       lotteryDraws: [],
       mistDuel: null,
       mistResults: [],
+      revivalReport: null,
       pendingRecruits: null,
       battles: [],
       winner: null,
@@ -307,7 +308,7 @@ export class GameEngine extends GameView {
           this.emit({ type: 'marketOffered', playerId: player.id, nodeId: node.id });
           return;
         }
-        if (this.state.pendingBarter || this.state.pendingRecruits || this.state.lottery || this.state.mistDuel) return;
+        if (this.state.pendingBarter || this.state.pendingRecruits || this.state.lottery || this.state.mistDuel || this.state.revivalReport) return;
         break;
       case 'event':
         if (this.resolveEvent(player, node)) return;
@@ -867,6 +868,11 @@ export class GameEngine extends GameView {
     this.endTurn();
   }
 
+  leaveRevivalIsland(): void {
+    this.assertPhase('awaitingRevival');
+    this.endTurn();
+  }
+
   private resolveSpecial(player: Player, node: MapNode): void {
     const r = SEA_RULES;
     this.log(tx('{p} visits {n}.', '{p} 造访{n}。', { p: ref.player(player.id), n: ref.node(node.id) }));
@@ -895,6 +901,7 @@ export class GameEngine extends GameView {
       case 'revival': {
         const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
         const points = Math.min(damage, Math.floor(Math.max(0, player.gold) / REPAIR_GOLD_PER_POINT));
+        const goldSpent = points * REPAIR_GOLD_PER_POINT;
         let remaining = points;
         for (const ship of player.fleet) {
           const repaired = Math.min(remaining, ship.maxDurability - ship.durability);
@@ -903,13 +910,18 @@ export class GameEngine extends GameView {
         }
         if (damage === 0) this.log(tx("{p}'s fleet already sound: no repair fee.", '{p} 的舰队完好无损：无需修理费。', { p: ref.player(player.id) }));
         else {
-          this.changeGold(player, -points * REPAIR_GOLD_PER_POINT, 'revival repairs');
+          this.changeGold(player, -goldSpent, 'revival repairs');
           this.log(tx(`Revival repairs {p}'s fleet: restored {pts}/{dmg} durability for {g}g.${points < damage ? ' Insufficient gold; partial repairs in fleet order.' : ' Fleet fully repaired.'}`,
             `复活岛修理了 {p} 的舰队：花费 {g} 金币恢复 {pts}/{dmg} 耐久。${points < damage ? '金币不足，按舰队顺序部分修理。' : '舰队已全部修复。'}`,
-            { p: ref.player(player.id), pts: points, dmg: damage, g: points * REPAIR_GOLD_PER_POINT }));
+            { p: ref.player(player.id), pts: points, dmg: damage, g: goldSpent }));
         }
         player.revivalProtection = true;
         this.log(tx("Revival protection blocks {p}'s next sea hazard.", '复活庇护将为 {p} 挡下下一次海上灾难。', { p: ref.player(player.id) }));
+        if (!player.isAI) {
+          this.state.revivalReport = { damage, restored: points, goldSpent };
+          this.state.phase = 'awaitingRevival';
+          this.emit({ type: 'revivalReportReady', playerId: player.id });
+        }
         break;
       }
       case 'wind': {
@@ -1204,6 +1216,7 @@ export class GameEngine extends GameView {
     this.state.pendingBarter = null;
     this.state.lottery = null;
     this.state.mistDuel = null;
+    this.state.revivalReport = null;
     this.state.pendingRecruits = null;
     if (this.checkVictory()) return;
 

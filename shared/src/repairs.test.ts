@@ -29,8 +29,17 @@ describe('fleet repairs', () => {
     expect(sound.durability).toBe(sound.maxDurability);
     expect(player.gold).toBe(gold - points * REPAIR_GOLD_PER_POINT);
     expect(player.revivalProtection).toBe(true);
+    expect(engine.currentPlayer).toBe(player);
+    expect(engine.state.phase).toBe('awaitingRevival');
+    expect(engine.state.revivalReport).toEqual({ damage: 6, restored: points, goldSpent: points * REPAIR_GOLD_PER_POINT });
     expect(events).toContainEqual(expect.objectContaining({ reason: 'revival repairs' }));
     expect(engine.state.log.join(' ')).toContain(`restored ${points}/6 durability`);
+    engine.leaveRevivalIsland();
+    expect(engine.currentPlayer).not.toBe(player);
+    expect(engine.state.revivalReport).toBeNull();
+    expect(player.gold).toBe(gold - points * REPAIR_GOLD_PER_POINT);
+    expect(player.revivalProtection).toBe(true);
+    expect(() => engine.leaveRevivalIsland()).toThrow();
   });
 
   it('charges nothing for a sound or empty fleet', () => {
@@ -41,8 +50,25 @@ describe('fleet repairs', () => {
       const gold = player.gold;
       land(engine, engine.state.map.find((node) => node.special === 'revival')!.id);
       expect(player.gold).toBe(gold);
+      expect(engine.state.revivalReport).toEqual({ damage: 0, restored: 0, goldSpent: 0 });
       expect(engine.state.log.join(' ')).toContain('fleet already sound');
     }
+  });
+
+  it('repairs and protects AI fleets without waiting for a report', () => {
+    const engine = game();
+    const player = engine.currentPlayer;
+    player.isAI = true;
+    const gold = player.gold;
+    const ship = player.fleet[0];
+    ship.durability -= 2;
+    land(engine, engine.state.map.find((node) => node.special === 'revival')!.id);
+    expect(engine.currentPlayer).not.toBe(player);
+    expect(engine.state.phase).toBe('awaitingSpin');
+    expect(engine.state.revivalReport).toBeNull();
+    expect(ship.durability).toBe(ship.maxDurability);
+    expect(player.gold).toBe(gold - 2 * REPAIR_GOLD_PER_POINT);
+    expect(player.revivalProtection).toBe(true);
   });
 
   it.each(['storm', 'whirlpool'] as const)('%s damages sailing ships, unless protected', (event) => {
