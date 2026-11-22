@@ -610,7 +610,8 @@ export class GameEngine extends GameView {
     const before = pending.setup.attackers.reduce((sum, s) => sum + s.durability, 0);
     this.settlePirates(result, before);
     this.state.phase = 'moving';
-    if (pending.resumeLanding) this.resolveLanding();
+    const player = this.currentPlayer;
+    if (pending.resumeLanding && !isEliminated(player) && player.fleet.length > 0) this.resolveLanding();
     else this.endTurn();
     return null;
   }
