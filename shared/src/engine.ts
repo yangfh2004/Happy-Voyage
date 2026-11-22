@@ -1,4 +1,4 @@
-import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount,
+import { aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount,
   aiTravelTarget, aiBattleStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase, aiMistTake } from './ai';
 import { STRATEGIES, STRATEGY_RULES, type StrategyId } from './strategies';
 import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
@@ -852,9 +852,7 @@ export class GameEngine extends GameView {
       return;
     }
     if (this.state.phase === 'awaitingClaim') {
-      const player = this.currentPlayer;
-      if (aiShouldClaim(this.state, player, this.state.pendingClaim!)) this.claim();
-      else this.decline();
+      this.claim();
     }
   }
 
