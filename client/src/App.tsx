@@ -72,7 +72,7 @@ export function App() {
   const paletteToggle = <button type="button" className="palette-toggle" aria-pressed={colorBlind} onClick={toggleColorBlind}>{t('Color-blind mode', '色觉无障碍模式')}</button>;
 
   useEffect(() => {
-    if (!state || rulesOpen || fleetOpen || tutorialOpen || menuOpen) return;
+    if (coverOpen || rulesOpen || fleetOpen || tutorialOpen || menuOpen) return;
     const shortcuts = keyboardShortcuts(gameController);
     window.addEventListener('keydown', shortcuts.keydown);
     window.addEventListener('keyup', shortcuts.keyup);
@@ -82,7 +82,7 @@ export function App() {
       window.removeEventListener('keyup', shortcuts.keyup);
       window.removeEventListener('blur', shortcuts.blur);
     };
-  }, [!!state, rulesOpen, fleetOpen, tutorialOpen, menuOpen]);
+  }, [coverOpen, rulesOpen, fleetOpen, tutorialOpen, menuOpen]);
   const [menu, setMenu] = useState<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     if (!menuOpen) return;
