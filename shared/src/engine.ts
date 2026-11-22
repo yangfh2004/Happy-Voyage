@@ -226,7 +226,7 @@ export class GameEngine extends GameView {
       this.changeGold(rival, -amount, 'plunder');
       this.changeGold(this.currentPlayer, amount, 'plunder');
     },
-    gale: (target) => { for (const ship of this.state.players[target!].fleet) ship.durability = Math.max(1, ship.durability - 30); },
+    gale: (target) => { for (const ship of this.state.players[target!].fleet) ship.durability = Math.min(ship.durability, Math.max(1, ship.durability - 30)); },
     escort: () => { this.currentPlayer.escortProtection = true; },
     exemption: () => {
       const player = this.currentPlayer;

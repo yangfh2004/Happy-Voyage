@@ -107,6 +107,23 @@ describe('sea strategy effects', () => {
     g.useStrategy('gale', 1);
     expect(rival.fleet.map((s) => s.durability)).toEqual(before.map((n) => Math.max(1, n - 30)));
   });
+  it.each(['storm', 'whirlpool'] as const)('gale does not repair ships left at zero durability by %s', (event) => {
+    const { g, p, rival } = setup('gale');
+    const ship = rival.fleet[0];
+    ship.durability = 5;
+    g.state.currentPlayer = rival.id;
+    rival.position = g.state.map.find((n) => n.event === event)!.id;
+    g.state.phase = 'moving';
+    g.resolveLanding();
+    expect(rival.fleet).toContain(ship);
+    expect(ship.durability).toBe(0);
+    const before = rival.fleet.map((s) => s.durability);
+    g.state.currentPlayer = p.id;
+    g.state.phase = 'awaitingSpin';
+    g.useStrategy('gale', rival.id);
+    expect(rival.fleet.map((s) => s.durability)).toEqual(before.map((n) => Math.min(n, Math.max(1, n - 30))));
+    expect(ship.durability).toBe(0);
+  });
   it('mislead wrecks a random ship but never the last', () => {
     const { g, rival } = setup('mislead');
     const first = rival.fleet[0];
