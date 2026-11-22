@@ -426,6 +426,9 @@ export class OceanScene extends Phaser.Scene {
     }
     this.stopLabels.forEach((text, id) => text.setText(this.stopLabel(this.map[id], state)));
     this.regionLabels.forEach((text, i) => text.setText(REGIONS[i][getLocale() === 'zh' ? 1 : 0]));
+    for (const roamer of state?.roamers ?? []) {
+      this.roamerBadges.get(roamer.id)?.setText(`${roamer.kind === 'pirates' ? '⚑' : 'M'} ${seaEventName(roamer.kind, locale)}`);
+    }
   }
 
   private syncRoamers(state: GameState | null) {

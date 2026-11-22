@@ -63,7 +63,7 @@ afterEach(() => setLocale('en'));
 describe('map label language and themed stop hover', () => {
   it('draws distinct localized roaming tokens, moves them with state, and clears stale tokens', () => {
     const image = vi.fn((_x: number, _y: number, _texture: string) => ({ setScale: vi.fn().mockReturnThis(), setDepth: vi.fn().mockReturnThis(), destroy: vi.fn() }));
-    const text = vi.fn((_x: number, _y: number, _label: string) => ({ setDepth: vi.fn().mockReturnThis(), destroy: vi.fn() }));
+    const text = vi.fn((_x: number, _y: number, _label: string) => ({ setDepth: vi.fn().mockReturnThis(), setText: vi.fn(), destroy: vi.fn() }));
     Object.assign(scene, { add: { image, text }, textures: { exists: () => true } });
     const { state } = new GameEngine({ players: [{ name: 'Captain', color: 0, isAI: false }] });
     state.roamers = [{ id: 0, kind: 'pirates', node: 1 }, { id: 1, kind: 'smallMonster', node: 2 }];
@@ -71,6 +71,15 @@ describe('map label language and themed stop hover', () => {
     expect(image).toHaveBeenCalledTimes(2);
     expect(image.mock.calls[0][2]).not.toBe(image.mock.calls[1][2]);
     expect(text.mock.calls.map((call) => call[2])).toEqual(['⚑ Pirates', 'M Small sea monster']);
+    state.phase = 'awaitingMerchant';
+    setLocale('zh');
+    scene.relabel(state);
+    expect(text.mock.results[0].value.setText).toHaveBeenLastCalledWith('⚑ 海盗');
+    expect(text.mock.results[1].value.setText).toHaveBeenLastCalledWith('M 小海怪');
+    setLocale('en');
+    scene.relabel(state);
+    expect(text.mock.results[1].value.setText).toHaveBeenLastCalledWith('M Small sea monster');
+    expect(image).toHaveBeenCalledTimes(2);
     const previous = image.mock.results.map(({ value }) => value);
     state.roamers[0].node = 3;
     setLocale('zh');
