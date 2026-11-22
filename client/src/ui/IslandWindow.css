@@ -156,3 +156,42 @@
 @media (min-width: 560px) {
   .ship-market-ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+.island-window--dragonSnake {
+  --island-ink: #472b25;
+  --island-deep: #6b2827;
+  --island-paper: #fff4e4;
+  --island-gold: #efc585;
+  width: min(780px, calc(100% - 24px));
+}
+.tavern-roster { display: grid; gap: 10px; margin-block: 16px; }
+.tavern-captain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px;
+  border: 1px solid #ca9a6c;
+  border-radius: 12px;
+  background: linear-gradient(#f7dfb9, #fff9ec);
+}
+.tavern-badge {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  aspect-ratio: 1;
+  border: 1px solid #d6aa6c;
+  border-radius: 50%;
+  color: var(--island-gold);
+  background: var(--island-deep);
+  font-size: 1.3rem;
+}
+.tavern-captain h3 { margin: 8px 0 2px; }
+.tavern-captain p { margin: 4px 0; }
+.tavern-bonus { color: #6b2827; font-weight: 700; }
+.tavern-captain .primary { width: 100%; margin-top: auto; }
+.tavern-captain p:last-of-type { margin-bottom: 10px; }
+@media (min-width: 600px) {
+  .tavern-roster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
