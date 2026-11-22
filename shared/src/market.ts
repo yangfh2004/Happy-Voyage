@@ -1,4 +1,5 @@
 import { cargoLoad, GOODS } from './ships';
+import { isEliminated } from './rules';
 import type { GameState, Good, MarketOrder, MarketState } from './types';
 
 const BASE_PRICE: Record<Good, number> = {
@@ -62,7 +63,7 @@ export function quoteMarketTrade(state: GameState, order: MarketOrder): number |
   const player = state.players[state.currentPlayer];
   const node = state.map[player.position];
   const ship = player.fleet.find((candidate) => candidate.id === shipId);
-  if (node?.kind !== 'special' || node.special !== 'nightless' || player.bankrupt || !ship) return null;
+  if (node?.kind !== 'special' || node.special !== 'nightless' || isEliminated(player) || !ship) return null;
 
   const stock = state.market.stock[good];
   const buying = side === 'buy';

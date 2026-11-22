@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine } from './engine';
+import { COLONY_RETURN_COOLDOWN } from './rules';
 import { SHIP_TYPES } from './ships';
 import type { GameEvent, ShipType } from './types';
 
@@ -15,6 +16,54 @@ function visitColony() {
 }
 
 describe('colony shipyards', () => {
+  it('can prepare its only colony and return later to launch a ship without rolling the compass', () => {
+    const { engine, nodeId, state } = visitColony();
+    const player = engine.currentPlayer;
+    const rivalColony = state.map.find((node) => node.kind === 'island' && node.id !== nodeId)!;
+    state.owners[rivalColony.id] = 1;
+    expect(engine.colonyReturnTargets()).toEqual([]);
+
+    player.position = player.homePort;
+    state.phase = 'awaitingSpin';
+    state.lastSpin = null;
+    expect(engine.colonyReturnTargets().map((node) => node.id)).toEqual([nodeId]);
+    expect(() => engine.returnToColony(rivalColony.id)).toThrow('Cannot return');
+    engine.returnToColony(nodeId);
+    expect(state).toMatchObject({ phase: 'awaitingBuild', lastSpin: null });
+    expect(player.position).toBe(nodeId);
+    for (const building of ['lumberMill', 'ironMine', 'shipyard'] as const) engine.build(building);
+    engine.finishBuilding();
+
+    state.currentPlayer = player.id;
+    player.position = player.homePort;
+    state.round = COLONY_RETURN_COOLDOWN;
+    expect(() => engine.returnToColony(nodeId)).toThrow('Cannot return');
+    expect(engine.colonyReturnTargets()).toEqual([]);
+    state.round++;
+    state.stockpiles[nodeId].lumber = 2;
+    state.stockpiles[nodeId].iron = 1;
+    engine.returnToColony(nodeId);
+    expect(engine.buildShip('explorer').type).toBe('explorer');
+  });
+
+  it('lets a depleted AI return to a stocked colony to build a ship', () => {
+    const { engine, nodeId, state } = visitColony();
+    const player = engine.currentPlayer;
+    player.isAI = true;
+    player.fleet.splice(2);
+    player.position = player.homePort;
+    state.phase = 'awaitingSpin';
+    state.buildings[nodeId].shipyard = 1;
+    state.stockpiles[nodeId].lumber = 2;
+    state.stockpiles[nodeId].iron = 1;
+
+    engine.decideForAI();
+    expect(player.position).toBe(nodeId);
+    expect(state.phase).toBe('awaitingBuild');
+    engine.decideForAI();
+    expect(player.fleet).toHaveLength(3);
+  });
+
   it('unlocks ships by yard size and commissions them from local materials', () => {
     const { engine, nodeId, state } = visitColony();
     const stock = state.stockpiles[nodeId] = { lumber: 12, iron: 7, specialties: { Wine: 3 } };
@@ -41,7 +90,7 @@ describe('colony shipyards', () => {
       expect(state.log.at(-1)).toContain(`launches ${ship.name}`);
       expect(state.phase).toBe('awaitingBuild');
     }
-    expect(state.players.map((player) => player.fleet.length)).toEqual([6, 3]);
+    expect(state.players.map((player) => player.fleet.length)).toEqual([8, 5]);
     expect(stock).toEqual({ lumber: 0, iron: 0, specialties: { Wine: 3 } });
     expect(engine.canBuildShip('explorer')).toBe(false);
   });

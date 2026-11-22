@@ -2,10 +2,10 @@ import { buildingLevel, buildingValue, nextBuildingCost } from './buildings';
 import { colonyDefenders } from './combat';
 import { LOTTERY } from './lottery';
 import { NIM_MAX_TAKE } from './mist';
-import { colonyValue } from './rules';
+import { colonyValue, isEliminated } from './rules';
 import { cargoLoad, SHIP_RECIPES, USED_SHIP_PRICES } from './ships';
 import { STRATEGIES, type StrategyId } from './strategies';
-import type { BuildingKind, GameState, Player, ShipType } from './types';
+import type { BuildingKind, GameState, MapNode, Player, ShipType } from './types';
 
 /** Read-only rules queries for both the engine and clients displaying a server snapshot. */
 export class GameView {
@@ -15,9 +15,18 @@ export class GameView {
     return this.state.players[this.state.currentPlayer];
   }
 
+  colonyReturnTargets(): MapNode[] {
+    const player = this.currentPlayer;
+    if (this.state.phase !== 'awaitingSpin' || isEliminated(player) || !player.fleet.length ||
+      this.state.round < (player.nextColonyReturnRound ?? 1)) return [];
+
+    return this.state.map.filter((node) => node.kind === 'island' && node.id !== player.position &&
+      this.state.owners[node.id] === player.id);
+  }
+
   canUseStrategy(id: StrategyId, target?: number): boolean {
     const card = STRATEGIES[id];
-    if (!card || this.state.strategyUsed || this.currentPlayer.bankrupt || !this.currentPlayer.strategies.includes(id) || !card.phases.includes(this.state.phase)) return false;
+    if (!card || this.state.strategyUsed || isEliminated(this.currentPlayer) || !this.currentPlayer.strategies.includes(id) || !card.phases.includes(this.state.phase)) return false;
     if (id === 'navigate') return Number.isInteger(target) && this.state.map.some((n) => n.id === target);
     if (id === 'locate') return this.hoardExists ?? (this.state.hoardNode !== null);
     const owner = this.state.owners[this.currentPlayer.position];
@@ -70,6 +79,10 @@ export class GameView {
     if (this.state.phase !== 'awaitingBuild' || this.state.map[nodeId]?.kind !== 'island' ||
       this.state.owners[nodeId] !== player.id || !Object.hasOwn(SHIP_RECIPES, type)) return false;
 
+    return this.hasShipbuildingSupplies(nodeId, type);
+  }
+
+  protected hasShipbuildingSupplies(nodeId: number, type: ShipType): boolean {
     const recipe = SHIP_RECIPES[type];
     const stock = this.state.stockpiles[nodeId];
     return buildingLevel(this.state, nodeId, 'shipyard') >= recipe.yardLevel &&
@@ -77,8 +90,10 @@ export class GameView {
   }
 
   protected atMarket(): boolean {
-    return this.state.phase === 'awaitingMarket' && !this.currentPlayer.bankrupt &&
-      this.state.map[this.currentPlayer.position]?.special === 'skeleton';
+    const player = this.currentPlayer;
+    const node = this.state.map[player.position];
+    return !isEliminated(player) && ((this.state.phase === 'awaitingMarket' && node?.special === 'skeleton') ||
+      (this.state.phase === 'awaitingBuild' && node?.kind === 'island' && this.state.owners[node.id] === player.id));
   }
 
   canBuyUsedShip(type: ShipType): boolean {

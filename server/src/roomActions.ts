@@ -35,6 +35,7 @@ const cargo = (method: 'loadCargo' | 'unloadCargo'): Handler => (engine, [ship, 
 
 const actions: Record<RoomAction[0], Handler> = {
   spinCompass: noArgs((e) => e.spinCompass()),
+  returnToColony: oneArg(integer, (e, id) => e.returnToColony(id)),
   claim: noArgs((e) => e.claim()),
   decline: noArgs((e) => e.decline()),
   acceptMerchant: noArgs((e) => e.acceptMerchant()),

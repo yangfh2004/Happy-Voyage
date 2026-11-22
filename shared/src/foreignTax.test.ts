@@ -24,7 +24,7 @@ describe('foreign port tax', () => {
     const before = host.gold;
     land(game, host.homePort);
     expect(visitor.gold).toBe(0);
-    expect(visitor.fleet).toHaveLength(3);
+    expect(visitor.fleet).toHaveLength(5);
     expect(visitor.bankrupt).toBe(false);
     expect(host.gold).toBe(before + 32);
     expect(game.state.log.some((line) => line.includes('(32g due)'))).toBe(true);
@@ -38,7 +38,7 @@ describe('foreign port tax', () => {
     const cheapest = [...visitor.fleet].sort((a, b) => shipSalePrice(a) - shipSalePrice(b))[0];
     expect(shipSalePrice(cheapest)).toBe(21);
     land(game, host.homePort);
-    expect(visitor.fleet).toHaveLength(2);
+    expect(visitor.fleet).toHaveLength(4);
     expect(host.fleet).toContain(cheapest);
     expect(visitor.bankrupt).toBe(false);
   });
@@ -51,7 +51,7 @@ describe('foreign port tax', () => {
     land(game, host.homePort);
     expect(visitor.bankrupt).toBe(true);
     expect(visitor.fleet).toHaveLength(0);
-    expect(host.fleet).toHaveLength(4);
+    expect(host.fleet).toHaveLength(6);
   });
 
   it('transfers the full tax without seizing ships when gold is sufficient', () => {
@@ -61,7 +61,7 @@ describe('foreign port tax', () => {
     land(game, host.homePort);
     expect(visitor.gold).toBe(0);
     expect(visitor.bankrupt).toBe(false);
-    expect(visitor.fleet).toHaveLength(3);
+    expect(visitor.fleet).toHaveLength(5);
     expect(host.gold).toBe(before + SEA_RULES.foreignTax);
     expect(game.state.log.some((line) => line.includes('pays 40g foreign tax'))).toBe(true);
   });
@@ -75,7 +75,7 @@ describe('foreign port tax', () => {
     land(game, host.homePort);
     expect(visitor.gold).toBe(0);
     expect(visitor.bankrupt).toBe(false);
-    expect(visitor.fleet).toHaveLength(2);
+    expect(visitor.fleet).toHaveLength(4);
     expect(host.fleet).toContain(cheapest);
     expect(cheapest.cargo.iron).toBe(2);
     expect(host.gold).toBe(before + 5);
@@ -87,8 +87,8 @@ describe('foreign port tax', () => {
     visitor.gold = 0;
     visitor.fleet.forEach((ship) => { ship.durability = ship.maxDurability * 0.2; });
     land(game, host.homePort);
-    expect(visitor.fleet).toHaveLength(1);
-    expect(host.fleet).toHaveLength(5);
+    expect(visitor.fleet).toHaveLength(2);
+    expect(host.fleet).toHaveLength(8);
     expect(visitor.bankrupt).toBe(false);
   });
 
@@ -100,7 +100,7 @@ describe('foreign port tax', () => {
     land(game, port.id);
     expect(visitor.fleet).toHaveLength(0);
     expect(visitor.bankrupt).toBe(true);
-    expect(host.fleet).toHaveLength(3);
+    expect(host.fleet).toHaveLength(5);
     expect(game.state.log.some((line) => line.includes('seized by the crown'))).toBe(true);
   });
 
@@ -129,7 +129,7 @@ describe('foreign port tax', () => {
     visitor.gold = 0;
     land(game, visitor.homePort);
     expect(visitor.gold).toBe(0);
-    expect(visitor.fleet).toHaveLength(3);
+    expect(visitor.fleet).toHaveLength(5);
     expect(visitor.bankrupt).toBe(false);
   });
 });

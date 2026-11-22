@@ -68,6 +68,19 @@ describe('random sea encounters', () => {
     expect(game.state.phase).toBe('awaitingClaim');
   });
 
+  it('ignores fleet-loss defeats when resurfacing and skips defeated navigators', () => {
+    const { game, sail } = voyage();
+    const player = game.currentPlayer;
+    game.state.players.push({ ...player, id: 1, name: 'Defeated', position: 3, fleet: [], fleetLost: true });
+    game.state.players.push({ ...player, id: 2, name: 'Survivor', position: 4 });
+    for (const node of game.state.map.slice(4)) node.kind = 'port';
+    game.state.roamers = [{ id: 0, kind: 'smallMonster', node: 1 }];
+    sail();
+    expect(game.state.roamers[0].node).toBe(3);
+    game.decline();
+    expect(game.state.currentPlayer).toBe(2);
+  });
+
   it('moves roamers one to three route stops after the full round', () => {
     const { game, sail } = voyage();
     game.state.roamers = [{ id: 0, kind: 'pirates', node: 8 }];

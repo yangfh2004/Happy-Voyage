@@ -1,7 +1,7 @@
 export const SEA_RULES = {
   encounterChance: 0.2, merchantDiscount: 0.8, merchantReserve: 500,
   encounterWeights: { pirates: 18, smallMonster: 16, whirlpool: 12, bottle: 14, floatingCargo: 14, merchant: 14, wyvern: 4, largeMonster: 4, turtle: 4 },
-  foreignTax: 40, tribute: 35, scrap: 60,
+  foreignTax: 40,
   nimStones: 12, nimPrize: 130,
   barterPerColony: 25, pirates: 80,
   pirateLoot: 140, pirateDurability: 90, pirateFirepower: 24,

@@ -27,7 +27,7 @@ describe('GameEngine', () => {
     expect(new Set(allShips.map((ship) => ship.id)).size).toBe(allShips.length);
     expect(new Set(allShips.map((ship) => ship.name)).size).toBe(allShips.length);
     for (const { fleet } of state.players) {
-      expect(fleet.map((ship) => ship.type)).toEqual(['warship', 'cargo', 'explorer']);
+      expect(fleet.map((ship) => ship.type)).toEqual(['warship', 'cargo', 'explorer', 'explorer', 'explorer']);
       const [warship, cargo, explorer] = fleet;
       expect(warship.firepower).toBeGreaterThan(Math.max(cargo.firepower, explorer.firepower));
       expect(cargo.cargoCapacity).toBeGreaterThan(Math.max(warship.cargoCapacity, explorer.cargoCapacity));
