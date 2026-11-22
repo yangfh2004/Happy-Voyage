@@ -130,6 +130,7 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .tag { margin-left: 6px; font-size: 11px; background: #8d6e63; color: #fff; padding: 0 5px; border-radius: 4px; }
 
 .actions { text-align: center; }
+.actions :is(select, option), .strategy-cards :is(select, option) { font-family: 'Sea Names', system-ui, -apple-system, 'Segoe UI', sans-serif; }
 .strategy-destination { font: inherit; }
 .actions .row { display: flex; gap: 8px; justify-content: center; }
 .action-content { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; }
