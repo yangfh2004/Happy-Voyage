@@ -253,10 +253,7 @@ export function captainName(id: string, locale: Locale): string {
 
 export function captainDescriptionText(id: string, locale: Locale): string {
   const captain = CAPTAINS.find((candidate) => candidate.id === id)!;
-  if (locale === 'en') return captain.bonus === 'salary' ? `+${captain.amount}g per home salary` :
-    `${Math.round(captain.amount * 100)}% less ${captain.bonus === 'toll' ? 'colony toll' : 'foreign tax'}`;
-  return captain.bonus === 'salary' ? `每次母港薪俸 +${captain.amount} 金币` :
-    `${captain.bonus === 'toll' ? '殖民地过路费' : '外国税金'}减少 ${Math.round(captain.amount * 100)}%`;
+  return captain.ships.map((type) => shipTypeName(type, locale)).join(' + ');
 }
 
 export function hermitText(id: string, locale: Locale): { name: string; style: string } {

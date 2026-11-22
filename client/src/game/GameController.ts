@@ -280,6 +280,12 @@ export class GameController {
     if (this.isHumanTurn('awaitingSpin')) this.perform(['spinCompass'], () => this.beginSpin(this.engine!));
   }
 
+  returnToColony(nodeId: number): void {
+    if (this.isHumanTurn('awaitingSpin') && this.view?.colonyReturnTargets().some((node) => node.id === nodeId)) {
+      this.perform(['returnToColony', nodeId], () => this.engine!.returnToColony(nodeId));
+    }
+  }
+
   finishSpin(id: number): void {
     if (id === this.spinId && this.engine?.state.phase === 'spinning') this.engine.sail();
   }
@@ -448,7 +454,7 @@ export class GameController {
   }
 
   canBuyUsedShip(type: ShipType): boolean {
-    return this.isHumanTurn('awaitingMarket') && this.view!.canBuyUsedShip(type);
+    return (this.isHumanTurn('awaitingMarket') || this.isHumanTurn('awaitingBuild')) && this.view!.canBuyUsedShip(type);
   }
 
   buyUsedShip(type: ShipType): void {
@@ -456,7 +462,7 @@ export class GameController {
   }
 
   canSellShip(shipId: number): boolean {
-    return this.isHumanTurn('awaitingMarket') && this.view!.canSellShip(shipId);
+    return (this.isHumanTurn('awaitingMarket') || this.isHumanTurn('awaitingBuild')) && this.view!.canSellShip(shipId);
   }
 
   sellShip(shipId: number): void {
@@ -698,7 +704,7 @@ export class GameController {
         }
         break;
       case 'gameOver':
-        if (isHuman(event.winner)) sfx.win();
+        if (event.winner !== null && isHuman(event.winner)) sfx.win();
         // Fall through: a completed or failed stage stops all game timers.
       case 'campaignFailed':
         this.skipping = false;

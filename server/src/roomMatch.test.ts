@@ -4,6 +4,22 @@ import { RoomMatch } from './roomMatch';
 
 afterEach(() => vi.useRealTimers());
 
+it('allows players online to return only to their own colony', () => {
+  const seats: RoomPick[] = [{ name: 'Captain', nation: 'Spain' }, { name: 'Rival', nation: 'Portugal' }];
+  const publish = vi.fn();
+  const match = new RoomMatch(seats, { mode: 'conquest', difficulty: 'normal' }, publish, vi.fn());
+  const { currentPlayer, state } = match.engine;
+  const [own, rival] = state.map.filter((node) => node.kind === 'island');
+  state.owners[own.id] = currentPlayer.id;
+  state.owners[rival.id] = 1;
+  expect(() => match.act(1, match.revision, ['returnToColony', own.id])).toThrow('not your turn');
+  expect(() => match.act(currentPlayer.id, match.revision, ['returnToColony', rival.id])).toThrow('Cannot return');
+  match.act(currentPlayer.id, match.revision, ['returnToColony', own.id]);
+  expect(state.phase).toBe('awaitingBuild');
+  expect(publish).toHaveBeenCalledOnce();
+  match.dispose();
+});
+
 it('only accepts a Revival acknowledgement from the player at the helm', () => {
   const seats: RoomPick[] = [{ name: 'Captain', nation: 'Spain' }, { name: 'Rival', nation: 'Portugal' }];
   const publish = vi.fn();

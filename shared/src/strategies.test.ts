@@ -78,7 +78,7 @@ describe('strategy cards', () => {
     const fleet = g.state.players[1].fleet;
     const ship = fleet[0];
     g.useStrategy(id);
-    expect(fleet).toHaveLength(2);
+    expect(fleet).toHaveLength(4);
     expect(g.currentPlayer.fleet.includes(ship)).toBe(id === 'betray');
     expect(g.state.phase).toBe('awaitingToll');
     g.state.strategyUsed = false;

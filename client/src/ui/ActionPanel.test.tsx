@@ -22,6 +22,49 @@ import { CampaignPanel } from './CampaignPanel';
 import { RouteDetails } from './RouteDetails';
 import { TransferContents } from './TransferPanel';
 import { gameController } from '../game/GameController';
+import { setLocale } from '../i18n';
+
+describe('colony return', () => {
+  it.each(['en', 'zh'] as const)('offers the direct return on a human turn in %s', (locale) => {
+    const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
+    const { state } = game;
+    const island = state.map.find((node) => node.kind === 'island')!;
+    state.owners[island.id] = 0;
+    setLocale(locale);
+    try {
+      const html = renderToStaticMarkup(<ActionPanel state={state} />);
+      expect(html).toContain(locale === 'en' ? 'Return to Madeira' : '每 12 回合可用一次');
+      if (locale === 'en') expect(html).not.toMatch(/\p{Script=Han}/u);
+      game.currentPlayer.nextColonyReturnRound = 12;
+      expect(renderToStaticMarkup(<ActionPanel state={state} />)).not.toContain(locale === 'en' ? 'Return to Madeira' : '每 12 回合可用一次');
+    } finally {
+      setLocale('en');
+    }
+  });
+});
+
+describe('fleet-loss defeat', () => {
+  it.each(['en', 'zh'] as const)('explains a player’s defeat after battle in %s', (locale) => {
+    const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }], rng: () => 0.5 });
+    const { state } = game;
+    const island = state.map.find((node) => node.kind === 'island')!;
+    state.owners[island.id] = 1;
+    game.currentPlayer.position = island.id;
+    game.currentPlayer.fleet.forEach((ship) => { ship.durability = 1; });
+    state.phase = 'moving';
+    game.resolveLanding();
+    game.fight();
+    Object.assign(gameController, { islandsOwnedBy: (id: number) => game.islandsOwnedBy(id), netWorth: (id: number) => game.netWorth(id) });
+    setLocale(locale);
+    try {
+      const html = renderToStaticMarkup(<ActionPanel state={state} />);
+      expect(html).toContain(locale === 'en' ? 'Defeat for You: no ships remain in their sailing fleet.' : 'You 的航行舰队已无船只，航程失败。');
+      if (locale === 'en') expect(html).not.toMatch(/\p{Script=Han}/u);
+    } finally {
+      setLocale('en');
+    }
+  });
+});
 
 describe('campaign UI', () => {
   it('shows distinct pending and paid missions after claiming a real colony', () => {
@@ -239,7 +282,7 @@ describe('build menu', () => {
     expect(html).toContain(`Rival&#x27;s colony at ${island.name}`);
     expect(html).toContain(`Pay ${island.toll}g toll`);
     expect(html).toContain(`${island.toll! * 2}g double toll`);
-    expect(html).toContain('Defenders: 3 ships');
+    expect(html).toContain('Defenders: 5 ships');
     expect(html).toContain('Fight <kbd>F</kbd>');
   });
 });

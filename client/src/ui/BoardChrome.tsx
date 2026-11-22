@@ -1,4 +1,4 @@
-import { chartIdentity, nodeName, playerName, rankName, tollDue, type GameState } from '@happy-voyage/shared';
+import { chartIdentity, isEliminated, nodeName, playerName, rankName, tollDue, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
@@ -43,12 +43,12 @@ export function VoyageTopBar({ state, colorBlind, onMenu, menuOpen }: { state: G
     <div className="voyage-seats">
       {state.players.map((p) => {
         const { color, badge } = chartIdentity(p, colorBlind);
-        return <div key={p.id} className={`voyage-chip ${p.id === state.currentPlayer ? 'active' : ''} ${p.bankrupt ? 'bankrupt' : ''}`} style={{ borderColor: cssColor(color) }}>
+        return <div key={p.id} className={`voyage-chip ${p.id === state.currentPlayer ? 'active' : ''} ${isEliminated(p) ? 'bankrupt' : ''}`} style={{ borderColor: cssColor(color) }}>
           {p.id === state.currentPlayer && <span className="current-label">♛ {t('CURRENT TURN', '当前回合')}</span>}
           {p.navigator && <NavigatorPortrait navigator={p.navigator} color={color} size={30} />}
           <strong>{!badge && <span className="seat-number">{p.id + 1} </span>}{badge && `${badge} · `}{playerName(p, locale)}</strong>
           <span aria-label={t('Gold and ships', '金币与船只')}><ResourceIcon /> {gameController.displayGold(p)} · <ResourceIcon ship /> {p.fleet.length}</span>
-          <small>{p.bankrupt ? t('Bankrupt', '破产') : p.isAI ? t('AI', '电脑') : t('Player', '玩家')}</small>
+          <small>{p.fleetLost ? t('Fleet lost', '舰队覆没') : p.bankrupt ? t('Bankrupt', '破产') : p.isAI ? t('AI', '电脑') : t('Player', '玩家')}</small>
         </div>;
       })}
     </div>

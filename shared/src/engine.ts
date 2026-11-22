@@ -5,7 +5,7 @@ import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
 import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { HERMITS, NIM_MAX_TAKE, hermitStoneTake, type HermitId, type MistResult } from './mist';
-import { CAPTAINS, MAX_CAPTAINS, captainBonus, discountedByCaptains, recruitOffers, aiRecruitChoice } from './captains';
+import { CAPTAINS, MAX_CAPTAINS, recruitOffers, aiRecruitChoice } from './captains';
 import { BUILDINGS, buildingLevel, nextBuildingCost, colonyProduction } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
@@ -19,7 +19,7 @@ import { walkPath, WIND_DIRECTIONS } from './graph';
 import { GAME_MODES, hasRoundLimit } from './modes';
 import { campaignRoster, campaignStage, type CampaignObjective, type CampaignSetup, type CampaignState } from './campaign';
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
-import { seatAtTurnOrderPosition, turnOrderPosition, SEA_HAZARD_DAMAGE } from './rules';
+import { isEliminated, seatAtTurnOrderPosition, turnOrderPosition, COLONY_RETURN_COOLDOWN, SEA_HAZARD_DAMAGE } from './rules';
 import { GameView } from './gameView';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 import type { Good, SeaEventResult, Specialty } from './types';
@@ -161,7 +161,8 @@ export class GameEngine extends GameView {
     for (const player of this.state.players) {
       const flagship = player.navigator === undefined ? undefined : navigatorById(player.navigator)?.signatureShip;
       if (player.navigator !== undefined && !flagship) throw new Error(`Unknown navigator: ${player.navigator}`);
-      for (const type of STARTING_FLEET) this.commissionShip(player.id, type, type === flagship?.type ? flagship : undefined);
+      const flagshipIndex = flagship ? STARTING_FLEET.indexOf(flagship.type) : -1;
+      STARTING_FLEET.forEach((type, index) => this.commissionShip(player.id, type, index === flagshipIndex ? flagship : undefined));
     }
     this.state.wind = { direction: WIND_DIRECTIONS[Math.floor(this.rng() * 4)], turnsLeft: 2 + Math.floor(this.rng() * 3) };
   }
@@ -192,18 +193,28 @@ export class GameEngine extends GameView {
   }
 
   private readonly strategyHandlers: Record<StrategyId, (target?: number) => void> = {
-    navigate: (target) => {
-      this.relocations = 0;
-      this.pendingPath = [];
-      this.currentPlayer.position = target!;
-      this.state.phase = 'moving';
-      this.resolveLanding();
-    },
+    navigate: (target) => this.sailDirectly(target!),
     locate: () => { this.currentPlayer.knownHoard = this.state.hoardNode; },
     inspire: () => { this.state.inspired = true; },
     mislead: () => { colonyDefenders(this.state, this.currentPlayer.position).ships.shift(); },
     betray: () => { this.currentPlayer.fleet.push(colonyDefenders(this.state, this.currentPlayer.position).ships.shift()!); },
   };
+
+  private sailDirectly(nodeId: number): void {
+    this.relocations = 0;
+    this.pendingPath = [];
+    this.currentPlayer.position = nodeId;
+    this.state.phase = 'moving';
+    this.resolveLanding();
+  }
+
+  returnToColony(nodeId: number): void {
+    if (!this.colonyReturnTargets().some((node) => node.id === nodeId)) throw new Error('Cannot return to that colony');
+    const player = this.currentPlayer;
+    player.nextColonyReturnRound = this.state.round + COLONY_RETURN_COOLDOWN;
+    this.log(tx('{p} heads directly to {n} to resupply.', '{p} 直接返回{n}补给。', { p: ref.player(player.id), n: ref.node(nodeId) }));
+    this.sailDirectly(nodeId);
+  }
 
   useStrategy(id: StrategyId, target?: number): void {
     if (!this.canUseStrategy(id, target)) throw new Error('Cannot use strategy');
@@ -282,7 +293,7 @@ export class GameEngine extends GameView {
     const homePasses = this.pendingPath.filter((id) => id === player.homePort).length;
     this.pendingPath = [];
     if (homePasses > 0) {
-      const salary = (this.state.config.homeSalary + RANKS[player.rank].salary + captainBonus(player, 'salary')) * homePasses;
+      const salary = (this.state.config.homeSalary + RANKS[player.rank].salary) * homePasses;
       this.log(tx('The crown pays {p} a {g}g royal salary.', '王室向 {p} 支付 {g} 金币薪俸。', { p: ref.player(player.id), g: salary }));
       this.changeGold(player, salary, 'royal salary');
     }
@@ -290,7 +301,7 @@ export class GameEngine extends GameView {
     switch (node.kind) {
       case 'port':
         if (node.id !== player.homePort) {
-          const host = this.state.players.find((p) => p.homePort === node.id && !p.bankrupt);
+          const host = this.state.players.find((p) => p.homePort === node.id && !isEliminated(p));
           this.payForeignTax(player, host, node);
         } else this.royalAudience(player);
         break;
@@ -330,6 +341,7 @@ export class GameEngine extends GameView {
           this.collectToll(player, this.state.players[owner], node);
         } else {
           this.log(tx('{p} inspects the colony at {n}.', '{p} 视察{n}的殖民地。', { p: ref.player(player.id), n: ref.node(node.id) }));
+          this.state.marketStock = ['explorer', 'cargo', 'warship'];
           this.state.phase = 'awaitingBuild';
           this.emit({ type: 'buildOffered', playerId: player.id, nodeId: node.id });
           return;
@@ -395,6 +407,7 @@ export class GameEngine extends GameView {
     if (player.gold < captain.fee) throw new Error('Not enough gold');
     this.changeGold(player, -captain.fee, 'captain recruitment');
     player.captains.push(captain.id);
+    for (const type of captain.ships) this.addShipToFleet(player.id, type);
     this.log(tx("{c} joins {p}'s fleet.", '{c} 加入了 {p} 的舰队。', { p: ref.player(player.id), c: ref.captain(captain.id) }));
     this.endTurn();
   }
@@ -743,6 +756,11 @@ export class GameEngine extends GameView {
     }
     if (this.state.phase === 'awaitingSpin') {
       const p = this.currentPlayer;
+      if (p.fleet.length <= 2) {
+        const target = this.colonyReturnTargets().find(({ id }) =>
+          aiShipChoice(p, (type) => this.hasShipbuildingSupplies(id, type)));
+        if (target) { this.returnToColony(target.id); return; }
+      }
       if (this.canUseStrategy('navigate', p.position)) {
         const target = aiTravelTarget(this.state, p);
         if (target !== undefined) { this.useStrategy('navigate', target); return; }
@@ -813,6 +831,10 @@ export class GameEngine extends GameView {
       }
       const ship = aiShipChoice(player, (type) => this.canBuildShip(type));
       if (ship) this.buildShip(ship);
+      const sale = aiUsedShipSale(this.state, player, (id) => this.canSellShip(id));
+      if (sale !== undefined) this.sellShip(sale);
+      const purchase = aiUsedShipChoice(this.state, player, (type) => this.canBuyUsedShip(type));
+      if (purchase) this.buyUsedShip(purchase);
       this.autoLoad();
       this.finishBuilding();
       return;
@@ -844,7 +866,7 @@ export class GameEngine extends GameView {
     this.changeGold(this.currentPlayer, -USED_SHIP_PRICES[type], 'second-hand ship');
     const ship = this.addShipToFleet(this.currentPlayer.id, type);
     ship.durability = Math.floor(ship.maxDurability * USED_SHIP_CONDITION);
-    this.log(tx('{p} buys {s} at Skeleton Island.', '{p} 在骷髅岛买下{s}。', { p: ref.player(this.currentPlayer.id), s: ref.ship(ship.name) }));
+    this.log(tx('{p} buys {s} at {n}.', '{p} 在{n}买下{s}。', { p: ref.player(this.currentPlayer.id), s: ref.ship(ship.name), n: ref.node(this.currentPlayer.position) }));
     return ship;
   }
 
@@ -855,10 +877,11 @@ export class GameEngine extends GameView {
     const price = shipSalePrice(ship);
     this.changeGold(this.currentPlayer, price, 'ship sale');
     this.emit({ type: 'shipSold', playerId: this.currentPlayer.id, shipName: ship.name, price });
-    this.log(tx('{p} sells {s} at Skeleton Island.', '{p} 在骷髅岛卖出{s}。', { p: ref.player(this.currentPlayer.id), s: ref.ship(ship.name) }));
+    this.log(tx('{p} sells {s} at {n}.', '{p} 在{n}卖出{s}。', { p: ref.player(this.currentPlayer.id), s: ref.ship(ship.name), n: ref.node(this.currentPlayer.position) }));
   }
 
   finishMarket(): void {
+    this.assertPhase('awaitingMarket');
     if (!this.atMarket()) throw new Error('Not at Skeleton Island market');
     this.state.marketStock = [];
     this.endTurn();
@@ -874,13 +897,6 @@ export class GameEngine extends GameView {
     this.log(tx('{p} visits {n}.', '{p} 造访{n}。', { p: ref.player(player.id), n: ref.node(node.id) }));
     switch (node.special) {
       case 'skeleton':
-        if (player.gold >= r.tribute) {
-          this.log(tx('The pirates demand tribute from {p} at their second-hand ship market.', '海盗在二手船市场向 {p} 索取贡金。', { p: ref.player(player.id) }));
-          this.changeGold(player, -r.tribute, 'pirate tribute');
-        } else {
-          this.log(tx("The pirates buy {p}'s scrap ship fittings.", '海盗收购了 {p} 的废旧船具。', { p: ref.player(player.id) }));
-          this.changeGold(player, r.scrap, 'scrap sale');
-        }
         break;
       case 'treasure':
         if (player.gold < LOTTERY.ticketPrice) { this.log(tx('{p} cannot afford a lottery number.', '{p} 买不起彩票号码。', { p: ref.player(player.id) })); break; }
@@ -1152,7 +1168,7 @@ export class GameEngine extends GameView {
   }
 
   private payForeignTax(player: Player, host: Player | undefined, node: MapNode): void {
-    const tax = discountedByCaptains(player, 'tax', foreignTaxDue(player.rank));
+    const tax = foreignTaxDue(player.rank);
     const paid = Math.min(player.gold, tax);
     let shortfall = tax - paid;
     this.log(tx('{p} pays {g}g foreign tax to {h} at {n} ({t}g due).', '{p} 在{n}向 {h} 缴纳 {g} 金币外国税金（应缴 {t} 金币）。', { p: ref.player(player.id), g: paid, h: host ? ref.player(host.id) : tx('the crown', '王室'), n: ref.node(node.id), t: tax }));
@@ -1180,20 +1196,29 @@ export class GameEngine extends GameView {
     if (!player.bankrupt) {
       player.gold = 0;
       player.bankrupt = true;
-      // A bankrupt navigator's colonies return to the wild.
-      this.state.owners = this.state.owners.map((o, id) => {
-        if (o !== player.id) return o;
-        this.state.buildings[id] = {};
-        this.state.stockpiles[id] = emptyStockpile();
-        this.state.docks[id] = [];
-        return null;
-      });
+      this.releaseColonies(player);
       this.log(tx('{p} is bankrupt! Their colonies fall back to neutral.', '{p} 破产了！其殖民地全部恢复中立。', { p: ref.player(player.id) }));
       this.emit({ type: 'bankrupt', playerId: player.id });
     }
   }
 
+  private releaseColonies(player: Player): void {
+    this.state.owners = this.state.owners.map((owner, id) => {
+      if (owner !== player.id) return owner;
+      this.state.buildings[id] = {};
+      this.state.stockpiles[id] = emptyStockpile();
+      this.state.docks[id] = [];
+      return null;
+    });
+  }
+
   private endTurn(): void {
+    for (const player of this.state.players) {
+      if (player.fleet.length !== 0 || player.fleetLost) continue;
+      player.fleetLost = true;
+      if (!player.bankrupt) this.releaseColonies(player);
+      this.log(tx('{p} loses the voyage: no ships remain in their sailing fleet.', '{p} 的航行舰队已无船只，航程失败。', { p: ref.player(player.id) }));
+    }
     if (--this.state.wind.turnsLeft === 0) {
       const choices = WIND_DIRECTIONS.filter((d) => d !== this.state.wind.direction);
       const direction = choices[Math.floor(this.rng() * choices.length)];
@@ -1270,7 +1295,7 @@ export class GameEngine extends GameView {
     const { players } = this.state;
     for (let i = fromPosition; i < players.length; i++) {
       const seat = seatAtTurnOrderPosition(this.state, i);
-      if (!players[seat].bankrupt) return seat;
+      if (!isEliminated(players[seat])) return seat;
     }
   }
 
@@ -1278,7 +1303,7 @@ export class GameEngine extends GameView {
     if (this.state.campaign) return this.checkCampaignResult(this.state.campaign);
 
     const { players, config } = this.state;
-    const alive = players.filter((p) => !p.bankrupt);
+    const alive = players.filter((p) => !isEliminated(p));
     let winner: Player | undefined;
     let victory: VictoryKind | undefined;
     let reason: Text = tx('', '');
@@ -1296,6 +1321,10 @@ export class GameEngine extends GameView {
       victory = 'lastAfloat';
       reason = tx('is the last navigator afloat', '是最后一位仍在海上的航海家');
     } else if (alive.length === 0) {
+      if (players.some((p) => p.fleetLost)) {
+        this.finishGame(null, null, tx('No navigators remain afloat.', '没有航海家仍在海上。'));
+        return true;
+      }
       winner = players[0];
       victory = 'lastAfloat';
       reason = tx('outlasted the sea', '比大海撑得更久');
@@ -1312,7 +1341,7 @@ export class GameEngine extends GameView {
 
   private updateCampaignMission(playerId: number, objective: CampaignObjective, update: (progress: number) => number): void {
     const campaign = this.state.campaign;
-    if (!campaign || campaign.status !== 'active' || campaign.playerId !== playerId || this.state.players[playerId].bankrupt) return;
+    if (!campaign || campaign.status !== 'active' || campaign.playerId !== playerId || isEliminated(this.state.players[playerId])) return;
     const mission = campaignStage(campaign.stage).missions.find((candidate) => candidate.objective === objective);
     const progress = campaign.progress[objective] ?? 0;
     if (!mission || progress >= mission.target) return;
@@ -1330,8 +1359,9 @@ export class GameEngine extends GameView {
     const stage = campaignStage(campaign.stage);
     const { config, round } = this.state;
     const expired = hasRoundLimit(config) && round > config.maxRounds;
-    if (player.bankrupt || expired) {
-      const reasonText = player.bankrupt ? tx('Your navigator went bankrupt.', '你的航海家破产了。') : tx('The {r}-round deadline passed.', '{r} 回合期限已过。', { r: config.maxRounds });
+    if (isEliminated(player) || expired) {
+      const reasonText = player.fleetLost ? tx('No ships remain in your sailing fleet.', '你的航行舰队已无船只。')
+        : player.bankrupt ? tx('Your navigator went bankrupt.', '你的航海家破产了。') : tx('The {r}-round deadline passed.', '{r} 回合期限已过。', { r: config.maxRounds });
       const reason = localize('en', reasonText, this.state);
       campaign.status = 'failed';
       this.state.phase = 'gameOver';
@@ -1346,12 +1376,13 @@ export class GameEngine extends GameView {
     return true;
   }
 
-  private finishGame(winner: Player, victory: VictoryKind, reason: Text): void {
+  private finishGame(...[winner, victory, reason]: [Player, VictoryKind, Text] | [null, null, Text]): void {
     this.state.phase = 'gameOver';
-    this.state.winner = winner.id;
+    this.state.winner = winner?.id ?? null;
     this.state.victory = victory;
-    this.log(tx('{w} {r}!', '{w} {r}！', { w: ref.player(winner.id), r: reason }));
-    this.emit({ type: 'gameOver', winner: winner.id, victory, reason: localize('en', reason, this.state) });
+    if (winner) this.log(tx('{w} {r}!', '{w} {r}！', { w: ref.player(winner.id), r: reason }));
+    else this.log(reason);
+    this.emit({ type: 'gameOver', reason: localize('en', reason, this.state), ...(winner ? { winner: winner.id, victory } : { winner, victory }) });
   }
 
   private node(id: number): MapNode {

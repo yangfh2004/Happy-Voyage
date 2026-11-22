@@ -23,7 +23,7 @@ describe('GameEngine', () => {
     expect(new Set(allShips.map((ship) => ship.id)).size).toBe(allShips.length);
     expect(new Set(allShips.map((ship) => ship.name)).size).toBe(allShips.length);
     for (const { fleet } of state.players) {
-      expect(fleet.map((ship) => ship.type)).toEqual(['warship', 'cargo', 'explorer']);
+      expect(fleet.map((ship) => ship.type)).toEqual(['warship', 'cargo', 'explorer', 'explorer', 'explorer']);
       const [warship, cargo, explorer] = fleet;
       expect(warship.firepower).toBeGreaterThan(Math.max(cargo.firepower, explorer.firepower));
       expect(cargo.cargoCapacity).toBeGreaterThan(Math.max(warship.cargoCapacity, explorer.cargoCapacity));
@@ -154,18 +154,22 @@ describe('GameEngine', () => {
     expect(engine.state.players[0].gold).toBe(1000 + toll);
   });
 
-  it('occupies neutral land for an AI with no money, ships, or listed price', () => {
+  it.each([false, true])('occupies neutral land for free before resolving fleet loss (empty fleet: %s)', (empty) => {
     const engine = new GameEngine({ players: twoPlayers, rng: spinTwo });
     const player = engine.currentPlayer;
     const island = engine.state.map.find((node) => node.kind === 'island')!;
     delete island.price;
     player.isAI = true;
     player.gold = 0;
-    player.fleet = [];
+    if (empty) player.fleet = [];
+    const claims: number[] = [];
+    engine.on((event) => { if (event.type === 'claimed') claims.push(event.nodeId); });
     player.position = island.id;
     engine.state.phase = 'moving';
     engine.resolveLanding();
-    expect(engine.state.owners[island.id]).toBe(player.id);
+    expect(claims).toEqual([island.id]);
+    expect(engine.state.owners[island.id]).toBe(empty ? null : player.id);
+    expect(!!player.fleetLost).toBe(empty);
     expect(player.gold).toBe(0);
     expect(engine.state.pendingClaim).toBeNull();
     expect(engine.state.phase).not.toBe('awaitingClaim');

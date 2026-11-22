@@ -8,11 +8,11 @@ export function ShipMarketPanel({ state }: { state: GameState }) {
   const player = state.players[state.currentPlayer];
   return (
     <section aria-labelledby="ship-market-title">
-      <h2 id="ship-market-title">{t('Skeleton Island ship market', '骷髅岛船只市场')}</h2>
+      <h2 id="ship-market-title">{state.phase === 'awaitingBuild' ? t('Colony ship market', '殖民地船只市场') : t('Skeleton Island ship market', '骷髅岛船只市场')}</h2>
       <p><StatTooltip stat="gold">{t('Treasury {g}g', '金库 {g} 金币', { g: player.gold })}</StatTooltip> · {t('Second-hand ships have', '二手船只有')} <StatTooltip stat="durability">{t('{d}% durability', '{d}% 耐久', { d: USED_SHIP_CONDITION * 100 })}</StatTooltip>{t('.', '。')}</p>
       <div className="ship-market-ledger">
         <section aria-labelledby="ship-market-stock">
-          <h3 id="ship-market-stock">{t('Pirate stock', '海盗库存')}</h3>
+          <h3 id="ship-market-stock">{t('Ships for sale', '出售船只')}</h3>
           {state.marketStock.length === 0 && <p>{t('Sold out. New stock arrives next visit.', '已售罄。下次造访时会有新货。')}</p>}
           {state.marketStock.map((type) => <div className="ship-market-entry" key={type}>
             <strong>{shipTypeName(type, locale)}</strong>
@@ -30,7 +30,7 @@ export function ShipMarketPanel({ state }: { state: GameState }) {
           </div>)}
         </section>
       </div>
-      <button className="primary" onClick={() => gameController.finishMarket()}>{t('Sail on', '继续航行')}</button>
+      {state.phase === 'awaitingMarket' && <button className="primary" onClick={() => gameController.finishMarket()}>{t('Sail on', '继续航行')}</button>}
     </section>
   );
 }

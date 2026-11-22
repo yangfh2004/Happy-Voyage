@@ -146,4 +146,16 @@ describe('royal campaign', () => {
     expect(captain.bankrupt).toBe(true);
     expect(state).toMatchObject({ phase: 'gameOver', winner: null, campaign: { status: 'failed' } });
   });
+
+  it('fails the tutorial when the captain loses every sailing ship', () => {
+    const { game, state, captain, islands } = voyage('first-voyage');
+    const colony = islands[0];
+    state.owners[colony.id] = 1;
+    captain.fleet.forEach((ship) => { ship.durability = 1; });
+    landAs(game, 0, colony.id);
+    game.fight();
+    expect(captain).toMatchObject({ fleetLost: true, bankrupt: false });
+    expect(state).toMatchObject({ phase: 'gameOver', winner: null, campaign: { status: 'failed' } });
+    expect(state.log.at(-1)).toBe('No ships remain in your sailing fleet.');
+  });
 });
