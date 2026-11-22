@@ -588,7 +588,7 @@ export class GameController {
         });
         break;
       case 'strategyUsed':
-        if (event.card === 'navigate') {
+        if (event.card === 'navigate' && state.currentPlayer === event.playerId) {
           clearTimeout(this.turnActionTimer);
           this.turnAction = this.turnNoticeDuration === 0 ? null : tx('{p} used Navigate to {n}.', '{p} 使用「导航」前往{n}。', { p: ref.player(event.playerId), n: ref.node(event.target!) });
           this.turnActionTimer = setTimeout(() => { this.turnAction = null; this.changed(); }, this.turnNoticeDuration);

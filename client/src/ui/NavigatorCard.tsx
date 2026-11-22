@@ -20,7 +20,7 @@ export function NavigatorCard({ navigator, color }: { navigator: Navigator; colo
       <NavigatorPortrait navigator={navigator.id} color={color} size={72} />
       <div>
         {locale === 'zh' ? <><strong className="cjk-name">{navigator.chineseName}</strong> <span>{navigator.name}</span></>
-          : <><strong>{navigator.name}</strong> <span className="cjk">{navigator.chineseName}</span></>}
+          : <strong>{navigator.name}</strong>}
         <div className="navigator-title">{navigatorTitle(navigator.id, locale)}</div>
         <div className="signature">
           {t('Signature ship:', '特色船只：')} <strong>{shipName(ship.name, locale)}</strong> ({shipTypeName(ship.type, locale)}) · {describeBonus(ship.bonus, locale)}

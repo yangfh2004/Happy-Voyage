@@ -3,21 +3,21 @@ import { walkPath } from './graph';
 import { colonyDefenders, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
 import { BUILDINGS, buildingLevel, colonyToll, nextBuildingCost } from './buildings';
-import { colonyValue, isEliminated, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
+import { isEliminated, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
 import { SEA_RULES } from './seaRules';
-import { LOTTERY, expectedLotteryPrize } from './lottery';
+import { LOTTERY } from './lottery';
 import { RANKS, foreignTaxDue, playerMerit } from './ranks';
 import { GOODS, SHIP_RECIPES, USED_SHIP_PRICES, cargoLoad, shipSalePrice } from './ships';
 import { normalMarketSale, quoteMarketTrade } from './market';
 import { hermitStoneTake, NIM_MAX_TAKE, type HermitId } from './mist';
 import { STRATEGY_RULES, type StrategyId } from './strategies';
 import { roundsLeft as roundsToPlay } from './modes';
-import type { BarterOffer, BuildingKind, GameState, MapNode, MarketOrder, Player, Ship, ShipType } from './types';
+import type { BarterOffer, BuildingKind, GameState, MapNode, MarketOrder, Player, ShipType } from './types';
 
 const POLICIES = {
-  easy:   { claimRisk: 0.08, reserve: 450, fleetSize: 3, development: 1 },
-  normal: { claimRisk: 0.12, reserve: 400, fleetSize: 4, development: 2 },
-  hard:   { claimRisk: 0.10, reserve: 400, fleetSize: 5, development: 3 },
+  easy:   { reserve: 450, fleetSize: 3, development: 1 },
+  normal: { reserve: 400, fleetSize: 4, development: 2 },
+  hard:   { reserve: 400, fleetSize: 5, development: 3 },
 } as const;
 
 const policy = (player: Player) => POLICIES[player.aiDifficulty ?? 'normal'];
@@ -57,13 +57,12 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
   const canWin = owned + 1 >= state.config.islandsToWin;
   const score = (node: MapNode): number => {
     if (node.id === player.position) return 0;
-    const arrival = { ...player, position: node.id };
     if (node.kind === 'island') {
       const owner = state.owners[node.id];
-      if (owner === null && aiShouldClaim(state, arrival, node.id)) {
+      if (owner === null) {
         if (canWin) return 10_000;
-        // Easy takes the first safe opportunity; stronger rivals compare costs and local traffic.
-        return (wyvern ? 150 : 0) + (easy ? 300 : 360 - (node.price ?? 0) * 0.25 + Math.min(250, estimatedTolls(state, player, node)) * 0.5);
+        // Easy takes the first opportunity; stronger rivals compare local traffic.
+        return (wyvern ? 150 : 0) + (easy ? 300 : 360 + Math.min(250, estimatedTolls(state, player, node)) * 0.5);
       }
     }
     if (node.id === player.knownHoard) return 425;
@@ -73,7 +72,7 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
     if (node.special === 'nightless' && cargoUnits(player) >= 8) return cargoUnits(player) * 12;
     if (node.special === 'revival') {
       const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
-      return damage >= 100 && player.gold >= reserve(state, player) + damage * REPAIR_GOLD_PER_POINT ? damage : 0;
+      return damage;
     }
     if (wyvern && node.id === player.homePort) return state.config.homeSalary;
     return 0;
@@ -106,9 +105,9 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
     if (node.kind === 'island') {
       const owner = state.owners[node.id];
       const arrival = { ...player, position: node.id, gold: cash };
-      if (owner === null && aiShouldClaim(state, arrival, node.id)) {
+      if (owner === null) {
         if (canWin) return 10_000;
-        return 390 - (node.price ?? 0) * 0.7 + Math.min(150, estimatedTolls(state, player, node)) * 0.35;
+        return 390 + Math.min(150, estimatedTolls(state, player, node)) * 0.35;
       }
       if (owner !== null && owner !== player.id) {
         const quality = player.fleet.length ? battleQuality(state, arrival) : 0;
@@ -148,7 +147,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       return warships.length < 2 && cash >= 900 ? 540 : 90;
     }
     if (node.special === 'nightless') return cargoUnits(player) * 10;
-    if (node.special === 'revival') return cash > repair * REPAIR_GOLD_PER_POINT + 150 ? repair + 35 : 0;
+    if (node.special === 'revival') return repair;
     return 0;
   };
 
@@ -197,69 +196,6 @@ export function aiWyvernTarget(state: GameState, player: Player): number {
   return aiTravelTarget(state, player, true)!;
 }
 
-/** Forecast the next two moves without knowing the compass results. */
-function bankruptcyOdds(state: GameState, player: Player, gold: number, coloniesAfterClaim: number): number {
-  const { map, owners, config } = state;
-  const horizon = Math.min(2, roundsLeft(state));
-  const tradeIncome = 50 + 30 * coloniesAfterClaim;
-  function forecast(position: number, cash: number, turns: number, protectedFromHazards: boolean, fleet: Ship[]): number {
-    if (cash < 0) return 1;
-    if (turns === 0) return 0;
-    return COMPASS_SECTORS.reduce((risk, { steps, odds }) => {
-      const path = walkPath(map, position, steps, state.wind.direction);
-      const next = path.at(-1)!;
-      const node = map[next];
-      const passes = path.filter((id) => id === player.homePort).length;
-      const afterSalary = cash + passes * (config.homeSalary + RANKS[player.rank].salary);
-      const owner = owners[next];
-      const hazard = ['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'].includes(node.event ?? '');
-      const onward = (balance: number, protection = protectedFromHazards, ships = fleet) => forecast(next, balance, turns - 1, protection, ships);
-      if (hazard && protectedFromHazards) return risk + odds * onward(afterSalary, false);
-      if (node.kind === 'port' && node.id !== player.homePort) {
-        const balance = afterSalary - foreignTaxDue(player.rank);
-        let shortfall = Math.max(0, -balance);
-        const remaining = [...fleet].sort((a, b) => shipSalePrice(a) - shipSalePrice(b) || a.id - b.id);
-        while (shortfall > 0 && remaining.length > 0) shortfall -= shipSalePrice(remaining.shift()!);
-        return risk + odds * (shortfall > 0 || remaining.length === 0 ? 1 : onward(Math.max(0, balance), protectedFromHazards, remaining));
-      }
-      if (node.event === 'pirates' || node.event === 'smallMonster' || node.event === 'largeMonster') return risk + odds * onward(afterSalary - SEA_RULES[node.event]);
-      if (node.event === 'whirlpool') return risk + odds * (SEA_RULES.whirlpoolDamageChance * onward(afterSalary - SEA_RULES.whirlpoolLoss) + (1 - SEA_RULES.whirlpoolDamageChance) * onward(afterSalary));
-      if (node.special === 'skeleton') return risk + odds * onward(afterSalary);
-      if (node.special === 'treasure' && aiLotteryPickCount(afterSalary) > 0) {
-        const picks = aiLotteryPickCount(afterSalary);
-        const balance = afterSalary - picks * LOTTERY.ticketPrice;
-        return risk + odds * onward(balance + Math.round(expectedLotteryPrize(picks)));
-      }
-      if (node.special === 'revival') {
-        const damage = fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
-        const fee = Math.min(damage, Math.floor(Math.max(0, afterSalary) / REPAIR_GOLD_PER_POINT)) * REPAIR_GOLD_PER_POINT;
-        return risk + odds * onward(afterSalary - fee, true);
-      }
-      if (node.event === 'storm') {
-        const stormRisk = [50, 75, 100].reduce(
-          (sum, repair) => sum + onward(afterSalary - repair),
-          0,
-        );
-        return risk + odds * stormRisk / 3;
-      }
-      if (turns > 1 && node.event === 'treasure') {
-        const treasureRisk = [50, 100, 150, 200].reduce(
-          (sum, payout) => sum + onward(afterSalary + payout),
-          0,
-        );
-        return risk + odds * treasureRisk / 4;
-      }
-      if (turns > 1 && node.event === 'tradeWind') {
-        return risk + odds * onward(afterSalary + tradeIncome);
-      }
-      const paysToll = node.kind === 'island' && owner !== null && owner !== player.id;
-      const toll = paysToll ? colonyToll(state, node.id) : 0;
-      return risk + odds * onward(afterSalary - toll);
-    }, 0);
-  }
-  return forecast(player.position, gold, horizon, player.revivalProtection, player.fleet);
-}
-
 function estimatedTolls(state: GameState, player: Player, node: MapNode): number {
   const myTurn = turnOrderPosition(state, player.id);
   let tolls = 0;
@@ -272,23 +208,6 @@ function estimatedTolls(state: GameState, player: Player, node: MapNode): number
     tolls += Math.min(rival.gold, node.toll ?? 0) * (nextSpinOdds + (moves - 1) / state.map.length);
   }
   return tolls;
-}
-
-export function aiShouldClaim(state: GameState, player: Player, nodeId: number): boolean {
-  const node = state.map[nodeId];
-  const price = node.price ?? Infinity;
-  if (player.gold < price) return false;
-
-  const owned = colonies(state, player);
-  const leftToWin = state.config.islandsToWin - owned;
-  if (leftToWin <= 1) return true;
-
-  const turnsLeft = roundsLeft(state);
-  const cash = player.gold - price;
-  if (bankruptcyOdds(state, player, cash, owned + 1) > policy(player).claimRisk) return false;
-  const neutralIslands = state.map.filter((stop) => stop.kind === 'island' && state.owners[stop.id] === null).length;
-  if (turnsLeft + 1 >= leftToWin && (neutralIslands >= leftToWin || player.aiDifficulty === 'hard')) return true;
-  return estimatedTolls(state, player, node) >= price - colonyValue(node);
 }
 
 export function aiBuildingChoice(state: GameState, player: Player): BuildingKind | null {

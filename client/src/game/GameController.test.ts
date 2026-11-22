@@ -88,7 +88,7 @@ it('clears Navigate previews on its immediate landing without inventing a compas
   state.players[0].strategies = ['navigate'];
   controller.useStrategy('navigate', target);
   expect(state.players[0].position).toBe(target);
-  expect(state.phase).toBe('awaitingClaim');
+  expect(state.owners[target]).toBe(0);
   expect(state.lastSpin).toBeNull();
   expect(controller.landingTarget).toBeNull();
 });
@@ -221,7 +221,7 @@ describe('pacing', () => {
     replay.mockClear();
     controller.resumeMovement();
     expect(replay).not.toHaveBeenCalled();
-    expect(controller.state?.phase).toBe('awaitingClaim');
+    expect(controller.state?.phase).toBe('awaitingSpin');
   });
 
   it('does not replay a previous voyage after restarting or quitting', () => {
@@ -300,17 +300,17 @@ describe('pacing', () => {
     expect(storage.get('happy-voyage-speed')).toBe('Fast');
   });
 
-  it('stops skipping at a human claim decision and ignores duplicate completions', () => {
+  it('settles automatically and ignores duplicate completions', () => {
     controller.newGame(players);
     controller.spinCompass();
     controller.finishSpin(controller.spinId);
     controller.skipToMyTurn();
     EventBus.emit('move-complete', moveId);
-    expect(controller.state?.phase).toBe('awaitingClaim');
-    expect(controller.waiting).toBe(false);
-    expect(controller.timings.step).toBe(200);
+    expect(controller.state?.phase).toBe('awaitingSpin');
+    expect(controller.waiting).toBe(true);
+    expect(controller.timings.step).toBe(0);
     EventBus.emit('move-complete', moveId);
-    expect(controller.state?.phase).toBe('awaitingClaim');
+    expect(controller.state?.phase).toBe('awaitingSpin');
   });
 
   it('can skip an active spin without waiting for its animation or sailing twice', () => {
@@ -327,8 +327,8 @@ describe('pacing', () => {
     controller.finishSpin(spinId);
     expect(moveId).toBe(skippedMoveId);
     EventBus.emit('move-complete', skippedMoveId);
-    expect(controller.state?.phase).toBe('awaitingClaim');
-    expect(controller.timings.spin).toBe(1400);
+    expect(controller.state?.phase).toBe('awaitingSpin');
+    expect(controller.timings.spin).toBe(0);
   });
 
   it('uses the selected speed for an in-progress spin, including Instant', () => {
@@ -359,7 +359,7 @@ describe('pacing', () => {
     expect(controller.state?.currentPlayer).toBe(0);
     expect(controller.state?.phase).toBe('moving');
     EventBus.emit('move-complete', moveId);
-    expect(controller.state?.phase).toBe('awaitingClaim');
+    expect(controller.state?.phase).toBe('awaitingSpin');
   });
 
   it('ignores skip without a game or at a human decision', () => {
@@ -491,7 +491,7 @@ describe('local multiplayer', () => {
     }
   });
 
-  it('clears the compass on handover and explains an AI Navigate instead of a spin', async () => {
+  it('clears the compass on handover and settles an AI Navigate without a spin', async () => {
     controller.newGame(createNationRoster([{ name: 'Human', nation: 'Spain' }], { totalPlayers: 4 }));
     const state = controller.state!;
     for (const player of state.players) player.strategies = [];
@@ -503,15 +503,16 @@ describe('local multiplayer', () => {
     expect(state.lastSpin).toBeNull();
     await vi.advanceTimersByTimeAsync(700);
     expect(state.lastSpin).toBeNull();
-    expect(controller.turnAction).toMatchObject({ en: '{p} used Navigate to {n}.' });
+    expect(state.currentPlayer).toBe(2);
+    expect(state.players[1].strategies).toEqual([]);
+    expect(Object.values(state.owners)).toContain(1);
+    expect(controller.turnAction).toBeNull();
     controller.setSpeed('Instant');
     expect(controller.turnAction).toBeNull();
     expect(controller.turnNotice).toBeNull();
   });
 
-  it('clears the previous Navigate notice and cancels its timer when the next turn starts', async () => {
-    const setTimer = vi.spyOn(globalThis, 'setTimeout');
-    const clearTimer = vi.spyOn(globalThis, 'clearTimeout');
+  it('does not show the previous Navigate notice after automatic settlement starts the next turn', async () => {
     controller.newGame(createNationRoster([{ name: 'Human', nation: 'Spain' }], { totalPlayers: 4 }));
     const state = controller.state!;
     for (const player of state.players) player.strategies = [];
@@ -520,17 +521,9 @@ describe('local multiplayer', () => {
     state.players[1].strategies = ['navigate'];
     humanTurn();
     await vi.advanceTimersByTimeAsync(700);
-    expect(state.currentPlayer).toBe(1);
-    expect(controller.turnAction).not.toBeNull();
-    const timerIndex = setTimer.mock.calls.map(([, delay]) => delay).lastIndexOf(1000);
-    const actionTimer = setTimer.mock.results[timerIndex].value;
-    clearTimer.mockClear();
-
-    await vi.advanceTimersByTimeAsync(700);
     expect(state.currentPlayer).toBe(2);
     expect(controller.turnNotice).toMatchObject({ params: { p: { id: 2 } } });
     expect(controller.turnAction).toBeNull();
-    expect(clearTimer).toHaveBeenCalledWith(actionTimer);
     await vi.advanceTimersByTimeAsync(300);
     expect(controller.turnAction).toBeNull();
     expect(controller.turnNotice).not.toBeNull();
@@ -562,7 +555,6 @@ describe('local multiplayer', () => {
       expect(state.currentPlayer).toBe(seat);
       expect(state.phase).toBe('moving');
       EventBus.emit('move-complete', moveId);
-      await vi.advanceTimersByTimeAsync(700);
     }
     expect(state.log.filter((line) => line.includes(' spins '))).toHaveLength(4);
   });
@@ -605,8 +597,8 @@ describe('local multiplayer', () => {
     controller.newGame(roster());
     controller.spinCompass();
     controller.finishSpin(controller.spinId);
-    EventBus.emit('move-complete', moveId);
     controller.headline = { text: 'Azores is yours!', message: tx('Azores is yours!', '亚速尔群岛归你了！'), tone: 'gain' };
+    EventBus.emit('move-complete', moveId);
     const state = controller.state!;
     if (state.phase === 'awaitingClaim') controller.decline();
     else if (state.phase === 'awaitingBuild') controller.finishBuilding();

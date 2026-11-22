@@ -17,7 +17,7 @@ describe('navigators in the UI', () => {
   it('introduces the selected nation navigator and signature ship on the setup screen', () => {
     const html = renderToStaticMarkup(<SetupMenu onRules={() => {}} />);
     expect(html).toContain('value="Columbus"');
-    expect(html).toContain('哥伦布');
+    expect(html).not.toContain('哥伦布');
     expect(html).toContain('Santa María');
     expect(html).toContain('+20 durability, +20 cargo');
     expect(html.match(/role="img"/g)).toHaveLength(11);

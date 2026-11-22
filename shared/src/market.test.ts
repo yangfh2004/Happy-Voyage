@@ -38,7 +38,6 @@ describe('Nightless Island market', () => {
     g.state.config.islandsToWin = 2; // Owning the map's only island would otherwise win at once.
     g.start();
     roll(g); // Six stops: land on the colony.
-    g.claim();
     roll(g); // Five stops: return to build a collection field.
     g.build('collectionField');
     g.finishBuilding();

@@ -65,7 +65,6 @@ describe('GameEngine', () => {
 
     spinAndSail(engine);
     engine.resolveLanding();
-    engine.decline();
 
     const snapshot = JSON.parse(JSON.stringify(engine.state));
     expect(snapshot.players[0].fleet).toContainEqual(ship);
@@ -131,15 +130,13 @@ describe('GameEngine', () => {
     expect(() => engine.sail()).toThrow();
   });
 
-  it('offers and claims an unowned island', () => {
-    const engine = new GameEngine({ players: twoPlayers, config: { startingGold: 1000 }, rng: spinTwo });
+  it.each([0, 1000])('automatically occupies an unowned island for free with %ig', (startingGold) => {
+    const engine = new GameEngine({ players: twoPlayers, config: { startingGold }, rng: spinTwo });
     spinAndSail(engine);
     engine.resolveLanding();
-    expect(engine.state.phase).toBe('awaitingClaim');
-    const price = engine.state.map[2].price!;
-    engine.claim();
+    expect(engine.state.phase).not.toBe('awaitingClaim');
     expect(engine.state.owners[2]).toBe(0);
-    expect(engine.state.players[0].gold).toBe(1000 - price);
+    expect(engine.state.players[0].gold).toBe(startingGold);
     expect(engine.state.currentPlayer).toBe(1);
   });
 
@@ -147,7 +144,6 @@ describe('GameEngine', () => {
     const engine = new GameEngine({ players: twoPlayers, config: { startingGold: 1000 }, rng: spinTwo });
     spinAndSail(engine);
     engine.resolveLanding();
-    engine.claim();
     engine.currentPlayer.position = 0;
     spinAndSail(engine);
     engine.resolveLanding();
@@ -155,7 +151,29 @@ describe('GameEngine', () => {
     engine.payToll();
     const toll = engine.state.map[2].toll!;
     expect(engine.state.players[1].gold).toBe(1000 - toll);
-    expect(engine.state.players[0].gold).toBe(1000 - engine.state.map[2].price! + toll);
+    expect(engine.state.players[0].gold).toBe(1000 + toll);
+  });
+
+  it.each([false, true])('occupies neutral land for free before resolving fleet loss (empty fleet: %s)', (empty) => {
+    const engine = new GameEngine({ players: twoPlayers, rng: spinTwo });
+    const player = engine.currentPlayer;
+    const island = engine.state.map.find((node) => node.kind === 'island')!;
+    delete island.price;
+    player.isAI = true;
+    player.gold = 0;
+    if (empty) player.fleet = [];
+    const claims: number[] = [];
+    engine.on((event) => { if (event.type === 'claimed') claims.push(event.nodeId); });
+    player.position = island.id;
+    engine.state.phase = 'moving';
+    engine.resolveLanding();
+    expect(claims).toEqual([island.id]);
+    expect(engine.state.owners[island.id]).toBe(empty ? null : player.id);
+    expect(!!player.fleetLost).toBe(empty);
+    expect(player.gold).toBe(0);
+    expect(engine.state.pendingClaim).toBeNull();
+    expect(engine.state.phase).not.toBe('awaitingClaim');
+    expect(() => engine.claim()).toThrow();
   });
 
   it('pays the royal salary when reaching home', () => {
@@ -185,7 +203,6 @@ describe('GameEngine', () => {
     const destination = engine.state.map[2].name;
     expect(engine.state.log.join(' ')).not.toContain(destination);
     engine.resolveLanding();
-    engine.decline();
     expect(engine.state.log.join(' ')).toContain(destination);
   });
 
@@ -193,7 +210,6 @@ describe('GameEngine', () => {
     const engine = new GameEngine({ players: twoPlayers, rng: spinTwo });
     spinAndSail(engine);
     engine.resolveLanding();
-    engine.claim();
     engine.state.players[1].gold = 10;
     engine.currentPlayer.position = 0;
     spinAndSail(engine);
@@ -241,9 +257,8 @@ describe('GameEngine', () => {
     engine.state.players[1].gold += 85;
     spinAndSail(engine);
     engine.resolveLanding();
-    engine.claim();
     const price = engine.state.map[2].price!;
-    expect(engine.netWorth(0)).toBe(DEFAULT_CONFIG.startingGold - price + Math.floor(price * 0.75));
+    expect(engine.netWorth(0)).toBe(DEFAULT_CONFIG.startingGold + Math.floor(price * 0.75));
     expect(engine.state.phase).toBe('awaitingSpin');
     spinAndSail(engine);
     engine.resolveLanding();
