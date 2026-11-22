@@ -1,0 +1,87 @@
+.island-window {
+  --island-ink: #173941;
+  --island-deep: #0d3238;
+  --island-paper: #fffae9;
+  --island-gold: #e5bb72;
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(660px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  color: var(--island-ink);
+  background: var(--island-paper);
+  border: 1px solid var(--island-gold);
+  border-radius: 18px;
+  box-shadow: 0 20px 60px #03151dcc;
+}
+.island-window::backdrop { background: #041823a3; }
+.island-window + .backdrop { background: #041823a3; }
+.island-window-masthead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px clamp(16px, 4vw, 28px);
+  background: var(--island-deep);
+  color: var(--island-gold);
+  border-bottom: 1px solid var(--island-gold);
+  font-size: .82rem;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.island-window-masthead:focus { outline: none; }
+.island-window-content { padding: clamp(14px, 4vw, 28px); }
+.island-window h2 {
+  color: inherit;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  line-height: 1.08;
+  margin-bottom: 10px;
+}
+.island-window button.primary {
+  background: var(--island-deep);
+  border-color: var(--island-deep);
+  min-height: 44px;
+}
+.island-window button:focus-visible { outline: 3px solid #0c5e8e; outline-offset: 2px; }
+
+.island-window--treasure {
+  --island-ink: #432d21;
+  --island-deep: #502532;
+  --island-paper: #fff5db;
+  --island-gold: #ecc57b;
+}
+.lottery-window-board {
+  display: grid;
+  gap: 12px;
+  margin-block: 14px;
+  align-items: start;
+}
+.island-window .lottery-timer {
+  padding: 8px 12px;
+  margin-top: 12px;
+  background: #f3e1b9;
+  border-radius: 9px;
+}
+.island-window .lottery-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  justify-items: center;
+  margin: 0;
+  padding: 10px 4px;
+  border: 1px solid #ddb779;
+  border-radius: 12px;
+  background: #f9e9c5;
+}
+.island-window .lottery-grid .ball { width: 44px; height: 44px; }
+.island-window .lottery-payouts { width: 100%; margin: 0; }
+.island-window .lottery-payouts caption { margin-bottom: 5px; font-weight: 700; }
+.island-window .lottery-payouts th,
+.island-window .lottery-payouts td { padding: 5px 5px 5px 0; border-bottom: 1px solid #ddc9a7; }
+.island-window .lottery-jar { margin: 20px auto; max-width: 100%; }
+.island-window .lottery-result { text-align: center; margin-block: 14px; }
+@media (min-width: 560px) {
+  .lottery-window-board { grid-template-columns: 1.35fr 1fr; gap: 22px; }
+}

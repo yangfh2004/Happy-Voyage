@@ -6,7 +6,6 @@ import { ShortcutLegend } from './ShortcutLegend';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BarterPanel } from './BarterPanel';
-import { LotteryPanel } from './LotteryPanel';
 import { MistPanel } from './MistPanel';
 import { RecruitPanel } from './RecruitPanel';
 import { TransferPanel } from './TransferPanel';
@@ -224,8 +223,6 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
         </div>
       </>
     );
-  } else if (state.phase === 'awaitingLottery') {
-    body = <LotteryPanel state={state} />;
   } else if (state.phase === 'awaitingMistDuel') {
     body = <MistPanel state={state} />;
   } else if (state.phase === 'awaitingBarter') {
