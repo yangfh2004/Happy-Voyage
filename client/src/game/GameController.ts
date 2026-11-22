@@ -280,6 +280,12 @@ export class GameController {
     if (this.isHumanTurn('awaitingSpin')) this.perform(['spinCompass'], () => this.beginSpin(this.engine!));
   }
 
+  returnToColony(nodeId: number): void {
+    if (this.isHumanTurn('awaitingSpin') && this.view?.colonyReturnTargets().some((node) => node.id === nodeId)) {
+      this.perform(['returnToColony', nodeId], () => this.engine!.returnToColony(nodeId));
+    }
+  }
+
   finishSpin(id: number): void {
     if (id === this.spinId && this.engine?.state.phase === 'spinning') this.engine.sail();
   }
@@ -698,7 +704,7 @@ export class GameController {
         }
         break;
       case 'gameOver':
-        if (isHuman(event.winner)) sfx.win();
+        if (event.winner !== null && isHuman(event.winner)) sfx.win();
         // Fall through: a completed or failed stage stops all game timers.
       case 'campaignFailed':
         this.skipping = false;

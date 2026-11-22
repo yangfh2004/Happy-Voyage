@@ -50,6 +50,7 @@ describe('AI colony decisions', () => {
   it('tracks seized ships across both forecast moves without mutating the fleet', () => {
     const { state, currentPlayer: player } = portRoute(3);
     player.gold = 100;
+    player.fleet = player.fleet.slice(0, 3);
     expect(aiShouldClaim(state, player, 1)).toBe(true);
     expect(player.fleet).toHaveLength(3);
     player.fleet.pop();
@@ -195,6 +196,7 @@ describe('AI rival difficulty', () => {
 
   it('develops a supply chain, launches a legal ship and loads its local specialty', () => {
     const { engine, state, player, node } = at('island');
+    player.fleet = player.fleet.slice(0, 3);
     engine.decideForAI();
     expect(state.buildings[node.id]).toMatchObject({ lumberMill: 1, ironMine: 1, shipyard: 1 });
     expect(state.buildings[node.id].collectionField).toBeGreaterThanOrEqual(1);
@@ -211,6 +213,7 @@ describe('AI rival difficulty', () => {
   it.each(['easy', 'normal', 'hard'] as const)('%s replaces a lost ship with an affordable fallback', (difficulty) => {
     const { engine, player } = at('skeleton');
     player.aiDifficulty = difficulty;
+    player.fleet = player.fleet.slice(0, 3);
     player.fleet.shift();
     player.gold = 800;
     engine.decideForAI();
@@ -247,6 +250,7 @@ describe('AI rival difficulty', () => {
 
   it('Hard navigates to buy a warship while keeping enough gold to settle more islands', () => {
     const { engine, state, player, node } = at('island');
+    player.fleet.pop();
     const market = state.map.find((stop) => stop.special === 'skeleton')!;
     player.strategies = ['navigate'];
     player.gold = 800;

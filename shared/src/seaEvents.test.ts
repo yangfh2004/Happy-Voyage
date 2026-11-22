@@ -35,7 +35,7 @@ describe('sea event outcomes', () => {
     expect(results).toHaveLength(1);
     expect(results[0]).toMatchObject({ event: 'pirates', outcome: win ? 'victory' : 'defeat', gold: win ? SEA_RULES.pirateLoot : -SEA_RULES.pirates });
     expect(p.fleet.length).toBeGreaterThan(0);
-    if (!win) expect(results[0].shipsLost).toHaveLength(2);
+    if (!win) expect(results[0].shipsLost).toHaveLength(4);
   });
 
   it('small monsters damage just one ship and charge a small loss', () => {
@@ -60,8 +60,8 @@ describe('sea event outcomes', () => {
 
   it('a turtle destroys one non-last ship', () => {
     const { p, results } = encounter('turtle');
-    expect(p.fleet).toHaveLength(2);
-    expect(results[0]).toMatchObject({ outcome: 'sunk', shipsLost: [2] });
+    expect(p.fleet).toHaveLength(4);
+    expect(results[0]).toMatchObject({ outcome: 'sunk', shipsLost: [3] });
   });
 
   it.each([[0.05, 'specialPrize'], [0.2, 'repaired'], [0.8, 'gold']] as const)('bottle roll %s grants %s', (rng, outcome) => {
