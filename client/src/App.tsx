@@ -27,7 +27,10 @@ import { VoyageLanding } from './ui/VoyageLanding';
 import { IslandWindow, islandWindowFor } from './ui/IslandWindow';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
-export function App() {
+export function App({ initialTutorialDismissed, expandStrategies }: {
+  initialTutorialDismissed?: boolean;
+  expandStrategies?: boolean;
+} = {}) {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [fleetOpen, setFleetOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -39,7 +42,7 @@ export function App() {
     EventBus.on('chart-focus', update);
     return () => { EventBus.off('chart-focus', update); };
   }, []);
-  const [tutorialDismissed, setTutorialDismissed] = useState(() => readPreference('tutorial-dismissed'));
+  const [tutorialDismissed, setTutorialDismissed] = useState(() => initialTutorialDismissed ?? readPreference('tutorial-dismissed'));
   const [tutorialRequested, setTutorialRequested] = useState(false);
   const [colorBlind, setColorBlind] = useState(() => readPreference('color-blind'));
   // Re-render whenever the controller reports a state change.
@@ -132,7 +135,7 @@ export function App() {
             {landing && <p className="landing-hint">⚓ {t('Choose an action on the card', '请在卡片上选择行动')}</p>}
             {!islandWindow && <section ref={actionSurface} className={landing ? `landing-placement ${chartFocus?.bottom ? 'landing-top' : ''}` : 'turn-action-panel'}>
             {landing && <LandingHeading state={state} />}
-            <ActionPanel state={state} colorBlind={colorBlind} strategyHost={landing ? strategyHost : null} />
+            <ActionPanel state={state} colorBlind={colorBlind} strategyHost={landing ? strategyHost : null} expandStrategies={expandStrategies} />
             </section>}
             <div ref={setStrategyHost} className="strategy-host" />
             {!tutorialOpen && <TurnCoach state={state} atHelm={atHelm} target={chartFocus} />}

@@ -1,0 +1,57 @@
+.window-tester {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: #fff4d7;
+  background: #06283d;
+}
+
+.window-tester-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 8px clamp(12px, 4vw, 32px);
+  background: #103c5b;
+  border-bottom: 1px solid #cba654;
+}
+
+.window-tester-bar h1 {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: clamp(1.125rem, 4vw, 1.5rem);
+}
+
+.window-tester-controls { display: flex; gap: 6px; }
+.window-tester button { font: inherit; }
+
+.window-tester iframe {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #06283d;
+}
+
+.window-tester-list {
+  overflow: auto;
+  padding: 16px clamp(12px, 4vw, 32px) 28px;
+}
+
+.window-tester-list > * {
+  max-width: 1040px;
+  margin-inline: auto;
+}
+
+.window-tester-list h2 { font-size: 1.15rem; color: #ebc466; }
+
+.window-tester-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+}
+
+.window-tester-grid button {
+  text-align: left;
+  min-height: 46px;
+}

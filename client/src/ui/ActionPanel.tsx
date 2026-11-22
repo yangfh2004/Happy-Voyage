@@ -18,7 +18,12 @@ import { EventBus } from '../game/EventBus';
 const BUILDING_SIZES = { en: ['None', 'Small', 'Medium', 'Large'], zh: ['无', '小型', '中型', '大型'] };
 
 /** What the human can do right now: spin, claim or decline, or start over. */
-export function ActionPanel({ state, colorBlind = false, strategyHost }: { state: GameState; colorBlind?: boolean; strategyHost?: HTMLElement | null }) {
+export function ActionPanel({ state, colorBlind = false, strategyHost, expandStrategies }: {
+  state: GameState;
+  colorBlind?: boolean;
+  strategyHost?: HTMLElement | null;
+  expandStrategies?: boolean;
+}) {
   const { t, l, locale } = useT();
   const name = (p: { name: string; navigator?: string }) => playerName(p, locale);
   const at = (id: number) => nodeName(state.map[id], locale);
@@ -225,7 +230,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
 
   const strategies = (
     <section aria-label={t('Strategy cards', '谋略卡')}>
-      <details className="strategy-cards" onToggle={(event) => { if (!event.currentTarget.open) setPreviewing(false); }}>
+      <details className="strategy-cards" open={expandStrategies || undefined} onToggle={(event) => { if (!event.currentTarget.open) setPreviewing(false); }}>
         <summary>{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</summary>
         {player.strategies.length === 0 && <p>{t('No strategy cards.', '没有谋略卡。')}</p>}
         {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onFocus={() => setPreviewing(true)} onBlur={() => setPreviewing(false)} onChange={(e) => { setDestination(Number(e.target.value)); setPreviewing(true); }}>
