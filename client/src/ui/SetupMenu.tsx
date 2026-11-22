@@ -22,7 +22,7 @@ const seatName = (seat: Seat) => seat.customName ?? navigatorForNation(seat.nati
 const seatLabel = (seat: Seat, locale: 'en' | 'zh') => seat.customName ?? playerName({ name: navigatorForNation(seat.nation)!.name, navigator: navigatorForNation(seat.nation)!.id }, locale);
 
 /** Start screen: seat one or more people on this device, each with a nation; AI takes the rest. */
-export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; paletteToggle?: ReactNode }) {
+export function SetupMenu({ onRules, paletteToggle, onBack }: { onRules: () => void; paletteToggle?: ReactNode; onBack?: () => void }) {
   const { t, l, locale } = useT();
   const [seats, setSeats] = useState<Seat[]>([{ customName: null, nation: NATIONS[0].name }]);
   const [active, setActive] = useState(0);
@@ -72,9 +72,10 @@ export function SetupMenu({ onRules, paletteToggle }: { onRules: () => void; pal
 
   return (
     <div className="panel setup">
+      {onBack && <button onClick={onBack}>{t('Back to title', '返回首页')}</button>}
       <LanguageSwitch />
       <h1>{t('Happy Voyage', '欢乐大航海')}</h1>
-      <p className="subtitle">{t('Seven Seas Domination · 欢乐大航海', '七海霸权 · Happy Voyage')}</p>
+      <p className="subtitle">{t('Seven Seas Domination', '七海霸权')}</p>
       <p>
         {mode ? t('Spin the compass, sail the route and plant your flag on new lands. Rivals pay you a toll or attack when they land on your colonies. To win, {goal}. Navigators take turns in seat order, skipping eliminated players. Final wealth is cash plus 75% of colony costs.',
           '转动罗盘，沿航线前进，在新大陆插上你的旗帜。对手停在你的殖民地时，要向你缴纳过路费或发动攻击。获胜条件：{goal}。航海家按座位顺序轮流行动，跳过已破产的玩家。最终财富为现金加上殖民地成本的 75%。',

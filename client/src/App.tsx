@@ -23,12 +23,14 @@ import { HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } fro
 import { ShortcutLegend } from './ui/ShortcutLegend';
 import { TurnCoach } from './ui/TurnCoach';
 import { trapMenuFocus } from './ui/menuFocus';
+import { VoyageLanding } from './ui/VoyageLanding';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [fleetOpen, setFleetOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
   const [strategyHost, setStrategyHost] = useState<HTMLDivElement | null>(null);
   const [chartFocus, setChartFocus] = useState<{ x: number; y: number; bottom: boolean } | null>(null);
   useEffect(() => {
@@ -45,6 +47,7 @@ export function App() {
   const { t, locale } = useT();
   const state = gameController.state;
   const room = gameController.room;
+  const coverOpen = !state && !room && !setupOpen;
   const atHelm = !!state && !state.players[state.currentPlayer].isAI && (!room || gameController.canHelm) && !gameController.awaitingHandoff && state.phase !== 'gameOver';
   const landing = atHelm && state.phase.startsWith('awaiting') && state.phase !== 'awaitingSpin';
   const tutorialOpen = !!state && (!tutorialDismissed || tutorialRequested);
@@ -69,7 +72,7 @@ export function App() {
   const paletteToggle = <button type="button" className="palette-toggle" aria-pressed={colorBlind} onClick={toggleColorBlind}>{t('Color-blind mode', '色觉无障碍模式')}</button>;
 
   useEffect(() => {
-    if (rulesOpen || fleetOpen || tutorialOpen || menuOpen) return;
+    if (!state || rulesOpen || fleetOpen || tutorialOpen || menuOpen) return;
     const shortcuts = keyboardShortcuts(gameController);
     window.addEventListener('keydown', shortcuts.keydown);
     window.addEventListener('keyup', shortcuts.keyup);
@@ -79,7 +82,7 @@ export function App() {
       window.removeEventListener('keyup', shortcuts.keyup);
       window.removeEventListener('blur', shortcuts.blur);
     };
-  }, [rulesOpen, fleetOpen, tutorialOpen, menuOpen]);
+  }, [!!state, rulesOpen, fleetOpen, tutorialOpen, menuOpen]);
   const [menu, setMenu] = useState<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     if (!menuOpen) return;
@@ -105,6 +108,8 @@ export function App() {
     if (prompt && overlay.current) overlay.current.scrollTop = 0;
     if (prompt && actionSurface.current) actionSurface.current.scrollTop = 0;
   }, [prompt]);
+
+  if (coverOpen) return <div className="app"><VoyageLanding onStart={() => setSetupOpen(true)} onOnline={() => gameController.openOnline()} /></div>;
 
   return (
     <div className={`app ${state ? 'playing' : ''}`}>
@@ -156,7 +161,7 @@ export function App() {
             </div>
           </div>
         ) : room ? <OnlineMenu room={room} /> : (
-          <SetupMenu onRules={() => setRulesOpen(true)} paletteToggle={paletteToggle} />
+          <SetupMenu onRules={() => setRulesOpen(true)} paletteToggle={paletteToggle} onBack={() => setSetupOpen(false)} />
         )}
         {state && fleetOpen && <FleetPanel players={state.players} onClose={() => setFleetOpen(false)} />}
         {tutorialOpen && <TutorialPanel onClose={dismissTutorial} />}
