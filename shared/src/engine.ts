@@ -906,8 +906,8 @@ export class GameEngine extends GameView {
         }
         if (damage === 0) this.log(tx("{p}'s fleet already sound: no repair fee.", '{p} 的舰队完好无损：无需修理费。', { p: ref.player(player.id) }));
         else {
-          this.log(tx("Revival repairs {p}'s fleet: restored {pts}/{dmg} durability for {g}g. Fleet fully repaired.",
-            '复活岛修理了 {p} 的舰队：花费 {g} 金币恢复 {pts}/{dmg} 耐久。舰队已全部修复。',
+          this.log(tx("Revival repairs {p}'s fleet: restored {pts}/{dmg} durability free of charge. Fleet fully repaired.",
+            '复活岛修理了 {p} 的舰队：免费恢复 {pts}/{dmg} 耐久。舰队已全部修复。',
             { p: ref.player(player.id), pts: points, dmg: damage, g: goldSpent }));
         }
         player.revivalProtection = false;
