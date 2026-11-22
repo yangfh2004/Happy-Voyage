@@ -1129,8 +1129,9 @@ export class GameEngine extends GameView {
     const event = node.event!;
     const announce = (outcome: SeaEventResult['outcome'], details: Partial<Omit<SeaEventResult, 'type' | 'playerId' | 'event' | 'outcome'>> = {}) =>
       this.emit({ type: 'seaEvent', playerId: player.id, event, outcome, ...details });
-    if (['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'].includes(event) && player.escortProtection) {
-      player.escortProtection = false;
+    if (['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'].includes(event) && (player.escortProtection || player.revivalProtection)) {
+      if (player.escortProtection) player.escortProtection = false;
+      else player.revivalProtection = false;
       announce('protected');
       return false;
     }
