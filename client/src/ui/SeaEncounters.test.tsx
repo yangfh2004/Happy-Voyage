@@ -45,13 +45,16 @@ EventBus.on('animate-move', (move: { id: number }) => { moveId = move.id; });
 function land(event: EventKind, ai = false, rivalAI = true) {
   gameController.newGame([{ name: 'Captain', color: 0, isAI: ai }, { name: 'Rival', color: 1, isAI: rivalAI }]);
   const state = gameController.state!;
+  state.roamers = [];
   state.map[2] = { ...state.map[2], kind: 'event', event };
   state.players[0].fleet[0].cargo.Silk = 3;
   state.players[0].strategies = [];
   if (ai) vi.advanceTimersByTime(700);
   else gameController.spinCompass();
   gameController.finishSpin(gameController.spinId);
+  vi.mocked(Math.random).mockReturnValue(0.99);
   EventBus.emit('move-complete', moveId);
+  vi.mocked(Math.random).mockReturnValue(0);
   return state;
 }
 
@@ -72,7 +75,9 @@ describe('sea notifications', () => {
     state.players[0].position = 0;
     gameController.spinCompass();
     gameController.finishSpin(gameController.spinId);
+    vi.mocked(Math.random).mockReturnValue(0.99);
     EventBus.emit('move-complete', moveId);
+    vi.mocked(Math.random).mockReturnValue(0);
   }
 
   it('keeps only the three newest banners while preserving all outcomes in the log', () => {
@@ -145,12 +150,39 @@ describe('human sea choices wired to the real engine', () => {
     expect(html).toContain('Sell 3 Silk');
     expect(html).toContain('405g');
     const before = state.players[0].gold;
-    click(accept ? 'Accept merchant offer' : 'Decline merchant offer');
+    click(accept ? 'Accept merchant offer' : 'Leave merchant ship');
+    if (accept) {
+      expect(state.phase).toBe('awaitingMerchant');
+      click('Leave merchant ship');
+    }
     expect(state.phase).toBe('awaitingSpin');
     expect(state.currentPlayer).toBe(1);
     expect(state.players[0].gold).toBe(before + (accept ? 405 : 0));
     expect(state.players[0].fleet[0].cargo.Silk).toBe(accept ? undefined : 3);
-    expect(gameController.seaNotices[0].event.outcome).toBe(accept ? 'accepted' : 'declined');
+    expect(gameController.seaNotices.some((notice) => notice.event.outcome === (accept ? 'accepted' : 'declined'))).toBe(true);
+  });
+
+  it('buys a chosen quantity through the merchant window and keeps the visit open', () => {
+    const state = land('merchant');
+    const stock = state.pendingMerchant!.stock!;
+    const before = state.players[0].gold;
+    const input = elements(panel()).find((el) => el.type === 'input')!;
+    (input.props.onChange as (e: { target: { value: string } }) => void)({ target: { value: '2' } });
+    click('Buy cargo');
+    expect(state.players[0].gold).toBe(before - 2 * stock.unitPrice);
+    expect(stock.quantity).toBe(3);
+    expect(state.phase).toBe('awaitingMerchant');
+    click('Leave merchant ship');
+    expect(state.currentPlayer).toBe(1);
+  });
+
+  it('shows merchant validation errors without closing the window', () => {
+    const state = land('merchant');
+    const input = elements(panel()).find((el) => el.type === 'input')!;
+    (input.props.onChange as (e: { target: { value: string } }) => void)({ target: { value: '0' } });
+    click('Buy cargo');
+    expect(renderToStaticMarkup(panel())).toContain('Invalid merchant quantity');
+    expect(state.phase).toBe('awaitingMerchant');
   });
 
   it('wyvern selection flies then resolves landing after the animation', () => {
@@ -185,6 +217,6 @@ describe('human sea choices wired to the real engine', () => {
       EventBus.emit('move-complete', moveId);
     }
     expect(state.currentPlayer).toBe(1);
-    expect(gameController.seaNotices[0].event.outcome).toBe(event === 'merchant' ? 'accepted' : 'relocated');
+    expect(gameController.seaNotices.some((notice) => notice.event.outcome === (event === 'merchant' ? 'accepted' : 'relocated'))).toBe(true);
   });
 });

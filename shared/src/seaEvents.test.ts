@@ -12,16 +12,18 @@ function encounter(event: EventKind, rng = 0.5, setup: (g: GameEngine) => void =
     if (e.type === 'seaEvent') expect(g.state.log.at(-1)).toContain(p.name + ': ');
   });
   setup(g);
-  p.position = g.state.map.find((n) => n.event === event)!.id;
+  const node = g.state.map.find((n) => n.event === event) ?? g.state.map.find((n) => n.event === 'openSea')!;
+  node.event = event;
+  p.position = node.id;
   g.state.phase = 'moving';
   g.resolveLanding();
   return { g, p, results };
 }
 
 describe('sea event outcomes', () => {
-  it('places every event kind on the map', () => {
+  it('keeps only fixed weather, treasure and neutral encounter stations on the map', () => {
     expect(new Set(createDefaultMap().flatMap((n) => n.event ? [n.event] : []))).toEqual(new Set([
-      'treasure', 'storm', 'tradeWind', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool', 'bottle', 'floatingCargo', 'merchant', 'wyvern',
+      'treasure', 'storm', 'tradeWind', 'openSea',
     ]));
   });
 
@@ -35,6 +37,7 @@ describe('sea event outcomes', () => {
     expect(results).toHaveLength(1);
     expect(results[0]).toMatchObject({ event: 'pirates', outcome: win ? 'victory' : 'defeat', gold: win ? SEA_RULES.pirateLoot : -SEA_RULES.pirates });
     expect(p.fleet.length).toBeGreaterThan(0);
+    expect(p.fleetLost).not.toBe(true);
     if (!win) expect(results[0].shipsLost).toHaveLength(4);
   });
 
@@ -55,6 +58,7 @@ describe('sea event outcomes', () => {
     const { p, results } = encounter(event, 0, (g) => { g.currentPlayer.fleet.splice(1); });
     expect(p.fleet).toHaveLength(1);
     expect(p.fleet[0].durability).toBeGreaterThan(0);
+    expect(p.fleetLost).not.toBe(true);
     expect(results[0]).toMatchObject({ outcome: 'damaged', shipsLost: [] });
   });
 
@@ -91,16 +95,22 @@ describe('sea event outcomes', () => {
     if (choice === 'decline') g.declineMerchant();
     else if (choice === 'ai') g.decideForAI();
     else g.acceptMerchant();
-    expect(results).toHaveLength(1);
     expect(results[0].outcome).toBe(choice === 'decline' ? 'declined' : 'accepted');
-    expect(p.gold).toBe(choice === 'decline' ? gold : gold + 405);
+    if (choice !== 'ai') expect(p.gold).toBe(choice === 'decline' ? gold : gold + 405);
     expect(p.fleet[0].cargo.Silk).toBe(choice === 'decline' ? 3 : undefined);
+    if (choice === 'accept') {
+      expect(g.state.phase).toBe('awaitingMerchant');
+      g.declineMerchant();
+    }
     expect(g.state.pendingMerchant).toBeNull();
     expect(() => g.acceptMerchant()).toThrow();
   });
 
   it('merchant does not pay for absent cargo and rejects missing promised cargo', () => {
-    expect(encounter('merchant').results[0].outcome).toBe('noTrade');
+    const empty = encounter('merchant');
+    expect(empty.g.state.pendingMerchant?.quantity).toBe(0);
+    expect(empty.g.state.pendingMerchant?.stock?.quantity).toBe(SEA_RULES.merchantUnits);
+    expect(() => empty.g.acceptMerchant()).toThrow('No cargo offered');
     const { g, p, results } = encounter('merchant', 0, (g) => { g.currentPlayer.fleet[0].cargo.Tea = 1; });
     p.fleet[0].cargo = {};
     expect(() => g.acceptMerchant()).toThrow('Not enough cargo');

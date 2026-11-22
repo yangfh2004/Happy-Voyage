@@ -314,6 +314,10 @@ export class GameController {
     if (this.isHumanTurn('awaitingMerchant')) this.perform(['acceptMerchant'], () => this.engine!.acceptMerchant());
   }
 
+  buyMerchant(quantity: number): void {
+    if (this.isHumanTurn('awaitingMerchant')) this.perform(['buyMerchant', quantity], () => this.engine!.buyMerchant(quantity));
+  }
+
   declineMerchant(): void {
     if (this.isHumanTurn('awaitingMerchant')) this.perform(['declineMerchant'], () => this.engine!.declineMerchant());
   }

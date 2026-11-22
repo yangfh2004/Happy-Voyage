@@ -40,6 +40,7 @@ describe('strategy cards', () => {
   });
   it('navigates directly into normal claim and toll resolution without salary', () => {
     const g = game();
+    g.currentPlayer.revivalProtection = true;
     g.currentPlayer.strategies = ['navigate'];
     const island = g.state.map.find((n) => n.kind === 'island')!;
     const gold = g.currentPlayer.gold;
@@ -128,7 +129,9 @@ describe('strategy cards', () => {
   it('handles maps without treasure and bottles without a card reward', () => {
     const g = new GameEngine({ players, rng: () => 0.999, config: { startingStrategies: 0 } });
     const p = g.currentPlayer;
-    p.position = g.state.map.find((n) => n.event === 'bottle')!.id;
+    const bottle = g.state.map.find((n) => n.event === 'openSea')!;
+    bottle.event = 'bottle';
+    p.position = bottle.id;
     g.state.phase = 'moving';
     g.resolveLanding();
     expect(p.strategies).toHaveLength(0);
@@ -155,7 +158,7 @@ describe('strategy cards', () => {
       event: id >= 22 && id <= 33 ? 'pirates' : 'tradeWind',
       price: 100,
     }));
-    const g = new GameEngine({ players: [players[1]], map, config: { startingStrategies: 0, maxRounds: 2, islandsToWin: 2 } });
+    const g = new GameEngine({ players: [players[1]], map, rng: () => 0.99, config: { startingStrategies: 0, maxRounds: 2, islandsToWin: 2 } });
     const player = g.currentPlayer;
     player.gold = 0;
     player.strategies = ['navigate'];
@@ -191,7 +194,9 @@ describe('strategy cards', () => {
   it('grants bottle cards while preserving the gold reward', () => {
     const g = game();
     const p = g.currentPlayer;
-    p.position = g.state.map.find((n) => n.event === 'bottle')!.id;
+    const bottle = g.state.map.find((n) => n.event === 'openSea')!;
+    bottle.event = 'bottle';
+    p.position = bottle.id;
     g.state.phase = 'moving';
     const gold = p.gold;
     g.resolveLanding();

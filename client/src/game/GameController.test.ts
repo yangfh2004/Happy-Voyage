@@ -61,7 +61,9 @@ it('tags only the compass movement for route dots, not later Wyvern flights', ()
   controller.newGame(players);
   const state = controller.state!;
   state.players[0].strategies = ['navigate'];
-  controller.useStrategy('navigate', state.map.find(n => n.event === 'wyvern')!.id);
+  const wyvern = state.map.find(n => n.event === 'openSea')!;
+  wyvern.event = 'wyvern';
+  controller.useStrategy('navigate', wyvern.id);
   expect(state.phase).toBe('awaitingWyvern');
   controller.wyvernFly(2);
   expect(moves).toHaveBeenLastCalledWith(expect.objectContaining({ path: [2], sailFrom: undefined }));

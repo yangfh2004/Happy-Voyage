@@ -71,6 +71,9 @@ export class GameEngine extends GameView {
   private relocations = 0;
   /** Stops sailed by the current roll, settled in resolveLanding(). */
   private pendingPath: number[] = [];
+  private encounterPending = false;
+  private merchantLandingPending = false;
+  private skipMerchantLanding = false;
 
   constructor(options: EngineOptions) {
     const stage = options.campaign && campaignStage(options.campaign.stage);
@@ -132,6 +135,7 @@ export class GameEngine extends GameView {
       pendingClaim: null,
       pendingBarter: null,
       pendingMerchant: null,
+      roamers: [],
       pendingWyvern: false,
       lottery: null,
       lotteryDraws: [],
@@ -165,6 +169,10 @@ export class GameEngine extends GameView {
       STARTING_FLEET.forEach((type, index) => this.commissionShip(player.id, type, index === flagshipIndex ? flagship : undefined));
     }
     this.state.wind = { direction: WIND_DIRECTIONS[Math.floor(this.rng() * 4)], turnsLeft: 2 + Math.floor(this.rng() * 3) };
+    for (const [id, kind] of (['pirates', 'pirates', 'smallMonster'] as const).entries()) {
+      const nodes = this.roamerNodes().filter((node) => !this.state.roamers.some((r) => r.node === node.id) && !this.state.players.some((p) => Math.min((node.id - p.homePort + map.length) % map.length, (p.homePort - node.id + map.length) % map.length) < 3));
+      if (nodes.length) this.state.roamers.push({ id, kind, node: nodes[Math.floor(this.rng() * nodes.length)].id });
+    }
   }
 
   /** Subscribe to engine events; returns an unsubscribe function. */
@@ -202,6 +210,7 @@ export class GameEngine extends GameView {
 
   private sailDirectly(nodeId: number): void {
     this.relocations = 0;
+    this.encounterPending = true;
     this.pendingPath = [];
     this.currentPlayer.position = nodeId;
     this.state.phase = 'moving';
@@ -271,6 +280,7 @@ export class GameEngine extends GameView {
   sail(): number[] {
     this.assertPhase('spinning');
     this.relocations = 0;
+    this.encounterPending = true;
     const player = this.currentPlayer;
     const steps = this.state.lastSpin!;
     const path = walkPath(this.state.map, player.position, steps, this.state.wind.direction);
@@ -291,11 +301,31 @@ export class GameEngine extends GameView {
 
     // Each pass of (or landing on) the home port pays the royal salary, once the fleet has sailed.
     const homePasses = this.pendingPath.filter((id) => id === player.homePort).length;
+    const sailedPath = this.pendingPath;
     this.pendingPath = [];
     if (homePasses > 0) {
       const salary = (this.state.config.homeSalary + RANKS[player.rank].salary) * homePasses;
       this.log(tx('The crown pays {p} a {g}g royal salary.', '王室向 {p} 支付 {g} 金币薪俸。', { p: ref.player(player.id), g: salary }));
       this.changeGold(player, salary, 'royal salary');
+    }
+
+    if (this.encounterPending) {
+      this.encounterPending = false;
+      const roamer = sailedPath.map((id) => this.state.roamers.find((r) => r.node === id)).find(Boolean);
+      let event = roamer?.kind as MapNode['event'];
+      if (roamer) {
+        const nodes = this.roamerNodes().filter((n) => !this.state.roamers.some((r) => r.node === n.id));
+        if (nodes.length) roamer.node = nodes[Math.floor(this.rng() * nodes.length)].id;
+      } else if (node.kind !== 'port' && (node.event === 'openSea' || this.rng() < SEA_RULES.encounterChance)) {
+        const entries = Object.entries(SEA_RULES.encounterWeights) as [NonNullable<MapNode['event']>, number][];
+        let roll = this.rng() * entries.reduce((sum, [, weight]) => sum + weight, 0);
+        event = entries.find(([, weight]) => (roll -= weight) < 0)![0];
+      }
+      if (event && this.resolveEvent(player, { ...node, event })) return;
+      if (isEliminated(player) || player.fleet.length === 0) {
+        this.endTurn();
+        return;
+      }
     }
 
     switch (node.kind) {
@@ -322,7 +352,8 @@ export class GameEngine extends GameView {
         if (this.state.pendingBarter || this.state.pendingRecruits || this.state.lottery || this.state.mistDuel || this.state.revivalReport) return;
         break;
       case 'event':
-        if (this.resolveEvent(player, node)) return;
+        if (this.skipMerchantLanding) { this.skipMerchantLanding = false; break; }
+        if (node.event !== 'openSea' && this.resolveEvent(player, node)) return;
         break;
       case 'island': {
         const owner = this.state.owners[node.id];
@@ -747,7 +778,17 @@ export class GameEngine extends GameView {
   /** Let the built-in AI make the current player's pending decision. */
   decideForAI(): void {
     if (this.state.phase === 'awaitingMerchant') {
-      this.acceptMerchant();
+      const offer = this.state.pendingMerchant!;
+      if (offer.quantity) this.acceptMerchant();
+      else {
+        const stock = offer.stock;
+        const player = this.currentPlayer;
+        const room = player.fleet.reduce((sum, ship) => sum + Math.max(0, ship.cargoCapacity - cargoLoad(ship)), 0);
+        const quantity = stock ? Math.min(stock.quantity, room, Math.floor(Math.max(0, player.gold - SEA_RULES.merchantReserve) / stock.unitPrice)) : 0;
+        if (quantity > 0) this.buyMerchant(quantity);
+        else this.declineMerchant();
+      }
+      if (this.state.phase === 'awaitingMerchant') this.decideForAI();
       return;
     }
     if (this.state.phase === 'awaitingWyvern') {
@@ -966,6 +1007,7 @@ export class GameEngine extends GameView {
     this.assertPhase('awaitingMerchant');
     const offer = this.state.pendingMerchant!;
     const player = this.currentPlayer;
+    if (offer.quantity <= 0) throw new Error('No cargo offered');
     if (fleetQuantity(player, offer.good) < offer.quantity) throw new Error('Not enough cargo');
     let remaining = offer.quantity;
     for (const ship of player.fleet) {
@@ -976,13 +1018,54 @@ export class GameEngine extends GameView {
     }
     this.changeGold(player, offer.gold, 'merchant');
     this.emit({ type: 'seaEvent', playerId: player.id, event: 'merchant', outcome: 'accepted', ...offer });
-    this.endTurn();
+    offer.quantity = 0;
+    offer.gold = 0;
+    this.finishMerchantIfDone();
+  }
+
+  private finishMerchantIfDone(): void {
+    const offer = this.state.pendingMerchant!;
+    const stock = offer.stock;
+    const player = this.currentPlayer;
+    const canBuy = stock && stock.quantity > 0 && player.gold >= stock.unitPrice && player.fleet.some((ship) => cargoLoad(ship) < ship.cargoCapacity);
+    if (!offer.quantity && !canBuy) this.declineMerchant();
+  }
+
+  buyMerchant(quantity: number): void {
+    this.assertPhase('awaitingMerchant');
+    const stock = this.state.pendingMerchant?.stock;
+    const player = this.currentPlayer;
+    if (!stock || !Number.isSafeInteger(quantity) || quantity <= 0 || quantity > stock.quantity) throw new Error('Invalid merchant quantity');
+    const room = player.fleet.reduce((sum, ship) => sum + Math.max(0, ship.cargoCapacity - cargoLoad(ship)), 0);
+    const cost = quantity * stock.unitPrice;
+    if (quantity > room) throw new Error('Not enough cargo capacity');
+    if (cost > player.gold) throw new Error('Not enough gold');
+    let remaining = quantity;
+    for (const ship of player.fleet) {
+      const units = Math.min(remaining, Math.max(0, ship.cargoCapacity - cargoLoad(ship)));
+      if (units) ship.cargo[stock.good] = (ship.cargo[stock.good] ?? 0) + units;
+      remaining -= units;
+    }
+    stock.quantity -= quantity;
+    this.changeGold(player, -cost, 'merchant');
+    this.emit({ type: 'seaEvent', playerId: player.id, event: 'merchant', outcome: 'cargo', good: stock.good, quantity, gold: -cost });
+    this.finishMerchantIfDone();
   }
 
   declineMerchant(): void {
     this.assertPhase('awaitingMerchant');
     this.emit({ type: 'seaEvent', playerId: this.currentPlayer.id, event: 'merchant', outcome: 'declined' });
-    this.endTurn();
+    this.state.pendingMerchant = null;
+    if (this.merchantLandingPending) {
+      this.merchantLandingPending = false;
+      if (isEliminated(this.currentPlayer) || this.currentPlayer.fleet.length === 0) {
+        this.skipMerchantLanding = false;
+        this.endTurn();
+        return;
+      }
+      this.state.phase = 'moving';
+      this.resolveLanding();
+    } else this.endTurn();
   }
 
   wyvernFly(nodeId: number): void {
@@ -1085,9 +1168,17 @@ export class GameEngine extends GameView {
       }
       case 'merchant': {
         const good = GOODS.find((good): good is Specialty => good !== 'lumber' && good !== 'iron' && fleetQuantity(player, good) > 0);
-        if (!good) { announce('noTrade'); break; }
-        const quantity = Math.min(SEA_RULES.merchantUnits, fleetQuantity(player, good));
-        const offer = { good, quantity, gold: Math.round(GOOD_VALUES[good] * quantity * SEA_RULES.merchantPremium) };
+        const specialties = GOODS.filter((g): g is Specialty => g !== 'lumber' && g !== 'iron');
+        const saleGood = specialties[Math.floor(this.rng() * specialties.length)];
+        const quantity = good ? Math.min(SEA_RULES.merchantUnits, fleetQuantity(player, good)) : 0;
+        const offer = { good: good ?? saleGood, quantity, gold: good ? Math.round(GOOD_VALUES[good] * quantity * SEA_RULES.merchantPremium) : 0,
+          stock: { good: saleGood, quantity: SEA_RULES.merchantUnits, unitPrice: Math.round(GOOD_VALUES[saleGood] * SEA_RULES.merchantDiscount) } };
+        if (!quantity && (player.gold < offer.stock.unitPrice || !player.fleet.some((ship) => cargoLoad(ship) < ship.cargoCapacity))) {
+          announce('noTrade');
+          break;
+        }
+        this.merchantLandingPending = true;
+        this.skipMerchantLanding = node.event === this.node(player.position).event;
         this.state.pendingMerchant = offer;
         this.state.phase = 'awaitingMerchant';
         this.emit({ type: 'merchantOffered', playerId: player.id, offer });
@@ -1200,6 +1291,27 @@ export class GameEngine extends GameView {
     }
   }
 
+  private roamerNodes(): MapNode[] {
+    return this.state.map.filter((n) => n.kind !== 'port' && n.kind !== 'special' && !this.state.players.some((p) => !isEliminated(p) && p.position === n.id));
+  }
+
+  private moveRoamers(): void {
+    for (const roamer of this.state.roamers) {
+      let direction = this.rng() < 0.5 ? -1 : 1;
+      const steps = 1 + Math.floor(this.rng() * 3);
+      for (let i = 0; i < steps; i++) {
+        let next = walkPath(this.state.map, roamer.node, direction, this.state.wind.direction)[0];
+        const eligible = (id: number) => this.node(id).kind !== 'port' && this.node(id).kind !== 'special';
+        if (!eligible(next)) {
+          direction *= -1;
+          next = walkPath(this.state.map, roamer.node, direction, this.state.wind.direction)[0];
+          if (!eligible(next)) break;
+        }
+        roamer.node = next;
+      }
+    }
+  }
+
   private releaseColonies(player: Player): void {
     this.state.owners = this.state.owners.map((owner, id) => {
       if (owner !== player.id) return owner;
@@ -1243,6 +1355,7 @@ export class GameEngine extends GameView {
       this.produceColonyGoods();
       advanceMarket(this.state.market);
       this.state.round += 1;
+      this.moveRoamers();
       if (this.checkVictory()) return;
       this.log(tx('Round {r} begins.', '第 {r} 回合开始。', { r: this.state.round }));
       next = this.nextActivePlayer(0)!;

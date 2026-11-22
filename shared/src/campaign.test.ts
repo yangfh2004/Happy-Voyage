@@ -5,8 +5,8 @@ import { NO_ROUND_LIMIT } from './modes';
 import type { CampaignStageId } from './campaign';
 import type { GameEvent, MarketOrder } from './types';
 
-function voyage(stage: CampaignStageId) {
-  const game = new GameEngine({ campaign: { stage, navigator: { name: 'Admiral', nation: 'Spain' } }, rng: () => 0 });
+function voyage(stage: CampaignStageId, roll = 0) {
+  const game = new GameEngine({ campaign: { stage, navigator: { name: 'Admiral', nation: 'Spain' } }, rng: () => roll });
   const { state } = game;
   const missions: GameEvent[] = [];
   game.on((event) => { if (event.type === 'campaignMissionCompleted') missions.push(event); });
@@ -38,7 +38,7 @@ describe('royal campaign', () => {
   });
 
   it('awards First Voyage missions only for your own founding and subsequent audience', () => {
-    const { game, state, captain, missions, islands } = voyage('first-voyage');
+    const { game, state, captain, missions, islands } = voyage('first-voyage', 0.99);
     const [first, second, third] = islands;
     landAs(game, 0, captain.homePort);
     landAs(game, 1, third.id);

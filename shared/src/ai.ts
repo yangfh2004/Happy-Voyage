@@ -57,6 +57,8 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
   const canWin = owned + 1 >= state.config.islandsToWin;
   const score = (node: MapNode): number => {
     if (node.id === player.position) return 0;
+    if (state.roamers.some((r) => r.node === node.id) && !player.revivalProtection) return -180;
+    if (node.event === 'openSea') return -20;
     if (node.kind === 'island') {
       const owner = state.owners[node.id];
       if (owner === null) {
@@ -102,6 +104,8 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
 
   // Use gold-equivalent scores for immediate results and the next compass spin.
   const landing = (node: MapNode, cash: number, direct: boolean): number => {
+    if (state.roamers.some((r) => r.node === node.id) && !player.revivalProtection) return -180;
+    if (node.event === 'openSea') return -20;
     if (node.kind === 'island') {
       const owner = state.owners[node.id];
       const arrival = { ...player, position: node.id, gold: cash };
@@ -162,7 +166,8 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       if (!scores) spinLandings.set(arrivalCash, scores = new Map());
       let score = scores.get(next.id);
       if (score === undefined) scores.set(next.id, score = landing(next, arrivalCash, false));
-      return value + odds * (pay + Math.min(400, score));
+      const hazard = !player.revivalProtection && state.roamers.some((r) => path.includes(r.node)) ? 180 : 0;
+      return value + odds * (pay + Math.min(400, score) - hazard);
     }, 0);
   };
 

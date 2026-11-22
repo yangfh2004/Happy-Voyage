@@ -66,6 +66,8 @@ describe('royal ranks', () => {
     const g = game();
     const p = g.currentPlayer;
     p.rank = 2;
+    g.state.roamers = [];
+    p.revivalProtection = true;
     p.position = (p.homePort - 1 + g.state.map.length) % g.state.map.length;
     const before = p.gold;
     g.spinCompass(); g.sail(); g.resolveLanding();

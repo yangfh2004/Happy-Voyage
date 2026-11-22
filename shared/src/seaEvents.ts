@@ -2,6 +2,7 @@ import type { EventKind, SeaEventResult } from './types';
 import { localize, ref, tx, type Text, type TextParam } from './i18n';
 
 export const SEA_EVENT_NAMES: Record<EventKind, string> = {
+  openSea: 'Open sea',
   treasure: 'Sunken treasure', storm: 'Storm', tradeWind: 'Trade winds', pirates: 'Pirates',
   smallMonster: 'Small sea monster', largeMonster: 'Large sea monster', turtle: 'Destructive sea turtle',
   whirlpool: 'Bermuda whirlpool', bottle: 'Message bottle', floatingCargo: 'Floating cargo',
@@ -16,7 +17,7 @@ const OUTCOMES: Record<SeaEventResult['outcome'], [string, string]> = {
   protected: ['Revival protection blocks the hazard', '复活庇护挡下了灾难'], victory: ['Victory', '胜利'], defeat: ['Defeated', '战败'],
   damaged: ['Fleet damaged', '舰队受损'], sunk: ['Ship sunk', '船只沉没'], gold: ['Gold recovered', '获得金币'], specialPrize: ['Rare special prize!', '稀有特别奖！'],
   repaired: ['Fleet fully repaired for free', '舰队免费全面修复'], cargo: ['Specialty cargo recovered', '打捞到特产货物'],
-  accepted: ['Trade accepted', '交易成功'], declined: ['Trade declined', '拒绝交易'], noTrade: ['No aboard specialties to trade', '船上没有可交易的特产'],
+  accepted: ['Trade accepted', '交易成功'], declined: ['Trade declined', '拒绝交易'], noTrade: ['No affordable trade or free cargo space', '没有可交易的货物或可用货舱'],
   relocated: ['Carried to {dest}', '被带往{dest}'], escaped: ['Escaped the circling currents', '逃离了漩涡'],
 };
 

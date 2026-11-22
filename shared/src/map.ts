@@ -43,7 +43,10 @@ export function createDefaultMap(): MapNode[] {
       }
       if (j === 2 || (j === 3 && sector >= 7)) {
         const kind = events[event];
-        nodes.push({ id: 0, name: eventNames[event++], event: kind, kind: 'event', x: 0, y: 0 });
+        const roaming = !['treasure', 'storm', 'tradeWind'].includes(kind);
+        const seaNames = ['Uncharted Waters', 'Silent Shoals', 'Azure Passage', 'Distant Horizon', 'Open Ocean', 'Wandering Tides', 'Ocean Crossing', 'Silver Current', 'Farwater Reach'];
+        nodes.push({ id: 0, name: roaming ? seaNames[event - 3] : eventNames[event], event: roaming ? 'openSea' : kind, kind: 'event', x: 0, y: 0 });
+        event++;
       }
     }
   }

@@ -75,7 +75,9 @@ describe('fleet repairs', () => {
       const [ship, fragile] = player.fleet;
       fragile.durability = 3;
       player.revivalProtection = protectedFromHazards;
-      land(engine, engine.state.map.find((node) => node.event === event)!.id);
+      const node = engine.state.map.find((node) => node.event === event) ?? engine.state.map.find((node) => node.event === 'openSea')!;
+      node.event = event;
+      land(engine, node.id);
       expect(ship.durability).toBe(ship.maxDurability - (protectedFromHazards ? 0 : SEA_HAZARD_DAMAGE));
       expect(fragile.durability).toBe(protectedFromHazards ? 3 : 0);
     }

@@ -7,6 +7,7 @@ const SPECIAL_COLORS: Record<SpecialKind, number> = {
   nightless: 0x7875b3, wind: 0x8fc6ab, dragonSnake: 0xbd8661,
 };
 const EVENT_COLORS: Record<EventKind, number> = {
+  openSea: 0x72bdc2,
   treasure: 0x72bdc2, storm: 0x6e849e, tradeWind: 0x9ac6be, pirates: 0xad756f,
   smallMonster: 0x88ad70, largeMonster: 0x8c79ab, turtle: 0x95ba87, whirlpool: 0x648eb6,
   bottle: 0xa7c4a8, floatingCargo: 0xc0a073, merchant: 0xc4b17e, wyvern: 0xa485b8,
@@ -124,6 +125,9 @@ export function specialIslandTexture(scene: Phaser.Scene, node: MapNode): string
     }
   } else {
     switch (node.event) {
+      case 'openSea':
+        for (let i = 0; i < 3; i++) g.lineStyle(4, 0xe2ffff).strokeEllipse(80, 56 + i * 17, 86 - i * 12, 12);
+        break;
       case 'treasure':
         g.fillStyle(0x3e98ae, .8).fillEllipse(80, 81, 103, 48);
         coin(61, 81); coin(82, 90, true); coin(100, 76);

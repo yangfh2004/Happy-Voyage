@@ -39,6 +39,7 @@ const actions: Record<RoomAction[0], Handler> = {
   claim: noArgs((e) => e.claim()),
   decline: noArgs((e) => e.decline()),
   acceptMerchant: noArgs((e) => e.acceptMerchant()),
+  buyMerchant: oneArg(integer, (e, quantity) => e.buyMerchant(quantity)),
   declineMerchant: noArgs((e) => e.declineMerchant()),
   wyvernFly: oneArg(integer, (e, id) => e.wyvernFly(id)),
   payToll: noArgs((e) => e.payToll()),
