@@ -322,6 +322,10 @@ export class GameEngine extends GameView {
         event = entries.find(([, weight]) => (roll -= weight) < 0)![0];
       }
       if (event && this.resolveEvent(player, { ...node, event })) return;
+      if (isEliminated(player) || player.fleet.length === 0) {
+        this.endTurn();
+        return;
+      }
     }
 
     switch (node.kind) {
@@ -1062,6 +1066,11 @@ export class GameEngine extends GameView {
     this.state.pendingMerchant = null;
     if (this.merchantLandingPending) {
       this.merchantLandingPending = false;
+      if (isEliminated(this.currentPlayer) || this.currentPlayer.fleet.length === 0) {
+        this.skipMerchantLanding = false;
+        this.endTurn();
+        return;
+      }
       this.state.phase = 'moving';
       this.resolveLanding();
     } else this.endTurn();

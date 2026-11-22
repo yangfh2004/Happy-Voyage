@@ -22,6 +22,41 @@ function voyage(roll = 0.99) {
 }
 
 describe('random sea encounters', () => {
+  it('advances exactly once when a hazard bankrupts a fleet sailing to Skeleton Island', () => {
+    const { game, events, sail } = voyage();
+    const player = game.currentPlayer;
+    game.state.players.push({ ...player, id: 1, name: 'Next', position: 4 });
+    game.state.players.push({ ...player, id: 2, name: 'Last', position: 5 });
+    game.state.map[2] = { ...game.state.map[2], kind: 'special', special: 'skeleton' };
+    game.state.roamers = [{ id: 0, kind: 'smallMonster', node: 1 }];
+    player.gold = 1;
+    sail();
+    expect(player.bankrupt).toBe(true);
+    expect(game.state.currentPlayer).toBe(1);
+    expect(game.state.phase).toBe('awaitingSpin');
+    expect(events.some((e) => e.type === 'marketOffered')).toBe(false);
+    expect(events.filter((e) => e.type === 'turnStarted')).toHaveLength(1);
+  });
+
+  it.each(['bankrupt', 'fleetLost', 'emptyFleet'] as const)('skips landing after merchant Leave for %s fleets', (defeat) => {
+    const { game, events, sail, roll } = voyage();
+    const player = game.currentPlayer;
+    game.state.players.push({ ...player, id: 1, name: 'Next', position: 4 });
+    game.state.players.push({ ...player, id: 2, name: 'Last', position: 5 });
+    game.state.map[2] = { ...game.state.map[2], kind: 'special', special: 'skeleton' };
+    roll([0, 0.75]);
+    sail();
+    expect(game.state.phase).toBe('awaitingMerchant');
+    if (defeat === 'emptyFleet') player.fleet = [];
+    else player[defeat] = true;
+    game.declineMerchant();
+    expect(game.state.currentPlayer).toBe(1);
+    expect(game.state.phase).toBe('awaitingSpin');
+    expect(game.state.pendingMerchant).toBeNull();
+    expect(events.some((e) => e.type === 'marketOffered')).toBe(false);
+    expect(events.filter((e) => e.type === 'turnStarted')).toHaveLength(1);
+  });
+
   it('rolls an encounter before the destination landing in the same turn', () => {
     const { game, events, sail } = voyage(0.01);
     game.currentPlayer.revivalProtection = true;
