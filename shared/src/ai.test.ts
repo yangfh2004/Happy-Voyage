@@ -98,7 +98,7 @@ describe('AI colony decisions', () => {
         hazard.kind = 'special'; hazard.special = stop;
       }
     }
-    expect(aiShouldClaim(state, player, node.id)).toBe(stop === 'dragonSnake');
+    expect(aiShouldClaim(state, player, node.id)).toBe(stop === 'dragonSnake' || stop === 'skeleton');
     player.gold += 500;
     expect(aiShouldClaim(state, player, node.id)).toBe(true);
   });

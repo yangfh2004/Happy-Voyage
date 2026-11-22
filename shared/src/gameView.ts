@@ -77,8 +77,10 @@ export class GameView {
   }
 
   protected atMarket(): boolean {
-    return this.state.phase === 'awaitingMarket' && !this.currentPlayer.bankrupt &&
-      this.state.map[this.currentPlayer.position]?.special === 'skeleton';
+    const player = this.currentPlayer;
+    const node = this.state.map[player.position];
+    return !player.bankrupt && ((this.state.phase === 'awaitingMarket' && node?.special === 'skeleton') ||
+      (this.state.phase === 'awaitingBuild' && node?.kind === 'island' && this.state.owners[node.id] === player.id));
   }
 
   canBuyUsedShip(type: ShipType): boolean {

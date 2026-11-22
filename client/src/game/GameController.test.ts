@@ -111,7 +111,7 @@ it('routes recruitment and decline actions only during human recruiting visits',
   const gold = p.gold;
   controller.recruitCaptain(0);
   expect(p.captains).toEqual(['ines']);
-  expect(p.gold).toBe(gold - 90);
+  expect(p.gold).toBe(gold - 180);
   expect(state.pendingRecruits).toBeNull();
   visit();
   controller.decline();
@@ -173,6 +173,25 @@ it('launches a ship during a human colony visit and announces its arrival', () =
   expect(state.players[0].fleet.at(-1)?.type).toBe('explorer');
   expect(controller.headline?.text).toBe(`${state.players[0].fleet.at(-1)?.name} joined your fleet.`);
   expect(controller.canBuildShip('explorer')).toBe(false);
+});
+
+it('buys and sells ships through the controller at an owned colony', () => {
+  controller.newGame(players);
+  const state = controller.state!;
+  state.owners[2] = 0;
+  humanTurn();
+  const player = state.players[0];
+  const count = player.fleet.length;
+  expect(controller.canBuyUsedShip('explorer')).toBe(true);
+  controller.buyUsedShip('explorer');
+  expect(player.fleet).toHaveLength(count + 1);
+  const ship = player.fleet.at(-1)!;
+  expect(controller.canSellShip(ship.id)).toBe(true);
+  controller.sellShip(ship.id);
+  expect(player.fleet).toHaveLength(count);
+  expect(state.phase).toBe('awaitingBuild');
+  controller.finishBuilding();
+  expect(controller.canBuyUsedShip('cargo')).toBe(false);
 });
 
 describe('pacing', () => {

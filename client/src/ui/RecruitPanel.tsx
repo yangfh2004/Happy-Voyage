@@ -4,8 +4,6 @@ import { useT } from '../i18n';
 import { gameController } from '../game/GameController';
 import { StatTooltip } from './StatTooltip';
 
-const bonusBadge = { toll: '⚓', tax: '⚑', salary: '✦' };
-
 export function RecruitPanel({ state }: { state: GameState }) {
   const [error, setError] = useState('');
   const { t, locale } = useT();
@@ -17,7 +15,7 @@ export function RecruitPanel({ state }: { state: GameState }) {
   }
   return <section aria-labelledby="recruit-title">
     <h2 id="recruit-title">{t("Dragon Snake Island · Sailors' tavern", '龙蛇岛 · 水手酒馆')}</h2>
-    <p>{t('Talk to sailors and recruit one captain. Bonuses last while aboard; higher royal ranks unlock better captains.', '与水手交谈并招募一位船长。船长在船上时加成持续有效；王室官阶越高，可招募的船长越好。')}</p>
+    <p>{t('Recruit a captain together with their ships. Higher royal ranks unlock larger fleets.', '招募船长与船只加入舰队。王室官阶越高，可招募的舰队越大。')}</p>
     <p><StatTooltip stat="captains">{t('Captains aboard: {n}/{m}', '船上的船长：{n}/{m}', { n: player.captains.length, m: MAX_CAPTAINS })}</StatTooltip>{t('. ', '。')}<StatTooltip stat="gold">{t('Treasury: {g}g', '金库：{g} 金币', { g: player.gold })}</StatTooltip>{t('.', '。')}</p>
     {full && <p>{t('Crew is full. No more captains can join.', '船员已满，无法再招募船长。')}</p>}
     {error && <p role="alert">{error}</p>}
@@ -26,7 +24,7 @@ export function RecruitPanel({ state }: { state: GameState }) {
         const captain = CAPTAINS.find((candidate) => candidate.id === id)!;
         const name = captainName(captain.id, locale);
         return <article className="tavern-captain" key={id}>
-          <span className="tavern-badge" aria-hidden="true">{bonusBadge[captain.bonus]}</span>
+          <span className="tavern-badge" aria-hidden="true">⚓</span>
           <h3>{name}</h3>
           <p className="tavern-bonus">{captainDescriptionText(captain.id, locale)}</p>
           <p>{t('Requires {r}', '需要{r}', { r: rankName(captain.minRank, locale) })} · {captain.fee}{t('g', ' 金币')}</p>

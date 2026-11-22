@@ -11,11 +11,11 @@ describe('RecruitPanel', () => {
     state.pendingRecruits = ['ines'];
     return state;
   }
-  it('shows English names, permanent bonus, fee, rank and controls', () => {
+  it('shows English names, ships, fee, rank and controls', () => {
     const html = renderToStaticMarkup(<RecruitPanel state={state()} />);
     expect(html).toContain('Ines Tidewalker');
-    expect(html).toContain('10% less colony toll');
-    expect(html).toContain('Requires Commoner · 90g');
+    expect(html).toContain('Explorer');
+    expect(html).toContain('Requires Commoner · 180g');
     expect(html).toContain('Recruit Ines Tidewalker');
     expect(html).toContain('Decline recruitment');
     expect(html).not.toContain('disabled');

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine } from './engine';
-import { CAPTAINS, aiRecruitChoice, captainBonus, discountedByCaptains, recruitOffers } from './captains';
+import { CAPTAINS, aiRecruitChoice, recruitOffers } from './captains';
 import { foreignTaxDue } from './ranks';
 
 function game() {
@@ -29,7 +29,7 @@ describe('Dragon Snake captains', () => {
     expect(recruitOffers(p, () => 0)).toEqual([]);
   });
 
-  it('pauses, emits an offer, pays once and keeps the toll bonus on repeat landings', () => {
+  it('pauses, emits an offer, pays once and adds the captain’s ship without a toll bonus on repeat landings', () => {
     const g = game();
     const p = g.currentPlayer;
     let offered = false;
@@ -38,7 +38,11 @@ describe('Dragon Snake captains', () => {
     expect(offered).toBe(true);
     expect(g.state.phase).toBe('awaitingRecruit');
     const gold = p.gold;
+    const fleet = p.fleet.length;
     g.recruitCaptain(0);
+    expect(p.fleet).toHaveLength(fleet + 1);
+    expect(p.fleet.at(-1)).toMatchObject({ type: 'explorer', cargo: {} });
+    expect(p.fleet.at(-1)!.name).toBeTruthy();
     expect(p.gold).toBe(gold - CAPTAINS[0].fee);
     expect(p.captains).toEqual(['ines']);
     expect(g.state.pendingRecruits).toBeNull();
@@ -47,10 +51,25 @@ describe('Dragon Snake captains', () => {
       const before = p.gold;
       land(g, 1);
       g.payToll();
-      expect(p.gold).toBe(before - Math.ceil(g.state.map[1].toll! * 0.9));
+      expect(p.gold).toBe(before - g.state.map[1].toll!);
     }
     expect(p.captains).toEqual(['ines']);
     expect(() => g.recruitCaptain(0)).toThrow('Expected phase');
+  });
+
+  it('adds both named ships for a higher-rank captain', () => {
+    const g = game();
+    const p = g.currentPlayer;
+    p.rank = 2;
+    p.gold = 2000;
+    land(g);
+    g.state.pendingRecruits = ['lin'];
+    const count = p.fleet.length;
+    g.recruitCaptain(0);
+    expect(p.fleet.slice(count).map((ship) => ship.type)).toEqual(['cargo', 'warship']);
+    expect(new Set(p.fleet.map((ship) => ship.id)).size).toBe(p.fleet.length);
+    expect(p.fleet.slice(count).every((ship) => ship.durability === ship.maxDurability && !!ship.name)).toBe(true);
+    expect(p.gold).toBe(1250);
   });
 
   it('declines and clears offers without charging', () => {
@@ -115,14 +134,14 @@ describe('Dragon Snake captains', () => {
     expect(p.captains).toEqual(crew);
   });
 
-  it('applies tax discounts after rank and adds salary at home', () => {
+  it('does not grant passive tax discounts or salary', () => {
     const g = game();
     const p = g.currentPlayer;
     p.rank = 2;
     p.captains = ['rui', 'gaspar', 'mei'];
     const gold = p.gold;
     land(g, g.state.map.find((node) => node.kind === 'port' && node.id !== p.homePort)!.id);
-    expect(p.gold).toBe(gold - Math.ceil(foreignTaxDue(2) * 0.6));
+    expect(p.gold).toBe(gold - foreignTaxDue(2));
     g.state.currentPlayer = 0;
     p.position = (p.homePort + g.state.map.length - 1) % g.state.map.length;
     g.state.phase = 'spinning';
@@ -130,8 +149,7 @@ describe('Dragon Snake captains', () => {
     const before = p.gold;
     g.sail();
     g.resolveLanding();
-    expect(p.gold).toBe(before + g.state.config.homeSalary + 100 + 30);
-    expect(captainBonus(p, 'salary')).toBe(30);
+    expect(p.gold).toBe(before + g.state.config.homeSalary + 100);
   });
 
   it('AI takes the best affordable offer while preserving 200g, or declines', () => {
@@ -139,24 +157,16 @@ describe('Dragon Snake captains', () => {
     const p = g.currentPlayer;
     p.gold = 1000;
     land(g);
-    expect(aiRecruitChoice(p, g.state.pendingRecruits!)).toBe(1);
+    expect(aiRecruitChoice(p, g.state.pendingRecruits!)).toBe(0);
     g.decideForAI();
-    expect(p.captains).toEqual(['rui']);
+    expect(p.captains).toEqual(['ines']);
     expect(aiRecruitChoice(p, [])).toBeNull();
     p.gold = 200;
     land(g);
     g.decideForAI();
-    expect(p.captains).toEqual(['rui']);
+    expect(p.captains).toEqual(['ines']);
     expect(g.state.pendingRecruits).toBeNull();
     p.captains = ['ines', 'rui', 'mei'];
     expect(aiRecruitChoice(p, ['leonor'])).toBeNull();
-  });
-});
-
-describe('captain discounts', () => {
-  it('stacks percentages without float rounding up the fee', () => {
-    const p = game().currentPlayer;
-    p.captains = ['ines', 'zahra'];
-    expect(discountedByCaptains(p, 'toll', 100)).toBe(55);
   });
 });

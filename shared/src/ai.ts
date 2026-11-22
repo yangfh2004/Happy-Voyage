@@ -2,7 +2,6 @@ import { COMPASS_SECTORS } from './compass';
 import { walkPath } from './graph';
 import { colonyDefenders, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
-import { captainBonus, discountedByCaptains } from './captains';
 import { BUILDINGS, buildingLevel, colonyToll, nextBuildingCost } from './buildings';
 import { colonyValue, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
 import { SEA_RULES } from './seaRules';
@@ -94,7 +93,7 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
 function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): number | undefined {
   const owned = colonies(state, player);
   const canWin = owned + 1 >= state.config.islandsToWin;
-  const salary = state.config.homeSalary + RANKS[player.rank].salary + captainBonus(player, 'salary');
+  const salary = state.config.homeSalary + RANKS[player.rank].salary;
   const merit = playerMerit(state, player.id);
   const nextRank = RANKS[player.rank + 1];
   const audience = nextRank && merit >= nextRank.merit ? nextRank.purse : (merit - player.audienceMerit) * 2;
@@ -144,7 +143,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
     }
     if (node.event === 'storm' || node.event === 'turtle' || node.event === 'whirlpool') return player.revivalProtection ? 0 : -100;
     if (node.special === 'mist') return SEA_RULES.nimPrize + 150;
-    if (node.special === 'skeleton' && direct && aiUsedShipChoice(state, { ...player, gold: cash - SEA_RULES.tribute }, () => true) === 'warship') {
+    if (node.special === 'skeleton' && direct && aiUsedShipChoice(state, { ...player, gold: cash }, () => true) === 'warship') {
       const warships = player.fleet.filter((ship) => ship.type === 'warship' && ship.durability >= ship.maxDurability / 2);
       return warships.length < 2 && cash >= 900 ? 540 : 90;
     }
@@ -211,13 +210,13 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
       const next = path.at(-1)!;
       const node = map[next];
       const passes = path.filter((id) => id === player.homePort).length;
-      const afterSalary = cash + passes * (config.homeSalary + RANKS[player.rank].salary + captainBonus(player, 'salary'));
+      const afterSalary = cash + passes * (config.homeSalary + RANKS[player.rank].salary);
       const owner = owners[next];
       const hazard = ['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'].includes(node.event ?? '');
       const onward = (balance: number, protection = protectedFromHazards, ships = fleet) => forecast(next, balance, turns - 1, protection, ships);
       if (hazard && protectedFromHazards) return risk + odds * onward(afterSalary, false);
       if (node.kind === 'port' && node.id !== player.homePort) {
-        const balance = afterSalary - discountedByCaptains(player, 'tax', foreignTaxDue(player.rank));
+        const balance = afterSalary - foreignTaxDue(player.rank);
         let shortfall = Math.max(0, -balance);
         const remaining = [...fleet].sort((a, b) => shipSalePrice(a) - shipSalePrice(b) || a.id - b.id);
         while (shortfall > 0 && remaining.length > 0) shortfall -= shipSalePrice(remaining.shift()!);
@@ -225,7 +224,7 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
       }
       if (node.event === 'pirates' || node.event === 'smallMonster' || node.event === 'largeMonster') return risk + odds * onward(afterSalary - SEA_RULES[node.event]);
       if (node.event === 'whirlpool') return risk + odds * (SEA_RULES.whirlpoolDamageChance * onward(afterSalary - SEA_RULES.whirlpoolLoss) + (1 - SEA_RULES.whirlpoolDamageChance) * onward(afterSalary));
-      if (node.special === 'skeleton') return risk + odds * onward(afterSalary >= SEA_RULES.tribute ? afterSalary - SEA_RULES.tribute : afterSalary + SEA_RULES.scrap);
+      if (node.special === 'skeleton') return risk + odds * onward(afterSalary);
       if (node.special === 'treasure' && aiLotteryPickCount(afterSalary) > 0) {
         const picks = aiLotteryPickCount(afterSalary);
         const balance = afterSalary - picks * LOTTERY.ticketPrice;
@@ -255,7 +254,7 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
       }
       const paysToll = node.kind === 'island' && owner !== null && owner !== player.id;
       const toll = paysToll ? colonyToll(state, node.id) : 0;
-      return risk + odds * onward(afterSalary - discountedByCaptains(player, 'toll', toll));
+      return risk + odds * onward(afterSalary - toll);
     }, 0);
   }
   return forecast(player.position, gold, horizon, player.revivalProtection, player.fleet);
