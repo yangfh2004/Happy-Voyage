@@ -5,7 +5,7 @@ import { NIM_MAX_TAKE } from './mist';
 import { colonyValue, isEliminated } from './rules';
 import { cargoLoad, SHIP_RECIPES, USED_SHIP_PRICES } from './ships';
 import { STRATEGIES, type StrategyId } from './strategies';
-import type { BuildingKind, GameState, Player, ShipType } from './types';
+import type { BuildingKind, GameState, MapNode, Player, ShipType } from './types';
 
 /** Read-only rules queries for both the engine and clients displaying a server snapshot. */
 export class GameView {
@@ -13,6 +13,15 @@ export class GameView {
 
   get currentPlayer(): Player {
     return this.state.players[this.state.currentPlayer];
+  }
+
+  colonyReturnTargets(): MapNode[] {
+    const player = this.currentPlayer;
+    if (this.state.phase !== 'awaitingSpin' || isEliminated(player) || !player.fleet.length ||
+      this.state.round < (player.nextColonyReturnRound ?? 1)) return [];
+
+    return this.state.map.filter((node) => node.kind === 'island' && node.id !== player.position &&
+      this.state.owners[node.id] === player.id);
   }
 
   canUseStrategy(id: StrategyId, target?: number): boolean {
@@ -70,6 +79,10 @@ export class GameView {
     if (this.state.phase !== 'awaitingBuild' || this.state.map[nodeId]?.kind !== 'island' ||
       this.state.owners[nodeId] !== player.id || !Object.hasOwn(SHIP_RECIPES, type)) return false;
 
+    return this.hasShipbuildingSupplies(nodeId, type);
+  }
+
+  protected hasShipbuildingSupplies(nodeId: number, type: ShipType): boolean {
     const recipe = SHIP_RECIPES[type];
     const stock = this.state.stockpiles[nodeId];
     return buildingLevel(this.state, nodeId, 'shipyard') >= recipe.yardLevel &&

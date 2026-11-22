@@ -24,6 +24,25 @@ import { TransferContents } from './TransferPanel';
 import { gameController } from '../game/GameController';
 import { setLocale } from '../i18n';
 
+describe('colony return', () => {
+  it.each(['en', 'zh'] as const)('offers the direct return on a human turn in %s', (locale) => {
+    const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
+    const { state } = game;
+    const island = state.map.find((node) => node.kind === 'island')!;
+    state.owners[island.id] = 0;
+    setLocale(locale);
+    try {
+      const html = renderToStaticMarkup(<ActionPanel state={state} />);
+      expect(html).toContain(locale === 'en' ? 'Return to Madeira' : '每 12 回合可用一次');
+      if (locale === 'en') expect(html).not.toMatch(/\p{Script=Han}/u);
+      game.currentPlayer.nextColonyReturnRound = 12;
+      expect(renderToStaticMarkup(<ActionPanel state={state} />)).not.toContain(locale === 'en' ? 'Return to Madeira' : '每 12 回合可用一次');
+    } finally {
+      setLocale('en');
+    }
+  });
+});
+
 describe('fleet-loss defeat', () => {
   it.each(['en', 'zh'] as const)('explains a player’s defeat after battle in %s', (locale) => {
     const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }], rng: () => 0.5 });

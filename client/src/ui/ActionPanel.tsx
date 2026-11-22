@@ -1,4 +1,4 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COMBAT, forecastColonyBattle, isEliminated, tollDue, SHIP_RECIPES, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COLONY_RETURN_COOLDOWN, COMBAT, forecastColonyBattle, GameView, isEliminated, tollDue, SHIP_RECIPES, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
@@ -26,6 +26,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
   const lastLog = () => { const text = state.logText?.length === state.log.length ? state.logText.at(-1) : undefined; return text ? l(text, state) : state.log.at(-1) ?? ''; };
   const [transfersOpen, setTransfersOpen] = useState(false);
   const [destination, setDestination] = useState(state.map[0].id);
+  const [colonyDestination, setColonyDestination] = useState<number | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const player = state.players[state.currentPlayer];
   const room = gameController.room;
@@ -123,12 +124,25 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
     const connected = room?.lobby?.seats.find((seat) => seat.nation === player.nation)?.connected;
     body = <p className="waiting">{connected === false ? t('Waiting for {p} to reconnect…', '正在等待 {p} 重新连接……', { p: name(player) }) : t('{p} is at the helm…', '{p} 正在掌舵……', { p: name(player) })}</p>;
   } else if (state.phase === 'awaitingSpin') {
+    const colonies = new GameView(state).colonyReturnTargets();
+    const returnTo = colonies.find((node) => node.id === colonyDestination) ?? colonies[0];
     body = (
       <>
         <p>{t('Your turn, {p}.', '轮到你了，{p}。', { p: name(player) })}</p>
         <button className="primary big" onClick={() => gameController.spinCompass()}>
           {l(SPIN_COMPASS_LABEL)} <kbd>Space / Enter</kbd>
         </button>
+        {returnTo && (
+          <div className="row">
+            {colonies.length > 1 && <label>{t('Colony destination', '殖民地目的地')} <select value={returnTo.id} onChange={(e) => setColonyDestination(Number(e.target.value))}>
+              {colonies.map((node) => <option key={node.id} value={node.id}>{at(node.id)}</option>)}
+            </select></label>}
+            <button onClick={() => gameController.returnToColony(returnTo.id)}>
+              {t('Return to {n}', '返回{n}', { n: at(returnTo.id) })}
+            </button>
+            <small>{t('Instead of spinning; once every {n} rounds.', '代替转动罗盘；每 {n} 回合可用一次。', { n: COLONY_RETURN_COOLDOWN })}</small>
+          </div>
+        )}
       </>
     );
   } else if (state.phase === 'awaitingMerchant' || state.phase === 'awaitingWyvern') {

@@ -80,6 +80,7 @@ export interface Player extends PlayerSetup {
   position: number;
   bankrupt: boolean;
   fleetLost?: true;
+  nextColonyReturnRound?: number;
   homePort: number;
   revivalProtection: boolean;
   captains: string[];

@@ -280,6 +280,12 @@ export class GameController {
     if (this.isHumanTurn('awaitingSpin')) this.perform(['spinCompass'], () => this.beginSpin(this.engine!));
   }
 
+  returnToColony(nodeId: number): void {
+    if (this.isHumanTurn('awaitingSpin') && this.view?.colonyReturnTargets().some((node) => node.id === nodeId)) {
+      this.perform(['returnToColony', nodeId], () => this.engine!.returnToColony(nodeId));
+    }
+  }
+
   finishSpin(id: number): void {
     if (id === this.spinId && this.engine?.state.phase === 'spinning') this.engine.sail();
   }

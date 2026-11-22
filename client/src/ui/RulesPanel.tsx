@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useT } from '../i18n';
 import { tx } from '@happy-voyage/shared';
-import { EVENT_GOLD, LOTTERY, NIM_MAX_TAKE, SEA_RULES, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE, DEFAULT_ISLAND_COUNT, hasRoundLimit, winConditionText, winConditionTx, localize, type CampaignState, type GameConfig } from '@happy-voyage/shared';
+import { COLONY_RETURN_COOLDOWN, EVENT_GOLD, LOTTERY, NIM_MAX_TAKE, SEA_RULES, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE, DEFAULT_ISLAND_COUNT, hasRoundLimit, winConditionText, winConditionTx, localize, type CampaignState, type GameConfig } from '@happy-voyage/shared';
 
 const TURN_ORDER = tx('Navigators take turns in seat order, skipping eliminated players.', '航海家按座位顺序轮流行动，跳过已失败的玩家。');
 
@@ -33,6 +33,7 @@ export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaig
           <dt><span className="rule-icon treasure">≈</span> Trade Winds</dt><dd>Earn +{EVENT_GOLD.tradeWind.base}g plus {EVENT_GOLD.tradeWind.perColony}g per colony you own.</dd>
         </dl>
         <p><strong>Shipyards:</strong> Revisit your colony to build a lumber mill, iron mine, and shipyard. Each round, the mill and mine add materials to the colony's stockpile. Spend those materials at the yard to add a new ship to your fleet; upgrade the yard to unlock bigger ships.</p>
+        <p><strong>Return to a colony:</strong> At the start of your turn, you can sail directly to one of your other colonies instead of spinning. You can do this once every {COLONY_RETURN_COOLDOWN} rounds, even before the colony has a shipyard.</p>
         <p><strong>Repair yards:</strong> Fully repair all ships docked at that colony for free at the owner's turn start. Ships sailing in your fleet are not repaired by yards.</p>
         <p>Storms and damaging Bermuda whirlpools remove up to {SEA_HAZARD_DAMAGE} durability per ship, keeping their gold costs. These hazards cannot sink ships. Creature encounters and pirate combat have their own damage rules below. Inspect durability in Fleet.</p>
         <p><strong>Skeleton Island market:</strong> After tribute or scrap trading, buy one of each used ship per visit: Explorer 180g, Cargo Ship 300g, Warship 450g, all at 60% durability. Sell empty ships for half their used purchase price times their remaining durability fraction. Keep at least one ship. Trading is only available on the landing turn.</p>
@@ -62,6 +63,7 @@ function RulesZh({ config, islandCount, campaign }: { config: GameConfig; island
       <dt><span className="rule-icon treasure">≈</span> 信风</dt><dd>获得 +{EVENT_GOLD.tradeWind.base} 金币，每拥有一块殖民地再加 {EVENT_GOLD.tradeWind.perColony} 金币。</dd>
     </dl>
     <p><strong>造船厂：</strong>再次停靠自己的殖民地时，可以建造木材厂、铁矿厂和造船厂。每回合木材厂和铁矿厂会向殖民地仓库补充材料。在造船厂消耗这些材料即可为舰队添一艘新船；升级造船厂可解锁更大的船。</p>
+    <p><strong>返回殖民地：</strong>回合开始时，你可以直接航行到自己所在位置以外的任意一座己方殖民地，不必转动罗盘。即使目的地尚未建造船厂，也可以每 {COLONY_RETURN_COOLDOWN} 回合使用一次。</p>
     <p><strong>修船厂：</strong>在所有者回合开始时，免费修好停靠在该殖民地的所有船只。随舰队航行的船只不会被修船厂修理。</p>
     <p>风暴和造成损伤的百慕达漩涡会让每艘船最多损失 {SEA_HAZARD_DAMAGE} 点耐久，并照常扣除金币。这些灾难不会让船只沉没。海怪遭遇和海盗战斗另有伤害规则（见下文）。可在“舰队”中查看耐久。</p>
     <p><strong>骷髅岛市场：</strong>缴纳贡金或出售废料后，每次造访可各购买一艘二手船：探险船 180 金币、货船 300 金币、战舰 450 金币，耐久均为 60%。空船可以出售，价格为二手价的一半乘以剩余耐久比例。至少保留一艘船。只能在停靠当回合交易。</p>

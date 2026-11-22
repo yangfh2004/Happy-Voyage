@@ -2,6 +2,7 @@ import type { GameState, MapNode, Player } from './types';
 
 export const REPAIR_GOLD_PER_POINT = 2;
 export const SEA_HAZARD_DAMAGE = 10;
+export const COLONY_RETURN_COOLDOWN = 12;
 
 export function isEliminated(player: Player): boolean {
   return player.bankrupt || player.fleetLost === true;

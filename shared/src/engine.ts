@@ -19,7 +19,7 @@ import { walkPath, WIND_DIRECTIONS } from './graph';
 import { GAME_MODES, hasRoundLimit } from './modes';
 import { campaignRoster, campaignStage, type CampaignObjective, type CampaignSetup, type CampaignState } from './campaign';
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
-import { isEliminated, seatAtTurnOrderPosition, turnOrderPosition, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
+import { isEliminated, seatAtTurnOrderPosition, turnOrderPosition, COLONY_RETURN_COOLDOWN, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
 import { GameView } from './gameView';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 import type { Good, SeaEventResult, Specialty } from './types';
@@ -193,18 +193,28 @@ export class GameEngine extends GameView {
   }
 
   private readonly strategyHandlers: Record<StrategyId, (target?: number) => void> = {
-    navigate: (target) => {
-      this.relocations = 0;
-      this.pendingPath = [];
-      this.currentPlayer.position = target!;
-      this.state.phase = 'moving';
-      this.resolveLanding();
-    },
+    navigate: (target) => this.sailDirectly(target!),
     locate: () => { this.currentPlayer.knownHoard = this.state.hoardNode; },
     inspire: () => { this.state.inspired = true; },
     mislead: () => { colonyDefenders(this.state, this.currentPlayer.position).ships.shift(); },
     betray: () => { this.currentPlayer.fleet.push(colonyDefenders(this.state, this.currentPlayer.position).ships.shift()!); },
   };
+
+  private sailDirectly(nodeId: number): void {
+    this.relocations = 0;
+    this.pendingPath = [];
+    this.currentPlayer.position = nodeId;
+    this.state.phase = 'moving';
+    this.resolveLanding();
+  }
+
+  returnToColony(nodeId: number): void {
+    if (!this.colonyReturnTargets().some((node) => node.id === nodeId)) throw new Error('Cannot return to that colony');
+    const player = this.currentPlayer;
+    player.nextColonyReturnRound = this.state.round + COLONY_RETURN_COOLDOWN;
+    this.log(tx('{p} heads directly to {n} to resupply.', '{p} 直接返回{n}补给。', { p: ref.player(player.id), n: ref.node(nodeId) }));
+    this.sailDirectly(nodeId);
+  }
 
   useStrategy(id: StrategyId, target?: number): void {
     if (!this.canUseStrategy(id, target)) throw new Error('Cannot use strategy');
@@ -748,6 +758,11 @@ export class GameEngine extends GameView {
     }
     if (this.state.phase === 'awaitingSpin') {
       const p = this.currentPlayer;
+      if (p.fleet.length <= 2) {
+        const target = this.colonyReturnTargets().find(({ id }) =>
+          aiShipChoice(p, (type) => this.hasShipbuildingSupplies(id, type)));
+        if (target) { this.returnToColony(target.id); return; }
+      }
       if (this.canUseStrategy('navigate', p.position)) {
         const target = aiTravelTarget(this.state, p);
         if (target !== undefined) { this.useStrategy('navigate', target); return; }
