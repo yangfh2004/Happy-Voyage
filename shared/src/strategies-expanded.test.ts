@@ -78,6 +78,19 @@ describe('sea strategy effects', () => {
     g.decline();
     expect(g.currentPlayer.id).toBe(1);
   });
+  it.each([false, true])('continues after every survivor skips a new round (first seat eliminated: %s)', (eliminated) => {
+    const g = new GameEngine({ players: [0, 1, 2].map((id) => ({ name: `Player ${id}`, color: id, isAI: false })), config: { islandsToWin: 99, maxRounds: 999 } });
+    g.state.players[0].bankrupt = eliminated;
+    for (const player of g.state.players) if (!player.bankrupt) player.skipNextTurn = true;
+    g.state.currentPlayer = 2;
+    g.state.phase = 'awaitingClaim';
+    g.state.pendingClaim = g.state.map.find((n) => n.kind === 'island')!.id;
+    expect(() => g.decline()).not.toThrow();
+    expect(g.state.round).toBe(3);
+    expect(g.currentPlayer.id).toBe(eliminated ? 1 : 0);
+    expect(g.state.phase).toBe('awaitingSpin');
+    expect(g.state.players.every((p) => !p.skipNextTurn)).toBe(true);
+  });
   it.each([0, 1000, 10000])('plunder takes capped 15%% from %s gold', (gold) => {
     const { g, p, rival } = setup('plunder');
     rival.gold = gold;

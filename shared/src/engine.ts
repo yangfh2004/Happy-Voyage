@@ -1397,14 +1397,14 @@ export class GameEngine extends GameView {
 
     const lastPosition = turnOrderPosition(this.state, this.state.currentPlayer);
     let next = this.nextActivePlayer(lastPosition + 1);
-    if (next === undefined) {
+    while (next === undefined) {
       this.produceColonyGoods();
       advanceMarket(this.state.market);
       this.state.round += 1;
       this.moveRoamers();
       if (this.checkVictory()) return;
       this.log(tx('Round {r} begins.', '第 {r} 回合开始。', { r: this.state.round }));
-      next = this.nextActivePlayer(0)!;
+      next = this.nextActivePlayer(0);
     }
 
     this.state.currentPlayer = next;
