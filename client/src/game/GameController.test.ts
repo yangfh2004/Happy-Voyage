@@ -33,6 +33,9 @@ beforeEach(() => {
   });
   EventBus.removeAllListeners();
   controller = new GameController();
+  vi.spyOn(controller, 'newGame').mockImplementation((players, config) => {
+    controller.beginGame({ players, config: { battleMode: 'auto', ...config } });
+  });
   EventBus.on('animate-move', (move: { id: number }) => { moveId = move.id; });
 });
 
@@ -49,6 +52,51 @@ function humanTurn() {
   EventBus.emit('move-complete', moveId);
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
 }
+
+it('keeps the selected battle mode between campaign stages', () => {
+  controller.newCampaign({ stage: 'first-voyage', navigator: { name: 'Human', nation: 'Spain' } }, 'auto');
+  expect(controller.state!.config.battleMode).toBe('auto');
+  controller.state!.campaign!.status = 'completed';
+  controller.nextCampaignStage();
+  expect(controller.state!.campaign!.stage).toBe('merchant-charter');
+  expect(controller.state!.config.battleMode).toBe('auto');
+});
+
+it.each([false, true])('waits for a logged battle then resumes AI turns (human defender=%s)', async (defending) => {
+  const engine = controller.beginGame({ players, rng: () => .5 });
+  const state = engine.state;
+  const node = state.map.find((n) => n.kind === 'island')!;
+  state.currentPlayer = defending ? 1 : 0;
+  state.players[state.currentPlayer].position = node.id;
+  state.owners[node.id] = defending ? 0 : 1;
+  state.phase = 'awaitingToll';
+  engine.fight();
+  expect(state.phase).toBe('awaitingBattle');
+  expect(state.battles).toHaveLength(0);
+  controller.finishBattle([{ tick: 0, side: defending ? 'defender' : 'attacker', cmd: { type: 'free', shipIds: [] } }]);
+  expect(state.battles).toHaveLength(1);
+  expect(state.phase).not.toBe('awaitingBattle');
+  expect(controller.headline).not.toBeNull();
+  expect(state.log.some((line) => line.includes('The battle lasted'))).toBe(true);
+  controller.finishBattle([]);
+  expect(state.battles).toHaveLength(1);
+  controller.setSpeed('Instant');
+  await vi.advanceTimersByTimeAsync(100);
+  expect(state.phase).not.toBe('awaitingBattle');
+});
+
+it('settles a pirate command battle through sea notices and continues the voyage', () => {
+  const engine = controller.beginGame({ players, rng: () => .5 });
+  const node = engine.state.map.find((n) => n.event === 'openSea')!;
+  node.event = 'pirates';
+  engine.currentPlayer.position = node.id;
+  engine.state.phase = 'moving';
+  engine.resolveLanding();
+  expect(engine.state.phase).toBe('awaitingBattle');
+  controller.finishBattle([{ tick: 0, side: 'attacker', cmd: { type: 'retreat' } }]);
+  expect(engine.state.phase).not.toBe('awaitingBattle');
+  expect(controller.seaNotices.some((n) => n.event.event === 'pirates')).toBe(true);
+});
 
 it('tags only the compass movement for route dots, not later Wyvern flights', () => {
   const moves = vi.fn();

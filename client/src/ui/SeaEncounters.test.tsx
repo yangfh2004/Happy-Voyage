@@ -43,7 +43,7 @@ let moveId = 0;
 EventBus.on('animate-move', (move: { id: number }) => { moveId = move.id; });
 
 function land(event: EventKind, ai = false, rivalAI = true) {
-  gameController.newGame([{ name: 'Captain', color: 0, isAI: ai }, { name: 'Rival', color: 1, isAI: rivalAI }]);
+  gameController.newGame([{ name: 'Captain', color: 0, isAI: ai }, { name: 'Rival', color: 1, isAI: rivalAI }], { battleMode: 'auto' });
   const state = gameController.state!;
   state.roamers = [];
   state.map[2] = { ...state.map[2], kind: 'event', event };

@@ -42,6 +42,10 @@ body {
 }
 
 .app { position: relative; width: 100vw; height: 100vh; height: 100dvh; }
+.app.battling { display: block; padding: 0; }
+.app.battling .sea-map { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 0; }
+.app.battling .overlay, .app.battling .voyage-top, .app.battling .voyage-bottom,
+.app.battling .board-notices, .app.battling .atmosphere-status { display: none; }
 .phaser-container { position: absolute; inset: 0; }
 .phaser-container, .phaser-container canvas { touch-action: none; overscroll-behavior: contain; }
 .route-details summary { cursor: pointer; font-weight: 600; }

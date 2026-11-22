@@ -7,7 +7,7 @@ import type { GameEvent, ShipType } from './types';
 function visitColony() {
   const engine = new GameEngine({ players: [
     { name: 'Builder', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true },
-  ], rng: () => 0 });
+  ], rng: () => 0, config: { battleMode: 'auto' } });
   engine.spinCompass();
   const nodeId = engine.sail().at(-1)!;
   engine.state.owners[nodeId] = 0;

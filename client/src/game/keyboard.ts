@@ -35,6 +35,7 @@ export function keyboardShortcuts(controller: GameController) {
   };
   return {
     keydown(event: KeyboardEvent) {
+      if (controller.state?.phase === 'awaitingBattle') return;
       if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
       const target = event.target as HTMLElement | null;
       if (target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;

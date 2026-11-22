@@ -8,6 +8,7 @@ vi.mock('../game/GameController', () => ({ gameController: {} }));
 
 function open(scene: Exclude<Scenario, 'landing'>) {
   const engine = new GameEngine(scenarioOptions(scene));
+  engine.state.config.battleMode = 'auto';
   const events: GameEvent[] = [];
   engine.on((event) => events.push(event));
   engine.start();
@@ -16,6 +17,11 @@ function open(scene: Exclude<Scenario, 'landing'>) {
 }
 
 describe('debug window scenarios', () => {
+  it.each(['battleCommand', 'battleDefense', 'battlePirates'] as const)('opens %s directly in command mode', (scene) => {
+    const { state } = open(scene);
+    expect(state.phase).toBe('awaitingBattle');
+    expect(state.pendingBattle!.commanders).toEqual([scene === 'battleDefense' ? 'defender' : 'attacker']);
+  });
   it('covers every special island and localizes the launcher labels', () => {
     const map = createDefaultMap();
     expect(new Set(specialIslands)).toEqual(new Set(map.flatMap((node) => node.special ?? [])));

@@ -117,7 +117,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
   if (coverOpen) return <div className="app"><VoyageLanding onStart={() => setSetupOpen(true)} onOnline={() => gameController.openOnline()} /></div>;
 
   return (
-    <div className={`app ${state ? 'playing' : ''}`}>
+    <div className={`app ${state ? 'playing' : ''} ${state?.phase === 'awaitingBattle' ? 'battling' : ''}`}>
       {state && <VoyageTopBar state={state} colorBlind={colorBlind} menuOpen={menuOpen} onMenu={() => setMenuOpen(!menuOpen)} />}
       <div className="sea-map">
         <PhaserGame />

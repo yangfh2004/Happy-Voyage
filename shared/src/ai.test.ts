@@ -73,7 +73,7 @@ describe('AI colony decisions', () => {
 describe('AI rival difficulty', () => {
   const at = (place: string, rival = false) => {
     const roster = createNationRoster([{ name: 'Captain', nation: 'Spain' }], 'hard').slice(0, 2).reverse();
-    const engine = new GameEngine({ players: roster, rng: () => 0.5 });
+    const engine = new GameEngine({ players: roster, rng: () => 0.5, config: { battleMode: 'auto' } });
     const { state, currentPlayer: player } = engine;
     const node = state.map.find((n) => n.special === place || n.kind === place)!;
     player.position = node.id;

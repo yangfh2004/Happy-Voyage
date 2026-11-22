@@ -4,7 +4,7 @@ import { STRATEGIES, STRATEGY_RULES } from './strategies';
 import type { MapNode } from './types';
 
 const players = [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }];
-function game() { return new GameEngine({ players, rng: () => 0, config: { startingStrategies: 0 } }); }
+function game() { return new GameEngine({ players, rng: () => 0, config: { startingStrategies: 0, battleMode: 'auto' } }); }
 function rival(g: GameEngine) {
   const id = g.state.map.find((n) => n.kind === 'island')!.id;
   g.currentPlayer.position = id;
