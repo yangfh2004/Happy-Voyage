@@ -52,7 +52,7 @@ export class BattleScene extends Phaser.Scene {
       const pending = state.pendingBattle!;
       const owner = s.side === 'attacker' ? pending.attacker : pending.defender;
       const color = owner === null ? 0xc33535 : state.players[owner].color;
-      const image = this.add.image(0, 0, shipTexture(this, color)).setTint(color).setDisplaySize(80, 76);
+      const image = this.add.image(0, 0, shipTexture(this, color)).setTint(color).setDisplaySize(104, 98.8);
       this.field.add(image); this.ships.set(s.id, image);
       const label = this.add.text(0, 0, '', { fontFamily: font, fontSize: '19px', color: '#fff4d5', stroke: '#062335', strokeThickness: 4 }).setOrigin(.5, 0);
       label.setDepth(1);
@@ -168,10 +168,14 @@ export class BattleScene extends Phaser.Scene {
     this.field.setPosition((width - 1600 * zoom) / 2, 86 + (height - 190 - 900 * zoom) / 2).setScale(zoom);
     const g = this.ink.clear();
     const health = this.health.clear();
-    g.fillStyle(0x0c4c66).fillRect(0, 0, 1600, 900);
-    g.lineStyle(1, 0x8ac6ca, .12);
-    for (let x = 0; x <= 1600; x += 100) g.lineBetween(x, 0, x, 900);
-    for (let y = 0; y <= 900; y += 100) g.lineBetween(0, y, 1600, y);
+    g.fillGradientStyle(0x0c435d, 0x12546b, 0x167a88, 0x0a536d).fillRect(0, 0, 1600, 900);
+    for (let i = 0; i < 90; i++) {
+      const phase = this.clock * .65 + i * 2.4;
+      const x = (i * 193.7 + this.clock * 6) % 1540 + 20;
+      const y = (i * 137.3) % 840 + 30 + Math.sin(phase) * 4;
+      g.lineStyle(i % 4 ? 1 : 2, 0xb1ece6, .06 + (Math.sin(phase) + 1) * .035);
+      g.beginPath().moveTo(x - 15, y).lineTo(x - 5, y + 3).lineTo(x + 6, y + 2).lineTo(x + 18, y - 1).strokePath();
+    }
     g.lineStyle(3, 0x9cbabe, .5).strokeRect(0, 0, 1600, 900);
     const state = gameController.state!;
     const pending = state.pendingBattle!;
@@ -184,18 +188,28 @@ export class BattleScene extends Phaser.Scene {
       const x = Phaser.Math.Linear(old.x, s.x, alpha), y = Phaser.Math.Linear(old.y, s.y, alpha);
       const pirate = s.side === 'defender' && pending.defender === null;
       const color = pirate ? 0xb93435 : state.players[s.side === 'attacker' ? pending.attacker : pending.defender!].color;
-      if (this.selected.has(s.id) && !s.sunk && !s.escaped) g.lineStyle(3, 0xffde88).strokeEllipse(x, y, 83, 83);
-      if (s.signature) g.lineStyle(3, 0xffd65d, fade).strokeEllipse(x, y, 72, 64);
+      if (!s.sunk && !s.escaped && Math.hypot(s.vx, s.vy) > 1) {
+        const heading = s.heading * Math.PI / 180;
+        const dx = Math.cos(heading), dy = Math.sin(heading);
+        for (let i = 0; i < 3; i++) {
+          const trail = 30 + i * 16 + (this.clock * 12 % 16);
+          const wx = x - dx * trail, wy = y - dy * trail;
+          const spread = 8 + i * 5;
+          g.lineStyle(2, 0xc0eee6, (.19 - i * .05) * fade).lineBetween(wx - dy * spread, wy + dx * spread, wx + dy * spread, wy - dx * spread);
+        }
+      }
+      if (this.selected.has(s.id) && !s.sunk && !s.escaped) g.lineStyle(3, 0xffde88).strokeEllipse(x, y, 108, 108);
+      if (s.signature) g.lineStyle(3, 0xffd65d, fade).strokeEllipse(x, y, 94, 83);
       const flash = this.effects.some((e) => e.damage && e.age < .2 && Math.hypot(e.x - s.x, e.y - s.y) < 30);
       const turn = Phaser.Math.Angle.WrapDegrees(s.heading - old.heading);
       this.ships.get(s.id)!.setPosition(x, y).setAngle(old.heading + turn * alpha + (s.sunk ? (1 - fade) * 70 : 0)).setAlpha(fade).setTint(flash ? 0xff3333 : color);
       label.setText(pirate ? text('Pirate', '海盗') : shipName(s.name, getLocale()));
-      let labelY = y + 44;
+      let labelY = y + 57;
       while (labelBoxes.some((b) => Math.abs(b.x - x) < (b.width + label.width) / 2 + 8 && Math.abs(b.y - labelY) < 33)) labelY += 34;
       if (fade > 0) labelBoxes.push({ x, y: labelY, width: label.width });
       label.setPosition(x, labelY).setAlpha(fade);
       if (!s.sunk && !s.escaped) {
-        if (labelY > y + 44) health.lineStyle(1, 0xb5d0d2, .5).lineBetween(x, y + 32, x, labelY - 9);
+        if (labelY > y + 57) health.lineStyle(1, 0xb5d0d2, .5).lineBetween(x, y + 43, x, labelY - 9);
         health.fillStyle(0x051b29).fillRect(x - 32, labelY - 9, 64, 7);
         health.fillStyle(color).fillRect(x - 32, labelY - 9, 64 * Math.min(1, s.durability / s.maxDurability), 7);
       }

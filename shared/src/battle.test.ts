@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { battleAI, battleResult, createBattle, inBroadsideArc, issueCommand, replayBattle, stepBattle, type BattleLog, type BattleSetup, type BattleState } from './battle';
+import { BATTLE_STATS, battleAI, battleResult, createBattle, inBroadsideArc, issueCommand, replayBattle, stepBattle, type BattleLog, type BattleSetup, type BattleState } from './battle';
 import { SHIP_TYPES } from './ships';
 import type { Ship } from './types';
 
@@ -12,6 +12,62 @@ function close(b: BattleState) {
 }
 
 describe('real-time battle', () => {
+  it.each(['easy', 'normal', 'hard'] as const)('keeps both fleets separated throughout a full %s AI battle', (difficulty) => {
+    const fleet = (start: number) => Array.from({ length: 7 }, (_, i) => {
+      const type = (['warship', 'explorer', 'cargo'] as const)[i % 3];
+      return { ...ship(start + i), ...SHIP_TYPES[type], type };
+    });
+    const initial = { seed: 42, attackers: fleet(1), defenders: fleet(20) };
+    const battle = createBattle(initial);
+    let worstOverlap = 0;
+    while (!battle.outcome) {
+      stepBattle(battle, { attacker: difficulty, defender: difficulty });
+      const live = battle.ships.filter((s) => !s.sunk && !s.escaped);
+      for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
+        const a = live[i], b = live[j];
+        worstOverlap = Math.max(worstOverlap, BATTLE_STATS[a.type].radius + BATTLE_STATS[b.type].radius + 64 - Math.hypot(a.x - b.x, a.y - b.y));
+      }
+    }
+    expect(worstOverlap).toBeLessThan(2);
+    expect(battleResult(battle)).toEqual(replayBattle(initial, [], { attacker: difficulty, defender: difficulty }));
+  });
+
+  it.each(['column', 'line', 'spread'] as const)('spaces %s move targets even at the field corner', (formation) => {
+    const battle = createBattle({ seed: 1, attackers: Array.from({ length: 7 }, (_, i) => ship(i)), defenders: [ship(20)] });
+    issueCommand(battle, 'attacker', { type: 'move', shipIds: battle.ships.map((s) => s.id), x: 0, y: 900, formation });
+    const targets = battle.ships.filter((s) => s.side === 'attacker').map((s) => s.order);
+    for (let i = 0; i < targets.length; i++) for (let j = i + 1; j < targets.length; j++) {
+      const a = targets[i], b = targets[j];
+      expect(a.type).toBe('move'); expect(b.type).toBe('move');
+      if (a.type !== 'move' || b.type !== 'move') throw new Error('Missing move order');
+      expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(110);
+      expect(a.x).toBeGreaterThanOrEqual(0); expect(a.y).toBeLessThanOrEqual(900);
+    }
+  });
+
+  it('separates coincident allies and enemies at an edge without moving sunk hulls', () => {
+    const battle = createBattle({ seed: 1, attackers: [ship(1), ship(2), ship(3)], defenders: [ship(4), ship(5)] });
+    for (const s of battle.ships) { s.x = 54; s.y = 54; s.speed = 0; s.firepower = 0; }
+    battle.ships[4].sunk = true;
+    stepBattle(battle);
+    const live = battle.ships.filter((s) => !s.sunk);
+    for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) expect(Math.hypot(live[i].x - live[j].x, live[i].y - live[j].y)).toBeGreaterThan(106);
+    expect(battle.ships[4]).toMatchObject({ x: 54, y: 54 });
+    issueCommand(battle, 'attacker', { type: 'move', shipIds: [], x: 0, y: 0 });
+    expect(battle.ships[0].order).toEqual({ type: 'free' });
+  });
+
+  it('spaces separately issued move targets and leaves an empty selection alone', () => {
+    const battle = createBattle({ seed: 1, attackers: [ship(1), ship(2)], defenders: [ship(3)] });
+    for (const id of [1, 2]) issueCommand(battle, 'attacker', { type: 'move', shipIds: [id], x: 500, y: 500 });
+    const [a, b] = battle.ships.map((s) => s.order);
+    if (a.type !== 'move' || b.type !== 'move') throw new Error('Missing move order');
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(130);
+    const before = JSON.stringify(battle);
+    issueCommand(battle, 'attacker', { type: 'move', shipIds: [], x: 500, y: 500 });
+    expect(JSON.stringify(battle)).toBe(before);
+  });
+
   it('gates both broadsides, including the boundary angles', () => {
     const s = { x: 0, y: 0, heading: 0 };
     for (const degrees of [0, 29, 151, 180, -29, -151]) expect(inBroadsideArc(s, { x: Math.cos(degrees * Math.PI / 180), y: Math.sin(degrees * Math.PI / 180) })).toBe(false);

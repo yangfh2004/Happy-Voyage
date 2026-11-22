@@ -69,6 +69,35 @@ const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => M
 const angle = (a: number) => ((a + 540) % 360 + 360) % 360 - 180;
 const bearing = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const clearance = (s: { type: ShipType }) => BATTLE_STATS[s.type].radius + 32;
+
+function separate(ships: { x: number; y: number; type: ShipType; side?: BattleSide }[], padding = 0, retreating = false): void {
+  const constrain = (s: typeof ships[number]) => {
+    const radius = clearance(s) + padding;
+    s.x = clamp(s.x, retreating && s.side === 'attacker' ? -100 : radius, BATTLE_FIELD.width - radius);
+    s.y = clamp(s.y, radius, BATTLE_FIELD.height - radius);
+  };
+  ships.forEach(constrain);
+  for (let pass = 0; pass < 64; pass++) {
+    let overlap = 0;
+    for (let i = 0; i < ships.length; i++) for (let j = i + 1; j < ships.length; j++) {
+      const a = ships[i], b = ships[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const length = Math.hypot(dx, dy);
+      const penetration = clearance(a) + clearance(b) + padding * 2 - length;
+      if (penetration <= 0) continue;
+      overlap = Math.max(overlap, penetration);
+      const direction = (i * ships.length + j) * 2.399963229728653;
+      const nx = length > .001 ? dx / length : Math.cos(direction);
+      const ny = length > .001 ? dy / length : Math.sin(direction);
+      const push = penetration * .5;
+      a.x -= nx * push; a.y -= ny * push;
+      b.x += nx * push; b.y += ny * push;
+      constrain(a); constrain(b);
+    }
+    if (overlap < .1) break;
+  }
+}
 
 function random(battle: BattleState): number {
   battle.rng = (battle.rng + 0x6D2B79F5) >>> 0;
@@ -80,8 +109,8 @@ function random(battle: BattleState): number {
 
 export function createBattle(setup: BattleSetup): BattleState {
   const ships = (fleet: Ship[], side: BattleSide): BattleShip[] => fleet.map((ship, i) => ({
-    ...ship, cargo: { ...ship.cargo }, side, x: side === 'attacker' ? 160 : 1440,
-    y: clamp(450 + (i - (fleet.length - 1) / 2) * 70, 22, 878),
+    ...ship, cargo: { ...ship.cargo }, side, x: side === 'attacker' ? 160 + Math.floor(i / 7) * 116 : 1440 - Math.floor(i / 7) * 116,
+    y: 450 + (i % 7 - (Math.min(fleet.length, 7) - 1) / 2) * 116,
     heading: side === 'attacker' ? 0 : 180, vx: 0, vy: 0, reload: 0,
     sunk: ship.durability <= 0, escaped: false, order: { type: 'free' }, charge: false,
   }));
@@ -103,12 +132,25 @@ export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleC
   if (cmd.type === 'move' && (!Number.isFinite(cmd.x) || !Number.isFinite(cmd.y))) return;
   if (cmd.type === 'attack' && !battle.ships.some((s) => s.id === cmd.targetId && s.side !== side && active(s))) return;
   const ships = battle.ships.filter((s) => s.side === side && active(s) && cmd.shipIds.includes(s.id));
+  if (!ships.length) return;
+  const spacing = Math.max(0, ...ships.map((s) => clearance(s) * 2 + 24));
+  const columns = Math.ceil(Math.sqrt(ships.length));
+  const targets = ships.map((s, i) => {
+    const offset = (i - (ships.length - 1) / 2) * spacing;
+    return { type: s.type,
+      x: cmd.type === 'move' ? cmd.x + (cmd.formation === 'line' ? offset : cmd.formation === 'spread' ? (i % columns - (columns - 1) / 2) * spacing : 0) : s.x,
+      y: cmd.type === 'move' ? cmd.y + (cmd.formation === 'line' ? 0 : cmd.formation === 'spread' ? (Math.floor(i / columns) - (Math.ceil(ships.length / columns) - 1) / 2) * spacing : offset) : s.y };
+  });
+  if (cmd.type === 'move') {
+    const holding = battle.ships.filter((s) => s.side === side && active(s) && !ships.includes(s) && s.order.type === 'move');
+    const heldTargets = holding.map((s) => ({ type: s.type, x: s.order.type === 'move' ? s.order.x : s.x, y: s.order.type === 'move' ? s.order.y : s.y }));
+    separate([...targets, ...heldTargets], 12);
+    holding.forEach((s, i) => { s.order = { type: 'move', x: heldTargets[i].x, y: heldTargets[i].y }; });
+  }
   ships.forEach((s, i) => {
     s.charge = false;
     if (cmd.type === 'move') {
-      const offset = (i - (ships.length - 1) / 2) * 70;
-      s.order = { type: 'move', x: clamp(cmd.x + (cmd.formation === 'line' ? offset : cmd.formation === 'spread' ? Math.cos(i * 2.4) * 70 : 0), 22, 1578),
-        y: clamp(cmd.y + (cmd.formation === 'line' ? 0 : cmd.formation === 'spread' ? Math.sin(i * 2.4) * 70 : offset), 22, 878) };
+      s.order = { type: 'move', x: targets[i].x, y: targets[i].y };
     } else s.order = cmd.type === 'attack' ? { type: 'attack', targetId: cmd.targetId } : { type: 'free' };
   });
 }
@@ -157,6 +199,7 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
     if (s.x < 0) { s.escaped = true; continue; }
     s.reload = Math.max(0, s.reload - TICK);
   }
+  separate(battle.ships.filter(active), 0, battle.retreating);
   for (const s of battle.ships.filter(active)) {
     if (s.reload > 0 || (s.side === 'defender' && battle.ambush && battle.tick < 160)) continue;
     const stats = BATTLE_STATS[s.type];
