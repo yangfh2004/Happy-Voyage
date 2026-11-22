@@ -1,6 +1,6 @@
 import { COMPASS_SECTORS } from './compass';
 import { walkPath } from './graph';
-import { colonyDefenders, forecastNavalBattle, tollDue } from './combat';
+import { colonyDefenders, forecastColonyBattle, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
 import { BUILDINGS, buildingLevel, colonyToll, nextBuildingCost } from './buildings';
 import { isEliminated, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
@@ -332,7 +332,8 @@ function battleQuality(state: GameState, player: Player, card?: StrategyId): num
 export function aiBattleStrategy(state: GameState, player: Player, canUse: (card: StrategyId) => boolean): StrategyId | undefined {
   const mustFight = player.gold < tollDue(state, player, player.position);
   const baseline = battleQuality(state, player);
-  if (canUse('exemption') && !aiShouldFight(state, player) && tollDue(state, player, player.position) >= (player.aiDifficulty === 'easy' ? 200 : 80)) return 'exemption';
+  if (canUse('exemption') && ((mustFight && forecastColonyBattle(state, player) !== 'victory') ||
+    (!aiShouldFight(state, player) && tollDue(state, player, player.position) >= (player.aiDifficulty === 'easy' ? 200 : 80)))) return 'exemption';
   if (baseline >= 4 && player.aiDifficulty !== 'hard') return undefined;
   const cards: StrategyId[] = player.aiDifficulty === 'easy' ? ['inspire', 'ambush', 'betray', 'mislead'] : ['betray', 'ambush', 'mislead', 'inspire'];
   let best: StrategyId | undefined;

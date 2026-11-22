@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine } from './engine';
 import { STRATEGIES, strategyTarget, type StrategyId } from './strategies';
-import { fightNavalBattle } from './combat';
+import { fightNavalBattle, forecastColonyBattle, tollDue } from './combat';
 import { colonyProduction } from './buildings';
 import { walkPath } from './graph';
 import { aiSeaStrategy } from './ai';
@@ -280,6 +280,23 @@ describe('battle strategies', () => {
 });
 
 describe('AI strategy safety', () => {
+  it.each(['easy', 'normal', 'hard'] as const)('%s exempts an unaffordable losing or drawn battle, but still fights a winning one', (difficulty) => {
+    for (const outcome of ['defeat', 'draw', 'victory'] as const) {
+      const { g, p, rival, node } = setup('exemption');
+      p.aiDifficulty = difficulty;
+      p.position = node;
+      p.gold = 0;
+      g.state.phase = 'awaitingToll';
+      for (const ship of p.fleet) { ship.firepower = outcome === 'victory' ? 1000 : 0; ship.durability = 10000; }
+      for (const ship of rival.fleet) { ship.firepower = outcome === 'defeat' ? 100000 : 0; ship.durability = 1; }
+      expect(tollDue(g.state, p, node)).toBeGreaterThan(p.gold);
+      expect(forecastColonyBattle(g.state, p)).toBe(outcome);
+      g.decideForAI();
+      expect(p.strategies.includes('exemption')).toBe(outcome === 'victory');
+      expect(g.state.battles).toHaveLength(outcome === 'victory' ? 1 : 0);
+      expect(p.fleetLost).not.toBe(true);
+    }
+  });
   it.each([undefined, 10_000])('Hard reverses toward free colonies at zero gold regardless of legacy price %s', (price) => {
     const map = Array.from({ length: 40 }, (_, id) => ({
       id, name: `Stop ${id}`, x: id, y: 0,
