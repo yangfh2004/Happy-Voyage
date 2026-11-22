@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { DEFAULT_CONFIG, playerName } from '@happy-voyage/shared';
+import { DEFAULT_CONFIG, nodeName, playerName } from '@happy-voyage/shared';
 import { PhaserGame } from './game/PhaserGame';
 import { Atmosphere } from './ui/Atmosphere';
 import { gameController } from './game/GameController';
@@ -24,6 +24,8 @@ import { ShortcutLegend } from './ui/ShortcutLegend';
 import { TurnCoach } from './ui/TurnCoach';
 import { trapMenuFocus } from './ui/menuFocus';
 import { VoyageLanding } from './ui/VoyageLanding';
+import { IslandWindow, islandWindowFor } from './ui/IslandWindow';
+import { LotteryPanel } from './ui/LotteryPanel';
 
 /** Phaser draws the sea underneath; React overlays menus and panels on top. */
 export function App() {
@@ -49,7 +51,8 @@ export function App() {
   const room = gameController.room;
   const coverOpen = !state && !room && !setupOpen;
   const atHelm = !!state && !state.players[state.currentPlayer].isAI && (!room || gameController.canHelm) && !gameController.awaitingHandoff && state.phase !== 'gameOver';
-  const landing = atHelm && state.phase.startsWith('awaiting') && state.phase !== 'awaitingSpin';
+  const islandWindow = state && islandWindowFor(state, atHelm);
+  const landing = atHelm && !islandWindow && state.phase.startsWith('awaiting') && state.phase !== 'awaitingSpin';
   const tutorialOpen = !!state && (!tutorialDismissed || tutorialRequested);
   function dismissTutorial() {
     writePreference('tutorial-dismissed', true);
@@ -128,10 +131,10 @@ export function App() {
             <HelmCard state={state} colorBlind={colorBlind} atHelm={atHelm} />
             <NextStop state={state} />
             {landing && <p className="landing-hint">⚓ {t('Choose an action on the card', '请在卡片上选择行动')}</p>}
-            <section ref={actionSurface} className={landing ? `landing-placement ${chartFocus?.bottom ? 'landing-top' : ''}` : 'turn-action-panel'}>
+            {!islandWindow && <section ref={actionSurface} className={landing ? `landing-placement ${chartFocus?.bottom ? 'landing-top' : ''}` : 'turn-action-panel'}>
             {landing && <LandingHeading state={state} />}
             <ActionPanel state={state} colorBlind={colorBlind} strategyHost={landing ? strategyHost : null} />
-            </section>
+            </section>}
             <div ref={setStrategyHost} className="strategy-host" />
             {!tutorialOpen && <TurnCoach state={state} atHelm={atHelm} target={chartFocus} />}
             <div className={`secondary-hud ${menuOpen ? 'is-open' : ''}`}>
@@ -167,6 +170,10 @@ export function App() {
         {tutorialOpen && <TutorialPanel onClose={dismissTutorial} />}
         {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} islandCount={state?.map.filter((node) => node.kind === 'island').length} campaign={state?.campaign} onClose={() => setRulesOpen(false)} />}
       </div>
+      {state && islandWindow === 'treasure' && !rulesOpen && !fleetOpen && !menuOpen && !tutorialOpen &&
+        <IslandWindow island="treasure" label={nodeName(state.map[state.players[state.currentPlayer].position], locale)} titleId="lottery-title">
+          <LotteryPanel state={state} />
+        </IslandWindow>}
       {state && <VoyageBottomBar state={state} atHelm={atHelm} />}
     </div>
   );
