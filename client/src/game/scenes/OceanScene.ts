@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { windExit, successors, atmosphere, buildingDescription, buildingName, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type BuildingKind, type GameEvent, type GameState, type MapNode, type WindDirection } from '@happy-voyage/shared';
+import { windExit, successors, atmosphere, buildingDescription, buildingName, chartIdentity, colonyToll, createDefaultMap, nodeName, seaEventName, WORLD, type BuildingKind, type GameEvent, type GameState, type MapNode, type WindDirection } from '@happy-voyage/shared';
 import { getLocale, pick, subscribeLocale } from '../../i18n';
 import { readPreference } from '../../ui/accessibilityPreferences';
 
@@ -50,6 +50,8 @@ export class OceanScene extends Phaser.Scene {
   private atmosphereLayer?: Phaser.GameObjects.Graphics;
   private colonyBadges = new Map<number, Phaser.GameObjects.Text>();
   private shipBadges = new Map<number, Phaser.GameObjects.Text>();
+  private roamerBadges = new Map<number, Phaser.GameObjects.Text>();
+  private roamerTokens: Phaser.GameObjects.Image[] = [];
   private flags!: Phaser.GameObjects.Graphics;
   private marker!: Phaser.GameObjects.Graphics;
   private labels!: Phaser.GameObjects.Layer;
@@ -388,7 +390,7 @@ export class OceanScene extends Phaser.Scene {
       text.setInteractive({ useHandCursor: true });
       const showTooltip = () => {
         const locale = getLocale();
-        const help = SPECIAL_HELP[node.special ?? ''];
+        const help = node.event === 'openSea' ? ['A random sea encounter is guaranteed here.', '海上遭遇：每次停靠都会发生。'] as [string, string] : SPECIAL_HELP[node.special ?? ''];
         const buildings = gameController.state?.buildings[node.id] ?? {};
         const lines = Object.entries(buildings).filter(([, level]) => level > 0).map(([kind]) => `${buildingName(kind as BuildingKind, locale)}: ${buildingDescription(kind as BuildingKind, locale)}`);
         if (help) lines.unshift(pick(locale, ...help));
@@ -426,12 +428,28 @@ export class OceanScene extends Phaser.Scene {
     this.regionLabels.forEach((text, i) => text.setText(REGIONS[i][getLocale() === 'zh' ? 1 : 0]));
   }
 
+  private syncRoamers(state: GameState | null) {
+    this.roamerBadges.forEach((badge) => badge.destroy());
+    this.roamerBadges.clear();
+    this.roamerTokens.forEach((token) => token.destroy());
+    this.roamerTokens = [];
+    for (const roamer of state?.roamers ?? []) {
+      const node = state!.map[roamer.node];
+      const texture = roamer.kind === 'pirates' ? shipTexture(this, 0x292332) : specialIslandTexture(this, { ...node, kind: 'event', event: 'smallMonster' });
+      this.roamerTokens.push(this.add.image(node.x + 48, node.y - 27, texture).setScale(roamer.kind === 'pirates' ? 0.65 : 0.4).setDepth(15));
+      const label = `${roamer.kind === 'pirates' ? '⚑' : 'M'} ${seaEventName(roamer.kind, getLocale())}`;
+      const badge = this.add.text(node.x - 45, node.y + 38, label, { fontFamily: '"Sea Names", sans-serif', fontSize: '15px', color: roamer.kind === 'pirates' ? '#ffe3bd' : '#c7f9b5', backgroundColor: '#203c4d', padding: { x: 5, y: 3 } }).setDepth(15);
+      this.roamerBadges.set(roamer.id, badge);
+    }
+  }
+
   private syncFromState() {
     const state = gameController.state;
     this.drawRoute();
     this.relabel(state);
     this.flags.clear();
     this.marker.clear();
+    this.syncRoamers(state);
     if (!state) {
       this.landingEffects.forEach(effect => effect.stop());
       this.landingEffects.clear();

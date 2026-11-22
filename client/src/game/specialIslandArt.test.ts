@@ -29,17 +29,17 @@ describe('themed special stops', () => {
   const events = (Object.keys(SEA_EVENT_NAMES) as EventKind[]).map((event, id): MapNode => ({ id: id + 7, x: 0, y: 0, name: event, kind: 'event', event }));
   const nodes = [...specials, ...events];
 
-  it('draws a distinct reproducible image for all seven special and twelve encounter kinds', () => {
+  it('draws a distinct reproducible image for all special and event kinds', () => {
     const first = artScene(), second = artScene();
     const before = structuredClone(nodes);
     const keys = nodes.map(node => specialIslandTexture(first.scene, node));
-    expect(keys).toHaveLength(19);
-    expect(new Set(keys).size).toBe(19);
-    expect(new Set([...first.traces.values()].map(trace => JSON.stringify(trace))).size).toBe(19);
+    expect(keys).toHaveLength(20);
+    expect(new Set(keys).size).toBe(20);
+    expect(new Set([...first.traces.values()].map(trace => JSON.stringify(trace))).size).toBe(20);
     nodes.forEach(node => specialIslandTexture(second.scene, node));
     expect(first.traces).toEqual(second.traces);
     expect(nodes).toEqual(before);
-    expect(first.graphics.destroy).toHaveBeenCalledTimes(19);
+    expect(first.graphics.destroy).toHaveBeenCalledTimes(20);
     for (const key of keys) expect(first.traces.get(key)?.at(-1)).toEqual([160, 152]);
   });
 

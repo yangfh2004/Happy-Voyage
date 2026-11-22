@@ -9,7 +9,7 @@ export type NodeKind = 'port' | 'island' | 'event' | 'special';
 export type SpecialKind = 'skeleton' | 'treasure' | 'mist' | 'revival' | 'nightless' | 'wind' | 'dragonSnake';
 
 /** Random-event stops (the "joy core" of the original game). */
-export type EventKind = 'treasure' | 'storm' | 'tradeWind' | 'pirates' | 'smallMonster' | 'largeMonster' | 'turtle' | 'whirlpool' | 'bottle' | 'floatingCargo' | 'merchant' | 'wyvern';
+export type EventKind = 'openSea' | 'treasure' | 'storm' | 'tradeWind' | 'pirates' | 'smallMonster' | 'largeMonster' | 'turtle' | 'whirlpool' | 'bottle' | 'floatingCargo' | 'merchant' | 'wyvern';
 
 /** One stop on the node-based sea route. */
 export interface MapNode {
@@ -106,6 +106,7 @@ export interface RevivalReport {
 }
 
 export interface MerchantOffer {
+  stock?: { good: Specialty; quantity: number; unitPrice: number };
   good: Specialty;
   quantity: number;
   gold: number;
@@ -175,6 +176,7 @@ export interface GameConfig {
 export type WindDirection = 'N' | 'E' | 'S' | 'W';
 
 export interface GameState {
+  roamers: { id: number; kind: 'pirates' | 'smallMonster'; node: number }[];
   wind: { direction: WindDirection; turnsLeft: number };
   hoardNode: number | null;
   strategyUsed: boolean;

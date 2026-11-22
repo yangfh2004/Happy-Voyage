@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ONLINE_PACING, sailingStepDuration, type RoomPick } from '@happy-voyage/shared';
+import { ONLINE_PACING, fleetQuantity, sailingStepDuration, type RoomPick } from '@happy-voyage/shared';
 import { RoomMatch } from './roomMatch';
 
 afterEach(() => vi.useRealTimers());
@@ -19,6 +19,28 @@ it('only accepts a Revival acknowledgement from the player at the helm', () => {
   expect(publish).toHaveBeenCalledOnce();
   expect(state.revivalReport).toBeNull();
   expect(state.phase).toBe('awaitingSpin');
+  match.dispose();
+});
+
+it('validates and executes merchant purchases through online actions', () => {
+  const match = new RoomMatch([{ name: 'Captain', nation: 'Spain' }], { mode: 'conquest', difficulty: 'normal' }, vi.fn(), vi.fn());
+  const { engine } = match;
+  const player = engine.currentPlayer;
+  const node = engine.state.map.find((n) => n.event === 'openSea')!;
+  node.event = 'merchant';
+  player.position = node.id;
+  engine.state.phase = 'moving';
+  engine.resolveLanding();
+  const stock = engine.state.pendingMerchant!.stock!;
+  const before = player.gold;
+  expect(() => match.act(player.id, match.revision, ['buyMerchant', '2'])).toThrow('Invalid game command.');
+  expect(() => match.act(player.id, match.revision, ['buyMerchant', 0])).toThrow('Invalid merchant quantity');
+  match.act(player.id, match.revision, ['buyMerchant', 2]);
+  expect(fleetQuantity(player, stock.good)).toBe(2);
+  expect(player.gold).toBe(before - stock.unitPrice * 2);
+  expect(engine.state.phase).toBe('awaitingMerchant');
+  match.act(player.id, match.revision, ['declineMerchant']);
+  expect(engine.state.phase).toBe('awaitingSpin');
   match.dispose();
 });
 

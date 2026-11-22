@@ -12,8 +12,9 @@ const map: MapNode[] = [
   { id: 4, name: 'Trade Winds', kind: 'event', event: 'tradeWind', x: 4, y: 0 },
 ];
 
-function roll(g: GameEngine) {
-  g.spinCompass();
+function roll(g: GameEngine, steps = 5) {
+  g.state.phase = 'spinning';
+  g.state.lastSpin = steps;
   g.sail();
   g.resolveLanding();
 }
@@ -33,11 +34,11 @@ function atMarket() {
 
 describe('Nightless Island market', () => {
   it('takes a voyage from founding a colony to selling its own production', () => {
-    const rolls = [0, 0.99, 0.3, 0.18, 0.18, 0, 0, 0];
-    const g = new GameEngine({ players: [players[0]], map, config: { startingStrategies: 0 }, rng: () => rolls.shift()! });
+    const g = new GameEngine({ players: [players[0]], map, config: { startingStrategies: 0 }, rng: () => 0.99 });
+    g.state.roamers = [];
     g.state.config.islandsToWin = 2; // Owning the map's only island would otherwise win at once.
     g.start();
-    roll(g); // Six stops: land on the colony.
+    roll(g, 6); // Six stops: land on the colony.
     g.claim();
     roll(g); // Five stops: return to build a collection field.
     g.build('collectionField');
@@ -46,7 +47,7 @@ describe('Nightless Island market', () => {
     const ship = g.currentPlayer.fleet.find(({ type }) => type === 'cargo')!;
     g.loadCargo(ship.id, 'Wine', 1);
     g.finishBuilding();
-    roll(g); // Two stops: dock at the market.
+    roll(g, 2); // Two stops: dock at the market.
     const gold = g.currentPlayer.gold;
     const stock = marketPrices(g.state, 'Wine').stock;
     const order = { good: 'Wine', shipId: ship.id, quantity: 1, side: 'sell' } as const;

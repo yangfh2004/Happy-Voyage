@@ -6,7 +6,11 @@ import { createDefaultMap } from './map';
 const spinTwo: Rng = () => 0;
 const spinTwelve: Rng = () => 0.999;
 
-function spinAndSail(engine: GameEngine): number[] {
+function spinAndSail(engine: GameEngine, accountingOnly = true): number[] {
+  if (accountingOnly) {
+    engine.state.roamers = [];
+    engine.currentPlayer.revivalProtection = true;
+  }
   engine.spinCompass();
   return engine.sail();
 }
@@ -211,7 +215,7 @@ describe('GameEngine', () => {
     while (engine.state.phase !== 'gameOver' && guard++ < 10_000) {
       if (engine.state.phase === 'awaitingSpin') {
         engine.decideForAI();
-        if (engine.state.phase === 'awaitingSpin') spinAndSail(engine);
+        if (engine.state.phase === 'awaitingSpin') spinAndSail(engine, false);
       }
       else if (engine.state.phase === 'moving') engine.resolveLanding();
       else engine.decideForAI();

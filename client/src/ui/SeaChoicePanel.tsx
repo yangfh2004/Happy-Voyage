@@ -6,6 +6,7 @@ import { gameController } from '../game/GameController';
 export function SeaChoicePanel({ state }: { state: GameState }) {
   const [destination, setDestination] = useState(String(state.players[state.currentPlayer].position));
   const [error, setError] = useState('');
+  const [quantity, setQuantity] = useState(1);
   const { t, locale } = useT();
   const act = (action: () => void) => {
     try { action(); }
@@ -14,9 +15,16 @@ export function SeaChoicePanel({ state }: { state: GameState }) {
   return <section className="sea-choice" aria-labelledby="sea-choice-title">
     {state.phase === 'awaitingMerchant' && state.pendingMerchant && <>
       <h2 id="sea-choice-title">¤ {t('Merchant ship · Premium trade', '海上商船 · 高价收购')}</h2>
-      <p>{t('Sell {q} {g} from your fleet for {gold}g?', '以 {gold} 金币卖出舰队上的 {q} 单位{g}？', { q: state.pendingMerchant.quantity, g: goodName(state.pendingMerchant.good, locale), gold: state.pendingMerchant.gold })}</p>
-      <button className="primary" onClick={() => act(() => gameController.acceptMerchant())}>{t('Accept merchant offer', '接受商船报价')}</button>
-      <button onClick={() => gameController.declineMerchant()}>{t('Decline merchant offer', '拒绝商船报价')}</button>
+      {state.pendingMerchant.quantity > 0 && <>
+        <p>{t('Sell {q} {g} from your fleet for {gold}g?', '以 {gold} 金币卖出舰队上的 {q} 单位{g}？', { q: state.pendingMerchant.quantity, g: goodName(state.pendingMerchant.good, locale), gold: state.pendingMerchant.gold })}</p>
+        <button className="primary" onClick={() => act(() => gameController.acceptMerchant())}>{t('Accept merchant offer', '接受商船报价')}</button>
+      </>}
+      {state.pendingMerchant.stock && state.pendingMerchant.stock.quantity > 0 && <>
+        <p>{t('Buy {g}: {gold}g each ({q} available).', '买入{g}：每单位 {gold} 金币（{q} 单位）。', { g: goodName(state.pendingMerchant.stock.good, locale), gold: state.pendingMerchant.stock.unitPrice, q: state.pendingMerchant.stock.quantity })}</p>
+        <label>{t('Quantity', '数量')} <input type="number" min="1" max={state.pendingMerchant.stock.quantity} value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} /></label>
+        <button onClick={() => act(() => gameController.buyMerchant(quantity))}>{t('Buy cargo', '买入货物')}</button>
+      </>}
+      <button onClick={() => gameController.declineMerchant()}>{t('Leave merchant ship', '离开商船')}</button>
     </>}
     {state.phase === 'awaitingWyvern' && <>
       <h2 id="sea-choice-title">W {t('Wyvern · Choose your destination', '翼龙 · 选择目的地')}</h2>

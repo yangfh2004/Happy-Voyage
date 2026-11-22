@@ -3,6 +3,7 @@ import { gameController, type SeaNotice } from '../game/GameController';
 import { useT } from '../i18n';
 
 export const SEA_ICONS: Record<EventKind, string> = {
+  openSea: '~',
   treasure: '◆', storm: 'ϟ', tradeWind: '≈', pirates: '⚔', smallMonster: '♆',
   largeMonster: 'M', turtle: 'T', whirlpool: '◎', bottle: '✉', floatingCargo: '▣', merchant: '¤', wyvern: 'W',
 };

@@ -183,7 +183,9 @@ describe('living sea board', () => {
     const g = game();
     const p = g.currentPlayer;
     p.revivalProtection = true;
-    land(g, g.state.map.find((n) => n.event === event)!.id);
+    const node = g.state.map.find((n) => n.event === event) ?? g.state.map.find((n) => n.event === 'openSea')!;
+    node.event = event;
+    land(g, node.id);
     expect(p.gold).toBe(g.state.config.startingGold);
     expect(p.revivalProtection).toBe(false);
     expect(g.state.phase).toBe('awaitingSpin');
