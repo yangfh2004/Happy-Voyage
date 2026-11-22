@@ -18,7 +18,6 @@ function claimAt(g: GameEngine, nodeId: number) {
   g.currentPlayer.position = nodeId;
   g.state.phase = 'moving';
   g.resolveLanding();
-  g.claim();
 }
 
 describe('victory modes', () => {

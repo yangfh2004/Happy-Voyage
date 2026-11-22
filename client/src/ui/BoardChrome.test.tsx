@@ -41,7 +41,7 @@ describe('board chrome', () => {
     state.phase = 'awaitingClaim';
     state.pendingClaim = island.id;
     expect(renderToStaticMarkup(<LandingHeading state={state} />)).toContain('Unowned');
-    expect(renderToStaticMarkup(<LandingHeading state={state} />)).toContain(`Cost: ${island.price}g`);
+    expect(renderToStaticMarkup(<LandingHeading state={state} />)).not.toContain('Cost:');
     state.owners[island.id] = 1;
     expect(renderToStaticMarkup(<LandingHeading state={state} />)).toContain('Owned by Juliana');
   });

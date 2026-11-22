@@ -89,5 +89,5 @@ export function LandingHeading({ state }: { state: GameState }) {
   const node = state.map[state.pendingClaim ?? player.position];
   const ownerId = state.owners[node.id];
   const owner = ownerId == null ? state.players.find((p) => p.homePort === node.id) : state.players[ownerId];
-  return <header className="landing-heading"><div><small>⚓ {t('LANDFALL', '抵达')}</small><h2>{nodeName(node, locale)}</h2></div><div><strong>{owner ? t('Owned by {p}', '属于 {p}', { p: playerName(owner, locale) }) : t('Unowned', '无主之地')}</strong><p>{t('Treasury: {g}g', '金库：{g} 金币', { g: gameController.displayGold(player) })}{node.price != null && state.phase === 'awaitingClaim' && t(' · Cost: {g}g', ' · 费用：{g} 金币', { g: node.price })}</p></div></header>;
+  return <header className="landing-heading"><div><small>⚓ {t('LANDFALL', '抵达')}</small><h2>{nodeName(node, locale)}</h2></div><div><strong>{owner ? t('Owned by {p}', '属于 {p}', { p: playerName(owner, locale) }) : t('Unowned', '无主之地')}</strong><p>{t('Treasury: {g}g', '金库：{g} 金币', { g: gameController.displayGold(player) })}</p></div></header>;
 }

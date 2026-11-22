@@ -45,11 +45,10 @@ describe('strategy cards', () => {
     const island = g.state.map.find((n) => n.kind === 'island')!;
     const gold = g.currentPlayer.gold;
     g.useStrategy('navigate', island.id);
-    expect(g.state.phase).toBe('awaitingClaim');
-    expect(g.currentPlayer.gold).toBe(gold);
-    expect(g.currentPlayer.strategies).toEqual([]);
-    expect(g.state.strategyUsed).toBe(true);
-    g.decline();
+    expect(g.state.phase).toBe('awaitingSpin');
+    expect(g.state.players[0].gold).toBe(gold);
+    expect(g.state.players[0].strategies).toEqual([]);
+    expect(g.state.owners[island.id]).toBe(0);
     expect(g.state.strategyUsed).toBe(false);
     g.currentPlayer.strategies = ['navigate'];
     g.state.owners[island.id] = 0;
@@ -147,8 +146,8 @@ describe('strategy cards', () => {
     const other = game();
     other.currentPlayer.strategies = ['navigate'];
     other.decideForAI();
-    expect(other.state.phase).toBe('awaitingClaim');
-    expect(other.currentPlayer.strategies).toEqual([]);
+    expect(other.state.phase).toBe('awaitingSpin');
+    expect(other.state.players[0].strategies).toEqual([]);
   });
   it('AI preserves Navigate when it would decline the claim from the destination', () => {
     const map: MapNode[] = Array.from({ length: 40 }, (_, id) => ({

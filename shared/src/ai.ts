@@ -74,7 +74,7 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
     if (node.special === 'nightless' && cargoUnits(player) >= 8) return cargoUnits(player) * 12;
     if (node.special === 'revival') {
       const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
-      return damage >= 100 && player.gold >= reserve(state, player) + damage * REPAIR_GOLD_PER_POINT ? damage : 0;
+      return damage;
     }
     if (wyvern && node.id === player.homePort) return state.config.homeSalary;
     return 0;
@@ -149,7 +149,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       return warships.length < 2 && cash >= 900 ? 540 : 90;
     }
     if (node.special === 'nightless') return cargoUnits(player) * 10;
-    if (node.special === 'revival') return cash > repair * REPAIR_GOLD_PER_POINT + 150 ? repair + 35 : 0;
+    if (node.special === 'revival') return repair;
     return 0;
   };
 
@@ -232,9 +232,8 @@ function bankruptcyOdds(state: GameState, player: Player, gold: number, colonies
         return risk + odds * onward(balance + Math.round(expectedLotteryPrize(picks)));
       }
       if (node.special === 'revival') {
-        const damage = fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
-        const fee = Math.min(damage, Math.floor(Math.max(0, afterSalary) / REPAIR_GOLD_PER_POINT)) * REPAIR_GOLD_PER_POINT;
-        return risk + odds * onward(afterSalary - fee, true);
+        const repaired = fleet.map((ship) => ({ ...ship, durability: ship.maxDurability }));
+        return risk + odds * onward(afterSalary, false, repaired);
       }
       if (node.event === 'storm') {
         const stormRisk = [50, 75, 100].reduce(

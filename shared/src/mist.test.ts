@@ -100,4 +100,21 @@ describe('Mist Island hermit duel', () => {
       expect((stones - hermitStoneTake('summit', stones)) % 4).toBe(1);
     }
   });
+
+  it.each([1, 2, 3])('accepts a legal take of %i from the green row', (count) => {
+    const g = arrive();
+    g.challengeHermit('brook');
+    g.takeMistStones(count);
+    expect(g.state.mistDuel?.stonesLeft).toBe(SEA_RULES.nimStones - count - 1);
+  });
+
+  it.each(['easy', 'normal', 'hard'] as const)('resolves %s AI without a human window', (difficulty) => {
+    const g = arrive(true);
+    g.currentPlayer.aiDifficulty = difficulty;
+    g.decideForAI();
+    expect(g.state.mistDuel).toBeNull();
+    expect(g.state.mistResults).toHaveLength(1);
+    expect(g.state.mistResults[0].playerId).toBe(0);
+    expect(g.currentPlayer.id).toBe(1);
+  });
 });

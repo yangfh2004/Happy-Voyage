@@ -29,7 +29,6 @@ describe('campaign UI', () => {
     const { state } = game;
     const island = state.map.find((node) => node.kind === 'island')!;
     game.useStrategy('navigate', island.id);
-    game.claim();
     const html = renderToStaticMarkup(<CampaignPanel campaign={state.campaign!} />);
     expect(html).toContain('First Voyage');
     expect(html).toContain('Complete · 150g awarded');
@@ -63,8 +62,8 @@ describe('turn controls', () => {
     engine.spinCompass();
     engine.sail();
     engine.resolveLanding();
-    expect(state.phase).toBe('awaitingClaim');
-    expectBeforeStrategyCards('Sail on <kbd>');
+    expect(state.owners[state.players[0].position]).toBe(0);
+    expect(state.phase).not.toBe('awaitingClaim');
   });
 });
 
@@ -276,7 +275,6 @@ describe('market menu', () => {
     engine.currentPlayer.position = islands[0].id;
     state.phase = 'moving';
     engine.resolveLanding();
-    engine.claim();
     Object.assign(gameController, { islandsOwnedBy: (id: number) => engine.islandsOwnedBy(id), netWorth: (id: number) => engine.netWorth(id) });
     const html = renderToStaticMarkup(<ActionPanel state={state} />);
     expect(html).toContain('Victory! Every new continent flies your flag.');
