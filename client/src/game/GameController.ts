@@ -213,7 +213,7 @@ export class GameController {
     if (next && nation) this.newCampaign({ stage: next.id, navigator: { name: player.name, nation: nation.name } });
   }
 
-  private beginGame(options: EngineOptions): void {
+  beginGame(options: EngineOptions): GameEngine {
     this.compassDeparture = undefined;
     this.clearTimers();
     this.skipping = false;
@@ -230,6 +230,7 @@ export class GameController {
     this.engine.on((event) => this.onEngineEvent(event));
     this.engine.start();
     this.changed();
+    return this.engine;
   }
 
   /** Back to the setup menu. */

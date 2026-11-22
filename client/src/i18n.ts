@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { format, LOCALES, localize, type GameState, type Locale, type Text } from '@happy-voyage/shared';
 
-const LOCALE_KEY = 'happy-voyage-locale';
+export const LOCALE_KEY = 'happy-voyage-locale';
 const listeners = new Set<() => void>();
 
 function initialLocale(): Locale {

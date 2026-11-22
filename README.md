@@ -94,6 +94,7 @@ npm install
 npm run dev          # client at http://localhost:5173
 npm run dev:server   # in a separate terminal for online rooms in Vite
 npm test             # rules and server tests
+npm test -w client   # client tests
 npm run typecheck
 npm run build        # production client build in client/dist
 npm start            # Express server at http://localhost:3000 (serves the built client)
@@ -103,6 +104,16 @@ npm exec -- vite-node shared/playtest.ts 360 10000  # 360 seeds starting at 10,0
 Pushes to `main` publish the built client to the `demo` branch (served by the link above) and to
 GitHub Pages; the Pages deploy is skipped until Pages is enabled
 in the repository settings (Settings > Pages > Source: GitHub Actions).
+
+### Debug window tester
+
+With `npm run dev` running, open [the window tester](http://localhost:5173/debug.html).
+Choose a window to launch a playable scenario, then use **Reset** to replay it or **All windows**
+to pick another. The language control switches both the tester and the game.
+
+`npm run build:debug -w client` writes a static build to `client/dist-debug`. The demo workflow
+publishes it separately to the `demo-debug` branch; a pinned link ends in `/<demo-debug commit>/debug.html`.
+The release build, normal demo, and GitHub Pages do not include the tester or its scenarios.
 
 ### AI balance playtest
 

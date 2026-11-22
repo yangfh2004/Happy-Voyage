@@ -15,4 +15,14 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: npm test -w client
       - run: npm run build
+      - name: Verify debug and release build isolation
+        run: |
+          test ! -e client/dist/debug.html
+          if grep -qrF 'window-tester' client/dist; then
+            echo 'Window tester found in release assets'
+            exit 1
+          fi
+          npm run build:debug -w client
+          test -s client/dist-debug/debug.html
