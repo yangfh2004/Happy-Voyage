@@ -79,6 +79,7 @@ export interface Player extends PlayerSetup {
   /** Index of the map node the fleet is on. */
   position: number;
   bankrupt: boolean;
+  fleetLost?: true;
   homePort: number;
   revivalProtection: boolean;
   captains: string[];

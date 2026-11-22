@@ -1,4 +1,4 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COMBAT, forecastColonyBattle, tollDue, SHIP_RECIPES, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COMBAT, forecastColonyBattle, isEliminated, tollDue, SHIP_RECIPES, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
@@ -29,6 +29,12 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
   const [previewing, setPreviewing] = useState(false);
   const player = state.players[state.currentPlayer];
   const room = gameController.room;
+  const defeatedHumans = state.players.filter((p) => p.fleetLost && (room ? p.id === gameController.viewerId : !p.isAI));
+  const fleetDefeat = defeatedHumans.map((p) => (
+    <p key={p.id} className="headline loss" role="status">
+      {t('Defeat for {p}: no ships remain in their sailing fleet.', '{p} 的航行舰队已无船只，航程失败。', { p: name(p) })}
+    </p>
+  ));
   const atHelm = !player.isAI && (!room || gameController.canHelm);
   const canPreview = atHelm && state.phase === 'awaitingSpin' && player.strategies.includes('navigate') && !state.strategyUsed;
   useEffect(() => {
@@ -76,13 +82,12 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
       </div>
     );
   } else if (state.phase === 'gameOver') {
-    const winner = state.players[state.winner!];
-    const everyContinent = state.victory === 'everyContinent';
-    const flag = winner.nation ? nationName(winner.nation, locale) : name(winner);
-    const otherOnlineWinner = room && winner.id !== gameController.viewerId;
+    const winner = state.winner === null ? null : state.players[state.winner];
+    const flag = winner?.nation ? nationName(winner.nation, locale) : winner ? name(winner) : '';
+    const otherOnlineWinner = room && winner?.id !== gameController.viewerId;
     body = (
       <>
-        {everyContinent ? (
+        {!winner ? <h2>{t('Voyage ended', '航程结束')}</h2> : state.victory === 'everyContinent' ? (
           <div className="victory-screen" role="status">
             <div className="victory-flag" aria-hidden="true">⚑</div>
             <h2>{winner.isAI || otherOnlineWinner ? t('{p} rules the Seven Seas.', '{p} 称霸七海。', { p: name(winner) }) : !room && gameController.humanCount > 1 ? t('Victory for {p}! Every new continent flies your flag.', '{p} 获胜！每块新大陆都飘扬着你的旗帜。', { p: name(winner) }) : t('Victory! Every new continent flies your flag.', '胜利！每块新大陆都飘扬着你的旗帜。')}</h2>
@@ -92,6 +97,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
           <h2>{winner.isAI || otherOnlineWinner ? t('{p} wins the seas.', '{p} 赢得了大海。', { p: name(winner) }) : !room && gameController.humanCount > 1 ? t('Victory for {p}! The crown celebrates you.', '{p} 获胜！王室为你庆贺。', { p: name(winner) }) : t('Victory! The crown celebrates you.', '胜利！王室为你庆贺。')}</h2>
         )}
         <p>{lastLog()}</p>
+        {fleetDefeat}
         <table className="standings">
           <caption>{t('Final standings · winner first, then afloat navigators by net worth', '最终排名 · 胜者优先，其余仍在海上的航海家按身家排序')}</caption>
           <thead><tr><th>{t('Navigator', '航海家')}</th><th><StatTooltip stat="gold">{t('Gold', '金币')}</StatTooltip></th><th><StatTooltip stat="islands">{t('Islands', '岛屿')}</StatTooltip></th><th><StatTooltip stat="netWorth">{t('Net worth', '身家')}</StatTooltip></th><th>{t('Status', '状态')}</th></tr></thead>
@@ -100,8 +106,8 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
             islands: gameController.islandsOwnedBy(p.id),
             worth: gameController.netWorth(p.id),
           })).sort((a, b) => Number(b.id === state.winner) - Number(a.id === state.winner)
-            || Number(a.bankrupt) - Number(b.bankrupt) || b.worth - a.worth || a.id - b.id).map((p) => (
-            <tr key={p.id}><th>{name(p)}{!p.isAI && ` (${seatTag(state.players, p)})`}</th><td>{p.gold}{t('g', ' 金币')}</td><td>{p.islands}</td><td>{p.worth}{t('g', ' 金币')}</td><td>{p.bankrupt ? t('Bankrupt', '破产') : p.id === state.winner ? t('Winner', '胜者') : t('Afloat', '在航')}</td></tr>
+            || Number(isEliminated(a)) - Number(isEliminated(b)) || b.worth - a.worth || a.id - b.id).map((p) => (
+            <tr key={p.id}><th>{name(p)}{!p.isAI && ` (${seatTag(state.players, p)})`}</th><td>{p.gold}{t('g', ' 金币')}</td><td>{p.islands}</td><td>{p.worth}{t('g', ' 金币')}</td><td>{p.fleetLost ? t('Fleet lost', '舰队覆没') : p.bankrupt ? t('Bankrupt', '破产') : p.id === state.winner ? t('Winner', '胜者') : t('Afloat', '在航')}</td></tr>
           ))}</tbody>
         </table>
         <button className="primary" onClick={() => gameController.quit()}>
@@ -242,6 +248,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
     <div className={`panel actions ${state.phase === 'awaitingSpin' || spinning || state.phase === 'moving' ? 'sailing-action' : 'decision-action'}`}>
       {state.phase === 'gameOver' ? body : (
         <div className="action-content">
+          {fleetDefeat}
           <Compass
             spinId={spinId}
             result={state.lastSpin}

@@ -3,7 +3,7 @@ import { useT } from '../i18n';
 import { tx } from '@happy-voyage/shared';
 import { EVENT_GOLD, LOTTERY, NIM_MAX_TAKE, SEA_RULES, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE, DEFAULT_ISLAND_COUNT, hasRoundLimit, winConditionText, winConditionTx, localize, type CampaignState, type GameConfig } from '@happy-voyage/shared';
 
-const TURN_ORDER = tx('Navigators take turns in seat order, skipping eliminated players.', '航海家按座位顺序轮流行动，跳过已破产的玩家。');
+const TURN_ORDER = tx('Navigators take turns in seat order, skipping eliminated players.', '航海家按座位顺序轮流行动，跳过已失败的玩家。');
 
 export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaign, onClose }: { config: GameConfig; islandCount?: number; campaign?: CampaignState | null; onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null);
@@ -41,8 +41,8 @@ export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaig
         <p><strong>Living seas:</strong> fight pirates for loot; small monsters damage one ship, while large monsters and destructive turtles can sink ships (never your last). Bermuda currents move you or damage your fleet. Bottles grant gold, a rare prize or repairs; floating cargo grants gold or specialties. Accept or decline a merchant’s premium offer for aboard specialties, and choose any wyvern destination to resolve its landing. Revival blocks one negative sea hazard.</p>
         <p>Drag to pan; pinch or scroll to zoom. Use Fit chart for the whole route, or Follow ship to return to the active fleet.</p>
         <p><strong>Foreign port taxes:</strong> If you cannot pay the full tax, pay all your gold, then surrender sailing ships cheapest first at their used resale value (including condition). Cargo stays aboard. Ships join the host’s fleet, or are removed by the crown. Excess ship value is not refunded. Losing your last sailing ship or still owing tax means bankruptcy; docked ships cannot pay tax.</p>
-        <p><strong>Stay afloat:</strong> below 0 gold means bankruptcy. Your colonies go neutral.</p>
-        {campaign ? <p><strong>Win:</strong> Complete all of the king’s missions{hasRoundLimit(config) ? ` by the end of round ${config.maxRounds}` : ''} without going bankrupt.</p>
+        <p><strong>Stay afloat:</strong> You lose if you go bankrupt (below 0 gold) or have no ships left in your sailing fleet. Your colonies go neutral.</p>
+        {campaign ? <p><strong>Win:</strong> Complete all of the king’s missions{hasRoundLimit(config) ? ` by the end of round ${config.maxRounds}` : ''} while staying afloat.</p>
           : <p><strong>Win:</strong> {winConditionText(config, islandCount)}. Classic conquest is the original rule; Quick match and Sprint are shorter modes picked at setup.</p>}
         <p>{localize('en', TURN_ORDER)} Net worth = gold + 75% of each colony's purchase price, rounded down.</p>
         </>}
@@ -70,8 +70,8 @@ function RulesZh({ config, islandCount, campaign }: { config: GameConfig; island
     <p><strong>鲜活的海洋：</strong>与海盗作战可获得战利品；小海怪会损伤一艘船，大海怪和破坏力超强的海龟可能击沉船只（但不会击沉你的最后一艘）。百慕达洋流会把你带走或损伤舰队。漂流瓶带来金币、稀有奖品或修理；浮货带来金币或特产。可以接受或拒绝商船对船上特产的高价收购，翼龙可载你飞往任意目的地并结算停靠。复活岛的庇护可挡下一次海上灾难。</p>
     <p>拖动可平移地图；双指缩放或滚轮可缩放。用“查看全图”查看整条航线，或用“跟随船只”回到当前舰队。</p>
     <p><strong>外国港口税金：</strong>如果付不起全部税金，先交出所有金币，再按二手转售价（含船况）从最便宜的船开始交出航行中的船只。货物留在船上。船只并入东道主的舰队，或被王室收走。多出的船价不予退还。失去最后一艘航行中的船只或仍欠税金即为破产；停靠的船只不能抵税。</p>
-    <p><strong>保持偿付能力：</strong>金币低于 0 即为破产，你的殖民地会恢复中立。</p>
-    {campaign ? <p><strong>胜利：</strong>{hasRoundLimit(config) ? `在第 ${config.maxRounds} 回合结束前` : ''}完成国王的全部使命且不破产。</p>
+    <p><strong>保持在航：</strong>破产（金币低于 0）或航行舰队已无船只都会导致失败，你的殖民地会恢复中立。</p>
+    {campaign ? <p><strong>胜利：</strong>{hasRoundLimit(config) ? `在第 ${config.maxRounds} 回合结束前` : ''}完成国王的全部使命并保持在航。</p>
       : <p><strong>胜利：</strong>{localize('zh', winConditionTx(config, islandCount))}。经典征服是原作规则；快速对局和冲刺赛是开局时可选的较短模式。</p>}
     <p>{localize('zh', TURN_ORDER)}身家 = 金币 + 每块殖民地购买价的 75%（向下取整）。</p>
   </>;

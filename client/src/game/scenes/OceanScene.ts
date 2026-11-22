@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { windExit, successors, atmosphere, buildingDescription, buildingName, chartIdentity, colonyToll, createDefaultMap, nodeName, WORLD, type BuildingKind, type GameEvent, type GameState, type MapNode, type WindDirection } from '@happy-voyage/shared';
+import { windExit, successors, atmosphere, buildingDescription, buildingName, chartIdentity, colonyToll, createDefaultMap, isEliminated, nodeName, WORLD, type BuildingKind, type GameEvent, type GameState, type MapNode, type WindDirection } from '@happy-voyage/shared';
 import { getLocale, pick, subscribeLocale } from '../../i18n';
 import { readPreference } from '../../ui/accessibilityPreferences';
 
@@ -476,13 +476,13 @@ export class OceanScene extends Phaser.Scene {
         this.ships.set(player.id, ship);
         this.applyCaptain(player.id, player.navigator, color);
       }
-      ship.setAlpha(player.bankrupt ? 0.25 : 1);
+      ship.setAlpha(isEliminated(player) ? 0.25 : 1);
       if (!this.sailing.has(player.id)) {
         const [x, y] = this.tokenPosition(player.id, player.position);
         if (!this.berthTweens.has(player.id)) ship.setPosition(x, y);
       }
-      this.syncBadge(this.shipBadges, player.id, player.bankrupt ? null : badge, ship.x + 12, ship.y - 13, 14);
-      if (atmosphere(state).phase === 'night' && !player.bankrupt) {
+      this.syncBadge(this.shipBadges, player.id, isEliminated(player) ? null : badge, ship.x + 12, ship.y - 13, 14);
+      if (atmosphere(state).phase === 'night' && !isEliminated(player)) {
         this.flags.fillStyle(0xffdc7d, 0.14).fillCircle(ship.x, ship.y, 22);
         this.flags.fillStyle(0xffef9d, 0.85).fillCircle(ship.x, ship.y + 6, 3);
       }

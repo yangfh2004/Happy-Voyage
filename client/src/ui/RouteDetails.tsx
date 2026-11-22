@@ -1,4 +1,4 @@
-import { buildingName, colonyToll, nationName, nodeName, playerName, type BuildingKind, type GameState } from '@happy-voyage/shared';
+import { buildingName, colonyToll, isEliminated, nationName, nodeName, playerName, type BuildingKind, type GameState } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { gameController } from '../game/GameController';
 import { ColonyGoods } from './ColonyGoods';
@@ -14,7 +14,7 @@ export function RouteDetails({ state }: { state: GameState }) {
       <ol className="route-stops">
         {state.map.map((stop) => {
           const owner = state.owners[stop.id];
-          const fleets = state.players.filter((player) => !player.bankrupt && gameController.shownPosition(player) === stop.id);
+          const fleets = state.players.filter((player) => !isEliminated(player) && gameController.shownPosition(player) === stop.id);
           return (
             <li key={stop.id}>
               <strong>{nodeName(stop, locale)}</strong>

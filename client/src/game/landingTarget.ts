@@ -1,4 +1,4 @@
-import { walkPath, type GameState } from '@happy-voyage/shared';
+import { isEliminated, walkPath, type GameState } from '@happy-voyage/shared';
 
 export interface LandingTarget {
   nodeId: number;
@@ -13,7 +13,7 @@ export interface NavigatePreview { playerId: number; nodeId: number }
 export function sailingRoute(state: GameState | null, move?: MovePath | null): number[] {
   if (!state?.map.length) return [];
   const player = state.players[state.currentPlayer];
-  if (!player || player.bankrupt) return [];
+  if (!player || isEliminated(player)) return [];
   if (state.phase === 'spinning' && state.lastSpin && Number.isInteger(state.lastSpin) && state.lastSpin > 0) {
     return [player.position, ...walkPath(state.map, player.position, state.lastSpin, state.wind.direction)];
   }
@@ -26,7 +26,7 @@ export function sailingRoute(state: GameState | null, move?: MovePath | null): n
 export function landingTarget(state: GameState | null, move?: MovePath | null, preview?: NavigatePreview | null): LandingTarget | null {
   if (!state || !state.map.length) return null;
   const player = state.players[state.currentPlayer];
-  if (!player || player.bankrupt) return null;
+  if (!player || isEliminated(player)) return null;
   if (state.phase === 'spinning') {
     const steps = state.lastSpin;
     if (steps === null || !Number.isInteger(steps) || steps <= 0) return null;

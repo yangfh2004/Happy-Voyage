@@ -4,7 +4,7 @@ import { colonyDefenders, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
 import { captainBonus, discountedByCaptains } from './captains';
 import { BUILDINGS, buildingLevel, colonyToll, nextBuildingCost } from './buildings';
-import { colonyValue, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
+import { colonyValue, isEliminated, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
 import { SEA_RULES } from './seaRules';
 import { LOTTERY, expectedLotteryPrize } from './lottery';
 import { RANKS, foreignTaxDue, playerMerit } from './ranks';
@@ -100,7 +100,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
   const audience = nextRank && merit >= nextRank.merit ? nextRank.purse : (merit - player.audienceMerit) * 2;
   const repair = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
   const rivalHoldings = state.players.map((rival) => colonies(state, rival));
-  const soleRival = state.players.filter((rival) => !rival.bankrupt && rival.id !== player.id).length === 1;
+  const soleRival = state.players.filter((rival) => !isEliminated(rival) && rival.id !== player.id).length === 1;
 
   // Use gold-equivalent scores for immediate results and the next compass spin.
   const landing = (node: MapNode, cash: number, direct: boolean): number => {
@@ -265,7 +265,7 @@ function estimatedTolls(state: GameState, player: Player, node: MapNode): number
   const myTurn = turnOrderPosition(state, player.id);
   let tolls = 0;
   for (const rival of state.players) {
-    if (rival.bankrupt || rival.id === player.id) continue;
+    if (isEliminated(rival) || rival.id === player.id) continue;
     const moves = roundsLeft(state) + Number(turnOrderPosition(state, rival.id) > myTurn);
     if (moves === 0) continue;
     const nextSpinOdds = COMPASS_SECTORS.reduce((chance, { steps, odds }) =>
@@ -425,7 +425,7 @@ export function aiBattleStrategy(state: GameState, player: Player, canUse: (card
     if (lead && canUse('betray') && (player.fleet.length < policy(player).fleetSize || lead.type === 'warship') &&
       lead.durability >= lead.maxDurability / 2 && battleQuality(state, player, 'betray') >= baseline) return 'betray';
     if (lead?.type === 'warship' && baseline < 4 && canUse('mislead') && fromFleet &&
-      (state.players.filter((rival) => !rival.bankrupt).length === 2 || colonies(state, owner) >= colonies(state, player))) return 'mislead';
+      (state.players.filter((rival) => !isEliminated(rival)).length === 2 || colonies(state, owner) >= colonies(state, player))) return 'mislead';
   }
   return best;
 }

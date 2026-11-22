@@ -85,7 +85,7 @@ function run(name: string, fixtures: (seed: number) => PlayerSetup[][], config?:
       }
       games++;
       rounds += hasRoundLimit(state.config) ? Math.min(state.config.maxRounds, state.round) : state.round;
-      nationWins[players[state.winner!].nation!]++;
+      if (state.winner !== null) nationWins[players[state.winner].nation!]++;
       for (const player of state.players) {
         const result = row(player.id);
         result.seats++;

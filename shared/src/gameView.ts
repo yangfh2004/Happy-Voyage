@@ -2,7 +2,7 @@ import { buildingLevel, buildingValue, nextBuildingCost } from './buildings';
 import { colonyDefenders } from './combat';
 import { LOTTERY } from './lottery';
 import { NIM_MAX_TAKE } from './mist';
-import { colonyValue } from './rules';
+import { colonyValue, isEliminated } from './rules';
 import { cargoLoad, SHIP_RECIPES, USED_SHIP_PRICES } from './ships';
 import { STRATEGIES, type StrategyId } from './strategies';
 import type { BuildingKind, GameState, Player, ShipType } from './types';
@@ -17,7 +17,7 @@ export class GameView {
 
   canUseStrategy(id: StrategyId, target?: number): boolean {
     const card = STRATEGIES[id];
-    if (!card || this.state.strategyUsed || this.currentPlayer.bankrupt || !this.currentPlayer.strategies.includes(id) || !card.phases.includes(this.state.phase)) return false;
+    if (!card || this.state.strategyUsed || isEliminated(this.currentPlayer) || !this.currentPlayer.strategies.includes(id) || !card.phases.includes(this.state.phase)) return false;
     if (id === 'navigate') return Number.isInteger(target) && this.state.map.some((n) => n.id === target);
     if (id === 'locate') return this.hoardExists ?? (this.state.hoardNode !== null);
     const owner = this.state.owners[this.currentPlayer.position];
@@ -77,7 +77,7 @@ export class GameView {
   }
 
   protected atMarket(): boolean {
-    return this.state.phase === 'awaitingMarket' && !this.currentPlayer.bankrupt &&
+    return this.state.phase === 'awaitingMarket' && !isEliminated(this.currentPlayer) &&
       this.state.map[this.currentPlayer.position]?.special === 'skeleton';
   }
 

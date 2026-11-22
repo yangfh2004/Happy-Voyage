@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { GameState } from '@happy-voyage/shared';
-import { chartIdentity, hasRoundLimit, nationName, playerName, rankName, requiresEveryIsland } from '@happy-voyage/shared';
+import { chartIdentity, hasRoundLimit, isEliminated, nationName, playerName, rankName, requiresEveryIsland } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { LanguageSwitch } from './LanguageSwitch';
 import { gameController } from '../game/GameController';
@@ -41,7 +41,7 @@ export function PlayerBar({ state, colorBlind, paletteToggle, onRules, onFleet, 
           return (
           <div
             key={p.id}
-            className={['player', p.id === state.currentPlayer && 'current', p.bankrupt && 'bankrupt'].filter(Boolean).join(' ')}
+            className={['player', p.id === state.currentPlayer && 'current', isEliminated(p) && 'bankrupt'].filter(Boolean).join(' ')}
           >
             {p.navigator
               ? <NavigatorPortrait navigator={p.navigator} color={color} size={26} />

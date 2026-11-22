@@ -30,7 +30,7 @@ describe('colony transfers', () => {
     expect(ship.cargo).toEqual({ lumber: 3 });
     expect(() => engine.loadCargo(ship.id, 'lumber', 1)).toThrow();
     expect(() => engine.unloadCargo(ship.id, 'lumber', 1)).toThrow();
-    engine.dockShip(engine.currentPlayer.fleet[0].id);
+    while (engine.currentPlayer.fleet.length > 1) engine.dockShip(engine.currentPlayer.fleet[0].id);
     expect(() => engine.dockShip(engine.currentPlayer.fleet[0].id)).toThrow();
     engine.boardShip(ship.id);
     expect(engine.currentPlayer.fleet).toContain(ship);
@@ -67,13 +67,13 @@ describe('colony transfers', () => {
     expect(engine.autoLoad()).toBe(0);
     stock.lumber = 100;
     stock.iron = 100;
-    stock.specialties = { Wine: 200, Sugar: 20 };
     const capacity = engine.currentPlayer.fleet.reduce((n, s) => n + s.cargoCapacity, 0);
+    stock.specialties = { Wine: capacity + 20, Sugar: 20 };
     expect(engine.autoLoad()).toBe(capacity);
     expect(ship.cargo.Wine).toBe(ship.cargoCapacity);
     expect(stock.lumber).toBe(100);
     expect(stock.iron).toBe(100);
-    expect(stock.specialties.Wine).toBe(200 - capacity);
+    expect(stock.specialties.Wine).toBe(20);
     expect(engine.autoLoad()).toBe(0);
     engine.unloadCargo(ship.id, 'Wine', ship.cargoCapacity);
     stock.specialties = { Sugar: 2 };

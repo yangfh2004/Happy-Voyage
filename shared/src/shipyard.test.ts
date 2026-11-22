@@ -41,7 +41,7 @@ describe('colony shipyards', () => {
       expect(state.log.at(-1)).toContain(`launches ${ship.name}`);
       expect(state.phase).toBe('awaitingBuild');
     }
-    expect(state.players.map((player) => player.fleet.length)).toEqual([6, 3]);
+    expect(state.players.map((player) => player.fleet.length)).toEqual([8, 5]);
     expect(stock).toEqual({ lumber: 0, iron: 0, specialties: { Wine: 3 } });
     expect(engine.canBuildShip('explorer')).toBe(false);
   });
