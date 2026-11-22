@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine } from './engine';
-import { REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
+import { SEA_HAZARD_DAMAGE } from './rules';
 
 function game() {
   return new GameEngine({ players: [0, 1].map((id) => ({ name: `Captain ${id}`, color: id, isAI: false })), rng: () => 0 });
@@ -13,32 +13,29 @@ function land(engine: GameEngine, id: number) {
 }
 
 describe('fleet repairs', () => {
-  it.each([100, 7, 0])('repairs affordable points in fleet order with %ig', (gold) => {
+  it.each([100, 7, 0])('fully repairs the fleet for free with %ig', (gold) => {
     const engine = game();
     const player = engine.currentPlayer;
-    const [first, second, sound] = player.fleet;
-    first.durability -= 2;
-    second.durability -= 4;
+    expect(player.fleet).toHaveLength(5);
+    player.fleet.forEach((ship, index) => { ship.durability -= index + 1; });
     player.gold = gold;
     const events: unknown[] = [];
     engine.on((event) => events.push(event));
     land(engine, engine.state.map.find((node) => node.special === 'revival')!.id);
-    const points = Math.min(6, Math.floor(gold / REPAIR_GOLD_PER_POINT));
-    expect(first.durability).toBe(first.maxDurability - 2 + Math.min(points, 2));
-    expect(second.durability).toBe(second.maxDurability - 4 + Math.max(0, points - 2));
-    expect(sound.durability).toBe(sound.maxDurability);
-    expect(player.gold).toBe(gold - points * REPAIR_GOLD_PER_POINT);
-    expect(player.revivalProtection).toBe(true);
+    const points = 15;
+    expect(player.fleet.every((ship) => ship.durability === ship.maxDurability)).toBe(true);
+    expect(player.gold).toBe(gold);
+    expect(player.revivalProtection).toBe(false);
     expect(engine.currentPlayer).toBe(player);
     expect(engine.state.phase).toBe('awaitingRevival');
-    expect(engine.state.revivalReport).toEqual({ damage: 6, restored: points, goldSpent: points * REPAIR_GOLD_PER_POINT });
-    expect(events).toContainEqual(expect.objectContaining({ reason: 'revival repairs' }));
-    expect(engine.state.log.join(' ')).toContain(`restored ${points}/6 durability`);
+    expect(engine.state.revivalReport).toEqual({ damage: points, restored: points, goldSpent: 0 });
+    expect(events).not.toContainEqual(expect.objectContaining({ reason: 'revival repairs' }));
+    expect(engine.state.log.join(' ')).toContain(`restored ${points}/${points} durability`);
     engine.leaveRevivalIsland();
     expect(engine.currentPlayer).not.toBe(player);
     expect(engine.state.revivalReport).toBeNull();
-    expect(player.gold).toBe(gold - points * REPAIR_GOLD_PER_POINT);
-    expect(player.revivalProtection).toBe(true);
+    expect(player.gold).toBe(gold);
+    expect(player.revivalProtection).toBe(false);
     expect(() => engine.leaveRevivalIsland()).toThrow();
   });
 
@@ -55,7 +52,7 @@ describe('fleet repairs', () => {
     }
   });
 
-  it('repairs and protects AI fleets without waiting for a report', () => {
+  it('repairs AI fleets without protection or waiting for a report', () => {
     const engine = game();
     const player = engine.currentPlayer;
     player.isAI = true;
@@ -67,8 +64,8 @@ describe('fleet repairs', () => {
     expect(engine.state.phase).toBe('awaitingSpin');
     expect(engine.state.revivalReport).toBeNull();
     expect(ship.durability).toBe(ship.maxDurability);
-    expect(player.gold).toBe(gold - 2 * REPAIR_GOLD_PER_POINT);
-    expect(player.revivalProtection).toBe(true);
+    expect(player.gold).toBe(gold);
+    expect(player.revivalProtection).toBe(false);
   });
 
   it.each(['storm', 'whirlpool'] as const)('%s damages sailing ships, unless protected', (event) => {

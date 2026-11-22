@@ -1,4 +1,4 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyValue, colonyDefenders, COLONY_RETURN_COOLDOWN, COMBAT, forecastColonyBattle, GameView, isEliminated, tollDue, SHIP_RECIPES, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyDefenders, COLONY_RETURN_COOLDOWN, COMBAT, forecastColonyBattle, GameView, isEliminated, tollDue, SHIP_RECIPES, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ShipMarketPanel } from './ShipMarketPanel';
 import { ColonyGoods } from './ColonyGoods';
@@ -215,27 +215,6 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
         <div className="row">
           <button className="primary" onClick={() => gameController.payToll()}>{t('Pay toll', '缴纳过路费')} <kbd>P</kbd></button>
           <button onClick={() => gameController.fight()}>{t('Fight', '开战')} <kbd>F</kbd></button>
-        </div>
-      </>
-    );
-  } else if (state.phase === 'awaitingClaim') {
-    const island = state.map[state.pendingClaim!];
-    body = (
-      <>
-        <h2>{at(island.id)}</h2>
-        <p>
-          {t('Uncharted land rich in {s}. Found a colony for', '盛产{s}的未知土地。建造殖民地需花费', { s: island.specialty ? goodName(island.specialty, locale) : '' })} <StatTooltip stat="price">{t('{g}g', '{g} 金币', { g: island.price ?? 0 })}</StatTooltip>{t('?', '，要建立殖民地吗？')}{' '}
-          {t('Rivals landing here must pay you', '对手停靠此地时须向你缴纳')} <StatTooltip stat="toll">{t('{g}g', '{g} 金币', { g: island.toll ?? 0 })}</StatTooltip> {t('or attack your ships.', '，或攻击你的船只。')}
-        </p>
-        <p>
-          {t('Claiming leaves you {g}g in cash.', '占领后你还剩 {g} 金币现金。', { g: player.gold - island.price! })}
-          {!state.campaign && t(' This colony adds {g}g to your final score.', '这块殖民地会为你的最终得分增加 {g} 金币。', { g: colonyValue(island) })}
-        </p>
-        <div className="row">
-          <button className="primary" onClick={() => gameController.claim()}>
-            {t('Claim ({g}g)', '占领（{g} 金币）', { g: island.price ?? 0 })} <kbd>C</kbd>
-          </button>
-          <button onClick={() => gameController.decline()}>{t('Sail on', '继续航行')} <kbd>S / Esc</kbd></button>
         </div>
       </>
     );

@@ -138,7 +138,7 @@ describe('sea event outcomes', () => {
     g.decideForAI();
     expect(g.state.map[p.position].kind).toBe('island');
     g.resolveLanding();
-    expect(g.state.phase).toBe('awaitingClaim');
+    expect(g.state.owners[p.position]).toBe(p.id);
   });
 
   it.each([0, 0.9])('whirlpool preserves damage or relocation (%s)', (rng) => {

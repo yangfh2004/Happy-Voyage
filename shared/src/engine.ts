@@ -1,4 +1,4 @@
-import { aiShouldClaim, aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount,
+import { aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount,
   aiTravelTarget, aiBattleStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase, aiMistTake } from './ai';
 import { STRATEGIES, STRATEGY_RULES, type StrategyId } from './strategies';
 import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
@@ -19,7 +19,7 @@ import { walkPath, WIND_DIRECTIONS } from './graph';
 import { GAME_MODES, hasRoundLimit } from './modes';
 import { campaignRoster, campaignStage, type CampaignObjective, type CampaignSetup, type CampaignState } from './campaign';
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
-import { isEliminated, seatAtTurnOrderPosition, turnOrderPosition, COLONY_RETURN_COOLDOWN, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
+import { isEliminated, seatAtTurnOrderPosition, turnOrderPosition, COLONY_RETURN_COOLDOWN, SEA_HAZARD_DAMAGE } from './rules';
 import { GameView } from './gameView';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 import type { Good, SeaEventResult, Specialty } from './types';
@@ -358,13 +358,10 @@ export class GameEngine extends GameView {
       case 'island': {
         const owner = this.state.owners[node.id];
         if (owner === null) {
-          if (player.gold >= (node.price ?? Infinity)) {
-            this.state.phase = 'awaitingClaim';
-            this.state.pendingClaim = node.id;
-            this.emit({ type: 'claimOffered', playerId: player.id, nodeId: node.id });
-            return; // wait for claim() / decline()
-          }
-          this.log(tx('{p} reaches {n} but cannot afford to settle {n} ({g}g).', '{p} 抵达{n}，但付不起 {g} 金币的殖民费用。', { p: ref.player(player.id), n: ref.node(node.id), g: node.price ?? 0 }));
+          this.state.phase = 'awaitingClaim';
+          this.state.pendingClaim = node.id;
+          this.claim();
+          return;
         } else if (owner !== player.id) {
           if (player.fleet.length) {
             this.state.phase = 'awaitingToll';
@@ -415,7 +412,6 @@ export class GameEngine extends GameView {
     this.assertPhase('awaitingClaim');
     const player = this.currentPlayer;
     const node = this.node(this.state.pendingClaim!);
-    this.changeGold(player, -(node.price ?? 0), `colony at ${node.name}`);
     this.state.owners[node.id] = player.id;
     this.log(tx('{p} plants the flag on {n}!', '{p} 在{n}插上了旗帜！', { p: ref.player(player.id), n: ref.node(node.id) }));
     this.emit({ type: 'claimed', playerId: player.id, nodeId: node.id });
@@ -897,9 +893,7 @@ export class GameEngine extends GameView {
       return;
     }
     if (this.state.phase === 'awaitingClaim') {
-      const player = this.currentPlayer;
-      if (aiShouldClaim(this.state, player, this.state.pendingClaim!)) this.claim();
-      else this.decline();
+      this.claim();
     }
   }
 
@@ -957,8 +951,8 @@ export class GameEngine extends GameView {
         break;
       case 'revival': {
         const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
-        const points = Math.min(damage, Math.floor(Math.max(0, player.gold) / REPAIR_GOLD_PER_POINT));
-        const goldSpent = points * REPAIR_GOLD_PER_POINT;
+        const points = damage;
+        const goldSpent = 0;
         let remaining = points;
         for (const ship of player.fleet) {
           const repaired = Math.min(remaining, ship.maxDurability - ship.durability);
@@ -967,13 +961,11 @@ export class GameEngine extends GameView {
         }
         if (damage === 0) this.log(tx("{p}'s fleet already sound: no repair fee.", '{p} 的舰队完好无损：无需修理费。', { p: ref.player(player.id) }));
         else {
-          this.changeGold(player, -goldSpent, 'revival repairs');
-          this.log(tx(`Revival repairs {p}'s fleet: restored {pts}/{dmg} durability for {g}g.${points < damage ? ' Insufficient gold; partial repairs in fleet order.' : ' Fleet fully repaired.'}`,
-            `复活岛修理了 {p} 的舰队：花费 {g} 金币恢复 {pts}/{dmg} 耐久。${points < damage ? '金币不足，按舰队顺序部分修理。' : '舰队已全部修复。'}`,
+          this.log(tx("Revival repairs {p}'s fleet: restored {pts}/{dmg} durability free of charge. Fleet fully repaired.",
+            '复活岛修理了 {p} 的舰队：免费恢复 {pts}/{dmg} 耐久。舰队已全部修复。',
             { p: ref.player(player.id), pts: points, dmg: damage, g: goldSpent }));
         }
-        player.revivalProtection = true;
-        this.log(tx("Revival protection blocks {p}'s next sea hazard.", '复活庇护将为 {p} 挡下下一次海上灾难。', { p: ref.player(player.id) }));
+        player.revivalProtection = false;
         if (!player.isAI) {
           this.state.revivalReport = { damage, restored: points, goldSpent };
           this.state.phase = 'awaitingRevival';

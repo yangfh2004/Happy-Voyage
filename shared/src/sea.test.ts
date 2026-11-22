@@ -134,7 +134,7 @@ describe('living sea board', () => {
     expect(g.state.log.length).toBeGreaterThan(0);
     expect(g.state.log.some((line) => /\b[Yy]our\b|\bYou win/.test(line))).toBe(false);
     expect(g.state.log.slice(0, 2).every((line) => line.includes(p.name))).toBe(true);
-    if (special === 'revival') expect(p.revivalProtection).toBe(true);
+    if (special === 'revival') expect(p.revivalProtection).toBe(false);
     if (special === 'dragonSnake') expect(g.state.pendingRecruits).toHaveLength(3);
     if (special === 'wind') expect(p.gold).toBe(g.state.config.startingGold);
     if (special === 'treasure') expect(g.state.lottery).toMatchObject({ playerId: p.id, picks: [], secondsLeft: LOTTERY.timerSeconds, draw: null });

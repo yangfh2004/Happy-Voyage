@@ -5,8 +5,8 @@ import { NO_ROUND_LIMIT } from './modes';
 import type { CampaignStageId } from './campaign';
 import type { GameEvent, MarketOrder } from './types';
 
-function voyage(stage: CampaignStageId) {
-  const game = new GameEngine({ campaign: { stage, navigator: { name: 'Admiral', nation: 'Spain' } }, rng: () => 0 });
+function voyage(stage: CampaignStageId, roll = 0) {
+  const game = new GameEngine({ campaign: { stage, navigator: { name: 'Admiral', nation: 'Spain' } }, rng: () => roll });
   const { state } = game;
   const missions: GameEvent[] = [];
   game.on((event) => { if (event.type === 'campaignMissionCompleted') missions.push(event); });
@@ -38,22 +38,19 @@ describe('royal campaign', () => {
   });
 
   it('awards First Voyage missions only for your own founding and subsequent audience', () => {
-    const { game, state, captain, missions, islands } = voyage('first-voyage');
+    const { game, state, captain, missions, islands } = voyage('first-voyage', 0.99);
     const [first, second, third] = islands;
     landAs(game, 0, captain.homePort);
     landAs(game, 1, third.id);
-    game.claim();
     expect(state.campaign!.progress).toEqual({});
 
     state.currentPlayer = captain.id;
-    game.useStrategy('navigate', first.id);
     const before = captain.gold;
-    game.claim();
-    expect(captain.gold).toBe(before - first.price! + 150);
+    game.useStrategy('navigate', first.id);
+    expect(captain.gold).toBe(before + 150);
     expect(state.campaign).toMatchObject({ status: 'active', progress: { foundColony: 1 } });
 
     landAs(game, 0, second.id);
-    game.claim();
     expect(missions).toHaveLength(1);
     landAs(game, 0, captain.homePort);
     expect(missions).toHaveLength(2);
@@ -85,7 +82,6 @@ describe('royal campaign', () => {
     game.finishTrading();
 
     landAs(game, 0, islands[0].id);
-    game.claim();
     landAs(game, 0, islands[0].id);
     game.build('lumberMill');
     expect(missions).toHaveLength(1);
@@ -100,11 +96,9 @@ describe('royal campaign', () => {
     const { game, state, captain, missions, islands } = voyage('crown-of-the-seas');
     const [first, second, rivalColony] = islands;
     game.useStrategy('navigate', first.id);
-    game.claim();
     expect(state.campaign!.progress).toEqual({ holdColonies: 1 });
     state.owners[first.id] = 1; // The rival took our original colony.
     landAs(game, 0, second.id);
-    game.claim();
     expect(state.campaign!.progress).toEqual({ holdColonies: 1 });
     expect(missions).toHaveLength(0);
     state.owners[rivalColony.id] = 1;
