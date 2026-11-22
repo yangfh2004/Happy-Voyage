@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine, SEA_RULES } from './engine';
+import { localize, nodeName } from './i18n';
 import { LOTTERY } from './lottery';
 import { createDefaultMap } from './map';
 import { createNationRoster, type Nation } from './nations';
@@ -137,6 +138,18 @@ describe('living sea board', () => {
     if (special === 'dragonSnake') expect(g.state.pendingRecruits).toHaveLength(3);
     if (special === 'wind') expect(p.gold).toBe(g.state.config.startingGold);
     if (special === 'treasure') expect(g.state.lottery).toMatchObject({ playerId: p.id, picks: [], secondsLeft: LOTTERY.timerSeconds, draw: null });
+  });
+
+  it.each(['skeleton', 'treasure', 'mist', 'revival', 'wind', 'dragonSnake', 'nightless'] as const)('logs arrival at %s in one language at a time', (special) => {
+    const g = game();
+    const node = g.state.map.find((n) => n.special === special)!;
+    const logStart = g.state.log.length;
+    land(g, node.id);
+    const visit = g.state.logText![logStart];
+    expect(g.state.log[logStart]).toContain(node.name);
+    expect(g.state.log[logStart]).not.toMatch(/\p{Script=Han}/u);
+    expect(localize('zh', visit, g.state)).toContain(nodeName(node, 'zh'));
+    expect(localize('zh', visit, g.state)).not.toContain(node.name);
   });
 
   it.each(['treasure', 'dragonSnake', 'nightless', 'wind', 'skeleton'] as SpecialKind[])('handles empty purse and colonies at %s', (special) => {

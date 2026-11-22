@@ -5,7 +5,6 @@ import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BarterPanel } from './BarterPanel';
 import { TransferPanel } from './TransferPanel';
 import { MarketPanel } from './MarketPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
@@ -201,8 +200,6 @@ export function ActionPanel({ state, colorBlind = false, strategyHost }: { state
         </div>
       </>
     );
-  } else if (state.phase === 'awaitingBarter') {
-    body = <BarterPanel state={state} />;
   } else if (state.phase === 'awaitingClaim') {
     const island = state.map[state.pendingClaim!];
     body = (
