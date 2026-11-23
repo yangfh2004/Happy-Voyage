@@ -146,7 +146,9 @@ describe('sea strategy effects', () => {
     const { g, p, rival } = setup('betray');
     rival.fleet = [];
     const initial = p.fleet.length;
-    for (let i = 0; i < count; i++) g.addShipToFleet(1, 'cargo').firepower = i;
+    const cargo = g.addShipToFleet(1, 'cargo');
+    cargo.firepower = 0;
+    for (let i = 1; i < count; i++) rival.fleet.push({ ...cargo, id: g.state.nextShipId++, firepower: i, cargo: {} });
     const best = [...rival.fleet].reverse().slice(0, Math.max(0, Math.min(3, Math.ceil(count / 3), count - 1)));
     if (count === 1) { expect(g.canUseStrategy('betray', 1)).toBe(false); return; }
     g.useStrategy('betray', 1);

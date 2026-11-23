@@ -88,6 +88,7 @@ export interface Player extends PlayerSetup {
   skipNextTurn: boolean;
   captains: string[];
   fleet: Ship[];
+  reservedShips?: Ship[];
 }
 
 export type BuildingKind = 'lumberMill' | 'ironMine' | 'shipyard' | 'repairYard' | 'collectionField';
@@ -265,7 +266,7 @@ export type GameEvent =
   | { type: 'moved'; playerId: number; path: number[] }
   | { type: 'claimOffered'; playerId: number; nodeId: number }
   | { type: 'claimed'; playerId: number; nodeId: number }
-  | { type: 'shipAdded'; playerId: number; shipId: number }
+  | { type: 'shipAdded'; playerId: number; shipId: number; dockedAt?: number | null }
   | { type: 'tollOffered'; playerId: number; nodeId: number }
   | { type: 'battleFought'; report: BattleReport }
   | { type: 'tollPaid'; from: number; to: number; amount: number }
