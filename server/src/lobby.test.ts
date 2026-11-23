@@ -5,6 +5,7 @@ import { Server } from 'socket.io';
 import { io, type Socket } from 'socket.io-client';
 import { NATIONS, type GameState, type RoomAction, type RoomClientEvents, type RoomLobby, type RoomPass, type RoomRequest, type RoomServerEvents, type RoomSnapshot } from '@happy-voyage/shared';
 import { registerLobby } from './lobby';
+import { roomSocketOptions } from './roomSocketOptions';
 
 type RoomSocket = Socket<RoomServerEvents, RoomClientEvents>;
 const clients: RoomSocket[] = [];
@@ -14,7 +15,7 @@ let endpoint: string;
 
 beforeEach(async () => {
   const http = createServer();
-  server = new Server(http);
+  server = new Server(http, roomSocketOptions);
   let seed = 42;
   const rng = () => ((seed = (Math.imul(1664525, seed) + 1013904223) >>> 0) / 2 ** 32);
   dispose = registerLobby(server, { paceMultiplier: 0, rng });
@@ -52,6 +53,31 @@ async function create(host: Client): Promise<RoomPass> {
   if (!reply.ok || !reply.pass) throw new Error('Room creation failed');
   return reply.pass;
 }
+
+it('allows the static demos and loopback clients, but denies other cross-origin connections', async () => {
+  for (const origin of ['https://raw.githack.com', 'https://rawcdn.githack.com', 'http://localhost:5173', 'http://127.0.0.1:5173']) {
+    const response = await fetch(`${endpoint}/socket.io/?EIO=4&transport=polling`, { headers: { Origin: origin } });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('access-control-allow-origin')).toBe(origin);
+    await response.text();
+  }
+
+  const origin = 'https://raw.githack.com.example.org';
+  const response = await fetch(`${endpoint}/socket.io/?EIO=4&transport=polling`, { headers: { Origin: origin } });
+  expect(response.status).toBe(403);
+  expect(response.headers.get('access-control-allow-origin')).toBeNull();
+  await response.text();
+
+  for (const [origin, allowed] of [['https://rawcdn.githack.com', true], ['https://example.org', false], [endpoint, true]] as const) {
+    const socket: RoomSocket = io(endpoint, { transports: ['websocket'], extraHeaders: { Origin: origin }, reconnection: false });
+    clients.push(socket);
+    const connected = await new Promise<boolean>((resolve) => {
+      socket.once('connect', () => resolve(true));
+      socket.once('connect_error', () => resolve(false));
+    });
+    expect(connected).toBe(allowed);
+  }
+});
 
 it('enforces unique nations, connected seats and a host-only start in rooms of two to six', async () => {
   const host = await connect();

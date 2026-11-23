@@ -21,12 +21,22 @@ Choose Easy, Normal, or Hard before setting sail. Difficulty changes rival decis
 
 ## Online rooms
 
+On the [public demo](https://raw.githack.com/yangfh2004/Happy-Voyage/demo/index.html), select **Host online room** and share the invite link. Guests choose a different nation and join. The free room server can sleep when idle, so the first connection may take about a minute.
+
+### Local hosting
+
 With Node.js 20+, run `npm ci && npm run build && npm start` from the repo root.
 Open **http://localhost:3000** in a browser, select **Host online room**, and share the invite link. Guests open it in their own browser, pick distinct nations, and join. The host can start once 2–6 people are connected; AI plays the other nations. Choose **Sprint** for the shortest match.
 
-To play from another device, use a server address both devices can reach (not `localhost`). The static demo supports local play only. Online hosting needs one always-running Node.js service serving the built client and Socket.IO on the same origin, with HTTPS and WebSocket upgrades supported by its reverse proxy. Rooms are in memory: a restart clears them, so don't run multiple replicas. No database is needed.
+To play from another device on your network, use a server address both devices can reach (not `localhost`). Rooms are in memory: a restart clears them, so don't run multiple replicas. No database is needed.
 
 Refreshing the invite in the same tab restores your seat; a match waits when a disconnected player is at the helm. Empty rooms eventually expire, and seats in the pre-game lobby expire after a short disconnect grace period.
+
+### Deploy the public room server
+
+1. After the Blueprint is merged to `main`, sign in to [Render and create a Blueprint](https://dashboard.render.com/blueprints/new). Connect GitHub, grant Render access to [yangfh2004/Happy-Voyage](https://github.com/yangfh2004/Happy-Voyage), select the repo and `main`, and deploy the free `happy-voyage` service from `render.yaml`. No database or environment secrets are required.
+2. Wait for the service to go live, then open [the health check](https://happy-voyage.onrender.com/healthz). If Render assigned a different URL, use that URL instead and set the GitHub repository's [Actions variable](https://github.com/yangfh2004/Happy-Voyage/settings/variables/actions) `RENDER_SERVER_URL` to the service's HTTPS origin.
+3. Check the [Publish demo workflow](https://github.com/yangfh2004/Happy-Voyage/actions/workflows/demo.yml) on `main`. Run it again if you changed the Actions variable. Open the demo, create a room, and open its invite in a second browser to join.
 
 ## Royal campaign
 
@@ -74,7 +84,7 @@ client/   Phaser + React front end
   src/game/scenes/             BootScene (generated placeholder art), OceanScene (sea, route, fleets)
   src/ui/                      React overlays: setup menu, player bar, action panel, ship's log
 server/   Express + Socket.IO
-  src/index.ts     /api/health, /api/map, serves client/dist
+  src/index.ts     /healthz, /api/health, /api/map, serves client/dist
   src/lobby.ts     Online lobby, seats, invites and reconnects
   src/roomMatch.ts Authoritative online match, including AI and timers
   src/db.ts        Optional PostgreSQL pool
