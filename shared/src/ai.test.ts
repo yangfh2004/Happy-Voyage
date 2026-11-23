@@ -4,6 +4,7 @@ import { GameEngine } from './engine';
 import { forecastMap } from './testMap';
 import { createNationRoster } from './nations';
 import { SEA_RULES } from './seaRules';
+import { MAX_FLEET_SIZE } from './ships';
 
 describe('AI colony decisions', () => {
   it.each(['easy', 'normal', 'hard'] as const)('chooses a free colony at low gold for %s Navigate and Wyvern travel', (difficulty) => {
@@ -208,6 +209,35 @@ describe('AI rival difficulty', () => {
       expect(player.fleet.includes(defector)).toBe(difficulty === 'hard');
       expect(player.strategies).toEqual(difficulty === 'hard' ? [] : ['betray']);
     }
+  });
+
+  it.each([
+    [0, 85, 'ambush'],
+    [1, 85, 'ambush'],
+    [0, 75, 'betray'],
+    [1, 75, 'betray'],
+  ] as const)('with %s fleet slots and defender firepower %s, chooses %s', (openSlots, defenderFirepower, card) => {
+    const { engine, state, player, node } = at('island', true);
+    player.aiDifficulty = 'normal';
+    player.strategies = ['betray', 'ambush'];
+    const colony = state.map.find((candidate) => candidate.kind === 'island' && candidate.id !== node.id)!;
+    state.owners[colony.id] = player.id;
+    while (player.fleet.length < MAX_FLEET_SIZE - openSlots) engine.addShipToFleet(player.id, 'cargo');
+    for (const ship of player.fleet) { ship.firepower = 9; ship.durability = 50; }
+    const flagship = player.fleet.find((ship) => ship.signature)!;
+    flagship.durability = flagship.maxDurability;
+    const rival = state.players[1];
+    const defectors = rival.fleet.slice(0, 2);
+    rival.fleet.forEach((ship, i) => {
+      ship.firepower = i < 2 ? 95 : defenderFirepower;
+      ship.durability = i < 2 ? 80 : 25;
+    });
+
+    engine.decideForAI();
+
+    expect(player.strategies).toEqual([card === 'ambush' ? 'betray' : 'ambush']);
+    expect(state.battles[0]?.outcome).toBe('victory');
+    expect(state.docks[colony.id]).toEqual(card === 'betray' ? defectors.slice(openSlots) : []);
   });
 
   it('Hard can disarm a major rival and still pay the toll instead of risking the fleet', () => {
