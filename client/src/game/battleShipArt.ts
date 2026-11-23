@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { SHIP_TYPES, type Ship, type ShipType } from '@happy-voyage/shared';
+import { SHIP_TYPES, type BattleBattery, type Ship, type ShipType } from '@happy-voyage/shared';
 import { CAMERA_45 } from './battleLayout';
 
 export type ShipGrade = 1 | 2 | 3;
@@ -215,9 +215,9 @@ export async function prewarmBattleShips(scene: Phaser.Scene, ships: { ship: Shi
   }
 }
 
-export function broadsideMuzzles(ship: ShipAppearance & { x: number; y: number; heading: number }, target: { x: number; y: number }) {
+export function broadsideMuzzles(ship: ShipAppearance & { x: number; y: number; heading: number }, battery: BattleBattery) {
   const a = ship.heading * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a);
-  const side = dx * (target.y - ship.y) - dy * (target.x - ship.x) >= 0 ? 1 : -1;
+  const side = battery === 'port' ? -1 : 1;
   return shipModel(ship.type, shipGrade(ship)).ports.filter(p => p.y * side > 0).map(p => ({
     x: ship.x + dx * p.x - dy * p.y, y: ship.y + dy * p.x + dx * p.y, z: p.z, dx: -dy * side, dy: dx * side,
   }));

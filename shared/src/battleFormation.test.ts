@@ -98,7 +98,7 @@ describe('persistent battle formations', () => {
     for (let i = 0; i < 500; i++) {
       stepBattle(b);
       expect(Math.max(...errors(b, b.groups[0]))).toBeLessThan(1);
-      shots += members(b).filter(s => s.reload === 3).length;
+      shots += members(b).filter(s => s.reload.port === 3 || s.reload.starboard === 3).length;
     }
     const group = b.groups[0];
     expect(group.order.type).toBe('attack');

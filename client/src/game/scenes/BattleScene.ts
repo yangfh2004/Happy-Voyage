@@ -196,12 +196,11 @@ export class BattleScene extends Phaser.Scene {
         this.previous = new Map(old.map((s) => [s.id, s]));
         const balls = [...b.cannonballs];
         this.session.step();
-        if (b.ships.some((s, i) => s.reload > old[i].reload)) sfx.cannon();
+        if (b.ships.some((s, i) => s.reload.port > old[i].reload.port || s.reload.starboard > old[i].reload.starboard)) sfx.cannon();
         for (const s of b.ships) {
           const before = old.find((o) => o.id === s.id)!;
-          if (s.reload > before.reload) {
-            const shot = b.cannonballs.find((ball) => !balls.includes(ball) && ball.side === s.side && Math.hypot(ball.x - s.x, ball.y - s.y) < 25);
-            if (shot) this.smoke.push(...broadsideMuzzles(s, { x: shot.landingX, y: shot.landingY }).map((m) => ({ ...m, x: s.x + (m.x - s.x) * this.layout().shipScale, y: s.y + (m.y - s.y) * this.layout().shipScale, z: m.z * this.layout().shipScale, age: 0 })));
+          for (const shot of b.cannonballs.filter(ball => !balls.includes(ball) && ball.side === s.side && ball.shipId === s.id)) {
+            this.smoke.push(...broadsideMuzzles(s, shot.battery).map((m) => ({ ...m, x: s.x + (m.x - s.x) * this.layout().shipScale, y: s.y + (m.y - s.y) * this.layout().shipScale, z: m.z * this.layout().shipScale, age: 0 })));
           }
           if (s.durability < before.durability) { this.effects.push({ x: s.x, y: s.y, age: 0, damage: before.durability - s.durability }); sfx.splash(); }
           if (s.sunk && !before.sunk) this.sunkAt.set(s.id, this.clock);
@@ -432,7 +431,7 @@ export class BattleScene extends Phaser.Scene {
     const cardY = short ? 69 : 76, cardH = short ? 34 : 52;
     this.panel(g, 6, cardY, width - 12, cardH);
     const selected = this.session.battle.ships.filter(s => this.selected.has(s.id) && s.side === this.session.side && !s.sunk && !s.escaped);
-    this.selectionCard.setPosition(width / 2, cardY + (short ? 3 : 7)).setFontSize(short ? 11 : compact ? 12 : 15).setText(battleSelectionText(selected, getLocale()));
+    this.selectionCard.setPosition(width / 2, cardY + (short ? 3 : 7)).setFontSize(short ? 11 : compact ? 12 : 15).setText(battleSelectionText(selected, getLocale(), compact && !short));
     const cols = compact ? 3 : 6, step = Math.min((width - 16) / cols, 170);
     this.panel(g, 0, layout.controlsTop, width, height - layout.controlsTop);
     const names = [text('Fleet', '全舰队'), text('Column', '纵队'), text('Line', '横队'), text('Spread', '散开'), this.paused ? text('Resume', '继续') : text('Pause', '暂停'), text('Retreat', '撤退')];

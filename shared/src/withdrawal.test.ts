@@ -12,7 +12,7 @@ const fleet = (n: number) => Array.from({ length: n }, (_, i) => ship(i + 1));
 function hitBattle(defenders: Ship[], damage: number) {
   const battle = createBattle({ seed: 42, attackers: [ship(100)], defenders });
   for (const s of battle.ships) s.order = { type: 'move', x: s.x, y: s.y };
-  battle.cannonballs = battle.ships.filter((s) => s.side === 'defender').map((s) => ({ side: 'attacker', x: s.x, y: s.y, landingX: s.x, landingY: s.y, remaining: TICK, damage }));
+  battle.cannonballs = battle.ships.filter((s) => s.side === 'defender').map((s) => ({ side: 'attacker', shipId: 100, battery: 'port', x: s.x, y: s.y, landingX: s.x, landingY: s.y, remaining: TICK, damage }));
   return battle;
 }
 
@@ -25,7 +25,7 @@ describe('fleet withdrawal', () => {
     const battle = createBattle(setup);
     for (const s of battle.ships) s.order = { type: 'move', x: s.x, y: s.y };
     battle.cannonballs = battle.ships.filter((s) => s.id !== 2).map((s) => ({
-      side: s.side === 'attacker' ? 'defender' : 'attacker', x: s.x, y: s.y,
+      side: s.side === 'attacker' ? 'defender' : 'attacker', shipId: s.side === 'attacker' ? 100 : 1, battery: 'port', x: s.x, y: s.y,
       landingX: s.x, landingY: s.y, remaining: TICK, damage: s.side === 'attacker' ? damage : 100,
     }));
     stepBattle(battle);

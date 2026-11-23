@@ -135,7 +135,7 @@ describe('projected broadside effects', () => {
     const a = heading * Math.PI / 180, normal = { x: -Math.sin(a), y: Math.cos(a) };
     const ship = { ...appearance('warship'), x: 800, y: 450, heading };
     for (const side of [-1, 1]) {
-      const muzzles = broadsideMuzzles(ship, { x: ship.x + normal.x * side * 200, y: ship.y + normal.y * side * 200 });
+      const muzzles = broadsideMuzzles(ship, side < 0 ? 'port' : 'starboard');
       expect(muzzles).toHaveLength(3);
       for (const muzzle of muzzles) {
         expect(((muzzle.x - ship.x) * normal.x + (muzzle.y - ship.y) * normal.y) * side).toBeGreaterThan(15);
