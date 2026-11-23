@@ -36,6 +36,6 @@ const httpServer = createServer(app);
 const io = new Server<RoomClientEvents, RoomServerEvents>(httpServer, roomSocketOptions);
 registerLobby(io);
 
-httpServer.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, () => {
   console.log(`Happy Voyage server on http://localhost:${PORT}`);
 });
