@@ -6,7 +6,7 @@ import { BattleSession } from '../BattleSession';
 import { battleNameVisible, battleSelectionText } from '../battleHud';
 import { sfx } from '../sfx';
 import { battleShipTexture, broadsideMuzzles, prewarmBattleShips, battleShipModel, shipGrade } from '../battleShipArt';
-import { battleLayout, battleToScreen, isBattleDrag, placeBattleLabel, screenToBattle, type BattleRect } from '../battleLayout';
+import { battleLayout, battleToScreen, isBattleDrag, pickBattleShip, placeBattleLabel, screenToBattle, type BattleRect } from '../battleLayout';
 
 const font = '"Sea Names", Georgia, serif';
 const text = (en: string, zh: string) => pick(getLocale(), en, zh);
@@ -119,9 +119,10 @@ export class BattleScene extends Phaser.Scene {
   private point(p: Phaser.Input.Pointer) { return screenToBattle(this.layout(), p); }
   private shipAt(p: { x: number; y: number }) {
     const layout = this.layout(), screen = battleToScreen(layout, p);
-    const distance = (s: BattleShip) => { const q = battleToScreen(layout, s); return Math.hypot(q.x - screen.x, q.y - screen.y); };
-    return this.session.battle.ships.filter((s) => !s.sunk && !s.escaped && distance(s) <= Math.max(22, 38 * layout.zoom * layout.shipScale))
-      .sort((a, b) => distance(a) - distance(b))[0];
+    return pickBattleShip(screen, this.session.battle.ships.filter(s => !s.sunk && !s.escaped).map(ship => {
+      const image = this.ships.get(ship.id)!;
+      return { ship, id: ship.id, x: image.x, y: image.y, depth: image.depth, bounds: image.getBounds(), radius: 38 * layout.zoom * layout.shipScale };
+    }))?.ship;
   }
 
   private order(p: { x: number; y: number }, target?: BattleShip) {
@@ -132,11 +133,11 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private pointerDown(p: Phaser.Input.Pointer) {
-    const bounds = this.layout().bounds;
-    if (p.y < bounds.y || p.y > bounds.y + bounds.height) return;
+    const layout = this.layout();
+    if (p.y < layout.hudBottom || p.y >= layout.controlsTop || this.session.battle.outcome) return;
     const point = this.point(p);
-    if (point.x < 0 || point.x > 1600 || point.y < 0 || point.y > 900 || this.session.battle.outcome) return;
     const target = this.shipAt(point);
+    if (!target && (point.x < 0 || point.x > 1600 || point.y < 0 || point.y > 900)) return;
     if (p.rightButtonDown()) { this.order(point, target); return; }
     this.drag = { ...point, screenX: p.x, screenY: p.y, touch: p.wasTouch }; this.cursor = point;
   }

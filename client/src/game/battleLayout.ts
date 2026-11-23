@@ -35,6 +35,19 @@ export function screenToBattle(layout: ReturnType<typeof battleLayout>, point: P
 export const battleTapRadius = (zoom: number) => Math.max(38, 22 / zoom);
 export const isBattleDrag = (start: Point, end: Point) => Math.hypot(end.x - start.x, end.y - start.y) > 14;
 
+type BattleShipHit = Point & { id: number; depth: number; bounds: BattleRect; radius: number };
+
+export function pickBattleShip<T extends BattleShipHit>(point: Point, ships: T[]): T | undefined {
+  const hits = ships.map(ship => ({
+    ship,
+    distance: Math.hypot(ship.x - point.x, ship.y - point.y),
+    onSprite: point.x >= ship.bounds.x - 3 && point.x <= ship.bounds.x + ship.bounds.width + 3
+      && point.y >= ship.bounds.y - 3 && point.y <= ship.bounds.y + ship.bounds.height + 3,
+  })).filter(hit => hit.onSprite || hit.distance <= Math.max(22, hit.ship.radius));
+  hits.sort((a, b) => Number(b.onSprite) - Number(a.onSprite) || b.ship.depth - a.ship.depth || a.distance - b.distance || a.ship.id - b.ship.id);
+  return hits[0]?.ship;
+}
+
 export function placeBattleLabel(bounds: BattleRect, occupied: BattleRect[], ship: Point, size: { width: number; height: number }, gap: number): BattleRect {
   const minX = bounds.x + 2, minY = bounds.y + 2;
   const maxX = Math.max(minX, bounds.x + bounds.width - size.width - 2);
