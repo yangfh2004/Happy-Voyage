@@ -12,7 +12,7 @@ describe('nautical battle HUD', () => {
     const s = { ...ship(1), maxDurability: 150, reload: 1.2 };
     expect(battleClassName(s, 'en')).toBe('Frigate');
     expect(battleClassName(s, 'zh')).toBe('护卫舰');
-    expect(battleSelectionText([s], 'zh')).toContain('射程 320');
+    expect(battleSelectionText([s], 'zh')).toContain('射程 640');
     expect(battleSelectionText([s], 'en')).toContain('Reload 1.2s');
     expect(battleSelectionText([ship(1)], 'en')).toContain('Ready');
     expect(battleClassName({ ...s, signature: true }, 'zh')).toBe('战列舰');

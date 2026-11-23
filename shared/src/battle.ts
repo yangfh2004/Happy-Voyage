@@ -2,11 +2,12 @@ import type { AIDifficulty, BattleOutcome, Ship, ShipType } from './types';
 import { sinkingCap, withdrawalReason, type BattleWithdrawal } from './withdrawal';
 
 export const TICK = 1 / 20;
-export const BATTLE_FIELD = { width: 1600, height: 900 } as const;
+export const BATTLE_FIELD = { width: 2400, height: 1350 } as const;
+const CANNONBALL_SPEED = 800;
 export const BATTLE_STATS: Record<ShipType, { turn: number; range: number; reload: number; radius: number }> = {
-  warship: { turn: 50, range: 320, reload: 3, radius: 22 },
-  cargo: { turn: 45, range: 220, reload: 3, radius: 20 },
-  explorer: { turn: 90, range: 260, reload: 2, radius: 16 },
+  warship: { turn: 50, range: 640, reload: 3, radius: 22 },
+  cargo: { turn: 45, range: 440, reload: 3, radius: 20 },
+  explorer: { turn: 90, range: 520, reload: 2, radius: 16 },
 };
 export type BattleSide = 'attacker' | 'defender';
 export type Formation = 'column' | 'line' | 'spread';
@@ -112,9 +113,10 @@ function random(battle: BattleState): number {
 }
 
 export function createBattle(setup: BattleSetup): BattleState {
+  const spacing = BATTLE_FIELD.width * .0725;
   const ships = (fleet: Ship[], side: BattleSide): BattleShip[] => fleet.map((ship, i) => ({
-    ...ship, cargo: { ...ship.cargo }, side, x: side === 'attacker' ? 160 + Math.floor(i / 7) * 116 : 1440 - Math.floor(i / 7) * 116,
-    y: 450 + (i % 7 - (Math.min(fleet.length, 7) - 1) / 2) * 116,
+    ...ship, cargo: { ...ship.cargo }, side, x: BATTLE_FIELD.width * (side === 'attacker' ? .1 : .9) + (side === 'attacker' ? 1 : -1) * Math.floor(i / 7) * spacing,
+    y: BATTLE_FIELD.height / 2 + (i % 7 - (Math.min(fleet.length, 7) - 1) / 2) * spacing,
     heading: side === 'attacker' ? 0 : 180, vx: 0, vy: 0, reload: 0,
     sunk: ship.durability <= 0, startedAfloat: ship.durability > 0, escaped: false, order: { type: 'free' }, charge: false,
   }));
@@ -155,7 +157,7 @@ export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleC
   if (cmd.type === 'attack' && !battle.ships.some((s) => s.id === cmd.targetId && s.side !== side && active(s))) return;
   const ships = battle.ships.filter((s) => s.side === side && active(s) && cmd.shipIds.includes(s.id));
   if (!ships.length) return;
-  const spacing = Math.max(0, ...ships.map((s) => clearance(s) * 2 + 24));
+  const spacing = Math.max(0, ...ships.map((s) => clearance(s) * 2 + 24)) * 1.5;
   const columns = Math.ceil(Math.sqrt(ships.length));
   const targets = ships.map((s, i) => {
     const offset = (i - (ships.length - 1) / 2) * spacing;
@@ -219,27 +221,27 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
       desired = moving ? bow : bow + (angle(s.heading - bow) >= 0 ? 90 : -90);
     }
     s.heading = angle(s.heading + clamp(angle(desired - s.heading), -stats.turn * TICK, stats.turn * TICK));
-    s.vx = moving ? Math.cos(s.heading * Math.PI / 180) * s.speed * 12 : 0;
-    s.vy = moving ? Math.sin(s.heading * Math.PI / 180) * s.speed * 12 : 0;
-    s.x = clamp(s.x + s.vx * TICK, battle.retreating && s.side === 'attacker' ? -100 : stats.radius, 1600 - stats.radius);
-    s.y = clamp(s.y + s.vy * TICK, stats.radius, 900 - stats.radius);
+    s.vx = moving ? Math.cos(s.heading * Math.PI / 180) * s.speed * 16 : 0;
+    s.vy = moving ? Math.sin(s.heading * Math.PI / 180) * s.speed * 16 : 0;
+    s.x = clamp(s.x + s.vx * TICK, battle.retreating && s.side === 'attacker' ? -100 : stats.radius, BATTLE_FIELD.width - stats.radius);
+    s.y = clamp(s.y + s.vy * TICK, stats.radius, BATTLE_FIELD.height - stats.radius);
     if (s.x < 0) { s.escaped = true; continue; }
     s.reload = Math.max(0, s.reload - TICK);
   }
   separate(battle.ships.filter(active), 0, battle.retreating);
   for (const s of battle.ships.filter(active)) {
-    if (s.reload > 0 || (s.side === 'defender' && battle.ambush && battle.tick < 160)) continue;
+    if (s.reload > 0 || (s.side === 'defender' && battle.ambush && battle.tick < 8 / TICK)) continue;
     const stats = BATTLE_STATS[s.type];
     const targets = battle.ships.filter((e) => e.side !== s.side && active(e) && distance(s, e) <= stats.range && inBroadsideArc(s, e))
       .sort((a, b) => distance(s, a) - distance(s, b));
     const order = s.order;
     const target = (order.type === 'attack' ? targets.find((e) => e.id === order.targetId) : undefined) ?? targets[0];
     if (!target) continue;
-    const flight = distance(s, target) / 400;
+    const flight = distance(s, target) / CANNONBALL_SPEED;
     const landingX = target.x + target.vx * flight + (random(battle) - 0.5) * 18;
     const landingY = target.y + target.vy * flight + (random(battle) - 0.5) * 18;
     battle.cannonballs.push({ side: s.side, x: s.x, y: s.y, landingX, landingY,
-      remaining: Math.hypot(landingX - s.x, landingY - s.y) / 400,
+      remaining: Math.hypot(landingX - s.x, landingY - s.y) / CANNONBALL_SPEED,
       damage: Math.round(s.firepower * (s.side === 'attacker' ? battle.attackerMultiplier : 1) * (0.75 + random(battle) * 0.5)) });
     s.reload = stats.reload;
   }

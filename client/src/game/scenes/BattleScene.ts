@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TICK, playerName, shipName, type BattleShip, type Formation } from '@happy-voyage/shared';
+import { BATTLE_FIELD, TICK, playerName, shipName, type BattleShip, type Formation } from '@happy-voyage/shared';
 import { getLocale, pick } from '../../i18n';
 import { gameController } from '../GameController';
 import { BattleSession } from '../BattleSession';
@@ -137,7 +137,7 @@ export class BattleScene extends Phaser.Scene {
     if (p.y < layout.hudBottom || p.y >= layout.controlsTop || this.session.battle.outcome) return;
     const point = this.point(p);
     const target = this.shipAt(point);
-    if (!target && (point.x < 0 || point.x > 1600 || point.y < 0 || point.y > 900)) return;
+    if (!target && (point.x < 0 || point.x > BATTLE_FIELD.width || point.y < 0 || point.y > BATTLE_FIELD.height)) return;
     if (p.rightButtonDown()) { this.order(point, target); return; }
     this.drag = { ...point, screenX: p.x, screenY: p.y, touch: p.wasTouch }; this.cursor = point;
   }
@@ -210,8 +210,8 @@ export class BattleScene extends Phaser.Scene {
     g.fillGradientStyle(0x0c435d, 0x12546b, 0x167a88, 0x0a536d).fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
     for (let i = 0; i < 90; i++) {
       const phase = this.clock * .65 + i * 2.4;
-      const x = (i * 193.7 + this.clock * 6) % 1540 + 20;
-      const y = (i * 137.3) % 840 + 30 + Math.sin(phase) * 4;
+      const x = (i * 193.7 + this.clock * 6) % (BATTLE_FIELD.width - 60) + 20;
+      const y = (i * 137.3) % (BATTLE_FIELD.height - 60) + 30 + Math.sin(phase) * 4;
       g.lineStyle((i % 4 ? 1 : 2) * zoom, 0xb1ece6, .06 + (Math.sin(phase) + 1) * .035);
       line(x - 15, y, x - 5, y + 3); line(x - 5, y + 3, x + 6, y + 2); line(x + 6, y + 2, x + 18, y - 1);
     }

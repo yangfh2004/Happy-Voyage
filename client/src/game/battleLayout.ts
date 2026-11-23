@@ -15,7 +15,7 @@ export function battleLayout(width: number, height: number) {
   const left = (width - fieldWidth * zoom) / 2;
   const top = hudBottom + (availableHeight - fieldHeight * zoom) / 2;
   const bounds = { x: left, y: top, width: fieldWidth * zoom, height: fieldHeight * zoom };
-  const shipScale = portrait ? Math.max(1, 70 / (125 * CAMERA_45 * zoom)) : 1;
+  const shipScale = portrait ? Math.max(1, (70 / 1.5) / (125 * CAMERA_45 * zoom)) : 1;
   return { portrait, zoom, shipScale, hudBottom, x: left, y: top + (portrait ? fieldHeight * zoom : 0), angle: 0, bounds, controlsTop };
 }
 

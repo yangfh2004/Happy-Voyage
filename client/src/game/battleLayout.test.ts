@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { BATTLE_FIELD } from '@happy-voyage/shared';
 import { battleLayout, battleTapRadius, battleToScreen, isBattleDrag, pickBattleShip, placeBattleLabel, screenToBattle, type BattleRect } from './battleLayout';
 
 describe('battlefield layout', () => {
   it.each([[390, 844], [1440, 900], [844, 390], [600, 600]])('round-trips coordinates at %sx%s with the whole field between HUD and controls', (width, height) => {
     const layout = battleLayout(width, height);
-    for (const point of [{ x: 0, y: 0 }, { x: 1600, y: 900 }, { x: 123, y: 678 }, { x: 800, y: 450 }]) {
+    for (const point of [{ x: 0, y: 0 }, { x: BATTLE_FIELD.width, y: BATTLE_FIELD.height }, { x: 123, y: 678 }, { x: BATTLE_FIELD.width / 2, y: BATTLE_FIELD.height / 2 }]) {
       const screen = battleToScreen(layout, point);
       expect(screen.x).toBeGreaterThanOrEqual(-.001);
       expect(screen.x).toBeLessThanOrEqual(width + .001);
@@ -18,17 +19,19 @@ describe('battlefield layout', () => {
 
   it('puts attackers below defenders in portrait and preserves landscape orientation', () => {
     const portrait = battleLayout(390, 844), landscape = battleLayout(1440, 900);
+    const attacker = { x: BATTLE_FIELD.width * .1, y: BATTLE_FIELD.height / 2 };
+    const defender = { x: BATTLE_FIELD.width * .9, y: BATTLE_FIELD.height / 2 };
     expect(portrait.angle).toBe(0);
-    expect(battleToScreen(portrait, { x: 160, y: 450 }).y).toBeGreaterThan(battleToScreen(portrait, { x: 1440, y: 450 }).y);
-    expect(portrait.bounds.height).toBeCloseTo(portrait.zoom * 1600 * Math.SQRT1_2);
+    expect(battleToScreen(portrait, attacker).y).toBeGreaterThan(battleToScreen(portrait, defender).y);
+    expect(portrait.bounds.height).toBeCloseTo(portrait.zoom * BATTLE_FIELD.width * Math.SQRT1_2);
     expect(landscape.angle).toBe(0);
-    expect(battleToScreen(landscape, { x: 160, y: 450 }).x).toBeLessThan(battleToScreen(landscape, { x: 1440, y: 450 }).x);
+    expect(battleToScreen(landscape, attacker).x).toBeLessThan(battleToScreen(landscape, defender).x);
   });
 
-  it('keeps portrait G2 hulls at least 70 CSS pixels long without stretching the field', () => {
+  it('shrinks portrait G2 hulls by 1.5 without stretching the field', () => {
     const layout = battleLayout(390, 844);
-    expect(125 * Math.SQRT1_2 * layout.zoom * layout.shipScale).toBeGreaterThanOrEqual(70);
-    expect(layout.bounds.width / layout.bounds.height).toBeCloseTo(900 / (1600 * Math.SQRT1_2));
+    expect(125 * Math.SQRT1_2 * layout.zoom * layout.shipScale).toBeCloseTo(70 / 1.5);
+    expect(layout.bounds.width / layout.bounds.height).toBeCloseTo(BATTLE_FIELD.height / (BATTLE_FIELD.width * Math.SQRT1_2));
   });
 
   it.each([[390, 844], [1280, 720]])('projects height screen-up independently of orientation at %sx%s', (width, height) => {
@@ -43,9 +46,20 @@ describe('battlefield layout', () => {
     expect(battleTapRadius(zoom) * zoom * 2).toBeGreaterThanOrEqual(44);
   });
 
+  it.each([[390, 844], [844, 390]])('keeps a 44 CSS px target on the expanded field at %sx%s', (width, height) => {
+    const layout = battleLayout(width, height);
+    const water = battleToScreen(layout, { x: BATTLE_FIELD.width / 2, y: BATTLE_FIELD.height / 2 });
+    const radius = battleTapRadius(layout.zoom) * layout.zoom;
+    const ship = { ...water, id: 1, depth: water.y, radius, bounds: { ...water, width: 1, height: 1 } };
+    expect(radius * 2).toBeGreaterThanOrEqual(44);
+    expect(pickBattleShip({ x: water.x - 22, y: water.y }, [ship])).toBe(ship);
+    expect(pickBattleShip({ x: water.x, y: water.y - 22 }, [ship])).toBe(ship);
+    expect(pickBattleShip({ x: water.x - radius - 1, y: water.y }, [ship])).toBeUndefined();
+  });
+
   it('treats finger drift as a tap independently of field scale or rotation', () => {
-    for (const [width, height] of [[390, 844], [1440, 900]]) {
-      const start = battleToScreen(battleLayout(width, height), { x: 200, y: 450 });
+    for (const [width, height] of [[390, 844], [844, 390]]) {
+      const start = battleToScreen(battleLayout(width, height), { x: BATTLE_FIELD.width / 2, y: BATTLE_FIELD.height / 2 });
       expect(isBattleDrag(start, { x: start.x + 5, y: start.y })).toBe(false);
       expect(isBattleDrag(start, { x: start.x, y: start.y + 14 })).toBe(false);
       expect(isBattleDrag(start, { x: start.x + 15, y: start.y })).toBe(true);
@@ -86,8 +100,8 @@ describe('projected ship hit targets', () => {
   it('hits the sails and castle well above the waterline in both orientations', () => {
     for (const [width, height] of [[1280, 720], [390, 844]]) {
       const layout = battleLayout(width, height);
-      const water = battleToScreen(layout, { x: 800, y: 450 });
-      const mast = battleToScreen(layout, { x: 800, y: 450, z: 90 });
+      const water = battleToScreen(layout, { x: BATTLE_FIELD.width / 2, y: BATTLE_FIELD.height / 2 });
+      const mast = battleToScreen(layout, { x: BATTLE_FIELD.width / 2, y: BATTLE_FIELD.height / 2, z: 180 });
       const candidate = { ...ship, ...water, bounds: { x: water.x - 30, y: mast.y - 5, width: 60, height: water.y - mast.y + 15 } };
       expect(Math.hypot(mast.x - water.x, mast.y - water.y)).toBeGreaterThan(22);
       expect(pickBattleShip(mast, [candidate])).toBe(candidate);
