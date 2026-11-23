@@ -174,7 +174,7 @@ export const ZH = {
   buildings: {
     lumberMill: { name: '木材厂', description: '每回合生产造船用木材。' },
     ironMine: { name: '铁矿厂', description: '每回合生产铁矿，各岛产量不同。' },
-    shipyard: { name: '造船厂', description: '用本地木材与铁矿造船。船厂越大，能造的船越大。' },
+    shipyard: { name: '造船厂', description: '用本地木材与铁矿造船。船厂越大，能造的船越大。在所有者回合开始时免费修好停靠的船只。' },
     repairYard: { name: '修船厂', description: '在所有者回合开始时免费修好停靠的船只。' },
     collectionField: { name: '采集场', description: '每回合采集当地特产。' },
   } as Record<BuildingKind, { name: string; description: string }>,
