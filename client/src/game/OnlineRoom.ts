@@ -5,7 +5,9 @@ import type {
 
 export const ROOM_QUERY = 'room';
 const storageKey = (id: string) => `happy-voyage-room:${id}`;
-export const OFFLINE = 'Could not reach the room server. The static demo supports local play only.';
+export const OFFLINE = 'Could not reach the room server.';
+const REQUEST_TIMEOUT = 4500;
+const HOSTED_CONNECT_TIMEOUT = 90_000;
 
 export function roomLink(roomId: string | null): URL {
   const url = new URL(window.location.href);
@@ -22,7 +24,11 @@ function savePass(roomId: string, token: string | null): void {
 }
 
 export class OnlineRoom {
-  private readonly socket: Socket<RoomServerEvents, RoomClientEvents> = io({ autoConnect: false });
+  private readonly serverUrl = import.meta.env.VITE_SERVER_URL?.trim() || undefined;
+  private readonly socket: Socket<RoomServerEvents, RoomClientEvents> = io(this.serverUrl, {
+    autoConnect: false,
+    ...(this.serverUrl ? { timeout: HOSTED_CONNECT_TIMEOUT } : {}),
+  });
   private token: string | null = null;
   private closed = false;
   pass: RoomPass | null = null;
@@ -99,7 +105,8 @@ export class OnlineRoom {
     this.changed();
     if (!this.socket.connected) this.socket.connect();
     // Use the ordered ack callback: the server sends the pass before broadcasting lobby/game state.
-    this.socket.timeout(4500).emit('room:request', request, (err: Error | null, reply?: RoomReply) => {
+    const timeout = this.serverUrl && !this.socket.connected ? HOSTED_CONNECT_TIMEOUT : REQUEST_TIMEOUT;
+    this.socket.timeout(timeout).emit('room:request', request, (err: Error | null, reply?: RoomReply) => {
       if (this.closed) return;
       this.busy = false;
       if (err || !reply) {

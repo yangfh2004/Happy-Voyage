@@ -6,7 +6,7 @@ import { gameController } from '../game/GameController';
 import { OFFLINE, roomLink, type OnlineRoom } from '../game/OnlineRoom';
 
 const ROOM_ERRORS_ZH: Record<string, string> = {
-  [OFFLINE]: '无法连接房间服务器。静态演示版只支持本地游戏。',
+  [OFFLINE]: '无法连接房间服务器。',
   'This seat was opened in another browser. Reopen the invite to return.': '这个座位已在另一个浏览器中打开。重新打开邀请链接即可回来。',
   'The room did not respond. Try again.': '房间没有响应，请重试。',
   'Room connection lost.': '与房间的连接已断开。',

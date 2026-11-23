@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: happy-voyage
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build -w server
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 20.20.2
