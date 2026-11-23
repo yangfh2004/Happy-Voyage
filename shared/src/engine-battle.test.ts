@@ -17,6 +17,7 @@ describe('real-time engine integration', () => {
     const { game, node } = siege(false, true, mode);
     const [attacker, defender] = game.state.players;
     const guards = defender.fleet.splice(1, 2);
+    const ids = guards.map((s) => s.id);
     for (const s of guards) { s.durability = 1; s.firepower = 0; }
     for (const s of attacker.fleet) s.firepower = 1000;
     game.state.docks[node.id] = guards;
@@ -24,7 +25,7 @@ describe('real-time engine integration', () => {
     expect(report.outcome).toBe('victory');
     expect(game.state.owners[node.id]).toBe(attacker.id);
     expect(game.state.docks[node.id]).toEqual([]);
-    const survivors = defender.fleet.filter((s) => guards.includes(s));
+    const survivors = defender.fleet.filter((s) => ids.includes(s.id));
     expect(survivors).toHaveLength(mode === 'auto' ? 1 : 2);
     expect(survivors.every((s) => s.durability === 1)).toBe(true);
     expect(attacker.fleet.some((s) => survivors.includes(s))).toBe(false);
