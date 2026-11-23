@@ -89,7 +89,7 @@ describe('fleet-loss defeat', () => {
 
 describe('campaign UI', () => {
   it('shows distinct pending and paid missions after claiming a real colony', () => {
-    const game = new GameEngine({ campaign: { stage: 'first-voyage', navigator: { name: 'You', nation: 'Spain' } } });
+    const game = new GameEngine({ campaign: { stage: 'first-voyage', navigator: { name: 'You', nation: 'Spain' } }, rng: () => .5 });
     const { state } = game;
     const island = state.map.find((node) => node.kind === 'island')!;
     game.useStrategy('navigate', island.id);
