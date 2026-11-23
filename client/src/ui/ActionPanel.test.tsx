@@ -80,7 +80,7 @@ describe('campaign UI', () => {
   });
 
   it('shows a campaign loss without treating it as a rival victory', () => {
-    const game = new GameEngine({ campaign: { stage: 'merchant-charter', navigator: { name: 'You', nation: 'Spain' } } });
+    const game = new GameEngine({ campaign: { stage: 'merchant-charter', navigator: { name: 'You', nation: 'Spain' } }, rng: () => .5 });
     game.state.config.battleMode = 'auto';
     const { state } = game;
     game.currentPlayer.gold = 0;
