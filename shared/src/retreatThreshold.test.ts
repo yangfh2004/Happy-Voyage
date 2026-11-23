@@ -21,7 +21,7 @@ describe('configurable retreat thresholds', () => {
     const player = engine.currentPlayer;
     player.retreatThreshold = 'last';
     player.fleet = fleet(3);
-    player.fleet.forEach((s, i) => { s.durability = i === 0 ? 10 : 1; s.cargo = { wood: i + 1 }; });
+    player.fleet.forEach((s, i) => { s.durability = i === 0 ? 10 : 1; s.cargo = { lumber: i + 1 }; });
     const node = engine.state.map.find(n => n.event === 'openSea')!;
     node.event = 'pirates'; player.position = node.id;
     const ships = [...player.fleet];
