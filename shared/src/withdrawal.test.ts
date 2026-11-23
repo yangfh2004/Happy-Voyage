@@ -17,6 +17,27 @@ function hitBattle(defenders: Ship[], damage: number) {
 }
 
 describe('fleet withdrawal', () => {
+  it.each(['flagship', 'losses'] as const)('defeats an attacker triggering %s as the last defender sinks in the same tick', (reason) => {
+    const damage = reason === 'flagship' ? 5 : 30;
+    const attackers = [ship(1, { signature: true, durability: 30, firepower: 100 }), ship(2)];
+    const defenders = [ship(100, { firepower: damage })];
+    const setup = { seed: 42, attackers, defenders };
+    const battle = createBattle(setup);
+    for (const s of battle.ships) s.order = { type: 'move', x: s.x, y: s.y };
+    battle.cannonballs = battle.ships.filter((s) => s.id !== 2).map((s) => ({
+      side: s.side === 'attacker' ? 'defender' : 'attacker', x: s.x, y: s.y,
+      landingX: s.x, landingY: s.y, remaining: TICK, damage: s.side === 'attacker' ? damage : 100,
+    }));
+    stepBattle(battle);
+    const result = battleResult(battle);
+    const auto = fightNavalBattle(attackers, defenders, () => .5);
+    expect(result).toMatchObject({ outcome: 'defeat', ticks: 1, defenderSunk: [100], withdrawal: { side: 'attacker', reason } });
+    expect(result.outcome).toBe(auto.outcome);
+    expect(result.withdrawal).toEqual(auto.withdrawal);
+    expect(result.attackerSunk).toEqual(auto.attackerSunk.map((s) => s.id));
+    expect(result.defenderSunk).toEqual(auto.defenderSunk.map((s) => s.id));
+  });
+
   it.each([
     { attackers: [ship(1, { signature: true, durability: 25 }), ship(2)], defenders: [ship(100, { durability: 0 })], outcome: 'victory' },
     { attackers: [ship(1, { signature: true, durability: 25 }), ship(2)], defenders: [], outcome: 'victory' },

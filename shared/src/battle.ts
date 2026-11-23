@@ -131,9 +131,10 @@ function withdraw(battle: BattleState, withdrawal: BattleWithdrawal): void {
 function resolveWithdrawal(battle: BattleState): void {
   const fleets = (['attacker', 'defender'] as const).map((side) => ({ side, fleet: battle.ships.filter((s) => s.side === side && s.startedAfloat) }));
   for (const { side, fleet } of fleets) {
-    if (!fleet.some((s) => !s.sunk)) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
+    if (!fleet.length) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
   }
   for (const { side, fleet } of fleets) {
+    if (!fleet.some((s) => !s.sunk)) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
     const reason = withdrawalReason(fleet);
     if (reason) { withdraw(battle, { side, reason }); return; }
   }
