@@ -1,7 +1,7 @@
 import { tx, STRATEGIES, type StrategyId } from '@happy-voyage/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createNationRoster, GameEngine, type ShipType } from '@happy-voyage/shared';
+import { createNationRoster, GameEngine, MAX_FLEET_SIZE, type ShipType } from '@happy-voyage/shared';
 
 vi.mock('../game/GameController', () => ({ gameController: {
   spinId: 0, feedback: {}, headline: null, timings: { spin: 0 }, waiting: false,
@@ -23,6 +23,31 @@ import { RouteDetails } from './RouteDetails';
 import { TransferContents } from './TransferPanel';
 import { gameController } from '../game/GameController';
 import { setLocale } from '../i18n';
+
+describe('fleet capacity at a colony', () => {
+  it.each(['en', 'zh'] as const)('shows the cap and disables boarding at capacity in %s', (locale) => {
+    const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }], rng: () => 0.5 });
+    const { state, currentPlayer: player } = game;
+    const island = state.map.find((node) => node.kind === 'island')!;
+    state.owners[island.id] = player.id;
+    player.position = island.id;
+    while (player.fleet.length < MAX_FLEET_SIZE) game.addShipToFleet(player.id, 'cargo');
+    game.addShipToFleet(player.id, 'explorer');
+    setLocale(locale);
+    try {
+      const html = renderToStaticMarkup(<TransferContents state={state} />);
+      expect(html).toContain(locale === 'en' ? 'Fleet 10/10' : '舰队 10/10');
+      expect(html).toMatch(locale === 'en' ? /<button disabled="">Board / : /<button disabled="">让/);
+      if (locale === 'en') expect(html).not.toMatch(/\p{Script=Han}/u);
+      state.phase = 'awaitingBuild';
+      game.dockShip(player.fleet[0].id);
+      const available = renderToStaticMarkup(<TransferContents state={state} />);
+      expect(available).toMatch(locale === 'en' ? /<button>Board / : /<button>让/);
+    } finally {
+      setLocale('en');
+    }
+  });
+});
 
 describe('colony return', () => {
   it.each(['en', 'zh'] as const)('offers the direct return on a human turn in %s', (locale) => {

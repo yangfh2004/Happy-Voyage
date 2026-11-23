@@ -1,4 +1,4 @@
-import { SHIP_TYPES, USED_SHIP_CONDITION, USED_SHIP_PRICES, shipName, shipSalePrice, shipTypeName, type GameState } from '@happy-voyage/shared';
+import { MAX_FLEET_SIZE, SHIP_TYPES, USED_SHIP_CONDITION, USED_SHIP_PRICES, shipName, shipSalePrice, shipTypeName, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
 import { StatTooltip } from './StatTooltip';
@@ -21,7 +21,7 @@ export function ShipMarketPanel({ state }: { state: GameState }) {
           </div>)}
         </section>
         <section aria-labelledby="ship-market-fleet">
-          <h3 id="ship-market-fleet">{t('Your fleet', '你的舰队')}</h3>
+          <h3 id="ship-market-fleet">{t('Your fleet {n}/{max}', '你的舰队 {n}/{max}', { n: player.fleet.length, max: MAX_FLEET_SIZE })}</h3>
           <p>{t('Keep at least one ship. Only empty ships can be sold; unload cargo at a colony first. Sales are final.', '至少保留一艘船。只能出售空船，请先在殖民地卸货。出售后不可撤销。')}</p>
           {player.fleet.map((ship) => <div className="ship-market-entry" key={ship.id}>
             <strong>{shipName(ship.name, locale)}</strong>

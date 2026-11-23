@@ -7,7 +7,7 @@ import { isEliminated, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules'
 import { SEA_RULES } from './seaRules';
 import { LOTTERY } from './lottery';
 import { RANKS, foreignTaxDue, playerMerit } from './ranks';
-import { GOODS, SHIP_RECIPES, USED_SHIP_PRICES, cargoLoad, shipSalePrice } from './ships';
+import { GOODS, MAX_FLEET_SIZE, SHIP_RECIPES, USED_SHIP_PRICES, cargoLoad, shipSalePrice } from './ships';
 import { normalMarketSale, quoteMarketTrade } from './market';
 import { hermitStoneTake, NIM_MAX_TAKE, type HermitId } from './mist';
 import { STRATEGY_RULES, defectionCount, type StrategyId } from './strategies';
@@ -313,7 +313,8 @@ export function aiMarketPurchase(state: GameState, player: Player): MarketOrder 
 function battleQuality(state: GameState, player: Player, card?: StrategyId): number {
   const { ships, owner, fromFleet } = colonyDefenders(state, player.position);
   const defectors = card === 'betray' ? [...ships].sort((a, b) => b.firepower - a.firepower).slice(0, defectionCount(ships.length, fromFleet)) : [];
-  const attackers = [...player.fleet, ...defectors];
+  const availableSlots = Math.max(0, MAX_FLEET_SIZE - player.fleet.length);
+  const attackers = [...player.fleet, ...defectors.slice(0, availableSlots)];
   const removesDefender = card === 'mislead' || card === 'betray';
   const remaining = card === 'betray' ? ships.filter((s) => !defectors.includes(s)) : ships.slice(1);
   const defenders = !removesDefender ? ships : !fromFleet && !remaining.length ? owner.fleet : remaining;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import dialogPolyfill from 'dialog-polyfill';
-import { GOODS, cargoLoad, colonyCanRepair, goodName, nodeName, playerName, shipName, type GameState, type Good } from '@happy-voyage/shared';
+import { GOODS, MAX_FLEET_SIZE, cargoLoad, colonyCanRepair, goodName, nodeName, playerName, shipName, type GameState, type Good } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { gameController } from '../game/GameController';
 import { StatTooltip } from './StatTooltip';
@@ -16,6 +16,7 @@ export function TransferContents({ state }: { state: GameState }) {
   const [error, setError] = useState('');
   const selected = player.fleet.find((ship) => ship.id === selectedId) ?? player.fleet[0];
   const stock = state.stockpiles[player.position];
+  const fleetFull = player.fleet.length >= MAX_FLEET_SIZE;
   function act(action: () => void) {
     try {
       action();
@@ -27,14 +28,15 @@ export function TransferContents({ state }: { state: GameState }) {
   return <>
     <p>{nodeName(state.map[player.position], locale)} · {playerName(player, locale)}</p>
     {error && <p role="alert">{error}</p>}
-    <h3>{t('Island dock', '岛屿码头')}</h3>
+    <h3>{t('Colony shipyard', '殖民地船坞')}</h3>
     {colonyCanRepair(state, player.position) && <p>{t('Dock ships here for free repairs at the start of your next turn.', '将船只停靠在此，下次回合开始时免费修好。')}</p>}
     {state.docks[player.position].length === 0 && <p>{t('No docked ships.', '没有停靠的船只。')}</p>}
+    {fleetFull && state.docks[player.position].length > 0 && <p>{t('The fleet is full. Dock a fleet ship before boarding another.', '舰队已满。先停靠一艘随行船只，再让另一艘归队。')}</p>}
     {state.docks[player.position].map((ship) => <p key={ship.id}>
       {sn(ship.name)} · <StatTooltip stat="cargoCapacity">{t('Cargo', '货物')} {cargoLoad(ship)}/{ship.cargoCapacity}</StatTooltip>{' '}
-      <button onClick={() => act(() => gameController.boardShip(ship.id))}>{t('Board {s}', '让{s}归队', { s: sn(ship.name) })}</button>
+      <button disabled={fleetFull} onClick={() => act(() => gameController.boardShip(ship.id))}>{t('Board {s}', '让{s}归队', { s: sn(ship.name) })}</button>
     </p>)}
-    <h3>{t('Fleet ships', '舰队船只')}</h3>
+    <h3>{t('Fleet {n}/{max}', '舰队 {n}/{max}', { n: player.fleet.length, max: MAX_FLEET_SIZE })}</h3>
     <label>{t('Load onto ship', '装货船只')}{' '}
       <select value={selected?.id ?? ''} onChange={(event) => setSelectedId(Number(event.target.value))}>
         {player.fleet.map((ship) => <option key={ship.id} value={ship.id}>{sn(ship.name)}</option>)}

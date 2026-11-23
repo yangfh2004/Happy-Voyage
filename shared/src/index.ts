@@ -25,5 +25,5 @@ export * from './battle';
 export * from './withdrawal';
 export * from './seaEvents';
 export * from './i18n';
-export { SHIP_RECIPES, SHIP_TYPES, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
+export { SHIP_RECIPES, SHIP_TYPES, GOODS, cargoLoad, MAX_FLEET_SIZE, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 export { colonyValue, isEliminated, COLONY_RETURN_COOLDOWN, REPAIR_GOLD_PER_POINT, SEA_HAZARD_DAMAGE } from './rules';
