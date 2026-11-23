@@ -17,6 +17,24 @@ function hitBattle(defenders: Ship[], damage: number) {
 }
 
 describe('fleet withdrawal', () => {
+  it.each([
+    { attackers: [ship(1, { signature: true, durability: 25 }), ship(2)], defenders: [ship(100, { durability: 0 })], outcome: 'victory' },
+    { attackers: [ship(1, { signature: true, durability: 25 }), ship(2)], defenders: [], outcome: 'victory' },
+    { attackers: [ship(1, { durability: 0 })], defenders: [ship(100, { signature: true, durability: 25 }), ship(101)], outcome: 'defeat' },
+    { attackers: [], defenders: [ship(100, { signature: true, durability: 25 }), ship(101)], outcome: 'defeat' },
+    { attackers: [ship(1, { durability: 0 })], defenders: [ship(100, { durability: 0 })], outcome: 'defeat' },
+    { attackers: [], defenders: [], outcome: 'defeat' },
+  ])('prioritizes no afloat ships over crippled flagships: $outcome', ({ attackers, defenders, outcome }) => {
+    const auto = fightNavalBattle(attackers, defenders, () => .5);
+    expect(auto).toMatchObject({ outcome, rounds: 0, attackerSunk: [], defenderSunk: [] });
+    const setup = { seed: 42, attackers, defenders };
+    const battle = createBattle(setup);
+    stepBattle(battle);
+    expect(battleResult(battle)).toMatchObject({ outcome, ticks: 0, attackerSunk: [], defenderSunk: [] });
+    expect(battleResult(battle).withdrawal).toBeUndefined();
+    expect(replayBattle(setup, [])).toEqual(battleResult(battle));
+  });
+
   it('leaves preexisting zero-durability ships inactive and does not count them as losses under Ambush', () => {
     const attackers = [ship(1, { durability: 0, signature: true, firepower: 10000 }), ship(2, { durability: 0 }), ship(3, { firepower: 10 })];
     const defenders = [ship(100)];
