@@ -14,6 +14,7 @@ import { STRATEGY_RULES, defectionCount, type StrategyId } from './strategies';
 import { roundsLeft as roundsToPlay } from './modes';
 import { GameView } from './gameView';
 import type { BarterOffer, BuildingKind, GameState, MapNode, MarketOrder, Player, ShipType } from './types';
+import { playerRetreatThreshold } from './withdrawal';
 
 const POLICIES = {
   easy:   { reserve: 450, fleetSize: 3, development: 1 },
@@ -318,7 +319,7 @@ function battleQuality(state: GameState, player: Player, card?: StrategyId): num
   const removesDefender = card === 'mislead' || card === 'betray';
   const remaining = card === 'betray' ? ships.filter((s) => !defectors.includes(s)) : ships.slice(1);
   const defenders = !removesDefender ? ships : !fromFleet && !remaining.length ? owner.fleet : remaining;
-  const options = { attackerMultiplier: state.inspired || card === 'inspire' ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: state.ambush || card === 'ambush' };
+  const options = { attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner), attackerMultiplier: state.inspired || card === 'inspire' ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: state.ambush || card === 'ambush' };
   const baseline = forecastNavalBattle(attackers, defenders, options);
   if (player.aiDifficulty !== 'hard') return baseline === 'victory' ? 4 : baseline === 'draw' ? 2 : 0;
   // Stress-test with weaker attack and stronger defense rolls, without drawing from the match RNG.

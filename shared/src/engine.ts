@@ -4,6 +4,7 @@ import { STRATEGIES, STRATEGY_RULES, strategyTarget, defectionCount, type Strate
 import { COMBAT, colonyDefenders, fightNavalBattle, tollDue } from './combat';
 import type { BattleResult } from './combat';
 import { replayBattle, type BattleLog, type BattleControllers } from './battle';
+import { isRetreatThreshold, playerRetreatThreshold, type RetreatThreshold } from './withdrawal';
 import type { PendingBattle } from './types';
 import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
@@ -115,6 +116,7 @@ export class GameEngine extends GameView {
       map,
       players: players.map((p, id) => ({
         ...p,
+        retreatThreshold: playerRetreatThreshold(p),
         id,
         rank: 0,
         audienceMerit: 0,
@@ -545,7 +547,7 @@ export class GameEngine extends GameView {
     const sides = { p: ref.player(player.id), o: ref.player(owner.id), n: ref.node(node.id) };
     this.log(fromFleet ? tx("{p} opens fire on {o}'s fleet at {n}!", '{p} 在{n}向 {o} 的舰队开火！', sides)
       : tx("{p} opens fire on {o}'s docked ships at {n}!", '{p} 在{n}向 {o} 停靠的船只开火！', sides));
-    const result = fightNavalBattle(player.fleet, defenders, this.rng, { attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: this.state.ambush });
+    const result = fightNavalBattle(player.fleet, defenders, this.rng, { attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner), attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: this.state.ambush });
     return this.settleColonyBattle(result);
   }
 
@@ -599,12 +601,19 @@ export class GameEngine extends GameView {
     return report;
   }
 
+  setRetreatThreshold(threshold: RetreatThreshold): void {
+    if (this.state.phase !== 'awaitingSpin' && this.state.phase !== 'awaitingToll') throw new Error('Cannot change retreat threshold now');
+    if (this.currentPlayer.isAI || !isRetreatThreshold(threshold)) throw new Error('Invalid retreat threshold');
+    this.currentPlayer.retreatThreshold = threshold;
+  }
+
   private startBattle(kind: PendingBattle['kind'], defenders: Ship[], defender: number | null, resumeLanding = false): void {
     const player = this.currentPlayer;
     const seed = Math.floor(this.rng() * 4294967296) >>> 0;
     const battle: PendingBattle = {
       kind, nodeId: player.position, attacker: player.id, defender, seed, resumeLanding,
       setup: { seed, attackers: player.fleet.map((s) => ({ ...s, cargo: { ...s.cargo } })), defenders: defenders.map((s) => ({ ...s, cargo: { ...s.cargo } })),
+        retreatThresholds: { attacker: playerRetreatThreshold(player), defender: defender === null ? 'half' : playerRetreatThreshold(this.state.players[defender]) },
         attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1, ambush: this.state.ambush },
       commanders: [!player.isAI ? 'attacker' : 'defender'],
     };
@@ -621,14 +630,16 @@ export class GameEngine extends GameView {
     if (!pending.commanders.includes('attacker')) controllers.attacker = this.state.players[pending.attacker].aiDifficulty ?? 'normal';
     if (!pending.commanders.includes('defender')) controllers.defender = pending.defender === null ? 'normal' : this.state.players[pending.defender].aiDifficulty ?? 'normal';
     const replay = replayBattle(pending.setup, log.filter((entry) => pending.commanders.includes(entry.side)), controllers);
+    this.state.players[pending.attacker].retreatThreshold = replay.retreatThresholds.attacker;
+    if (pending.defender !== null) this.state.players[pending.defender].retreatThreshold = replay.retreatThresholds.defender;
     const attackers = this.currentPlayer.fleet;
     const defenders = pending.kind === 'colony' ? colonyDefenders(this.state, pending.nodeId).ships : pending.setup.defenders.map((s) => ({ ...s }));
     for (const [side, ships] of [['attacker', attackers], ['defender', defenders]] as const) {
       for (const ship of ships) ship.durability = replay.durability.find((s) => s.id === ship.id && s.side === side)!.durability;
     }
     const result: BattleResult = { outcome: replay.outcome, rounds: replay.ticks, ...(replay.withdrawal ? { withdrawal: replay.withdrawal } : {}),
-      attackerSunk: attackers.filter((s) => replay.attackerSunk.includes(s.id)),
-      defenderSunk: defenders.filter((s) => replay.defenderSunk.includes(s.id)) };
+      attackerSunk: replay.attackerSunk.map(id => attackers.find(s => s.id === id)!),
+      defenderSunk: replay.defenderSunk.map(id => defenders.find(s => s.id === id)!) };
     this.state.pendingBattle = null;
     this.state.inspired = false;
     this.state.ambush = false;
@@ -1241,7 +1252,7 @@ export class GameEngine extends GameView {
           return true;
         }
         const before = player.fleet.reduce((sum, ship) => sum + ship.durability, 0);
-        const result = fightNavalBattle(player.fleet, [pirate], this.rng, { attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1 });
+        const result = fightNavalBattle(player.fleet, [pirate], this.rng, { attackerThreshold: playerRetreatThreshold(player), defenderThreshold: 'half', attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1 });
         this.settlePirates(result, before);
         break;
       }

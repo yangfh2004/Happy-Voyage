@@ -45,6 +45,7 @@ export interface RoomPass {
 }
 
 type PlayerActions = Pick<GameEngine,
+  'setRetreatThreshold' |
   'spinCompass' | 'returnToColony' | 'claim' | 'decline' | 'acceptMerchant' | 'buyMerchant' | 'declineMerchant' | 'wyvernFly' |
   'payToll' | 'useStrategy' | 'fight' | 'acceptBarter' | 'recruitCaptain' | 'declineRecruit' | 'declineBarter' |
   'buyLotteryNumber' | 'drawLottery' | 'finishLottery' | 'challengeHermit' | 'takeMistStones' | 'leaveMistIsland' |

@@ -1,4 +1,4 @@
-import { BUILDINGS, GOODS, HERMITS, SHIP_TYPES, STRATEGIES, type GameEngine, type MarketOrder, type RoomAction } from '@happy-voyage/shared';
+import { BUILDINGS, GOODS, HERMITS, SHIP_TYPES, STRATEGIES, isRetreatThreshold, type GameEngine, type MarketOrder, type RoomAction } from '@happy-voyage/shared';
 
 export function object(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -34,6 +34,7 @@ const cargo = (method: 'loadCargo' | 'unloadCargo'): Handler => (engine, [ship, 
 };
 
 const actions: Record<RoomAction[0], Handler> = {
+  setRetreatThreshold: oneArg(isRetreatThreshold, (e, threshold) => e.setRetreatThreshold(threshold)),
   spinCompass: noArgs((e) => e.spinCompass()),
   returnToColony: oneArg(integer, (e, id) => e.returnToColony(id)),
   claim: noArgs((e) => e.claim()),

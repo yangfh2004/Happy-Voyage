@@ -24,6 +24,26 @@ import { TransferContents } from './TransferPanel';
 import { gameController } from '../game/GameController';
 import { setLocale } from '../i18n';
 
+describe('retreat selector', () => {
+  it.each(['en', 'zh'] as const)('renders all four choices and the legacy default in the %s battle prompt', locale => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }], rng: () => .5 });
+    const node = engine.state.map.find(n => n.kind === 'island')!;
+    engine.currentPlayer.position = node.id; engine.state.owners[node.id] = 1; engine.state.phase = 'awaitingToll';
+    delete engine.currentPlayer.retreatThreshold;
+    setLocale(locale);
+    try {
+      const html = renderToStaticMarkup(<ActionPanel state={engine.state} />);
+      expect(html).toContain(locale === 'en' ? 'Auto-withdraw after losing' : '损失几艘船后自动撤退');
+      expect(html).toContain('min-height:44px');
+      expect(html).toContain('<option value="half" selected="">');
+      for (const option of ['quarter', 'half', 'threeQuarters', 'last']) expect(html).toContain(`value="${option}"`);
+      engine.currentPlayer.retreatThreshold = 'last';
+      expect(renderToStaticMarkup(<ActionPanel state={engine.state} />)).toContain('<option value="last" selected="">');
+      if (locale === 'en') expect(html).not.toMatch(/\p{Script=Han}/u);
+    } finally { setLocale('en'); }
+  });
+});
+
 describe('fleet capacity at a colony', () => {
   it.each(['en', 'zh'] as const)('shows the cap and disables boarding at capacity in %s', (locale) => {
     const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }], rng: () => 0.5 });
@@ -94,7 +114,7 @@ describe('fleet-loss defeat', () => {
 
 describe('campaign UI', () => {
   it('shows distinct pending and paid missions after claiming a real colony', () => {
-    const game = new GameEngine({ campaign: { stage: 'first-voyage', navigator: { name: 'You', nation: 'Spain' } } });
+    const game = new GameEngine({ campaign: { stage: 'first-voyage', navigator: { name: 'You', nation: 'Spain' } }, rng: () => .5 });
     const { state } = game;
     const island = state.map.find((node) => node.kind === 'island')!;
     game.useStrategy('navigate', island.id);

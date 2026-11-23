@@ -3,6 +3,26 @@ import { GameEngine, replayBattle, battleResult } from '@happy-voyage/shared';
 import { BattleSession } from './BattleSession';
 
 describe('live battle commands', () => {
+  it('logs immediate threshold changes and persists them through authoritative settlement', () => {
+    const engine = new GameEngine({ players: [{ name: 'Human', color: 0, isAI: false }, { name: 'AI', color: 1, isAI: true }], rng: () => .5 });
+    const node = engine.state.map.find(n => n.kind === 'island')!;
+    engine.state.owners[node.id] = 1; engine.currentPlayer.position = node.id;
+    engine.state.phase = 'awaitingToll'; engine.fight();
+    const pending = engine.state.pendingBattle!;
+    const session = new BattleSession(pending, engine.state.players);
+    session.step();
+    session.command({ type: 'retreatThreshold', threshold: 'last' });
+    expect(session.battle.retreatThresholds.attacker).toBe('last');
+    expect(session.log).toEqual([{ tick: 1, side: 'attacker', cmd: { type: 'retreatThreshold', threshold: 'last' } }]);
+    expect(pending.setup.retreatThresholds?.attacker).toBe('half');
+    session.command({ type: 'retreat' });
+    expect(replayBattle(pending.setup, JSON.parse(JSON.stringify(session.log)), session.controllers)).toEqual(battleResult(session.battle));
+    engine.finishBattle(session.log);
+    expect(engine.state.players[pending.attacker].retreatThreshold).toBe('last');
+    const count = session.log.length;
+    session.command({ type: 'retreatThreshold', threshold: 'quarter' });
+    expect(session.log).toHaveLength(count);
+  });
   it.each(['move', 'attack', 'free'] as const)('reissues a selected group %s order when its formation changes', type => {
     const engine = new GameEngine({ players: [{ name: 'Human', color: 0, isAI: false }, { name: 'AI', color: 1, isAI: true }], rng: () => .5 });
     const node = engine.state.map.find(n => n.kind === 'island')!;
