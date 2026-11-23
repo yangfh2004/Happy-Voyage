@@ -1,4 +1,4 @@
-import { createBattle, issueCommand, stepBattle, type BattleCommand, type BattleControllers, type BattleLog, type BattleSide, type GameState, type PendingBattle } from '@happy-voyage/shared';
+import { createBattle, issueCommand, stepBattle, type BattleCommand, type BattleControllers, type BattleLog, type BattleSide, type Formation, type GameState, type PendingBattle } from '@happy-voyage/shared';
 
 export class BattleSession {
   readonly battle;
@@ -22,5 +22,14 @@ export class BattleSession {
 
   step(): void {
     stepBattle(this.battle, this.controllers);
+  }
+
+  changeFormation(shipIds: number[], formation: Formation): void {
+    const ships = this.battle.ships.filter(s => s.side === this.side && !s.sunk && !s.escaped && shipIds.includes(s.id));
+    if (ships.length < 2) return;
+    const group = this.battle.groups.find(g => g.side === this.side && g.shipIds.length === ships.length && ships.every(s => s.groupId === g.id));
+    const current = group?.order ?? { type: 'free' as const };
+    const order = current.type === 'attack' && !this.battle.ships.some(s => s.side !== this.side && s.id === current.targetId && !s.sunk && !s.escaped) ? { type: 'free' as const } : current;
+    this.command({ ...order, shipIds: ships.map(s => s.id), formation });
   }
 }

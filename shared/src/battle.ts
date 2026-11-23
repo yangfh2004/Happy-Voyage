@@ -13,8 +13,8 @@ export type BattleSide = 'attacker' | 'defender';
 export type Formation = 'column' | 'line' | 'spread';
 export type BattleCommand =
   | { type: 'move'; shipIds: number[]; x: number; y: number; formation?: Formation }
-  | { type: 'attack'; shipIds: number[]; targetId: number }
-  | { type: 'free'; shipIds: number[] }
+  | { type: 'attack'; shipIds: number[]; targetId: number; formation?: Formation }
+  | { type: 'free'; shipIds: number[]; formation?: Formation }
   | { type: 'retreat' };
 export type BattleLog = { tick: number; side: BattleSide; cmd: BattleCommand }[];
 export interface BattleSetup {
@@ -25,6 +25,15 @@ export interface BattleSetup {
   ambush?: boolean;
 }
 export type BattleOrder = { type: 'free' } | { type: 'move'; x: number; y: number } | { type: 'attack'; targetId: number };
+export interface BattleGroup {
+  id: number;
+  side: BattleSide;
+  shipIds: number[];
+  formation: Formation;
+  leaderId: number;
+  heading: number;
+  order: BattleOrder;
+}
 export interface BattleShip extends Ship {
   side: BattleSide;
   x: number;
@@ -38,6 +47,7 @@ export interface BattleShip extends Ship {
   escaped: boolean;
   order: BattleOrder;
   charge: boolean;
+  groupId?: number;
 }
 export interface Cannonball {
   side: BattleSide;
@@ -52,6 +62,9 @@ export interface BattleState {
   tick: number;
   rng: number;
   ships: BattleShip[];
+  groups: BattleGroup[];
+  nextGroupId: number;
+  lastFormations: Record<BattleSide, Formation>;
   cannonballs: Cannonball[];
   retreating: boolean;
   attackerMultiplier: number;
@@ -121,7 +134,120 @@ export function createBattle(setup: BattleSetup): BattleState {
     sunk: ship.durability <= 0, startedAfloat: ship.durability > 0, escaped: false, order: { type: 'free' }, charge: false,
   }));
   return { tick: 0, rng: setup.seed >>> 0, ships: [...ships(setup.attackers, 'attacker'), ...ships(setup.defenders, 'defender')],
+    groups: [], nextGroupId: 1, lastFormations: { attacker: 'line', defender: 'line' },
     cannonballs: [], retreating: false, attackerMultiplier: setup.attackerMultiplier ?? 1, ambush: setup.ambush ?? false, outcome: null, withdrawal: null };
+}
+
+const flagshipOrder = (a: BattleShip, b: BattleShip) => Number(!!b.signature) - Number(!!a.signature) || b.maxDurability - a.maxDurability || a.id - b.id;
+const groupMembers = (battle: BattleState, group: BattleGroup) => battle.ships.filter(s => s.side === group.side && s.groupId === group.id && active(s)).sort(flagshipOrder);
+
+function refreshGroups(battle: BattleState): void {
+  battle.groups = battle.groups.filter(group => {
+    const members = groupMembers(battle, group);
+    group.shipIds = members.map(s => s.id);
+    if (members.length >= 2) { group.leaderId = members[0].id; return true; }
+    for (const s of members) {
+      delete s.groupId;
+      s.order = group.order.type === 'free' ? { type: 'move', x: s.x, y: s.y } : { ...group.order };
+    }
+    return false;
+  });
+  for (const s of battle.ships) if (!active(s)) delete s.groupId;
+}
+
+function groupOffsets(battle: BattleState, group: BattleGroup) {
+  const members = groupMembers(battle, group);
+  const spacing = Math.max(0, ...members.map(s => clearance(s) * 2 + 24)) * 1.5;
+  const columns = Math.ceil(Math.sqrt(members.length));
+  const a = group.heading * Math.PI / 180, cos = Math.cos(a), sin = Math.sin(a);
+  const offsets = members.map((ship, i) => {
+    const across = (i % 2 ? 1 : -1) * Math.ceil(i / 2);
+    const x = group.formation === 'column' ? -i * spacing : group.formation === 'spread' ? -Math.floor(i / columns) * spacing : 0;
+    const y = group.formation === 'line' ? across * spacing : group.formation === 'spread' ? (i % columns) * spacing : 0;
+    return { ship, x: x * cos - y * sin, y: x * sin + y * cos };
+  });
+  const margin = Math.max(0, ...members.map(clearance));
+  const extentX = Math.max(...offsets.map(p => p.x)) - Math.min(...offsets.map(p => p.x));
+  const extentY = Math.max(...offsets.map(p => p.y)) - Math.min(...offsets.map(p => p.y));
+  const fit = Math.min(1, (BATTLE_FIELD.width - margin * 2) / (extentX || 1), (BATTLE_FIELD.height - margin * 2) / (extentY || 1));
+  return offsets.map(p => ({ ...p, x: p.x * fit, y: p.y * fit }));
+}
+
+function groupAnchor(battle: BattleState, group: BattleGroup, point: { x: number; y: number }) {
+  const offsets = groupOffsets(battle, group);
+  return {
+    x: clamp(point.x, Math.max(...offsets.map(p => clearance(p.ship) - p.x)), Math.min(...offsets.map(p => BATTLE_FIELD.width - clearance(p.ship) - p.x))),
+    y: clamp(point.y, Math.max(...offsets.map(p => clearance(p.ship) - p.y)), Math.min(...offsets.map(p => BATTLE_FIELD.height - clearance(p.ship) - p.y))),
+  };
+}
+
+export function battleGroupSlots(battle: BattleState, group: BattleGroup) {
+  const leader = battle.ships.find(s => s.side === group.side && s.id === group.leaderId)!;
+  return groupOffsets(battle, group).map(p => ({ shipId: p.ship.id, x: leader.x + p.x, y: leader.y + p.y }));
+}
+
+function moveGroups(battle: BattleState): void {
+  for (const group of battle.groups) {
+    const members = groupMembers(battle, group), leader = members[0];
+    const speed = Math.min(...members.map(s => s.speed)) * 16;
+    const order = group.order;
+    const target = order.type === 'attack' ? battle.ships.find(s => s.side !== group.side && s.id === order.targetId && active(s)) : undefined;
+    if (group.order.type === 'attack' && !target) {
+      group.order = { type: 'free' };
+      for (const s of members) s.order = { type: 'free' };
+    }
+    let desired = group.heading, moving = false;
+    let goal = { x: leader.x, y: leader.y };
+    if (group.order.type === 'move') {
+      goal = groupAnchor(battle, group, group.order);
+      moving = distance(leader, goal) > 1;
+      if (moving) desired = bearing(leader, goal);
+    } else if (target) {
+      const bow = bearing(leader, target);
+      moving = leader.charge || distance(leader, target) > Math.min(...members.map(s => BATTLE_STATS[s.type].range)) * .8;
+      desired = moving ? bow : bow + (angle(group.heading - bow) >= 0 ? 90 : -90);
+      goal = target;
+    }
+    const turn = Math.min(BATTLE_STATS[leader.type].turn, ...groupOffsets(battle, group).slice(1).map(p => p.ship.speed * 16 / Math.hypot(p.x, p.y) * 180 / Math.PI));
+    group.heading = angle(group.heading + clamp(angle(desired - group.heading), -turn * TICK, turn * TICK));
+    const a = group.heading * Math.PI / 180;
+    const slots = battleGroupSlots(battle, group);
+    const formed = slots.every(slot => distance(members.find(s => s.id === slot.shipId)!, slot) < 1);
+    const anchor = groupAnchor(battle, group, leader);
+    const travel = moving && formed && Math.abs(angle(desired - group.heading)) < .001 ? Math.min(speed * TICK, distance(leader, goal)) : 0;
+    const next = { x: anchor.x + Math.cos(a) * travel, y: anchor.y + Math.sin(a) * travel };
+    const dx = clamp(next.x - leader.x, -speed * TICK, speed * TICK), dy = clamp(next.y - leader.y, -speed * TICK, speed * TICK);
+    const length = Math.hypot(dx, dy), scale = length > speed * TICK ? speed * TICK / length : 1;
+    leader.vx = dx * scale / TICK; leader.vy = dy * scale / TICK;
+    leader.x += leader.vx * TICK; leader.y += leader.vy * TICK; leader.heading = group.heading;
+    for (const slot of battleGroupSlots(battle, group).slice(1)) {
+      const s = members.find(s => s.id === slot.shipId)!;
+      const ex = slot.x - s.x, ey = slot.y - s.y;
+      let vx = ex / TICK, vy = ey / TICK;
+      const error = Math.hypot(ex - leader.vx * TICK, ey - leader.vy * TICK);
+      const limit = error < 1 ? speed : s.speed * 16;
+      const magnitude = Math.hypot(vx, vy);
+      if (magnitude > limit) { vx *= limit / magnitude; vy *= limit / magnitude; }
+      if (error >= 1 && magnitude > 0) {
+        const length = Math.hypot(ex, ey), ux = ex / length, uy = ey / length;
+        const obstacle = battle.ships.filter(other => other !== s && active(other)).map(other => {
+          const dx = other.x - s.x, dy = other.y - s.y;
+          return { other, along: dx * ux + dy * uy, across: dx * -uy + dy * ux, radius: clearance(s) + clearance(other) + 8 };
+        }).filter(p => p.along > 0 && p.along < Math.min(length, p.radius + limit / 2) && Math.abs(p.across) < p.radius)
+          .sort((a, b) => a.along - b.along || a.other.id - b.other.id)[0];
+        if (obstacle) {
+          const side = obstacle.across > 1 ? -1 : 1;
+          const dx = obstacle.other.x - uy * side * obstacle.radius * 1.2 - s.x;
+          const dy = obstacle.other.y + ux * side * obstacle.radius * 1.2 - s.y;
+          const scale = Math.min(limit, Math.hypot(dx, dy) / TICK) / Math.hypot(dx, dy);
+          vx = dx * scale; vy = dy * scale;
+        }
+      }
+      const desiredHeading = error < 8 || magnitude < 1 ? group.heading : Math.atan2(vy, vx) * 180 / Math.PI;
+      s.heading = angle(s.heading + clamp(angle(desiredHeading - s.heading), -BATTLE_STATS[s.type].turn * TICK, BATTLE_STATS[s.type].turn * TICK));
+      s.vx = vx; s.vy = vy; s.x += vx * TICK; s.y += vy * TICK;
+    }
+  }
 }
 
 function withdraw(battle: BattleState, withdrawal: BattleWithdrawal): void {
@@ -157,6 +283,18 @@ export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleC
   if (cmd.type === 'attack' && !battle.ships.some((s) => s.id === cmd.targetId && s.side !== side && active(s))) return;
   const ships = battle.ships.filter((s) => s.side === side && active(s) && cmd.shipIds.includes(s.id));
   if (!ships.length) return;
+  for (const s of ships) delete s.groupId;
+  refreshGroups(battle);
+  const formation = cmd.formation ?? battle.lastFormations[side];
+  battle.lastFormations[side] = formation;
+  const order: BattleOrder = cmd.type === 'move' ? { type: 'move', x: cmd.x, y: cmd.y } : cmd.type === 'attack' ? { type: 'attack', targetId: cmd.targetId } : { type: 'free' };
+  if (ships.length >= 2) {
+    const leader = [...ships].sort(flagshipOrder)[0];
+    const group: BattleGroup = { id: battle.nextGroupId++, side, shipIds: ships.map(s => s.id), formation, leaderId: leader.id, heading: leader.heading, order };
+    battle.groups.push(group);
+    for (const s of ships) { s.groupId = group.id; s.order = { ...order }; s.charge = false; }
+    return;
+  }
   const spacing = Math.max(0, ...ships.map((s) => clearance(s) * 2 + 24)) * 1.5;
   const columns = Math.ceil(Math.sqrt(ships.length));
   const targets = ships.map((s, i) => {
@@ -166,7 +304,7 @@ export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleC
       y: cmd.type === 'move' ? cmd.y + (cmd.formation === 'line' ? 0 : cmd.formation === 'spread' ? (Math.floor(i / columns) - (Math.ceil(ships.length / columns) - 1) / 2) * spacing : offset) : s.y };
   });
   if (cmd.type === 'move') {
-    const holding = battle.ships.filter((s) => s.side === side && active(s) && !ships.includes(s) && s.order.type === 'move');
+    const holding = battle.ships.filter((s) => s.side === side && active(s) && s.groupId === undefined && !ships.includes(s) && s.order.type === 'move');
     const heldTargets = holding.map((s) => ({ type: s.type, x: s.order.type === 'move' ? s.order.x : s.x, y: s.order.type === 'move' ? s.order.y : s.y }));
     separate([...targets, ...heldTargets], 12);
     holding.forEach((s, i) => { s.order = { type: 'move', x: heldTargets[i].x, y: heldTargets[i].y }; });
@@ -186,14 +324,20 @@ export function battleAI(battle: BattleState, side: BattleSide, difficulty: AIDi
   if (!enemies.length) return;
   const total = (ships: BattleShip[]) => ships.reduce((sum, s) => sum + s.durability, 0);
   if (difficulty === 'hard' && total(own) < total(enemies) * 0.35) { issueCommand(battle, side, { type: 'retreat' }); return; }
+  const leader = [...own].sort(flagshipOrder)[0];
+  if (!leader) return;
+  const target = [...enemies].sort(difficulty === 'easy' ? (a, b) => distance(leader, a) - distance(leader, b) : (a, b) => a.durability - b.durability || a.id - b.id)[0];
+  const attacking: BattleShip[] = [];
   for (const s of own) {
-    const target = [...enemies].sort(difficulty === 'easy' ? (a, b) => distance(s, a) - distance(s, b) : (a, b) => a.durability - b.durability)[0];
     if (difficulty === 'hard' && (s.durability < s.maxDurability * 0.3 || s.type === 'cargo')) {
       issueCommand(battle, side, { type: 'move', shipIds: [s.id], x: s.x + (s.x - target.x), y: s.y + (s.y - target.y) });
     } else {
-      issueCommand(battle, side, { type: 'attack', shipIds: [s.id], targetId: target.id });
-      s.charge = difficulty === 'easy';
+      attacking.push(s);
     }
+  }
+  if (attacking.length) {
+    issueCommand(battle, side, { type: 'attack', shipIds: attacking.map(s => s.id), targetId: target.id });
+    for (const s of attacking) s.charge = difficulty === 'easy';
   }
 }
 
@@ -201,11 +345,14 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
   if (battle.outcome) return;
   resolveWithdrawal(battle);
   if (battle.outcome) return;
+  refreshGroups(battle);
   for (const side of ['attacker', 'defender'] as const) {
     if (controllers[side]) battleAI(battle, side, controllers[side]);
     if (battle.outcome) return;
   }
+  moveGroups(battle);
   for (const s of battle.ships.filter(active)) {
+    if (s.groupId !== undefined) { s.reload = Math.max(0, s.reload - TICK); continue; }
     const enemies = battle.ships.filter((e) => e.side !== s.side && active(e));
     const order = s.order;
     const target = (order.type === 'attack' ? enemies.find((e) => e.id === order.targetId) : undefined)
@@ -262,6 +409,7 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
   }
   battle.cannonballs = battle.cannonballs.filter((b) => b.remaining > 0);
   battle.tick++;
+  refreshGroups(battle);
   resolveWithdrawal(battle);
   if (!battle.outcome && battle.tick >= 1800) battle.outcome = 'draw';
 }

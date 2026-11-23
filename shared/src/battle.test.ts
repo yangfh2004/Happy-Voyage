@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BATTLE_FIELD, BATTLE_STATS, TICK, battleAI, battleResult, createBattle, inBroadsideArc, issueCommand, replayBattle, stepBattle, type BattleLog, type BattleSetup, type BattleState } from './battle';
+import { BATTLE_FIELD, BATTLE_STATS, TICK, battleAI, battleGroupSlots, battleResult, createBattle, inBroadsideArc, issueCommand, replayBattle, stepBattle, type BattleLog, type BattleSetup, type BattleState } from './battle';
 import { SHIP_TYPES } from './ships';
 import type { Ship } from './types';
 
@@ -76,16 +76,13 @@ describe('real-time battle', () => {
     expect(battleResult(battle)).toEqual(replayBattle(initial, [], { attacker: difficulty, defender: difficulty }));
   });
 
-  it.each(['column', 'line', 'spread'] as const)('spaces %s move targets even at the field corner', (formation) => {
+  it.each(['column', 'line', 'spread'] as const)('spaces %s slots using the B1 spacing', (formation) => {
     const battle = createBattle({ seed: 1, attackers: Array.from({ length: 7 }, (_, i) => ship(i)), defenders: [ship(20)] });
     issueCommand(battle, 'attacker', { type: 'move', shipIds: battle.ships.map((s) => s.id), x: 0, y: BATTLE_FIELD.height, formation });
-    const targets = battle.ships.filter((s) => s.side === 'attacker').map((s) => s.order);
+    const targets = battleGroupSlots(battle, battle.groups[0]);
     for (let i = 0; i < targets.length; i++) for (let j = i + 1; j < targets.length; j++) {
       const a = targets[i], b = targets[j];
-      expect(a.type).toBe('move'); expect(b.type).toBe('move');
-      if (a.type !== 'move' || b.type !== 'move') throw new Error('Missing move order');
-      expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(110);
-      expect(a.x).toBeGreaterThanOrEqual(0); expect(a.y).toBeLessThanOrEqual(BATTLE_FIELD.height);
+      expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(198 - .001);
     }
   });
 

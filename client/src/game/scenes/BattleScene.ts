@@ -32,7 +32,7 @@ export class BattleScene extends Phaser.Scene {
   private damageLabels: Phaser.GameObjects.Text[] = [];
   private ships = new Map<number, Phaser.GameObjects.Image>();
   private selected = new Set<number>();
-  private formation: Formation = 'column';
+  private formation: Formation = 'line';
   private paused = false;
   private accumulator = 0;
   private previous = new Map<number, { x: number; y: number; heading: number }>();
@@ -54,7 +54,7 @@ export class BattleScene extends Phaser.Scene {
     this.labels.clear(); this.ships.clear(); this.selected.clear(); this.previous.clear(); this.sunkAt.clear();
     this.damageLabels = [];
     this.buttons = []; this.effects = []; this.smoke = []; this.clock = 0; this.endedAt = null; this.completed = false;
-    this.accumulator = 0; this.paused = false; this.drag = null; this.marker = null; this.formation = 'column';
+    this.accumulator = 0; this.paused = false; this.drag = null; this.marker = null; this.formation = 'line';
     this.cameras.main.setBackgroundColor('#041b2d');
     this.field = this.add.container();
     this.ink = this.add.graphics().setDepth(-10000); this.field.add(this.ink);
@@ -87,7 +87,7 @@ export class BattleScene extends Phaser.Scene {
     this.banner = this.add.text(0, 0, '', { ...style, fontSize: '38px', color: '#ffe6ad' }).setOrigin(.5).setDepth(5).setVisible(false);
     const actions = [
       () => this.selectAll(),
-      ...(['column', 'line', 'spread'] as const).map((f) => () => { this.formation = f; }),
+      ...(['column', 'line', 'spread'] as const).map((f) => () => this.changeFormation(f)),
       () => { if (!this.session.battle.outcome) this.paused = !this.paused; },
       () => this.session.command({ type: 'retreat' }),
     ];
@@ -105,7 +105,7 @@ export class BattleScene extends Phaser.Scene {
       if (e.repeat || this.session.battle.outcome) return;
       if (e.key.toLowerCase() === 'a') this.selectAll();
       if (e.key === ' ') { e.preventDefault(); this.paused = !this.paused; }
-      if (['1', '2', '3'].includes(e.key)) this.formation = (['column', 'line', 'spread'] as const)[Number(e.key) - 1];
+      if (['1', '2', '3'].includes(e.key)) this.changeFormation((['column', 'line', 'spread'] as const)[Number(e.key) - 1]);
     };
     this.input.keyboard?.on('keydown', key);
     this.events.once('shutdown', () => this.input.keyboard?.off('keydown', key));
@@ -113,6 +113,18 @@ export class BattleScene extends Phaser.Scene {
 
   private selectAll() {
     this.selected = new Set(this.session.battle.ships.filter((s) => s.side === this.session.side && !s.sunk && !s.escaped).map((s) => s.id));
+    this.syncFormation();
+  }
+
+  private syncFormation() {
+    const ships = this.session.battle.ships.filter(s => this.selected.has(s.id) && s.side === this.session.side && !s.sunk && !s.escaped);
+    const group = this.session.battle.groups.find(g => ships.length && ships.every(s => s.groupId === g.id));
+    this.formation = group?.formation ?? this.session.battle.lastFormations[this.session.side];
+  }
+
+  private changeFormation(formation: Formation) {
+    this.formation = formation;
+    this.session.changeFormation([...this.selected], formation);
   }
 
   private layout() { return battleLayout(this.scale.width, this.scale.height); }
@@ -128,7 +140,7 @@ export class BattleScene extends Phaser.Scene {
   private order(p: { x: number; y: number }, target?: BattleShip) {
     if (!this.selected.size || this.paused || this.session.battle.outcome) return;
     const shipIds = [...this.selected];
-    if (target && target.side !== this.session.side) this.session.command({ type: 'attack', shipIds, targetId: target.id });
+    if (target && target.side !== this.session.side) this.session.command({ type: 'attack', shipIds, targetId: target.id, formation: this.formation });
     else { this.session.command({ type: 'move', shipIds, ...p, formation: this.formation }); this.marker = p; }
   }
 
@@ -155,6 +167,7 @@ export class BattleScene extends Phaser.Scene {
       this.selected.clear();
       if (s?.side === this.session.side) this.selected.add(s.id);
     }
+    this.syncFormation();
   }
 
   update(_time: number, delta: number) {
