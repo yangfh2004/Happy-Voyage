@@ -13,6 +13,77 @@ function siege(attackerAI = false, defenderAI = true, mode: 'realtime' | 'auto' 
 }
 
 describe('real-time engine integration', () => {
+  it.each(['auto', 'realtime'] as const)('does not charge double toll for preexisting zero durability under Ambush in %s mode', (mode) => {
+    const { game } = siege(false, true, mode);
+    const [attacker, defender] = game.state.players;
+    attacker.fleet.forEach((s, i) => { s.durability = i < 3 ? 0 : s.maxDurability; s.firepower = 0; });
+    attacker.fleet[0].signature = true;
+    defender.fleet.forEach((s) => { s.durability = s.maxDurability; s.firepower = 0; });
+    game.state.ambush = true;
+    const gold = attacker.gold;
+    const report = game.fight() ?? game.finishBattle([])!;
+    expect(report).toMatchObject({ outcome: 'draw', attackerSunk: [], defenderSunk: [], tollPaid: 0 });
+    expect(attacker.gold).toBe(gold);
+    expect(attacker.fleet).toHaveLength(5);
+    expect(attacker.fleet.slice(0, 3).map((s) => s.durability)).toEqual([0, 0, 0]);
+  });
+
+  it.each(['auto', 'realtime'] as const)('returns withdrawing docked defenders to their owner in %s mode', (mode) => {
+    const { game, node } = siege(false, true, mode);
+    const [attacker, defender] = game.state.players;
+    const guards = defender.fleet.splice(1, 2);
+    const ids = guards.map((s) => s.id);
+    for (const s of guards) { s.durability = 1; s.firepower = 0; }
+    for (const s of attacker.fleet) s.firepower = 1000;
+    game.state.docks[node.id] = guards;
+    const report = game.fight() ?? game.finishBattle([])!;
+    expect(report.outcome).toBe('victory');
+    expect(game.state.owners[node.id]).toBe(attacker.id);
+    expect(game.state.docks[node.id]).toEqual([]);
+    const survivors = defender.fleet.filter((s) => ids.includes(s.id));
+    expect(survivors).toHaveLength(mode === 'auto' ? 1 : 2);
+    expect(survivors.every((s) => s.durability === 1)).toBe(true);
+    expect(attacker.fleet.some((s) => survivors.includes(s))).toBe(false);
+  });
+
+  it('returns conceding docked defenders to their owner, not the conqueror', () => {
+    const { game, node } = siege(true, false);
+    const [attacker, defender] = game.state.players;
+    const guards = defender.fleet.splice(1, 2);
+    const ids = guards.map((s) => s.id);
+    guards[0].durability = 60;
+    game.state.docks[node.id] = guards;
+    game.fight();
+    const report = game.finishBattle([{ tick: 0, side: 'defender', cmd: { type: 'retreat' } }])!;
+    expect(report.outcome).toBe('victory');
+    expect(game.state.owners[node.id]).toBe(attacker.id);
+    expect(game.state.docks[node.id]).toEqual([]);
+    expect(defender.fleet.filter((s) => ids.includes(s.id))).toHaveLength(2);
+    expect(defender.fleet.find((s) => s.id === ids[0])!.durability).toBe(60);
+    game.state.currentPlayer = attacker.id;
+    attacker.position = node.id;
+    game.state.phase = 'awaitingBuild';
+    expect(() => game.boardShip(ids[0])).toThrow('Ship not available here');
+  });
+
+  it.each([false, true])('settles a human concession as defeat (defending=%s) without removing survivors', (defending) => {
+    const { game, node } = siege(defending, !defending);
+    const [attacker, defender] = game.state.players;
+    attacker.fleet[0].durability = 70;
+    defender.fleet[0].durability = 80;
+    game.fight();
+    const report = game.finishBattle([{ tick: 0, side: defending ? 'defender' : 'attacker', cmd: { type: 'retreat' } }])!;
+    expect(report.outcome).toBe(defending ? 'victory' : 'defeat');
+    expect(game.state.owners[node.id]).toBe(defending ? attacker.id : defender.id);
+    expect(report.tollPaid > 0).toBe(!defending);
+    expect(attacker.fleet).toHaveLength(5);
+    expect(defender.fleet).toHaveLength(5);
+    expect(attacker.fleet[0].durability).toBe(70);
+    expect(defender.fleet[0].durability).toBe(80);
+    expect(game.state.pendingBattle).toBeNull();
+    expect(game.state.phase).not.toBe('awaitingBattle');
+  });
+
   it('defaults to real-time, snapshots ships, emits battleStarted, and suspends AI decisions', () => {
     const { game } = siege();
     const events: GameEvent[] = [];
@@ -50,8 +121,8 @@ describe('real-time engine integration', () => {
     expect(game.state.inspired).toBe(false);
     expect(game.state.ambush).toBe(false);
     expect(game.state.phase).not.toBe('awaitingBattle');
-    if (outcome === 'victory') { expect(game.state.owners[node.id]).toBe(0); expect(defender.fleet).toHaveLength(0); }
-    if (outcome === 'defeat') { expect(report.tollPaid).toBeGreaterThan(0); expect(attacker.fleet).toHaveLength(0); }
+    if (outcome === 'victory') { expect(game.state.owners[node.id]).toBe(0); expect(defender.fleet).toHaveLength(5); }
+    if (outcome === 'defeat') { expect(report.tollPaid).toBeGreaterThan(0); expect(attacker.fleet).toHaveLength(5); }
     if (outcome === 'draw') { expect(attacker.position).toBe(attacker.homePort); expect(defender.position).toBe(defender.homePort); }
     expect(() => game.finishBattle([])).toThrow('Expected phase awaitingBattle');
   });

@@ -75,8 +75,7 @@ export class BattleScene extends Phaser.Scene {
       () => { if (!this.session.battle.outcome) this.paused = !this.paused; },
       () => this.session.command({ type: 'retreat' }),
     ];
-    actions.forEach((action, i) => {
-      if (i === 5 && this.session.side !== 'attacker') return;
+    actions.forEach((action) => {
       const b = this.add.text(0, 0, '', { ...style, fontSize: '15px', backgroundColor: '#163e54', padding: { x: 10, y: 10 } }).setOrigin(.5).setInteractive({ useHandCursor: true });
       b.on('pointerdown', (_p: unknown, _x: number, _y: number, event: Phaser.Types.Input.EventData) => { event.stopPropagation(); if (!this.session.battle.outcome) action(); });
       this.buttons.push(b);
@@ -196,7 +195,9 @@ export class BattleScene extends Phaser.Scene {
     const labelBoxes: BattleRect[] = [];
     for (const s of this.session.battle.ships) {
       const label = this.labels.get(s.id)!;
-      const fade = s.sunk ? Math.max(0, 1 - (this.clock - (this.sunkAt.get(s.id) ?? 0)) / 1.5) : s.escaped ? 0 : 1;
+      const withdrawing = this.session.battle.withdrawal?.side === s.side && this.endedAt !== null;
+      const fade = s.sunk ? Math.max(0, 1 - (this.clock - (this.sunkAt.get(s.id) ?? 0)) / 1.5) : s.escaped ? 0
+        : withdrawing ? Math.max(0, 1 - (this.clock - this.endedAt!) / 1.5) : 1;
       const old = this.previous.get(s.id) ?? s;
       const x = Phaser.Math.Linear(old.x, s.x, alpha), y = Phaser.Math.Linear(old.y, s.y, alpha);
       const screen = battleToScreen(layout, { x, y });
@@ -212,7 +213,7 @@ export class BattleScene extends Phaser.Scene {
           g.lineStyle(2, 0xc0eee6, (.19 - i * .05) * fade).lineBetween(wx - dy * spread, wy + dx * spread, wx + dy * spread, wy - dx * spread);
         }
       }
-      if (this.selected.has(s.id) && !s.sunk && !s.escaped) g.lineStyle(3, 0xffde88).strokeEllipse(x, y, 108, 108);
+      if (this.selected.has(s.id) && !s.sunk && !s.escaped) g.lineStyle(3, 0xffde88, fade).strokeEllipse(x, y, 108, 108);
       if (s.signature) g.lineStyle(3, 0xffd65d, fade).strokeEllipse(x, y, 94, 83);
       const flash = this.effects.some((e) => e.damage && e.age < .2 && Math.hypot(e.x - s.x, e.y - s.y) < 30);
       const turn = Phaser.Math.Angle.WrapDegrees(s.heading - old.heading);
@@ -226,10 +227,10 @@ export class BattleScene extends Phaser.Scene {
       const labelX = box.x + box.width / 2, labelY = box.y + barHeight + 2;
       if (fade > 0) labelBoxes.push(box);
       label.setPosition(labelX, labelY).setAlpha(fade);
-      if (!s.sunk && !s.escaped) {
-        if (Math.abs(labelX - screen.x) > 1 || Math.abs(labelY - screen.y - offset) > 1) health.lineStyle(1, 0xb5d0d2, .5).lineBetween(screen.x, screen.y + (box.y > screen.y ? 16 : -16), labelX, box.y > screen.y ? box.y : box.y + box.height);
-        health.fillStyle(0x051b29).fillRect(labelX - barWidth / 2, labelY - barHeight - 2, barWidth, barHeight);
-        health.fillStyle(color).fillRect(labelX - barWidth / 2, labelY - barHeight - 2, barWidth * Math.min(1, s.durability / s.maxDurability), barHeight);
+      if (!s.sunk && !s.escaped && fade > 0) {
+        if (Math.abs(labelX - screen.x) > 1 || Math.abs(labelY - screen.y - offset) > 1) health.lineStyle(1, 0xb5d0d2, .5 * fade).lineBetween(screen.x, screen.y + (box.y > screen.y ? 16 : -16), labelX, box.y > screen.y ? box.y : box.y + box.height);
+        health.fillStyle(0x051b29, fade).fillRect(labelX - barWidth / 2, labelY - barHeight - 2, barWidth, barHeight);
+        health.fillStyle(color, fade).fillRect(labelX - barWidth / 2, labelY - barHeight - 2, barWidth * Math.min(1, s.durability / s.maxDurability), barHeight);
       }
     }
     for (const b of this.session.battle.cannonballs) g.fillStyle(0xffefb1).fillCircle(b.x, b.y, 5);
@@ -269,7 +270,15 @@ export class BattleScene extends Phaser.Scene {
     const outcome = this.session.battle.outcome;
     if (outcome && this.endedAt !== null && this.clock - this.endedAt >= 1.5) {
       const win = outcome === (this.session.side === 'attacker' ? 'victory' : 'defeat');
-      this.banner.setPosition(width / 2, height / 2).setText(outcome === 'draw' ? text('Draw', '平局') : win ? text('Victory', '胜利') : text('Defeat', '战败')).setVisible(true);
+      const withdrawal = this.session.battle.withdrawal;
+      const own = withdrawal?.side === this.session.side;
+      const reason = !withdrawal ? '' : withdrawal.reason === 'flagship'
+        ? own ? text('Flagship crippled — fleet withdraws', '我方旗舰重伤，舰队撤退') : text('Enemy flagship crippled — fleet withdraws', '敌方旗舰重伤，舰队撤退')
+        : withdrawal.reason === 'losses'
+          ? own ? text('Half the fleet lost — fleet withdraws', '我方损失半数舰船，舰队撤退') : text('Enemy fleet loses half — withdraws', '敌方损失半数舰船，舰队撤退')
+          : own ? text('Your fleet withdraws', '我方舰队撤退') : text('Enemy fleet withdraws', '敌舰队撤退');
+      const result = outcome === 'draw' ? text('Draw', '平局') : win ? text('Victory', '胜利') : text('Defeat', '战败');
+      this.banner.setPosition(width / 2, height / 2).setFontSize(width < 600 ? 20 : 28).setWordWrapWidth(Math.max(100, width - 80), true).setDepth(3).setText(reason ? `${result}\n${reason}` : result).setVisible(true);
     } else this.banner.setVisible(this.paused).setPosition(width / 2, height / 2).setText(text('Paused', '已暂停'));
   }
 }

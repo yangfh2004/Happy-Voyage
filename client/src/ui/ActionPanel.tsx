@@ -216,10 +216,12 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
         </p>
         <p>
           {state.config.battleMode === 'realtime'
-            ? t('Sink every defender within 90 s to take the colony, or retreat for a draw. Lose every ship and you pay {g}g double toll.',
-              '在 90 秒内击沉所有守军即可夺取殖民地，也可撤退以平局结束。若全军覆没，须缴纳 {g} 金币双倍过路费。', { g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })
-            : t('Sink every defender within {r} volleys to take the colony. Lose every ship and you pay {g}g double toll; otherwise both fleets sail home.',
-              '在 {r} 轮齐射内击沉所有守军即可夺取殖民地。若全军覆没，须缴纳 {g} 金币双倍过路费；否则双方各自归队。', { r: COMBAT.rounds, g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })}
+            ? t('Defeat the defenders within 90 s to take the colony. Either side may concede; retreat is defeat. Defeat costs {g}g double toll; timeout is a draw.',
+              '在 90 秒内击败守军即可夺取殖民地。双方均可认输撤退，撤退即战败。战败须缴纳 {g} 金币双倍过路费；超时则平局。', { g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })
+            : t('Defeat the defenders within {r} volleys to take the colony. Defeat costs {g}g double toll; a draw sends both fleets home.',
+              '在 {r} 轮齐射内击败守军即可夺取殖民地。战败须缴纳 {g} 金币双倍过路费；平局则双方各自归队。', { r: COMBAT.rounds, g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })}
+          {' '}{t('Fleets starting with 2+ ships withdraw after losing half (rounded up) or when their flagship reaches 25% durability. A lone starting ship fights to the end.',
+            '开战时有两艘以上的舰队，损失半数船只（向上取整）或旗舰耐久降至 25% 时自动撤退。开战时仅有一艘的舰队战斗到底。')}
         </p>
         <div className="row">
           <button className="primary" onClick={() => gameController.payToll()}>{t('Pay toll', '缴纳过路费')} <kbd>P</kbd></button>
@@ -289,7 +291,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
               {toll.direction === 'received' ? t('Toll received: {g} from {p}', '收到过路费：{g}，来自 {p}', { g: gold(toll.amount), p: toll.playerId === undefined ? toll.name : name(state.players[toll.playerId]) }) : t('Toll paid: {g} to {p}', '支付过路费：{g}，付给 {p}', { g: gold(-toll.amount), p: toll.playerId === undefined ? toll.name : name(state.players[toll.playerId]) })}
             </div>
           ))}
-          {summary.claims.map((claim, i) => <div key={i}>{claim.captured ? t('{p} sank your defenders and captured {n}.', '{p} 击沉了你的守军，夺取了{n}。', claimNames(claim)) : t('{p} claimed {n}.', '{p} 占领了{n}。', claimNames(claim))}</div>)}
+          {summary.claims.map((claim, i) => <div key={i}>{claim.captured ? t('{p} defeated your defenders and captured {n}.', '{p} 击败了你的守军，夺取了{n}。', claimNames(claim)) : t('{p} claimed {n}.', '{p} 占领了{n}。', claimNames(claim))}</div>)}
           <div>{t('Net gold:', '金币净变化：')} <strong className={summary.netGold < 0 ? 'expense' : 'income'}>{gold(summary.netGold)}</strong></div>
         </div>
       )}
