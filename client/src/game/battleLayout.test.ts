@@ -3,6 +3,23 @@ import { BATTLE_FIELD } from '@happy-voyage/shared';
 import { battleLayout, battleTapRadius, battleToScreen, isBattleDrag, pickBattleShip, placeBattleLabel, screenToBattle, type BattleRect } from './battleLayout';
 
 describe('battlefield layout', () => {
+  it.each([
+    ...[568, 640, 844, 1024, 1280].flatMap(width => [260, 300, 390, 449, 450, 720].map(height => [width, height])),
+    [390, 844],
+  ])('leaves a pressable field between the HUD and controls at %sx%s', (width, height) => {
+    const layout = battleLayout(width, height);
+    const { bounds } = layout;
+    expect(bounds.width).toBeGreaterThan(0);
+    expect(bounds.height).toBeGreaterThan(0);
+    expect(bounds.y).toBeGreaterThanOrEqual(layout.hudBottom);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(layout.controlsTop - 8 + .001);
+    expect(bounds.y + bounds.height / 2).toBeGreaterThanOrEqual(layout.hudBottom);
+    expect(bounds.y + bounds.height / 2).toBeLessThan(layout.controlsTop);
+    expect(layout.thresholdY - 22).toBeGreaterThanOrEqual(height < 450 ? layout.controlsTop + 54 : 128);
+    expect(layout.thresholdY + 22).toBeLessThanOrEqual(height < 450 ? height : layout.hudBottom);
+    if (height < 450) expect(layout.controlColumns).toBe(6);
+  });
+
   it.each([[390, 844], [1440, 900], [844, 390], [600, 600]])('round-trips coordinates at %sx%s with the whole field between HUD and controls', (width, height) => {
     const layout = battleLayout(width, height);
     for (const point of [{ x: 0, y: 0 }, { x: BATTLE_FIELD.width, y: BATTLE_FIELD.height }, { x: 123, y: 678 }, { x: BATTLE_FIELD.width / 2, y: BATTLE_FIELD.height / 2 }]) {

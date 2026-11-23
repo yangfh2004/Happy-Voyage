@@ -439,7 +439,8 @@ export class BattleScene extends Phaser.Scene {
     this.panel(g, 6, cardY, width - 12, cardH);
     const selected = this.session.battle.ships.filter(s => this.selected.has(s.id) && s.side === this.session.side && !s.sunk && !s.escaped);
     this.selectionCard.setPosition(width / 2, cardY + (short ? 3 : 7)).setFontSize(short ? 11 : compact ? 12 : 15).setText(battleSelectionText(selected, getLocale(), compact && !short));
-    const thresholdY = cardY + cardH + 28, widths = [44, 44, 44, getLocale() === 'en' ? 132 : 90];
+    this.panel(g, 0, layout.controlsTop, width, height - layout.controlsTop);
+    const thresholdY = layout.thresholdY, widths = [44, 44, 44, getLocale() === 'en' ? 132 : 90];
     const rowWidth = 102 + widths.reduce((sum, w) => sum + w + 4, 0);
     let thresholdX = (width - rowWidth) / 2 + 102;
     this.thresholdLabel.setPosition(thresholdX - 8, thresholdY);
@@ -451,8 +452,7 @@ export class BattleScene extends Phaser.Scene {
       button.setText(options[i]).setPosition(thresholdX + widths[i] / 2, thresholdY);
       thresholdX += widths[i] + 4;
     });
-    const cols = compact ? 3 : 6, step = Math.min((width - 16) / cols, 170);
-    this.panel(g, 0, layout.controlsTop, width, height - layout.controlsTop);
+    const cols = layout.controlColumns, step = Math.min((width - 16) / cols, 170);
     const names = [text('Fleet', '全舰队'), text('Column', '纵队'), text('Line', '横队'), text('Spread', '散开'), this.paused ? text('Resume', '继续') : text('Pause', '暂停'), text('Retreat', '撤退')];
     this.buttons.forEach((b, i) => {
       const x = width / 2 + (i % cols - cols / 2) * step + 3, y = layout.controlsTop + 6 + Math.floor(i / cols) * 48;
@@ -472,7 +472,7 @@ export class BattleScene extends Phaser.Scene {
       else if (i === 4) g.strokeTriangle(ix - 4, iy - 7, ix + 6, iy, ix - 4, iy + 7);
       else g.lineBetween(ix - 7, iy, ix + 7, iy).lineBetween(ix - 7, iy, ix, iy - 7).lineBetween(ix - 7, iy, ix, iy + 7);
     });
-    this.help.setDepth(3).setVisible(!touch && !compact).setPosition(width / 2, height - 12).setFontSize(10)
+    this.help.setDepth(3).setVisible(!touch && !compact && !short).setPosition(width / 2, height - 12).setFontSize(10)
       .setText(text('Right-click to order · Broadside auto-fire', '右键下令 · 侧舷自动开火'));
   }
 }
