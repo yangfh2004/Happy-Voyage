@@ -15,7 +15,7 @@ describe('RecruitPanel', () => {
     const html = renderToStaticMarkup(<RecruitPanel state={state()} />);
     expect(html).toContain('Ines Tidewalker');
     expect(html).toContain('Explorer');
-    expect(html).toContain('Requires Commoner · 180g');
+    expect(html).toContain('Requires Ensign · 180g');
     expect(html).toContain('Recruit Ines Tidewalker');
     expect(html).toContain('Decline recruitment');
     expect(html).not.toContain('disabled');

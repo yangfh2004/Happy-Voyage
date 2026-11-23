@@ -441,9 +441,9 @@ export class GameEngine extends GameView {
     player.audienceMerit = Math.max(player.audienceMerit, merit);
     const homeNation = player.nation ?? this.node(player.homePort).nation;
     const nation = homeNation ? ref.nation(homeNation) : tx('your homeland', '你的祖国');
-    const params = { p: ref.player(player.id), nation, rank: rank.name, rankZh: rank.chineseName, salary: rank.salary, tax: Math.round(rank.taxDiscount * 100), g: reward };
+    const params = { p: ref.player(player.id), nation, rank: ref.rank(player.rank), salary: rank.salary, tax: Math.round(rank.taxDiscount * 100), g: reward };
     const text = promoted
-      ? tx('King of {nation} promotes {p} to {rank} ({rankZh})! Bonus: +{salary} salary, −{tax}% foreign tax. Promotion purse: {g}g.', '{nation}国王将 {p} 晋升为{rankZh}！奖励：薪俸 +{salary}，外国税金 −{tax}%。晋升赏金：{g} 金币。', params)
+      ? tx('King of {nation} promotes {p} to {rank}! Bonus: +{salary} salary, −{tax}% foreign tax. Promotion purse: {g}g.', '{nation}国王将 {p} 晋升为{rank}！奖励：薪俸 +{salary}，外国税金 −{tax}%。晋升赏金：{g} 金币。', params)
       : reward > 0 ? tx('King of {nation} rewards {p} with {g}g for new achievements.', '{nation}国王赏赐 {p} {g} 金币，表彰新的功绩。', params)
         : tx('{p}: the king awaits greater deeds.', '{p}：国王期待你立下更大的功绩。', params);
     const message = localize('en', text, this.state);
@@ -482,7 +482,7 @@ export class GameEngine extends GameView {
     const player = this.currentPlayer;
     if (player.captains.length >= MAX_CAPTAINS) throw new Error('Crew is full');
     if (player.captains.includes(captain.id)) throw new Error('Captain already aboard');
-    if (player.rank < captain.minRank) throw new Error('Higher royal rank required');
+    if (player.rank < captain.minRank) throw new Error('Higher military rank required');
     if (player.gold < captain.fee) throw new Error('Not enough gold');
     this.changeGold(player, -captain.fee, 'captain recruitment');
     player.captains.push(captain.id);

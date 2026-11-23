@@ -10,9 +10,13 @@ vi.mock('../game/GameController', () => ({ gameController: {
 import { canEndTurn, endTurnAction, HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } from './BoardChrome';
 import { LogPanel } from './LogPanel';
 import { gameController } from '../game/GameController';
+import { setLocale } from '../i18n';
 
 const game = () => new GameEngine({ players: createNationRoster([{ name: 'Captain', nation: 'Spain' }]) });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  setLocale('en');
+});
 
 describe('board chrome', () => {
   it.each([false, true])('shows each seat number once in the portrait strip with color-blind mode %s', (colorBlind) => {
@@ -61,7 +65,9 @@ describe('board chrome', () => {
     const html = renderToStaticMarkup(<HelmCard state={state} colorBlind={false} atHelm />);
     expect(html).toContain('YOUR TURN');
     expect(html).toContain('<dd>0</dd>');
-    expect(html).toContain('Rank');
+    expect(html).toContain('<dt>Rank</dt><dd>Ensign</dd>');
+    setLocale('zh');
+    expect(renderToStaticMarkup(<HelmCard state={state} colorBlind={false} atHelm />)).toContain('<dt>军衔</dt><dd>少尉</dd>');
   });
   it('only enables End Turn for supported decline decisions at the local helm', () => {
     const { state } = game();

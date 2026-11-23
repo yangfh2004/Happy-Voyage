@@ -12,7 +12,7 @@ export const TUTORIAL_STEPS = [
 export const STAT_HELP = {
   round: { label: tx('Round', '回合'), description: tx('The round advances once every active navigator has taken a turn.', '所有仍在游戏中的航海家各行动一次后，进入下一回合。') },
   goal: { label: tx('Victory goal', '胜利目标'), description: tx('The colony target or campaign objective for this voyage. Open Rules for the full victory conditions.', '本次航行的殖民地目标或战役目标。打开“规则”查看完整胜利条件。') },
-  rank: { label: tx('Royal rank', '王室官阶'), description: tx('The crown can promote you when you return home. Higher ranks improve royal benefits and unlock captains.', '返回母国时，国王可能为你晋升官阶。更高的官阶可改善王室待遇并解锁船长。') },
+  rank: { label: tx('Military rank', '军衔'), description: tx('The king can promote you when you land at your home port. Higher ranks increase salary, cut foreign taxes, and unlock captains.', '停靠母港时，国王可能为你晋升军衔。军衔越高，薪俸越多，外国税金越低，还能解锁更多可招募的船长。') },
   gold: { label: tx('Gold', '金币'), description: tx('Spendable gold for claiming islands, construction, purchases and paying tolls or taxes.', '可用于占领岛屿、建设、购买，以及缴纳过路费或税金的金币。') },
   islands: { label: tx('Colonies', '殖民地'), description: tx('The number of new continents this navigator currently controls.', '这位航海家当前控制的新大陆数量。') },
   ships: { label: tx('Sailing ships', '随行船只'), description: tx('Ships traveling with this fleet. Ships docked at colonies are counted separately.', '随舰队航行的船只。停靠在殖民地的船只另行计算。') },
