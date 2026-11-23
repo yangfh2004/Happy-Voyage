@@ -32,6 +32,7 @@ export interface BattleGroup {
   formation: Formation;
   leaderId: number;
   heading: number;
+  moveHeading?: number;
   order: BattleOrder;
 }
 export interface BattleShip extends Ship {
@@ -199,9 +200,10 @@ function moveGroups(battle: BattleState): void {
     let desired = group.heading, moving = false;
     let goal = { x: leader.x, y: leader.y };
     if (group.order.type === 'move') {
-      goal = groupAnchor(battle, group, group.order);
+      group.moveHeading ??= bearing(leader, group.order);
+      goal = groupAnchor(battle, { ...group, heading: group.moveHeading }, group.order);
       moving = distance(leader, goal) > 1;
-      if (moving) desired = bearing(leader, goal);
+      if (moving) desired = group.moveHeading;
     } else if (target) {
       const bow = bearing(leader, target);
       moving = leader.charge || distance(leader, target) > Math.min(...members.map(s => BATTLE_STATS[s.type].range)) * .8;
@@ -210,7 +212,7 @@ function moveGroups(battle: BattleState): void {
     }
     const turn = Math.min(BATTLE_STATS[leader.type].turn, ...groupOffsets(battle, group).slice(1).map(p => p.ship.speed * 16 / Math.hypot(p.x, p.y) * 180 / Math.PI));
     group.heading = angle(group.heading + clamp(angle(desired - group.heading), -turn * TICK, turn * TICK));
-    const a = group.heading * Math.PI / 180;
+    const a = (group.order.type === 'move' ? bearing(leader, goal) : group.heading) * Math.PI / 180;
     const slots = battleGroupSlots(battle, group);
     const formed = slots.every(slot => distance(members.find(s => s.id === slot.shipId)!, slot) < 1);
     const anchor = groupAnchor(battle, group, leader);
@@ -295,6 +297,7 @@ export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleC
   if (ships.length >= 2) {
     const leader = [...ships].sort(flagshipOrder)[0];
     const group: BattleGroup = { id: battle.nextGroupId++, side, shipIds: ships.map(s => s.id), formation, leaderId: leader.id, heading: leader.heading, order };
+    if (order.type === 'move') group.moveHeading = distance(leader, order) > 1 ? bearing(leader, order) : leader.heading;
     battle.groups.push(group);
     for (const s of ships) { s.groupId = group.id; s.order = { ...order }; s.charge = false; }
     return;

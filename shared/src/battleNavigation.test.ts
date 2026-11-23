@@ -14,6 +14,17 @@ function spainBattle(): BattleState {
 }
 
 describe('formation navigation regressions', () => {
+  it('turns an east-facing column toward a west-edge move instead of sailing east', () => {
+    const b = spainBattle();
+    const leader = b.ships.find(s => s.signature)!;
+    const start = leader.x;
+    issueCommand(b, 'attacker', { type: 'move', shipIds: b.ships.filter(s => s.side === 'attacker').map(s => s.id), x: 0, y: leader.y, formation: 'column' });
+    for (let i = 0; i < 1799; i++) stepBattle(b);
+    expect(leader.x).toBeLessThan(start);
+    expect(Math.abs(leader.x - (BATTLE_STATS[leader.type].radius + 32))).toBeLessThan(1);
+    expect(Math.abs(b.groups[0].heading)).toBeCloseTo(180);
+  });
+
   it('does not strand Spain spread followers against the west wall on a diagonal move', () => {
     const b = spainBattle();
     issueCommand(b, 'attacker', { type: 'move', shipIds: b.ships.filter(s => s.side === 'attacker').map(s => s.id), x: 1300, y: 1200, formation: 'spread' });
