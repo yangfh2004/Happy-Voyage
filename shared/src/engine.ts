@@ -24,7 +24,7 @@ import { campaignRoster, campaignStage, type CampaignObjective, type CampaignSet
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
 import { isEliminated, seatAtTurnOrderPosition, turnOrderPosition, COLONY_RETURN_COOLDOWN, SEA_HAZARD_DAMAGE, REPAIR_GOLD_PER_POINT } from './rules';
 import { GameView } from './gameView';
-import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
+import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, MAX_FLEET_SIZE, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
 import type { Good, SeaEventResult, Specialty } from './types';
 import { navigatorById, type SignatureShip } from './navigators';
 import type { VictoryKind, BattleReport, ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, MarketOrder, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
@@ -220,7 +220,7 @@ export class GameEngine extends GameView {
     betray: (target) => {
       const { ships, fromFleet } = this.state.phase === 'awaitingSpin' ? { ships: this.state.players[target!].fleet, fromFleet: true } : colonyDefenders(this.state, this.currentPlayer.position);
       const selected = [...ships].sort((a, b) => b.firepower - a.firepower).slice(0, defectionCount(ships.length, fromFleet));
-      for (const ship of selected) { ships.splice(ships.indexOf(ship), 1); this.currentPlayer.fleet.push(ship); }
+      for (const ship of selected) { ships.splice(ships.indexOf(ship), 1); this.receiveShip(this.currentPlayer, ship); }
     },
     tailwind: () => { this.state.compassMultiplier = 2; },
     reverse: () => { this.state.compassMultiplier = -1; },
@@ -296,7 +296,7 @@ export class GameEngine extends GameView {
     return this.commissionShip(playerId, type);
   }
 
-  private commissionShip(playerId: number, type: ShipType, signature?: SignatureShip): Ship {
+  private commissionShip(playerId: number, type: ShipType, signature?: SignatureShip, condition = 1): Ship {
     const player = this.state.players[playerId];
     if (!player) throw new Error(`Unknown player: ${playerId}`);
     if (!Object.prototype.hasOwnProperty.call(SHIP_TYPES, type)) throw new Error(`Unknown ship type: ${type}`);
@@ -307,10 +307,34 @@ export class GameEngine extends GameView {
     for (const [stat, bonus] of Object.entries(signature?.bonus ?? {}) as [keyof ShipStats, number][]) stats[stat] += bonus;
     const ship: Ship = signature
       ? { ...stats, id, type, name: signature.name, durability: stats.maxDurability, signature: true, cargo: {} }
-      : { ...stats, id, type, name: `${label} ${id}`, durability: stats.maxDurability, cargo: {} };
-    player.fleet.push(ship);
-    this.emit({ type: 'shipAdded', playerId, shipId: id });
+      : { ...stats, id, type, name: `${label} ${id}`, durability: Math.floor(stats.maxDurability * condition), cargo: {} };
+    this.receiveShip(player, ship, true);
     return ship;
+  }
+
+  private receiveShip(player: Player, ship: Ship, isNew = false): void {
+    if (player.fleet.length < MAX_FLEET_SIZE) {
+      player.fleet.push(ship);
+      if (isNew) this.emit({ type: 'shipAdded', playerId: player.id, shipId: ship.id });
+      return;
+    }
+    const dockedAt = this.state.owners[player.position] === player.id && this.state.map[player.position]?.kind === 'island'
+      ? player.position
+      : this.state.map.find((node) => node.kind === 'island' && this.state.owners[node.id] === player.id)?.id ?? null;
+    if (dockedAt === null) (player.reservedShips ??= []).push(ship);
+    else this.state.docks[dockedAt].push(ship);
+    this.log(dockedAt === null
+      ? tx('{s} waits for {p} to acquire a colony.', '{s}等待 {p} 获得殖民地。', { s: ref.ship(ship.name), p: ref.player(player.id) })
+      : tx('{s} stays at the shipyard at {n}.', '{s}留在{n}的船坞。', { s: ref.ship(ship.name), n: ref.node(dockedAt) }));
+    this.emit({ type: 'shipAdded', playerId: player.id, shipId: ship.id, dockedAt });
+  }
+
+  private assignColony(nodeId: number, player: Player): void {
+    this.state.owners[nodeId] = player.id;
+    if (player.reservedShips?.length) {
+      this.state.docks[nodeId].push(...player.reservedShips);
+      delete player.reservedShips;
+    }
   }
 
   /** Choose the movement distance without moving the fleet yet. */
@@ -460,7 +484,7 @@ export class GameEngine extends GameView {
     this.assertPhase('awaitingClaim');
     const player = this.currentPlayer;
     const node = this.node(this.state.pendingClaim!);
-    this.state.owners[node.id] = player.id;
+    this.assignColony(node.id, player);
     this.log(tx('{p} plants the flag on {n}!', '{p} 在{n}插上了旗帜！', { p: ref.player(player.id), n: ref.node(node.id) }));
     this.emit({ type: 'claimed', playerId: player.id, nodeId: node.id });
     this.updateCampaignMission(player.id, 'foundColony', (progress) => progress + 1);
@@ -549,12 +573,14 @@ export class GameEngine extends GameView {
       ? tx('The battle lasted {s}s. Sunk: {p} {a}; {o} {d}.', '海战持续 {s} 秒。被击沉：{p} {a}；{o} {d}。', { ...sides, s: (result.rounds / 20).toFixed(1), a: ref.ships(report.attackerSunk), d: ref.ships(report.defenderSunk) })
       : tx('{r} rounds of cannon fire. Sunk: {p} {a}; {o} {d}.', '炮火交战 {r} 回合。被击沉：{p} {a}；{o} {d}。', { ...sides, r: result.rounds, a: ref.ships(report.attackerSunk), d: ref.ships(report.defenderSunk) }));
     switch (result.outcome) {
-      case 'victory':
-        if (!fromFleet) owner.fleet.push(...defenders.splice(0));
-        this.state.owners[node.id] = player.id;
+      case 'victory': {
+        const returningShips = fromFleet ? [] : defenders.splice(0);
+        this.assignColony(node.id, player);
+        for (const ship of returningShips) this.receiveShip(owner, ship);
         this.log(tx('{p} defeats the defenders and takes {n} from {o}!', '{p} 击败守军，从 {o} 手中夺取了{n}！', sides));
         this.emit({ type: 'claimed', playerId: player.id, nodeId: node.id });
         break;
+      }
       case 'defeat':
         this.log(tx("{p}'s fleet is defeated at {n} and owes {o} double toll.", '{p} 的舰队在{n}战败，须向 {o} 缴纳双倍过路费。', sides));
         report.tollPaid = this.collectToll(player, owner, node, COMBAT.defeatTollMultiplier);
@@ -767,6 +793,7 @@ export class GameEngine extends GameView {
     const index = source.findIndex((ship) => ship.id === shipId);
     if (index < 0) throw new Error('Ship not available here');
     if (direction === 'dock' && source.length <= 1) throw new Error('Fleet must keep at least one ship');
+    if (direction === 'board' && target.length >= MAX_FLEET_SIZE) throw new Error('Fleet is full');
     const [ship] = source.splice(index, 1);
     target.push(ship);
     const moved = { p: ref.player(player.id), s: ref.ship(ship.name), n: ref.node(nodeId) };
@@ -976,6 +1003,7 @@ export class GameEngine extends GameView {
         kind = aiBuildingChoice(this.state, this.currentPlayer);
       }
       for (const ship of [...this.state.docks[player.position]]) {
+        if (player.fleet.length >= MAX_FLEET_SIZE) break;
         if (ship.durability === ship.maxDurability || !colonyCanRepair(this.state, player.position)) this.boardShip(ship.id);
       }
       const ship = aiShipChoice(player, (type) => this.canBuildShip(type));
@@ -1011,8 +1039,7 @@ export class GameEngine extends GameView {
     if (!this.canBuyUsedShip(type)) throw new Error('Cannot buy ship: market, stock or gold');
     this.state.marketStock.splice(this.state.marketStock.indexOf(type), 1);
     this.changeGold(this.currentPlayer, -USED_SHIP_PRICES[type], 'second-hand ship');
-    const ship = this.addShipToFleet(this.currentPlayer.id, type);
-    ship.durability = Math.floor(ship.maxDurability * USED_SHIP_CONDITION);
+    const ship = this.commissionShip(this.currentPlayer.id, type, undefined, USED_SHIP_CONDITION);
     this.log(tx('{p} buys {s} at {n}.', '{p} 在{n}买下{s}。', { p: ref.player(this.currentPlayer.id), s: ref.ship(ship.name), n: ref.node(this.currentPlayer.position) }));
     return ship;
   }
@@ -1387,7 +1414,7 @@ export class GameEngine extends GameView {
       if (shortfall <= 0) break;
       const value = shipSalePrice(ship);
       player.fleet.splice(player.fleet.indexOf(ship), 1);
-      if (host) host.fleet.push(ship);
+      if (host) this.receiveShip(host, ship);
       shortfall -= value;
       this.log(tx("{p}'s {s} is seized by {h} for {v}g toward foreign tax.", '{p} 的{s}被 {h} 扣押，抵税 {v} 金币。', { p: ref.player(player.id), s: ref.ship(ship.name), h: host ? ref.player(host.id) : tx('the crown', '王室'), v: value }));
     }
@@ -1432,6 +1459,7 @@ export class GameEngine extends GameView {
   }
 
   private releaseColonies(player: Player): void {
+    delete player.reservedShips;
     this.state.owners = this.state.owners.map((owner, id) => {
       if (owner !== player.id) return owner;
       this.state.buildings[id] = {};

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CAPTAINS, MAX_CAPTAINS, captainDescriptionText, captainName, cargoLoad, goodName, playerName, rankName, shipName, shipTypeName, type Good, type Player } from '@happy-voyage/shared';
+import { CAPTAINS, MAX_CAPTAINS, MAX_FLEET_SIZE, captainDescriptionText, captainName, cargoLoad, goodName, playerName, rankName, shipName, shipTypeName, type Good, type Player } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import dialogPolyfill from 'dialog-polyfill';
 import { gameController } from '../game/GameController';
@@ -12,7 +12,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
   const { t, locale } = useT();
   const previousFocus = useRef<HTMLElement | null>(null);
   const [playerId, setPlayerId] = useState((players.find((player) => player.id === gameController.viewerId) ?? players.find((player) => !player.isAI) ?? players[0]).id);
-  const { fleet, captains } = players.find((player) => player.id === playerId) ?? players[0];
+  const { fleet, captains, reservedShips } = players.find((player) => player.id === playerId) ?? players[0];
 
   useEffect(() => {
     const element = dialog.current;
@@ -30,7 +30,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
   return createPortal(
     <dialog className="panel fleet" ref={dialog} onClose={closePanel} role="dialog" aria-modal="true" aria-labelledby="fleet-title">
       <div className="fleet-heading">
-        <h2 id="fleet-title">{t('Fleet', '舰队')}</h2>
+        <h2 id="fleet-title">{t('Fleet {n}/{max}', '舰队 {n}/{max}', { n: fleet.length, max: MAX_FLEET_SIZE })}</h2>
         <button type="button" onClick={() => dialog.current?.close()}>{t('Close', '关闭')}</button>
       </div>
       <label>
@@ -41,6 +41,7 @@ export function FleetPanel({ players, onClose }: { players: Player[]; onClose: (
           ))}
         </select>
       </label>
+      {!!reservedShips?.length && <p>{t('{n} ships are in reserve until a colony is acquired.', '{n} 艘船暂存，获得殖民地后送往船坞。', { n: reservedShips.length })}</p>}
       <h3><StatTooltip stat="captains">{t('Captains aboard ({n}/{max})', '船上的船长（{n}/{max}）', { n: captains.length, max: MAX_CAPTAINS })}</StatTooltip></h3>
       {captains.length === 0 && <p>{t('No captains recruited.', '尚未招募船长。')}</p>}
       {CAPTAINS.filter((captain) => captains.includes(captain.id)).map((captain) => <p key={captain.id}><strong>{captainName(captain.id, locale)}</strong> · {captainDescriptionText(captain.id, locale)}</p>)}

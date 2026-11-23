@@ -625,9 +625,17 @@ export class GameController {
         break;
       }
       case 'shipAdded': {
-        const ship = players[event.playerId].fleet.find((candidate) => candidate.id === event.shipId);
+        const player = players[event.playerId];
+        const ships = event.dockedAt === undefined ? player.fleet
+          : event.dockedAt === null ? player.reservedShips : state.docks[event.dockedAt];
+        const ship = ships?.find((candidate) => candidate.id === event.shipId);
         if (isViewer(event.playerId) && ship) {
-          this.headline = this.makeHeadline(tx('{s} joined your fleet.', '{s}加入了你的舰队。', { s: ref.ship(ship.name) }), 'gain');
+          const s = ref.ship(ship.name);
+          this.headline = this.makeHeadline(event.dockedAt === undefined
+            ? tx('{s} joined your fleet.', '{s}加入了你的舰队。', { s })
+            : event.dockedAt === null
+              ? tx('{s} is held in reserve until you acquire a colony.', '{s}暂存，获得殖民地后送往船坞。', { s })
+              : tx('{s} is docked at {n}.', '{s}已停靠在{n}的船坞。', { s, n: ref.node(event.dockedAt) }), 'gain');
           sfx.bell();
         }
         break;

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useT } from '../i18n';
 import { tx } from '@happy-voyage/shared';
-import { COLONY_RETURN_COOLDOWN, EVENT_GOLD, LOTTERY, NIM_MAX_TAKE, SEA_RULES, SEA_HAZARD_DAMAGE, DEFAULT_ISLAND_COUNT, hasRoundLimit, winConditionText, winConditionTx, localize, type CampaignState, type GameConfig } from '@happy-voyage/shared';
+import { COLONY_RETURN_COOLDOWN, EVENT_GOLD, LOTTERY, MAX_FLEET_SIZE, NIM_MAX_TAKE, SEA_RULES, SEA_HAZARD_DAMAGE, DEFAULT_ISLAND_COUNT, hasRoundLimit, winConditionText, winConditionTx, localize, type CampaignState, type GameConfig } from '@happy-voyage/shared';
 
 const TURN_ORDER = tx('Navigators take turns in seat order, skipping eliminated players.', '航海家按座位顺序轮流行动，跳过已失败的玩家。');
 
@@ -33,7 +33,8 @@ export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaig
           <dt><span className="rule-icon storm">!</span> Storm Front</dt><dd>Pay {EVENT_GOLD.storm.min}–{EVENT_GOLD.storm.max}g for repairs.</dd>
           <dt><span className="rule-icon treasure">≈</span> Trade Winds</dt><dd>Earn +{EVENT_GOLD.tradeWind.base}g plus {EVENT_GOLD.tradeWind.perColony}g per colony you own.</dd>
         </dl>
-        <p><strong>Shipyards:</strong> Revisit your colony to build a lumber mill, iron mine, and shipyard. Each round, the mill and mine add materials to the colony's stockpile. Spend those materials at the yard to add a new ship to your fleet; upgrade the yard to unlock bigger ships.</p>
+        <p><strong>Shipyards:</strong> Revisit your colony to build a lumber mill, iron mine, and shipyard. Each round, the mill and mine add materials to the colony's stockpile. Spend those materials at the yard to build a new ship; upgrade the yard to unlock bigger ships.</p>
+        <p><strong>Fleet limit:</strong> At most {MAX_FLEET_SIZE} ships can sail with each navigator. Extra ships go to the dock at your current colony or the first colony you own in chart order, even without a shipyard building. If you own none, they’re held in reserve until you gain one. Use Transfers at the colony to board them; dock a sailing ship first if your fleet is full.</p>
         <p><strong>Return to a colony:</strong> At the start of your turn, you can sail directly to one of your other colonies instead of spinning. You can do this once every {COLONY_RETURN_COOLDOWN} rounds, even before the colony has a shipyard.</p>
         <p><strong>Repair yards:</strong> Fully repair all ships docked at that colony for free at the owner's turn start. Ships sailing in your fleet are not repaired by yards.</p>
         <p>Storms and damaging Bermuda whirlpools remove up to {SEA_HAZARD_DAMAGE} durability per ship, keeping their gold costs. These hazards cannot sink ships. Creature encounters and pirate combat have their own damage rules below. Inspect durability in Fleet.</p>
@@ -65,7 +66,8 @@ function RulesZh({ config, islandCount, campaign }: { config: GameConfig; island
       <dt><span className="rule-icon storm">!</span> 风暴前线</dt><dd>支付 {EVENT_GOLD.storm.min}–{EVENT_GOLD.storm.max} 金币修理费。</dd>
       <dt><span className="rule-icon treasure">≈</span> 信风</dt><dd>获得 +{EVENT_GOLD.tradeWind.base} 金币，每拥有一块殖民地再加 {EVENT_GOLD.tradeWind.perColony} 金币。</dd>
     </dl>
-    <p><strong>造船厂：</strong>再次停靠自己的殖民地时，可以建造木材厂、铁矿厂和造船厂。每回合木材厂和铁矿厂会向殖民地仓库补充材料。在造船厂消耗这些材料即可为舰队添一艘新船；升级造船厂可解锁更大的船。</p>
+    <p><strong>造船厂：</strong>再次停靠自己的殖民地时，可以建造木材厂、铁矿厂和造船厂。每回合木材厂和铁矿厂会向殖民地仓库补充材料。在造船厂消耗这些材料即可造船；升级造船厂可解锁更大的船。</p>
+    <p><strong>舰队上限：</strong>每位航海家的航行舰队最多 {MAX_FLEET_SIZE} 艘船。多出的船留在当地的己方殖民地船坞，或送往海图顺序中的第一座己方殖民地，无需建造船厂。没有殖民地时暂存，获得殖民地后再送往船坞。到当地用“调度”取回；舰队已满时，先停靠一艘随行船只。</p>
     <p><strong>返回殖民地：</strong>回合开始时，你可以直接航行到自己所在位置以外的任意一座己方殖民地，不必转动罗盘。即使目的地尚未建造船厂，也可以每 {COLONY_RETURN_COOLDOWN} 回合使用一次。</p>
     <p><strong>修船厂：</strong>在所有者回合开始时，免费修好停靠在该殖民地的所有船只。随舰队航行的船只不会被修船厂修理。</p>
     <p>风暴和造成损伤的百慕达漩涡会让每艘船最多损失 {SEA_HAZARD_DAMAGE} 点耐久，并照常扣除金币。这些灾难不会让船只沉没。海怪遭遇和海盗战斗另有伤害规则（见下文）。可在“舰队”中查看耐久。</p>
