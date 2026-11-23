@@ -13,6 +13,43 @@ function siege(attackerAI = false, defenderAI = true, mode: 'realtime' | 'auto' 
 }
 
 describe('real-time engine integration', () => {
+  it.each(['auto', 'realtime'] as const)('returns withdrawing docked defenders to their owner in %s mode', (mode) => {
+    const { game, node } = siege(false, true, mode);
+    const [attacker, defender] = game.state.players;
+    const guards = defender.fleet.splice(1, 2);
+    for (const s of guards) { s.durability = 1; s.firepower = 0; }
+    for (const s of attacker.fleet) s.firepower = 1000;
+    game.state.docks[node.id] = guards;
+    const report = game.fight() ?? game.finishBattle([])!;
+    expect(report.outcome).toBe('victory');
+    expect(game.state.owners[node.id]).toBe(attacker.id);
+    expect(game.state.docks[node.id]).toEqual([]);
+    const survivors = defender.fleet.filter((s) => guards.includes(s));
+    expect(survivors).toHaveLength(mode === 'auto' ? 1 : 2);
+    expect(survivors.every((s) => s.durability === 1)).toBe(true);
+    expect(attacker.fleet.some((s) => survivors.includes(s))).toBe(false);
+  });
+
+  it('returns conceding docked defenders to their owner, not the conqueror', () => {
+    const { game, node } = siege(true, false);
+    const [attacker, defender] = game.state.players;
+    const guards = defender.fleet.splice(1, 2);
+    const ids = guards.map((s) => s.id);
+    guards[0].durability = 60;
+    game.state.docks[node.id] = guards;
+    game.fight();
+    const report = game.finishBattle([{ tick: 0, side: 'defender', cmd: { type: 'retreat' } }])!;
+    expect(report.outcome).toBe('victory');
+    expect(game.state.owners[node.id]).toBe(attacker.id);
+    expect(game.state.docks[node.id]).toEqual([]);
+    expect(defender.fleet.filter((s) => ids.includes(s.id))).toHaveLength(2);
+    expect(defender.fleet.find((s) => s.id === ids[0])!.durability).toBe(60);
+    game.state.currentPlayer = attacker.id;
+    attacker.position = node.id;
+    game.state.phase = 'awaitingBuild';
+    expect(() => game.boardShip(ids[0])).toThrow('Ship not available here');
+  });
+
   it.each([false, true])('settles a human concession as defeat (defending=%s) without removing survivors', (defending) => {
     const { game, node } = siege(defending, !defending);
     const [attacker, defender] = game.state.players;

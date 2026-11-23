@@ -550,6 +550,7 @@ export class GameEngine extends GameView {
       : tx('{r} rounds of cannon fire. Sunk: {p} {a}; {o} {d}.', '炮火交战 {r} 回合。被击沉：{p} {a}；{o} {d}。', { ...sides, r: result.rounds, a: ref.ships(report.attackerSunk), d: ref.ships(report.defenderSunk) }));
     switch (result.outcome) {
       case 'victory':
+        if (!fromFleet) owner.fleet.push(...defenders.splice(0));
         this.state.owners[node.id] = player.id;
         this.log(tx('{p} defeats the defenders and takes {n} from {o}!', '{p} 击败守军，从 {o} 手中夺取了{n}！', sides));
         this.emit({ type: 'claimed', playerId: player.id, nodeId: node.id });
