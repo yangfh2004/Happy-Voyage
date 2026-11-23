@@ -9,7 +9,7 @@ export function battleLayout(width: number, height: number) {
   const fieldWidth = portrait ? BATTLE_FIELD.height : BATTLE_FIELD.width;
   const fieldHeight = (portrait ? BATTLE_FIELD.width : BATTLE_FIELD.height) * CAMERA_45;
   const short = height < 450;
-  const hudBottom = short ? 112 : 188;
+  const hudBottom = short ? 108 : 188;
   const controlsTop = height - (short || width < 650 ? 112 : 64);
   const controlColumns = short ? 6 : width < 650 ? 3 : 6;
   const thresholdY = short ? controlsTop + 82 : 156;
