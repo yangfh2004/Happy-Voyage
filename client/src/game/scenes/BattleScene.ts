@@ -4,6 +4,7 @@ import { getLocale, pick } from '../../i18n';
 import { gameController } from '../GameController';
 import { BattleSession } from '../BattleSession';
 import { battleNameVisible, battleSelectionText } from '../battleHud';
+import { bindBattleButton } from '../battleButton';
 import { destinationSlots, markerAlpha, selectionPulse, MOVE_MARKER_SECONDS } from '../battleSelection';
 import { sfx } from '../sfx';
 import { battleShipTexture, broadsideMuzzles, prewarmBattleShips, battleShipModel, shipGrade } from '../battleShipArt';
@@ -93,8 +94,11 @@ export class BattleScene extends Phaser.Scene {
     this.countdown = this.add.text(0, 0, '', style).setOrigin(.5);
     this.selectionCard = this.add.text(0, 0, '', { ...style, fontSize: '13px' }).setOrigin(.5, 0);
     this.thresholdLabel = this.add.text(0, 0, text('Auto-withdraw\nafter losing', '损失几艘船后\n自动撤退'), { ...style, fontSize: '11px' }).setOrigin(1, .5).setDepth(3);
-    this.thresholdButtons = RETREAT_THRESHOLDS.map(threshold => this.add.text(0, 0, '', { ...style, fontSize: '11px' }).setOrigin(.5).setDepth(3)
-      .setInteractive({ useHandCursor: true }).on('pointerup', () => this.session.command({ type: 'retreatThreshold', threshold })));
+    this.thresholdButtons = RETREAT_THRESHOLDS.map(threshold => {
+      const button = this.add.text(0, 0, '', { ...style, fontSize: '11px' }).setOrigin(.5).setDepth(3).setInteractive({ useHandCursor: true });
+      bindBattleButton(button, () => this.session.command({ type: 'retreatThreshold', threshold }));
+      return button;
+    });
     [this.hud, this.enemyHud, this.countdown, this.selectionCard].forEach(label => label.setDepth(3));
     this.help = this.add.text(0, 0, '', { ...style, fontSize: '13px', color: '#aed0dd' }).setOrigin(.5, 0);
     this.banner = this.add.text(0, 0, '', { ...style, fontSize: '38px', color: '#ffe6ad' }).setOrigin(.5).setDepth(5).setVisible(false);
