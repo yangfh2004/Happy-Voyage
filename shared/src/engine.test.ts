@@ -223,8 +223,13 @@ describe('GameEngine', () => {
   });
 
   it('plays an all-AI game to completion', () => {
+    let rngState = 1;
     const engine = new GameEngine({
       players: [0, 1, 2].map((i) => ({ name: `AI ${i}`, color: i, isAI: true })),
+      rng: () => {
+        rngState = (Math.imul(rngState, 1664525) + 1013904223) >>> 0;
+        return rngState / 4294967296;
+      },
     });
     engine.start();
     let guard = 0;
