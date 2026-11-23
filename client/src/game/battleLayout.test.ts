@@ -8,8 +8,8 @@ describe('battlefield layout', () => {
       const screen = battleToScreen(layout, point);
       expect(screen.x).toBeGreaterThanOrEqual(-.001);
       expect(screen.x).toBeLessThanOrEqual(width + .001);
-      expect(screen.y).toBeGreaterThanOrEqual(86 - .001);
-      expect(screen.y).toBeLessThanOrEqual(height - 104 + .001);
+      expect(screen.y).toBeGreaterThanOrEqual(layout.hudBottom - .001);
+      expect(screen.y).toBeLessThanOrEqual(layout.controlsTop - 8 + .001);
       const back = screenToBattle(layout, screen);
       expect(back.x).toBeCloseTo(point.x);
       expect(back.y).toBeCloseTo(point.y);
@@ -23,6 +23,12 @@ describe('battlefield layout', () => {
     expect(portrait.bounds.height).toBeCloseTo(portrait.zoom * 1600 * Math.SQRT1_2);
     expect(landscape.angle).toBe(0);
     expect(battleToScreen(landscape, { x: 160, y: 450 }).x).toBeLessThan(battleToScreen(landscape, { x: 1440, y: 450 }).x);
+  });
+
+  it('keeps portrait G2 hulls at least 70 CSS pixels long without stretching the field', () => {
+    const layout = battleLayout(390, 844);
+    expect(125 * Math.SQRT1_2 * layout.zoom * layout.shipScale).toBeGreaterThanOrEqual(70);
+    expect(layout.bounds.width / layout.bounds.height).toBeCloseTo(900 / (1600 * Math.SQRT1_2));
   });
 
   it.each([[390, 844], [1280, 720]])('projects height screen-up independently of orientation at %sx%s', (width, height) => {
