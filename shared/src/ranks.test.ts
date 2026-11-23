@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine, SEA_RULES } from './engine';
+import { localize, rankName } from './i18n';
 import { playerMerit, RANKS } from './ranks';
 
 function game(isAI = false) {
@@ -16,7 +17,13 @@ function colony(g: GameEngine) {
   return id;
 }
 
-describe('royal ranks', () => {
+describe('military ranks', () => {
+  it('starts every navigator as an Ensign', () => {
+    const { currentPlayer } = game();
+    expect(rankName(currentPlayer.rank, 'en')).toBe('Ensign');
+    expect(rankName(currentPlayer.rank, 'zh')).toBe('少尉');
+  });
+
   it.each([false, true])('promotes one rank and exposes the purse and announcement (AI=%s)', (ai) => {
     const g = game(ai);
     const p = g.currentPlayer;
@@ -31,7 +38,11 @@ describe('royal ranks', () => {
     expect(p.gold).toBe(before + RANKS[1].purse);
     expect(g.state.royalAudience).toMatchObject({ promoted: true, rank: 1, reward: 200 });
     expect(events).toContain('royalAudience');
-    expect(g.state.log.join(' ')).toContain('Knight (骑士)');
+    expect(g.state.log.join(' ')).toContain('promotes Navigator to Lieutenant (Junior Grade)!');
+    const announcement = g.state.royalAudience!.text!;
+    expect(localize('en', announcement, g.state)).not.toMatch(/[\u4e00-\u9fff]/);
+    expect(localize('zh', announcement, g.state)).toContain('晋升为中尉');
+    expect(g.state.logText!.map((entry) => localize('zh', entry, g.state)).join(' ')).toContain('晋升为中尉');
     expect(() => g.resolveLanding()).toThrow();
   });
 
@@ -90,7 +101,7 @@ describe('royal ranks', () => {
     expect(host.gold).toBe(hostBefore + tax);
   });
 
-  it('caps at Duke and pays no reward without new deeds', () => {
+  it('caps at Captain and pays no reward without new deeds', () => {
     const g = game();
     g.currentPlayer.rank = RANKS.length - 1;
     const before = g.currentPlayer.gold;

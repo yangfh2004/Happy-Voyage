@@ -178,7 +178,7 @@ it('announces a home promotion until the next human spin', () => {
   humanTurn();
   expect(p.rank).toBe(1);
   expect(controller.headline).toMatchObject({ royal: true, tone: 'gain' });
-  expect(controller.headline?.text).toContain('Knight (骑士)');
+  expect(controller.headline?.text).toContain('Lieutenant (Junior Grade)');
   state.currentPlayer = 0;
   state.phase = 'awaitingSpin';
   controller.spinCompass();

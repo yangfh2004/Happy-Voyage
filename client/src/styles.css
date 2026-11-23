@@ -370,9 +370,9 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .helm-portrait { display: inline-flex; border: 3px solid #d2a33c; border-radius: 50%; padding: 3px; background: #0d527c; margin: 4px; }
   .helm-portrait .portrait { margin: 0; }
   .helm-card dl { margin: 8px 0; }
-  .helm-card dl > div { display: flex; justify-content: space-between; padding: 5px 3px; border-bottom: 1px solid #c9c4b3; }
+  .helm-card dl > div { display: flex; justify-content: space-between; gap: 8px; padding: 5px 3px; border-bottom: 1px solid #c9c4b3; }
   .helm-card dt { font-weight: 700; }
-  .helm-card dd { margin: 0; }
+  .helm-card dd { margin: 0; text-align: right; }
   .playing .actions { border: 0; background: transparent; box-shadow: none; border-radius: 0; padding: 0; }
   .playing .actions .primary { background: linear-gradient(#399b35, #12611c); border: 2px solid #d1a72e; border-radius: 16px; color: white; box-shadow: 0 3px 0 #214721; font-weight: 750; min-height: 52px; }
   .playing .actions .big { width: 100%; padding: 12px 8px; font-size: 19px; }

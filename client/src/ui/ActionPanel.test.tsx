@@ -182,11 +182,11 @@ describe('build menu', () => {
   });
   it('keeps royal announcements visible alongside the turn summary', () => {
     const { state } = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });
-    gameController.headline = { text: 'King promotes you to Knight (骑士)!', message: tx('King promotes you to Knight (骑士)!', '国王将你晋升为骑士！'), tone: 'gain', royal: true };
+    gameController.headline = { text: 'King promotes you to Lieutenant (Junior Grade)!', message: tx('King promotes you to Lieutenant (Junior Grade)!', '国王将你晋升为中尉！'), tone: 'gain', royal: true };
     gameController.feedback.summary = { tolls: [], claims: [], netGold: 0 };
     const html = renderToStaticMarkup(<ActionPanel state={state} />);
     expect(html).toContain('Since your last turn');
-    expect(html).toContain('King promotes you to Knight (骑士)!');
+    expect(html).toContain('King promotes you to Lieutenant (Junior Grade)!');
     gameController.headline = null;
     gameController.feedback.summary = null;
   });

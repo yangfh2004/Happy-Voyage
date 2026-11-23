@@ -15,7 +15,7 @@ export function RecruitPanel({ state }: { state: GameState }) {
   }
   return <section aria-labelledby="recruit-title">
     <h2 id="recruit-title">{t("Dragon Snake Island · Sailors' tavern", '龙蛇岛 · 水手酒馆')}</h2>
-    <p>{t('Recruit a captain together with their ships. Higher royal ranks unlock larger fleets.', '招募船长与船只加入舰队。王室官阶越高，可招募的舰队越大。')}</p>
+    <p>{t('Recruit a captain together with their ships. Higher military ranks unlock larger fleets.', '招募船长与船只加入舰队。军衔越高，可招募的舰队越大。')}</p>
     <p><StatTooltip stat="captains">{t('Captains aboard: {n}/{m}', '船上的船长：{n}/{m}', { n: player.captains.length, m: MAX_CAPTAINS })}</StatTooltip>{t('. ', '。')}<StatTooltip stat="gold">{t('Treasury: {g}g', '金库：{g} 金币', { g: player.gold })}</StatTooltip>{t('.', '。')}</p>
     {full && <p>{t('Crew is full. No more captains can join.', '船员已满，无法再招募船长。')}</p>}
     {error && <p role="alert">{error}</p>}
