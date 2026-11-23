@@ -16,6 +16,16 @@ function spainBattle(): BattleState {
 }
 
 describe('formation navigation regressions', () => {
+  it('assembles the actual Spain starting fleet in Spread without pinning the warship behind its flagship', () => {
+    const b = spainBattle();
+    issueCommand(b, 'attacker', { type: 'free', shipIds: b.ships.filter(s => s.side === 'attacker').map(s => s.id), formation: 'spread' });
+    for (let i = 0; i < 1799; i++) stepBattle(b);
+    for (const slot of battleGroupSlots(b, b.groups[0])) {
+      const s = b.ships.find(s => s.side === 'attacker' && s.id === slot.shipId)!;
+      expect(Math.hypot(s.x - slot.x, s.y - slot.y), s.name).toBeLessThan(12);
+    }
+  });
+
   it('folds a 14-ship line into ranks instead of compressing below collision clearance', () => {
     const { b, shipIds } = navigationBattle('attacker', 14, 'warship');
     issueCommand(b, 'attacker', { type: 'move', shipIds, x: BATTLE_FIELD.width * 2 / 3, y: BATTLE_FIELD.height / 2, formation: 'line' });
@@ -71,6 +81,23 @@ function navigationBattle(side: BattleSide, count: number, type: ShipType = 'exp
 }
 
 describe('formation no-stall matrix', () => {
+  it('stops waiting after two seconds without follower progress and keeps retrying its slot', () => {
+    const { b, shipIds } = navigationBattle('attacker', 2);
+    const leader = b.ships.find(s => s.side === 'attacker')!;
+    issueCommand(b, 'attacker', { type: 'move', shipIds, x: BATTLE_FIELD.width / 2, y: leader.y, formation: 'line' });
+    for (const slot of battleGroupSlots(b, b.groups[0])) Object.assign(b.ships.find(s => s.side === 'attacker' && s.id === slot.shipId)!, { x: slot.x, y: slot.y });
+    const follower = b.ships.find(s => s.side === 'attacker' && s !== leader)!;
+    follower.x -= 80;
+    const start = leader.x, blocked = { x: follower.x, y: follower.y };
+    for (let i = 0; i < 41; i++) {
+      Object.assign(follower, blocked);
+      stepBattle(b);
+      if (i < 40) expect(leader.x).toBe(start);
+    }
+    expect(leader.x).toBeGreaterThan(start);
+    expect(Math.hypot(follower.vx, follower.vy)).toBeGreaterThan(0);
+  });
+
   it('serializes and replays bounded formation recovery exactly', () => {
     const { b, shipIds } = navigationBattle('attacker', 14);
     issueCommand(b, 'attacker', { type: 'move', shipIds, x: BATTLE_FIELD.width, y: 0, formation: 'line' });
