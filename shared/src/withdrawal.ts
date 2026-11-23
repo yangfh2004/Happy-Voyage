@@ -6,11 +6,12 @@ export interface BattleWithdrawal {
   reason: WithdrawalReason;
 }
 
-export const sinkingCap = (fleet: Ship[]) => fleet.length < 2 ? fleet.length : Math.ceil(fleet.length / 2);
+export const sinkingCap = (startingAfloat: Ship[]) => Math.ceil(startingAfloat.length / 2);
 
-export function withdrawalReason(fleet: Ship[]): Exclude<WithdrawalReason, 'retreat'> | null {
-  if (fleet.length < 2) return null;
-  if (fleet.filter((s) => s.durability <= 0).length >= sinkingCap(fleet)) return 'losses';
-  const flagship = [...fleet].sort((a, b) => Number(!!b.signature) - Number(!!a.signature) || b.maxDurability - a.maxDurability || a.id - b.id)[0];
+/** References to ships afloat at battle start, including any sunk since then. */
+export function withdrawalReason(startingAfloat: Ship[]): Exclude<WithdrawalReason, 'retreat'> | null {
+  if (startingAfloat.length < 2) return null;
+  if (startingAfloat.filter((s) => s.durability <= 0).length >= sinkingCap(startingAfloat)) return 'losses';
+  const flagship = [...startingAfloat].sort((a, b) => Number(!!b.signature) - Number(!!a.signature) || b.maxDurability - a.maxDurability || a.id - b.id)[0];
   return flagship.durability <= flagship.maxDurability * .25 ? 'flagship' : null;
 }

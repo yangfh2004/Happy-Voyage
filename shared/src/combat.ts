@@ -58,8 +58,10 @@ function absorb(line: Ship[], damage: number, remainingSinks: number): Ship[] {
  * Mutates ship durability; the caller removes the sunk ships from their fleets.
  */
 export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng, options: { attackerMultiplier?: number; defenderRng?: Rng; skipFirstDefense?: boolean } = {}): BattleResult {
-  let attackLine = [...attackers];
-  let defenseLine = [...defenders];
+  const attackFleet = attackers.filter((s) => s.durability > 0);
+  const defenseFleet = defenders.filter((s) => s.durability > 0);
+  let attackLine = [...attackFleet];
+  let defenseLine = [...defenseFleet];
   const attackerSunk: Ship[] = [];
   const defenderSunk: Ship[] = [];
   let rounds = 0;
@@ -68,13 +70,13 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng,
     rounds += 1;
     const attackFire = volley(attackLine, rng, options.attackerMultiplier);
     const defenseFire = options.skipFirstDefense && rounds === 1 ? 0 : volley(defenseLine, options.defenderRng ?? rng);
-    const lostDefenders = absorb(defenseLine, attackFire, sinkingCap(defenders) - defenderSunk.length);
-    const lostAttackers = absorb(attackLine, defenseFire, sinkingCap(attackers) - attackerSunk.length);
+    const lostDefenders = absorb(defenseLine, attackFire, sinkingCap(defenseFleet) - defenderSunk.length);
+    const lostAttackers = absorb(attackLine, defenseFire, sinkingCap(attackFleet) - attackerSunk.length);
     defenderSunk.push(...lostDefenders);
     attackerSunk.push(...lostAttackers);
     defenseLine = defenseLine.filter((ship) => !lostDefenders.includes(ship));
     attackLine = attackLine.filter((ship) => !lostAttackers.includes(ship));
-    const attackerReason = withdrawalReason(attackers), defenderReason = withdrawalReason(defenders);
+    const attackerReason = withdrawalReason(attackFleet), defenderReason = withdrawalReason(defenseFleet);
     if (!attackLine.length || attackerReason) { if (attackerReason) withdrawal = { side: 'attacker', reason: attackerReason }; break; }
     if (!defenseLine.length || defenderReason) { if (defenderReason) withdrawal = { side: 'defender', reason: defenderReason }; break; }
   }

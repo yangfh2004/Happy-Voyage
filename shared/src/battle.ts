@@ -33,6 +33,7 @@ export interface BattleShip extends Ship {
   vy: number;
   reload: number;
   sunk: boolean;
+  startedAfloat: boolean;
   escaped: boolean;
   order: BattleOrder;
   charge: boolean;
@@ -115,7 +116,7 @@ export function createBattle(setup: BattleSetup): BattleState {
     ...ship, cargo: { ...ship.cargo }, side, x: side === 'attacker' ? 160 + Math.floor(i / 7) * 116 : 1440 - Math.floor(i / 7) * 116,
     y: 450 + (i % 7 - (Math.min(fleet.length, 7) - 1) / 2) * 116,
     heading: side === 'attacker' ? 0 : 180, vx: 0, vy: 0, reload: 0,
-    sunk: ship.durability <= 0, escaped: false, order: { type: 'free' }, charge: false,
+    sunk: ship.durability <= 0, startedAfloat: ship.durability > 0, escaped: false, order: { type: 'free' }, charge: false,
   }));
   return { tick: 0, rng: setup.seed >>> 0, ships: [...ships(setup.attackers, 'attacker'), ...ships(setup.defenders, 'defender')],
     cannonballs: [], retreating: false, attackerMultiplier: setup.attackerMultiplier ?? 1, ambush: setup.ambush ?? false, outcome: null, withdrawal: null };
@@ -129,7 +130,7 @@ function withdraw(battle: BattleState, withdrawal: BattleWithdrawal): void {
 
 function resolveWithdrawal(battle: BattleState): void {
   for (const side of ['attacker', 'defender'] as const) {
-    const fleet = battle.ships.filter((s) => s.side === side);
+    const fleet = battle.ships.filter((s) => s.side === side && s.startedAfloat);
     if (!fleet.some((s) => !s.sunk)) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
     const reason = withdrawalReason(fleet);
     if (reason) { withdraw(battle, { side, reason }); return; }
@@ -248,7 +249,7 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
     const hit = battle.ships.filter((s) => s.side !== ball.side && active(s) && distance(s, { x: ball.landingX, y: ball.landingY }) <= BATTLE_STATS[s.type].radius)
       .sort((a, b) => distance(a, ball) - distance(b, ball))[0];
     if (hit) {
-      const fleet = battle.ships.filter((s) => s.side === hit.side);
+      const fleet = battle.ships.filter((s) => s.side === hit.side && s.startedAfloat);
       const capped = fleet.filter((s) => s.sunk).length >= sinkingCap(fleet);
       hit.durability = Math.max(capped ? 1 : 0, hit.durability - ball.damage);
       hit.sunk = hit.durability === 0;
@@ -264,8 +265,8 @@ export function battleResult(battle: BattleState): RealtimeBattleResult {
   if (!battle.outcome) throw new Error('Battle is not finished');
   return { outcome: battle.outcome, ticks: battle.tick, ...(battle.withdrawal ? { withdrawal: battle.withdrawal } : {}),
     durability: battle.ships.map((s) => ({ id: s.id, side: s.side, durability: s.durability })),
-    attackerSunk: battle.ships.filter((s) => s.side === 'attacker' && s.sunk).map((s) => s.id),
-    defenderSunk: battle.ships.filter((s) => s.side === 'defender' && s.sunk).map((s) => s.id) };
+    attackerSunk: battle.ships.filter((s) => s.side === 'attacker' && s.startedAfloat && s.sunk).map((s) => s.id),
+    defenderSunk: battle.ships.filter((s) => s.side === 'defender' && s.startedAfloat && s.sunk).map((s) => s.id) };
 }
 
 export function replayBattle(setup: BattleSetup, log: BattleLog, controllers: BattleControllers = {}): RealtimeBattleResult {

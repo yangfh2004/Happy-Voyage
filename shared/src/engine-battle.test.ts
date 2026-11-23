@@ -13,6 +13,21 @@ function siege(attackerAI = false, defenderAI = true, mode: 'realtime' | 'auto' 
 }
 
 describe('real-time engine integration', () => {
+  it.each(['auto', 'realtime'] as const)('does not charge double toll for preexisting zero durability under Ambush in %s mode', (mode) => {
+    const { game } = siege(false, true, mode);
+    const [attacker, defender] = game.state.players;
+    attacker.fleet.forEach((s, i) => { s.durability = i < 3 ? 0 : s.maxDurability; s.firepower = 0; });
+    attacker.fleet[0].signature = true;
+    defender.fleet.forEach((s) => { s.durability = s.maxDurability; s.firepower = 0; });
+    game.state.ambush = true;
+    const gold = attacker.gold;
+    const report = game.fight() ?? game.finishBattle([])!;
+    expect(report).toMatchObject({ outcome: 'draw', attackerSunk: [], defenderSunk: [], tollPaid: 0 });
+    expect(attacker.gold).toBe(gold);
+    expect(attacker.fleet).toHaveLength(5);
+    expect(attacker.fleet.slice(0, 3).map((s) => s.durability)).toEqual([0, 0, 0]);
+  });
+
   it.each(['auto', 'realtime'] as const)('returns withdrawing docked defenders to their owner in %s mode', (mode) => {
     const { game, node } = siege(false, true, mode);
     const [attacker, defender] = game.state.players;

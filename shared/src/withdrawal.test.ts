@@ -17,6 +17,49 @@ function hitBattle(defenders: Ship[], damage: number) {
 }
 
 describe('fleet withdrawal', () => {
+  it('leaves preexisting zero-durability ships inactive and does not count them as losses under Ambush', () => {
+    const attackers = [ship(1, { durability: 0, signature: true, firepower: 10000 }), ship(2, { durability: 0 }), ship(3, { firepower: 10 })];
+    const defenders = [ship(100)];
+    const result = fightNavalBattle(attackers, defenders, () => .5, { skipFirstDefense: true });
+    expect(result).toMatchObject({ outcome: 'draw', rounds: 3, attackerSunk: [], defenderSunk: [] });
+    expect(defenders[0].durability).toBe(70);
+    expect(attackers.map((s) => s.durability)).toEqual([0, 0, 100]);
+    const setup = { seed: 42, attackers, defenders, ambush: true };
+    const battle = createBattle(setup);
+    stepBattle(battle);
+    expect(battle.outcome).toBeNull();
+    expect(battle.withdrawal).toBeNull();
+    issueCommand(battle, 'defender', { type: 'retreat' });
+    expect(battleResult(battle).attackerSunk).toEqual([]);
+    expect(replayBattle(setup, [{ tick: 1, side: 'defender', cmd: { type: 'retreat' } }])).toEqual(battleResult(battle));
+  });
+
+  it.each([1, 2, 3, 4, 5, 6])('uses only the %i starting-afloat ships for caps and the lone-ship exception', (n) => {
+    const defenders = [ship(20, { durability: 0, signature: true }), ship(21, { durability: 0 }), ...fleet(n)];
+    const result = fightNavalBattle([ship(100, { firepower: 10000 })], defenders, () => .5);
+    expect(result.outcome).toBe('victory');
+    expect(result.defenderSunk).toHaveLength(Math.ceil(n / 2));
+    expect(result.defenderSunk.every((s) => s.id < 20)).toBe(true);
+    expect(defenders.slice(0, 2).map((s) => s.durability)).toEqual([0, 0]);
+    const battle = hitBattle([ship(20, { durability: 0, signature: true }), ship(21, { durability: 0 }), ...fleet(n)], 10000);
+    stepBattle(battle);
+    const realtime = battleResult(battle);
+    expect(realtime.outcome).toBe('victory');
+    expect(realtime.defenderSunk).toHaveLength(Math.ceil(n / 2));
+    expect(realtime.defenderSunk.every((id) => id < 20)).toBe(true);
+    expect(realtime.durability.filter((s) => s.id === 20 || s.id === 21).map((s) => s.durability)).toEqual([0, 0]);
+    if (n === 1) expect(realtime.withdrawal).toBeUndefined();
+  });
+
+  it('defeats an all-inactive fleet without reporting or removing preexisting losses', () => {
+    const attackers = [ship(1, { durability: 0, firepower: 10000 })];
+    const defenders = [ship(100)];
+    expect(fightNavalBattle(attackers, defenders, () => .5)).toMatchObject({ outcome: 'defeat', rounds: 0, attackerSunk: [], defenderSunk: [] });
+    expect(replayBattle({ seed: 42, attackers, defenders }, [])).toMatchObject({ outcome: 'defeat', ticks: 0, attackerSunk: [], defenderSunk: [] });
+    expect(attackers[0].durability).toBe(0);
+    expect(defenders[0].durability).toBe(100);
+  });
+
   it('ignores empty and lone fleets and honors the exact half-loss threshold', () => {
     expect(withdrawalReason([])).toBeNull();
     expect(withdrawalReason([ship(1, { durability: 0, signature: true })])).toBeNull();
