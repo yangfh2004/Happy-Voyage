@@ -69,6 +69,7 @@ export interface Cannonball {
 }
 export interface BattleState {
   retreatThresholds: Record<BattleSide, RetreatThreshold>;
+  sinkingOrder: Record<BattleSide, number[]>;
   tick: number;
   rng: number;
   ships: BattleShip[];
@@ -146,6 +147,7 @@ export function createBattle(setup: BattleSetup): BattleState {
     sunk: ship.durability <= 0, startedAfloat: ship.durability > 0, escaped: false, order: { type: 'free' }, charge: false,
   }));
   return { tick: 0, rng: setup.seed >>> 0, ships: [...ships(setup.attackers, 'attacker'), ...ships(setup.defenders, 'defender')],
+    sinkingOrder: { attacker: [], defender: [] },
     retreatThresholds: { attacker: setup.retreatThresholds?.attacker ?? 'half', defender: setup.retreatThresholds?.defender ?? 'half' },
     groups: [], nextGroupId: 1, lastFormations: { attacker: 'line', defender: 'line' },
     cannonballs: [], retreating: false, attackerMultiplier: setup.attackerMultiplier ?? 1, ambush: setup.ambush ?? false, outcome: null, withdrawal: null };
@@ -460,6 +462,7 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
       const capped = fleet.filter((s) => s.sunk).length >= sinkingCap(fleet, battle.retreatThresholds[hit.side]);
       hit.durability = Math.max(capped ? 1 : 0, hit.durability - ball.damage);
       hit.sunk = hit.durability === 0;
+      if (hit.sunk) battle.sinkingOrder[hit.side].push(hit.id);
     }
   }
   battle.cannonballs = battle.cannonballs.filter((b) => b.remaining > 0);
@@ -474,8 +477,8 @@ export function battleResult(battle: BattleState): RealtimeBattleResult {
   return { outcome: battle.outcome, ticks: battle.tick, ...(battle.withdrawal ? { withdrawal: battle.withdrawal } : {}),
     retreatThresholds: { ...battle.retreatThresholds },
     durability: battle.ships.map((s) => ({ id: s.id, side: s.side, durability: s.durability })),
-    attackerSunk: battle.ships.filter((s) => s.side === 'attacker' && s.startedAfloat && s.sunk).map((s) => s.id),
-    defenderSunk: battle.ships.filter((s) => s.side === 'defender' && s.startedAfloat && s.sunk).map((s) => s.id) };
+    attackerSunk: [...battle.sinkingOrder.attacker],
+    defenderSunk: [...battle.sinkingOrder.defender] };
 }
 
 export function replayBattle(setup: BattleSetup, log: BattleLog, controllers: BattleControllers = {}): RealtimeBattleResult {

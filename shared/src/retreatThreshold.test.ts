@@ -15,6 +15,39 @@ function siege(attackerAI = false, defenderAI = false) {
 }
 
 describe('configurable retreat thresholds', () => {
+  it.each(['auto', 'realtime'] as const)('pirates spare the actual last-sunk ship and its cargo in %s mode', mode => {
+    const engine = siege();
+    engine.state.config.battleMode = mode;
+    const player = engine.currentPlayer;
+    player.retreatThreshold = 'last';
+    player.fleet = fleet(3);
+    player.fleet.forEach((s, i) => { s.durability = i === 0 ? 10 : 1; s.cargo = { wood: i + 1 }; });
+    const node = engine.state.map.find(n => n.event === 'openSea')!;
+    node.event = 'pirates'; player.position = node.id;
+    const ships = [...player.fleet];
+    let lastSunk = ships[0].id;
+    engine.state.phase = 'moving'; engine.resolveLanding();
+    if (mode === 'realtime') {
+      const setup = engine.state.pendingBattle!.setup;
+      const log: BattleLog = [{ tick: 0, side: 'attacker', cmd: { type: 'move', shipIds: [ships[2].id], x: 2000, y: 675 } }];
+      const battle = createBattle(setup);
+      const sinkingOrder: number[] = [];
+      issueCommand(battle, 'attacker', log[0].cmd);
+      while (!battle.outcome) {
+        const afloat = battle.ships.filter(s => s.side === 'attacker' && !s.sunk);
+        stepBattle(battle, { defender: 'normal' });
+        sinkingOrder.push(...afloat.filter(s => s.sunk).map(s => s.id));
+      }
+      expect(sinkingOrder).toHaveLength(3);
+      lastSunk = sinkingOrder[2];
+      expect(lastSunk).not.toBe(ships[2].id);
+      expect(battleResult(battle).attackerSunk).toEqual(sinkingOrder);
+      engine.finishBattle(JSON.parse(JSON.stringify(log)));
+    }
+    expect(player.fleet.map(s => s.id)).toEqual([lastSunk]);
+    expect(player.fleet[0]).toMatchObject({ durability: 1, cargo: ships.find(s => s.id === lastSunk)!.cargo });
+  });
+
   it.each(RETREAT_THRESHOLDS)('calculates %s losses for fleet sizes 1–26', threshold => {
     for (let n = 1; n <= 26; n++) {
       expect(sinkingCap(fleet(n), threshold)).toBe(threshold === 'last' ? n : Math.max(1, Math.ceil(n * { quarter: .25, half: .5, threeQuarters: .75 }[threshold])));

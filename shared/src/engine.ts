@@ -612,8 +612,8 @@ export class GameEngine extends GameView {
       for (const ship of ships) ship.durability = replay.durability.find((s) => s.id === ship.id && s.side === side)!.durability;
     }
     const result: BattleResult = { outcome: replay.outcome, rounds: replay.ticks, ...(replay.withdrawal ? { withdrawal: replay.withdrawal } : {}),
-      attackerSunk: attackers.filter((s) => replay.attackerSunk.includes(s.id)),
-      defenderSunk: defenders.filter((s) => replay.defenderSunk.includes(s.id)) };
+      attackerSunk: replay.attackerSunk.map(id => attackers.find(s => s.id === id)!),
+      defenderSunk: replay.defenderSunk.map(id => defenders.find(s => s.id === id)!) };
     this.state.pendingBattle = null;
     this.state.inspired = false;
     this.state.ambush = false;
