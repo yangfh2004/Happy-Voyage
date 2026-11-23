@@ -86,13 +86,13 @@ describe('fleet repairs', () => {
     }
   });
 
-  it('repairs only owner docked ships with a yard at turn start, including subsequent turns', () => {
+  it.each(['shipyard', 'repairYard'] as const)('repairs only owner docked ships with a %s at turn start, including subsequent turns', (yard) => {
     const engine = game();
     const { state } = engine;
     const islands = state.map.filter((node) => node.kind === 'island').slice(0, 4);
     for (const [index, node] of islands.entries()) {
       state.owners[node.id] = index === 2 ? 1 : 0;
-      if (index !== 1) state.buildings[node.id].repairYard = 1;
+      if (index !== 1) state.buildings[node.id][yard] = 1;
       const ship = engine.addShipToFleet(0, 'cargo');
       state.players[0].fleet.pop();
       ship.durability = 1;
@@ -112,5 +112,31 @@ describe('fleet repairs', () => {
     land(engine, state.players[0].homePort);
     const rivalDock = state.docks[islands[2].id][0];
     expect(rivalDock.durability).toBe(rivalDock.maxDurability);
+  });
+
+  it('repairs a ship docked at a shipyard on the next owner turn, not on arrival', () => {
+    const engine = game();
+    const { state, currentPlayer: player } = engine;
+    const colony = state.map.find((node) => node.kind === 'island')!.id;
+    state.owners[colony] = player.id;
+    state.buildings[colony].shipyard = 1;
+    land(engine, colony);
+    const ship = player.fleet[0];
+    ship.durability = 1;
+    const gold = player.gold;
+    expect(() => engine.dockShip(-1)).toThrow('Ship not available here');
+    engine.dockShip(ship.id);
+    expect(ship.durability).toBe(1);
+    engine.finishBuilding();
+    expect(ship.durability).toBe(1);
+    land(engine, engine.currentPlayer.homePort);
+    expect(engine.currentPlayer).toBe(player);
+    expect(ship.durability).toBe(ship.maxDurability);
+    expect(player.gold).toBe(gold);
+    land(engine, colony);
+    engine.boardShip(ship.id);
+    engine.finishBuilding();
+    land(engine, engine.currentPlayer.homePort);
+    expect(state.docks[colony]).toEqual([]);
   });
 });

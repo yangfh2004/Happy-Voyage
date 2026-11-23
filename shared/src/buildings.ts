@@ -3,13 +3,17 @@ import type { BuildingKind, GameState } from './types';
 export const BUILDINGS: Record<BuildingKind, { label: string; chineseName: string; maxLevel: number; costs: number[]; description: string }> = {
   lumberMill: { label: 'Lumber mill', chineseName: '木材厂', maxLevel: 3, costs: [100, 200, 300], description: 'Produces shipbuilding lumber each round.' },
   ironMine: { label: 'Iron mine', chineseName: '铁矿厂', maxLevel: 3, costs: [120, 240, 360], description: 'Produces iron each round; yield varies by island.' },
-  shipyard: { label: 'Shipyard', chineseName: '造船厂', maxLevel: 3, costs: [200, 400, 600], description: 'Builds ships with local lumber and iron. Larger yards unlock bigger ships.' },
+  shipyard: { label: 'Shipyard', chineseName: '造船厂', maxLevel: 3, costs: [200, 400, 600], description: "Builds ships with local lumber and iron. Larger yards unlock bigger ships. Fully repairs docked ships for free at the owner's turn start." },
   repairYard: { label: 'Repair yard', chineseName: '修船厂', maxLevel: 1, costs: [150], description: "Fully repairs docked ships for free at the owner's turn start." },
   collectionField: { label: 'Collection field', chineseName: '采集场', maxLevel: 3, costs: [80, 160, 240], description: 'Collects the local specialty each round.' },
 };
 
 export function buildingLevel(state: GameState, nodeId: number, kind: BuildingKind): number {
   return state.buildings[nodeId]?.[kind] ?? 0;
+}
+
+export function colonyCanRepair(state: GameState, nodeId: number): boolean {
+  return buildingLevel(state, nodeId, 'shipyard') > 0 || buildingLevel(state, nodeId, 'repairYard') > 0;
 }
 
 export function colonyProduction(state: GameState, nodeId: number) {
