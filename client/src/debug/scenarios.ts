@@ -78,7 +78,10 @@ export function stageScenario(engine: GameEngine, id: Exclude<Scenario, 'landing
     }
   } else if (id.startsWith('island-')) {
     captain.fleet[0].cargo = { Wine: 6 };
-    if (id === 'island-revival') captain.fleet[0].durability -= 30;
+    if (id === 'island-revival') {
+      captain.gold = 1400;
+      captain.fleet[0].durability -= 30;
+    }
     land(state.map.find((node) => node.special === id.slice(7))!.id);
   } else if (id.startsWith('sea-')) {
     const node = state.map.find((stop) => stop.event === 'openSea')!;

@@ -75,7 +75,7 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
     if (node.special === 'nightless' && cargoUnits(player) >= 8) return cargoUnits(player) * 12;
     if (node.special === 'revival') {
       const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
-      return damage;
+      return Math.min(damage, Math.floor(Math.max(0, player.gold) / REPAIR_GOLD_PER_POINT));
     }
     if (wyvern && node.id === player.homePort) return state.config.homeSalary;
     return 0;
@@ -146,7 +146,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       return warships.length < 2 && cash >= 900 ? 540 : 90;
     }
     if (node.special === 'nightless') return cargoUnits(player) * 10;
-    if (node.special === 'revival') return repair;
+    if (node.special === 'revival') return Math.min(repair, Math.floor(Math.max(0, cash) / REPAIR_GOLD_PER_POINT));
     return 0;
   };
 
@@ -172,8 +172,11 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
     if (node.id === player.position) continue;
     const pay = wyvern && node.id === player.homePort ? salary : 0;
     const cash = player.gold + pay;
+    const repairFee = node.special === 'revival'
+      ? Math.min(repair, Math.floor(Math.max(0, cash) / REPAIR_GOLD_PER_POINT)) * REPAIR_GOLD_PER_POINT
+      : 0;
     const score = pay + landing(node, cash, true) +
-      (roundsLeft(state) > 0 ? 0.55 * spinValue(node.id, cash) : 0);
+      (roundsLeft(state) > 0 ? 0.55 * spinValue(node.id, cash - repairFee) : 0);
     if (score > bestScore) {
       best = node.id;
       bestScore = score;

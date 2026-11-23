@@ -4,10 +4,10 @@ import { DEFAULT_CONFIG } from '@happy-voyage/shared';
 import { RulesPanel } from './RulesPanel';
 
 describe('repair rules', () => {
-  it('explains free occupation, full Revival repairs, docked maintenance, and damage', () => {
+  it('explains free occupation, paid Revival repairs, docked maintenance, and damage', () => {
     const html = renderToStaticMarkup(<RulesPanel config={DEFAULT_CONFIG} onClose={() => {}} />);
     expect(html).toContain('automatically claims it for free');
-    expect(html).toContain('Revival fully repairs your fleet for free, with no other bonus');
+    expect(html).toContain('Revival automatically repairs your fleet at 2g per durability point, limited by your gold, with no other bonus');
     expect(html).not.toContain('blocks the next sea hazard');
     expect(html).not.toMatch(/\p{Script=Han}/u);
     expect(html).toContain('Fully repair all ships docked');
