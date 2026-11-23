@@ -5,7 +5,7 @@ import { gameController } from '../GameController';
 import { BattleSession } from '../BattleSession';
 import { battleNameVisible, battleSelectionText } from '../battleHud';
 import { sfx } from '../sfx';
-import { battleShipTexture, broadsideMuzzles, prewarmBattleShips, shipModel, shipGrade } from '../battleShipArt';
+import { battleShipTexture, broadsideMuzzles, prewarmBattleShips, battleShipModel, shipGrade } from '../battleShipArt';
 import { battleLayout, battleToScreen, isBattleDrag, placeBattleLabel, screenToBattle, type BattleRect } from '../battleLayout';
 
 const font = '"Sea Names", Georgia, serif';
@@ -254,7 +254,7 @@ export class BattleScene extends Phaser.Scene {
       const wrapWidth = Math.max(1, layout.bounds.width - 12);
       if (label.style.wordWrapWidth !== wrapWidth) label.setWordWrapWidth(wrapWidth, true);
       const barWidth = Math.max(32, 64 * zoom), barHeight = Math.max(4, 7 * zoom);
-      const mast = project(x, y, (shipModel(s.type, shipGrade(s)).mastHeight + 18) * shipScale);
+      const mast = project(x, y, (battleShipModel(this, s.type, shipGrade(s)).mastHeight + 18) * shipScale);
       const nameHeight = showName ? label.height : 0;
       const box = placeBattleLabel(layout.bounds, labelBoxes, { x: mast.x, y: mast.y - nameHeight - barHeight - 8 }, { width: Math.max(label.width, barWidth), height: nameHeight + barHeight + 2 }, 0);
       const labelX = box.x + box.width / 2, labelY = box.y + barHeight + 2;

@@ -41,9 +41,32 @@ export function shipStyle(ship: ShipAppearance) {
 }
 
 export const headingFrame = (heading: number) => ((Math.round(heading / 360 * HEADING_FRAMES) % HEADING_FRAMES) + HEADING_FRAMES) % HEADING_FRAMES;
-const models = new Map<string, ReturnType<typeof buildShipModel>>();
-
 export function shipModel(type: ShipType, grade: ShipGrade) {
+  return buildShipModel(type, grade);
+}
+
+type ArtCache = { keys: Set<string>; models: Map<string, ReturnType<typeof buildShipModel>>; disposed: boolean };
+type ArtScene = Phaser.Scene & { battleShipArtCache?: ArtCache };
+
+function artCache(scene: ArtScene): ArtCache {
+  if (scene.battleShipArtCache) return scene.battleShipArtCache;
+  const cache: ArtCache = { keys: new Set(), models: new Map(), disposed: false };
+  scene.battleShipArtCache = cache;
+  const dispose = () => {
+    cache.disposed = true;
+    for (const key of cache.keys) scene.textures.remove(key);
+    cache.keys.clear(); cache.models.clear();
+    delete scene.battleShipArtCache;
+    scene.events.off('shutdown', dispose);
+    scene.events.off('destroy', dispose);
+  };
+  scene.events.once('shutdown', dispose);
+  scene.events.once('destroy', dispose);
+  return cache;
+}
+
+export function battleShipModel(scene: Phaser.Scene, type: ShipType, grade: ShipGrade) {
+  const { models } = artCache(scene);
   const key = `${type}-${grade}`;
   if (!models.has(key)) models.set(key, buildShipModel(type, grade));
   return models.get(key)!;
@@ -160,8 +183,9 @@ export function battleShipTexture(scene: Phaser.Scene, ship: ShipAppearance, col
   const key = `battle-iso-${variant}-${color}-${pirate}-${!!ship.signature}-${frame}`;
   if (scene.textures.exists(key)) return key;
   const texture = scene.textures.createCanvas(key, SHIP_TEXTURE_SIZE, SHIP_TEXTURE_SIZE)!;
+  artCache(scene).keys.add(key);
   const ctx = texture.getContext();
-  const model = shipModel(ship.type, grade), angle = frame * 360 / HEADING_FRAMES;
+  const model = battleShipModel(scene, ship.type, grade), angle = frame * 360 / HEADING_FRAMES;
   ctx.save(); ctx.translate(SHIP_TEXTURE_SIZE / 2, SHIP_TEXTURE_SIZE * SHIP_WATERLINE.y); ctx.scale(1.5, 1.5);
   drawShipModel(ctx, model, color, angle, pirate, !!ship.signature);
   ctx.restore(); texture.refresh();
@@ -180,11 +204,12 @@ export function battleShipTexture(scene: Phaser.Scene, ship: ShipAppearance, col
 }
 
 export async function prewarmBattleShips(scene: Phaser.Scene, ships: { ship: ShipAppearance; color: number; pirate: boolean }[]) {
+  const cache = artCache(scene);
   await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
   const unique = new Map(ships.map(s => [`${shipStyle(s.ship).variant}-${s.color}-${s.pirate}-${!!s.ship.signature}`, s]));
   let batch = 0;
   for (const s of unique.values()) for (let frame = 0; frame < HEADING_FRAMES; frame++) {
-    if (!scene.sys.isActive()) return;
+    if (cache.disposed || !scene.sys.isActive()) return;
     battleShipTexture(scene, s.ship, s.color, s.pirate, frame * 360 / HEADING_FRAMES);
     if (++batch % 2 === 0) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
   }

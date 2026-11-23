@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { EventEmitter } from 'node:events';
 import type Phaser from 'phaser';
 import { NAVIGATORS, SHIP_TYPES, type ShipStats, type ShipType } from '@happy-voyage/shared';
-import { battleShipTexture, broadsideMuzzles, headingFrame, prewarmBattleShips, projectShipPoint, shipGrade, shipModel, shipStyle, SHIP_TEXTURE_SIZE, SHIP_WATERLINE } from './battleShipArt';
+import { battleShipModel, battleShipTexture, broadsideMuzzles, headingFrame, prewarmBattleShips, projectShipPoint, shipGrade, shipModel, shipStyle, SHIP_TEXTURE_SIZE, SHIP_WATERLINE } from './battleShipArt';
 import { battleLayout, battleToScreen } from './battleLayout';
 
 const types = ['warship', 'cargo', 'explorer'] as const;
@@ -47,7 +48,7 @@ describe('oblique ship models', () => {
       }
     }
     expect(shipModel('warship', 3).faces.filter(f => f.material === 'stripe').length).toBe(36);
-    expect(shipModel('cargo', 1)).toBe(shipModel('cargo', 1));
+    expect(shipModel('cargo', 1)).toEqual(shipModel('cargo', 1));
   });
 
   it('quantizes headings to the nearest of 32 frames with wraparound', () => {
@@ -75,8 +76,8 @@ describe('oblique ship models', () => {
     const ctx = Object.fromEntries(['save', 'restore', 'translate', 'scale', 'beginPath', 'moveTo', 'lineTo', 'closePath', 'fill', 'stroke'].map(k => [k, vi.fn()]));
     const frame = { width: 1, height: 1, customPivot: false, pivotX: 0, pivotY: 0, setSize: vi.fn(function(this: { width: number; height: number }, width: number, height: number) { this.width = width; this.height = height; }) };
     const texture = { getContext: () => ctx, refresh: vi.fn(), get: () => frame };
-    const scene = { textures: { exists: () => false, createCanvas: vi.fn(() => texture) } };
-    battleShipTexture(scene as unknown as Phaser.Scene, { ...appearance('cargo'), signature: true }, 0x4488cc, true, 45);
+    const scene = { events: new EventEmitter(), textures: { exists: () => false, createCanvas: vi.fn(() => texture), remove: vi.fn() } };
+    const key = battleShipTexture(scene as unknown as Phaser.Scene, { ...appearance('cargo'), signature: true }, 0x4488cc, true, 45);
     expect(scene.textures.createCanvas).toHaveBeenCalledWith(expect.stringContaining('galleon'), SHIP_TEXTURE_SIZE, SHIP_TEXTURE_SIZE);
     expect(ctx.fill.mock.calls.length).toBeGreaterThan(100);
     expect(texture.refresh).toHaveBeenCalledOnce();
@@ -91,13 +92,24 @@ describe('oblique ship models', () => {
     const [, , left, top] = frame.setSize.mock.calls[0] as unknown as number[];
     expect(frame.pivotX * frame.width + left).toBeCloseTo(SHIP_TEXTURE_SIZE * SHIP_WATERLINE.x);
     expect(frame.pivotY * frame.height + top).toBeCloseTo(SHIP_TEXTURE_SIZE * SHIP_WATERLINE.y);
+    const model = battleShipModel(scene as unknown as Phaser.Scene, 'cargo', 3);
+    expect(battleShipModel(scene as unknown as Phaser.Scene, 'cargo', 3)).toBe(model);
+    scene.events.emit('shutdown');
+    expect(scene.textures.remove).toHaveBeenCalledOnce();
+    expect(scene.textures.remove).toHaveBeenCalledWith(key);
+    expect(scene.events.listenerCount('destroy')).toBe(0);
+    expect(battleShipModel(scene as unknown as Phaser.Scene, 'cargo', 3)).not.toBe(model);
+    battleShipTexture(scene as unknown as Phaser.Scene, appearance('warship'), 0x4488cc);
+    scene.events.emit('destroy');
+    expect(scene.textures.remove).toHaveBeenCalledTimes(2);
+    expect(scene.events.listenerCount('shutdown')).toBe(0);
   });
 
   it('prewarms unique fleets in small batches, handles empty fleets and stops on shutdown', async () => {
     const raf = vi.fn((callback: FrameRequestCallback) => { callback(0); return 1; });
     vi.stubGlobal('requestAnimationFrame', raf);
     try {
-      const scene = { textures: { exists: vi.fn(() => true) }, sys: { isActive: vi.fn(() => true) } };
+      const scene = { events: new EventEmitter(), textures: { exists: vi.fn(() => true) }, sys: { isActive: vi.fn(() => true) } };
       const s = scene as unknown as Phaser.Scene;
       const ship = { ship: appearance('warship'), color: 1, pirate: false };
       await prewarmBattleShips(s, []);
@@ -108,6 +120,10 @@ describe('oblique ship models', () => {
       expect(raf).toHaveBeenCalledTimes(33);
       scene.textures.exists.mockClear();
       scene.sys.isActive.mockReturnValue(false);
+      await prewarmBattleShips(s, [ship]);
+      expect(scene.textures.exists).not.toHaveBeenCalled();
+      scene.sys.isActive.mockReturnValue(true);
+      raf.mockImplementation(callback => { scene.events.emit('shutdown'); callback(0); return 1; });
       await prewarmBattleShips(s, [ship]);
       expect(scene.textures.exists).not.toHaveBeenCalled();
     } finally { vi.unstubAllGlobals(); }
