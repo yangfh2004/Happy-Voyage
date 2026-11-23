@@ -64,7 +64,7 @@ export function HelmCard({ state, colorBlind, atHelm }: { state: GameState; colo
     <h2>☸ {atHelm ? t('YOUR TURN', '你的回合') : t('AT THE HELM', '掌舵中')}</h2>
     {p.navigator && <div className="helm-portrait"><NavigatorPortrait navigator={p.navigator} color={color} size={88} /></div>}
     <h2>{playerName(p, locale)}</h2>
-    <dl><div><dt><ResourceIcon /> {t('Gold', '金币')}</dt><dd>{gameController.displayGold(p)}</dd></div><div><dt><ResourceIcon ship /> {t('Ships', '船只')}</dt><dd>{p.fleet.length}</dd></div><div><dt>♛ {t('Rank', '爵位')}</dt><dd>{rankName(p.rank, locale)}</dd></div></dl>
+    <dl><div><dt><ResourceIcon /> {t('Gold', '金币')}</dt><dd>{gameController.displayGold(p)}</dd></div><div><dt><ResourceIcon ship /> {t('Ships', '船只')}</dt><dd>{p.fleet.length}</dd></div><div><dt>{t('Rank', '军衔')}</dt><dd>{rankName(p.rank, locale)}</dd></div></dl>
   </section>;
 }
 
