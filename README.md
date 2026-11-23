@@ -5,57 +5,24 @@ Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, tradin
 
 **Play the demo:** https://raw.githack.com/yangfh2004/Happy-Voyage/demo/index.html (latest `main`)
 
-## The first playable version
-
-Pick one of ten nations and start at its home port. The other nine nations are AI rivals.
-Choose Easy, Normal, or Hard before setting sail. Difficulty changes rival decisions, not starting resources, dice, or ship stats.
-
-- Spin the compass to sail 2–12 stops around a 70-stop sea route. Set the game speed or skip animations and AI turns until your next decision.
-- Each nation sails with its historical navigator (Columbus, Juliana, Cook, Magellan, Zheng He, Morgan and more), shown with a portrait in setup and the player bar; their signature flagship replaces one starting ship.
-- Open **Fleet** to inspect any navigator's ships, including new ships launched from a colony (★ marks the signature ship).
-- Land on an unowned island to found a colony; rivals who land there pay you a toll.
-- Revisit a colony to build a lumber mill, iron mine, and shipyard. Spend the colony's lumber and iron to build an Explorer (small yard), Cargo Ship (medium), or Warship (large).
-- Passing the home port pays a royal salary; event stops bring treasure, storms or trade winds.
-- Claim 10 islands, be the last navigator afloat, or be the richest after 50 rounds to win.
-- Navigators take turns in fixed seat order, skipping eliminated players. End-of-voyage wealth is cash plus 75% of each colony's cost (rounded down); a colony needs time to earn back that difference.
+**[玩法规则（中文）](GAMEPLAY.md)** — the single source of truth for gameplay, including campaigns and online rooms. PRs that change gameplay must update it in the same PR.
 
 ## Online rooms
 
-On the [public demo](https://raw.githack.com/yangfh2004/Happy-Voyage/demo/index.html), select **Host online room** and share the invite link. Guests choose a different nation and join. The free room server can sleep when idle, so the first connection may take about a minute.
+On the [public demo](https://raw.githack.com/yangfh2004/Happy-Voyage/demo/index.html), select **Host online room** and share the invite link. The free room server can sleep when idle, so the first connection may take about a minute. See the [online room rules](GAMEPLAY.md#10-电脑对手与在线房间) for how to start and play.
 
 ### Local hosting
 
 With Node.js 20+, run `npm ci && npm run build && npm start` from the repo root.
-Open **http://localhost:3000** in a browser, select **Host online room**, and share the invite link. Guests open it in their own browser, pick distinct nations, and join. The host can start once 2–6 people are connected; AI plays the other nations. Choose **Sprint** for the shortest match.
+Open **http://localhost:3000** in a browser, select **Host online room**, and share the invite link.
 
 To play from another device on your network, use a server address both devices can reach (not `localhost`). Rooms are in memory: a restart clears them, so don't run multiple replicas. No database is needed.
-
-Refreshing the invite in the same tab restores your seat; a match waits when a disconnected player is at the helm. Empty rooms eventually expire, and seats in the pre-game lobby expire after a short disconnect grace period.
 
 ### Deploy the public room server
 
 1. After the Blueprint is merged to `main`, sign in to [Render and create a Blueprint](https://dashboard.render.com/blueprints/new). Connect GitHub, grant Render access to [yangfh2004/Happy-Voyage](https://github.com/yangfh2004/Happy-Voyage), select the repo and `main`, and deploy the free `happy-voyage` service from `render.yaml`. No database or environment secrets are required.
 2. Wait for the service to go live, then open [the health check](https://happy-voyage.onrender.com/healthz). If Render assigned a different URL, use that URL instead and set the GitHub repository's [Actions variable](https://github.com/yangfh2004/Happy-Voyage/settings/variables/actions) `RENDER_SERVER_URL` to the service's HTTPS origin.
 3. Check the [Publish demo workflow](https://github.com/yangfh2004/Happy-Voyage/actions/workflows/demo.yml) on `main`. Run it again if you changed the Actions variable. Open the demo, create a room, and open its invite in a second browser to join.
-
-## Royal campaign
-
-The 20 strategy cards can be played before spinning or, where specified, at a rival
-colony before paying or fighting. Play at most one per turn and hold up to five.
-Sea cards include fleet repair, escort protection, backward sailing, trade income,
-rival fleet and colony targets, and direct travel. Battle cards include Inspire,
-Mislead, Betray, Toll Exemption and Surprise Attack. The hand lists each card’s
-effect and offers eligible destinations, rivals or colonies as targets.
-
-Choose **Campaign** at setup and start any stage. Each stage gives you a **Navigate**
-card to reach a destination of your choice without spinning. The king pays a gold
-reward for each mission; finish both without going bankrupt to clear the stage.
-
-| Stage | King's missions | Challenge |
-| --- | --- | --- |
-| First Voyage | Found a colony and land at your home port while holding one. | One Easy rival; no deadline. |
-| The Merchant Charter | Sell 3 specialties at Nightless Island and build a collection field. | Two Normal rivals; 28 rounds. |
-| Crown of the Seas | Hold 2 colonies at once and capture a rival colony in battle. | Three Hard rivals; 20 rounds and less starting gold. |
 
 ## Tech stack
 
@@ -76,7 +43,7 @@ npm workspaces monorepo:
 shared/   Game rules, independent of any renderer (runs on the server for online rooms)
   src/types.ts     Plain serialisable state: players, map nodes, game state, events
   src/map.ts       The sea route (add stops here)
-  src/engine.ts    GameEngine: spin compass -> sail -> resolve landing -> claim/decline -> next turn
+  src/engine.ts    GameEngine: turn and landing resolution
   src/ai.ts        AI rival decisions
 client/   Phaser + React front end
   src/game/GameController.ts   Owns the engine, runs AI turns, notifies React and Phaser
@@ -129,7 +96,6 @@ The release build, normal demo, and GitHub Pages do not include the tester or it
 
 The command above played **3,960** matches on the standard map, using seeds not used to tune Hard.
 Duels swap difficulties across the same two nations per seed. Mixed games rotate difficulty assignments across nations.
-Hard prioritizes affordable warships, forecasts its next compass spin, looks for safe captures, and saves money for claims instead of spending it all on buildings. It plays by the same rules and starts with the same resources as the other difficulties.
 
 | Preset and matchup | Games | Win rate |
 | --- | ---: | --- |
