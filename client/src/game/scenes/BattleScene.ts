@@ -4,6 +4,7 @@ import { getLocale, pick } from '../../i18n';
 import { gameController } from '../GameController';
 import { BattleSession } from '../BattleSession';
 import { battleNameVisible, battleSelectionText } from '../battleHud';
+import { destinationSlots, markerAlpha, selectionPulse, MOVE_MARKER_SECONDS } from '../battleSelection';
 import { sfx } from '../sfx';
 import { battleShipTexture, broadsideMuzzles, prewarmBattleShips, battleShipModel, shipGrade } from '../battleShipArt';
 import { battleLayout, battleToScreen, isBattleDrag, pickBattleShip, placeBattleLabel, screenToBattle, type BattleRect } from '../battleLayout';
@@ -31,6 +32,8 @@ export class BattleScene extends Phaser.Scene {
   private labels = new Map<number, Phaser.GameObjects.Text>();
   private damageLabels: Phaser.GameObjects.Text[] = [];
   private ships = new Map<number, Phaser.GameObjects.Image>();
+  private selectionGlows = new Map<number, Phaser.GameObjects.Image>();
+  private attackTargets = new Set<number>();
   private selected = new Set<number>();
   private formation: Formation = 'line';
   private paused = false;
@@ -44,7 +47,7 @@ export class BattleScene extends Phaser.Scene {
   private completed = false;
   private drag: { x: number; y: number; screenX: number; screenY: number; touch: boolean } | null = null;
   private cursor = { x: 0, y: 0 };
-  private marker: { x: number; y: number } | null = null;
+  private marker: { x: number; y: number; created: number; slots: { x: number; y: number }[] } | null = null;
 
   constructor() { super('Battle'); }
 
@@ -52,6 +55,7 @@ export class BattleScene extends Phaser.Scene {
     const state = gameController.state!;
     this.session = new BattleSession(state.pendingBattle!, state.players);
     this.labels.clear(); this.ships.clear(); this.selected.clear(); this.previous.clear(); this.sunkAt.clear();
+    this.selectionGlows.clear(); this.attackTargets.clear();
     this.damageLabels = [];
     this.buttons = []; this.effects = []; this.smoke = []; this.clock = 0; this.endedAt = null; this.completed = false;
     this.accumulator = 0; this.paused = false; this.drag = null; this.marker = null; this.formation = 'line';
@@ -67,6 +71,10 @@ export class BattleScene extends Phaser.Scene {
       const color = owner === null ? 0xc33535 : state.players[owner].color;
       const image = this.add.image(0, 0, battleShipTexture(this, s, color, owner === null));
       this.field.add(image); this.ships.set(s.id, image);
+      if (s.side === this.session.side) {
+        const glow = this.add.image(0, 0, image.texture.key).setTintFill(0x6ffff1).setVisible(false);
+        this.field.add(glow); this.selectionGlows.set(s.id, glow);
+      }
       const label = this.add.text(0, 0, '', { fontFamily: font, fontSize: '19px', color: '#fff4d5', stroke: '#062335', strokeThickness: 4 }).setOrigin(.5, 0);
       label.setDepth(1);
       this.labels.set(s.id, label);
@@ -140,8 +148,14 @@ export class BattleScene extends Phaser.Scene {
   private order(p: { x: number; y: number }, target?: BattleShip) {
     if (!this.selected.size || this.paused || this.session.battle.outcome) return;
     const shipIds = [...this.selected];
-    if (target && target.side !== this.session.side) this.session.command({ type: 'attack', shipIds, targetId: target.id, formation: this.formation });
-    else { this.session.command({ type: 'move', shipIds, ...p, formation: this.formation }); this.marker = p; }
+    if (target && target.side !== this.session.side) {
+      this.session.command({ type: 'attack', shipIds, targetId: target.id, formation: this.formation });
+      this.marker = null;
+    }
+    else {
+      this.session.command({ type: 'move', shipIds, ...p, formation: this.formation });
+      this.marker = { ...p, created: this.clock, slots: destinationSlots(this.session.battle, this.session.side, shipIds, p) };
+    }
   }
 
   private pointerDown(p: Phaser.Input.Pointer) {
@@ -233,6 +247,17 @@ export class BattleScene extends Phaser.Scene {
     const pending = state.pendingBattle!;
     const alpha = this.paused || this.session.battle.outcome ? 1 : this.accumulator / TICK;
     const labelBoxes: BattleRect[] = [];
+    this.attackTargets.clear();
+    for (const group of this.session.battle.groups) {
+      if (group.side !== this.session.side) continue;
+      if (group.order.type === 'attack') this.attackTargets.add(group.order.targetId);
+      if (!group.shipIds.some(id => this.selected.has(id))) continue;
+      const leader = this.session.battle.ships.find(s => s.side === group.side && s.id === group.leaderId)!;
+      for (const id of group.shipIds) {
+        const member = this.session.battle.ships.find(s => s.side === group.side && s.id === id)!;
+        g.lineStyle(1, 0x88fff0, .22); line(leader.x, leader.y, member.x, member.y);
+      }
+    }
     for (const s of this.session.battle.ships) {
       const label = this.labels.get(s.id)!;
       const withdrawing = this.session.battle.withdrawal?.side === s.side && this.endedAt !== null;
@@ -253,7 +278,19 @@ export class BattleScene extends Phaser.Scene {
           g.lineStyle(2 * zoom, 0xc0eee6, (.19 - i * .05) * fade); line(wx - dy * spread, wy + dx * spread, wx + dy * spread, wy - dx * spread);
         }
       }
-      if (this.selected.has(s.id) && !s.sunk && !s.escaped) g.lineStyle(2, 0xffde88, fade).strokeEllipse(screen.x, screen.y, 108 * zoom, 108 * Math.SQRT1_2 * zoom);
+      const selected = s.side === this.session.side && this.selected.has(s.id) && !s.sunk && !s.escaped;
+      const pulse = selectionPulse(this.clock, s.id);
+      if (selected) {
+        const diameter = Math.max(54, 130 * zoom * shipScale) * pulse.scale;
+        g.lineStyle(8, 0x002839, fade * .85).strokeEllipse(screen.x, screen.y, diameter, diameter * Math.SQRT1_2);
+        g.lineStyle(4, 0x68fff0, fade * pulse.alpha).strokeEllipse(screen.x, screen.y, diameter, diameter * Math.SQRT1_2);
+        g.lineStyle(2, 0xffe278, fade * pulse.alpha).strokeEllipse(screen.x, screen.y, diameter - 9, (diameter - 9) * Math.SQRT1_2);
+      }
+      if (s.side !== this.session.side && this.attackTargets.has(s.id) && !s.sunk && !s.escaped) {
+        const diameter = Math.max(52, 130 * zoom * shipScale);
+        g.lineStyle(7, 0x290c13, .9 * fade).strokeEllipse(screen.x, screen.y, diameter, diameter * Math.SQRT1_2);
+        g.lineStyle(3, 0xff505b, .95 * fade).strokeEllipse(screen.x, screen.y, diameter, diameter * Math.SQRT1_2);
+      }
       if (s.signature) g.lineStyle(2, 0xffd65d, fade).strokeEllipse(screen.x, screen.y, 94 * zoom, 94 * Math.SQRT1_2 * zoom);
       const flash = this.effects.some((e) => e.damage && e.age < .2 && Math.hypot(e.x - s.x, e.y - s.y) < 30);
       const turn = Phaser.Math.Angle.WrapDegrees(s.heading - old.heading);
@@ -261,10 +298,20 @@ export class BattleScene extends Phaser.Scene {
       this.ships.get(s.id)!.setTexture(battleShipTexture(this, s, pirate ? 0xc33535 : color, pirate, heading))
         .setPosition(screen.x, screen.y + (s.sunk ? (1 - fade) * 18 * zoom : 0)).setScale(zoom * shipScale / 1.5)
         .setAngle(s.sunk ? (1 - fade) * 20 : 0).setDepth(screen.y).setAlpha(fade).setTint(flash ? 0xff7777 : 0xffffff);
+      const glow = this.selectionGlows.get(s.id);
+      if (glow) {
+        const image = this.ships.get(s.id)!;
+        glow.setVisible(selected && fade > 0);
+        if (selected) glow.setTexture(image.texture.key).setPosition(image.x, image.y).setOrigin(image.originX, image.originY)
+          .setScale(image.scaleX * 1.1).setDepth(screen.y - .1).setAlpha(.5 * pulse.alpha * fade);
+      }
       const showName = battleNameVisible(s, this.session.side, this.selected, this.session.battle.ships);
       label.setText(showName ? pirate ? text('Pirate', '海盗') : shipName(s.name, getLocale()) : '');
       const labelSize = Math.max(layout.portrait ? 13 : 11, 19 * zoom);
       label.setFontSize(labelSize);
+      const labelColor = selected ? '#fff39b' : '#fff4d5', labelBackground = selected ? '#063c50' : '';
+      if (label.style.color !== labelColor) label.setColor(labelColor);
+      if (label.style.backgroundColor !== labelBackground) label.setBackgroundColor(labelBackground);
       const wrapWidth = Math.max(1, layout.bounds.width - 12);
       if (label.style.wordWrapWidth !== wrapWidth) label.setWordWrapWidth(wrapWidth, true);
       const barWidth = Math.max(32, 64 * zoom), barHeight = Math.max(4, 7 * zoom);
@@ -274,6 +321,11 @@ export class BattleScene extends Phaser.Scene {
       const labelX = box.x + box.width / 2, labelY = box.y + barHeight + 2;
       if (fade > 0) labelBoxes.push(box);
       label.setPosition(labelX, labelY).setAlpha(fade);
+      if (selected && fade > 0) {
+        const cy = Math.max(bounds.y + 9, Math.min(mast.y - 12, box.y - 12) + pulse.bob);
+        fx.lineStyle(7, 0x032433, fade).beginPath().moveTo(mast.x - 7, cy - 3).lineTo(mast.x, cy + 4).lineTo(mast.x + 7, cy - 3).strokePath();
+        fx.lineStyle(3, 0xffec7e, fade * pulse.alpha).beginPath().moveTo(mast.x - 7, cy - 3).lineTo(mast.x, cy + 4).lineTo(mast.x + 7, cy - 3).strokePath();
+      }
       if (!s.sunk && !s.escaped && fade > 0) {
         if (Math.abs(labelX - screen.x) > 12) health.lineStyle(1, 0xb5d0d2, .35 * fade).lineBetween(mast.x, mast.y + 10, labelX, box.y + box.height);
         health.fillStyle(0x051b29, fade).fillRect(labelX - barWidth / 2, labelY - barHeight - 2, barWidth, barHeight);
@@ -305,10 +357,17 @@ export class BattleScene extends Phaser.Scene {
       const screen = battleToScreen(layout, e);
       this.damageLabels.push(this.add.text(screen.x, screen.y - 20 - e.age * 38, `−${e.damage}`, { fontFamily: font, fontSize: `${Math.max(12, 24 * zoom)}px`, color: '#ffb39b' }).setOrigin(.5).setAlpha(1 - e.age / 1.2));
     }
+    if (this.marker && this.clock - this.marker.created >= MOVE_MARKER_SECONDS) this.marker = null;
     if (this.marker) {
+      const opacity = markerAlpha(this.clock, this.marker.created);
       const p = project(this.marker.x, this.marker.y);
-      g.lineStyle(2, 0xffe39a, .8).strokeEllipse(p.x, p.y, 32 * zoom, 32 * Math.SQRT1_2 * zoom);
+      g.lineStyle(2, 0xffe39a, opacity).strokeEllipse(p.x, p.y, 24, 24 * Math.SQRT1_2);
       line(this.marker.x - 24, this.marker.y, this.marker.x + 24, this.marker.y); line(this.marker.x, this.marker.y - 24, this.marker.x, this.marker.y + 24);
+      for (const slot of this.marker.slots) {
+        const dot = project(slot.x, slot.y);
+        g.fillStyle(0x79fff0, opacity * .35).fillEllipse(dot.x, dot.y, 12, 12 * Math.SQRT1_2);
+        g.lineStyle(1, 0xb5fff3, opacity * .7).strokeEllipse(dot.x, dot.y, 12, 12 * Math.SQRT1_2);
+      }
     }
     if (this.drag) {
       const end = battleToScreen(layout, this.cursor);
