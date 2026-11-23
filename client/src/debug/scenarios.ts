@@ -106,6 +106,7 @@ export function stageScenario(engine: GameEngine, id: Exclude<Scenario, 'landing
     state.owners[colony] = rival.id;
     rival.position = colony;
     if (id === 'defeat') {
+      captain.fleet.splice(1);
       for (const ship of captain.fleet) {
         ship.durability = 1;
         ship.firepower = 1;

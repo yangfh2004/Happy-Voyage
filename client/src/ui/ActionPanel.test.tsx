@@ -50,6 +50,7 @@ describe('fleet-loss defeat', () => {
     const island = state.map.find((node) => node.kind === 'island')!;
     state.owners[island.id] = 1;
     game.currentPlayer.position = island.id;
+    game.currentPlayer.fleet.splice(1);
     game.currentPlayer.fleet.forEach((ship) => { ship.durability = 1; });
     state.phase = 'moving';
     game.resolveLanding();

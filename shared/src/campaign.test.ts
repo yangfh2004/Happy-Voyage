@@ -152,6 +152,7 @@ describe('royal campaign', () => {
     const { game, state, captain, islands } = voyage('first-voyage');
     const colony = islands[0];
     state.owners[colony.id] = 1;
+    captain.fleet.splice(1);
     captain.fleet.forEach((ship) => { ship.durability = 1; });
     landAs(game, 0, colony.id);
     game.fight();

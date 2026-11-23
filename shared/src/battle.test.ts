@@ -104,7 +104,7 @@ describe('real-time battle', () => {
     expect(ordinary.cannonballs.some((b) => b.side === 'defender')).toBe(true);
   });
 
-  it('draws at 90 seconds or when all attackers retreat', () => {
+  it('draws at 90 seconds but concedes defeat when attackers retreat', () => {
     const b = createBattle(setup());
     for (const s of b.ships) s.firepower = 0;
     while (!b.outcome) stepBattle(b);
@@ -112,15 +112,14 @@ describe('real-time battle', () => {
     const retreat = createBattle(setup());
     issueCommand(retreat, 'attacker', { type: 'retreat' });
     while (!retreat.outcome) stepBattle(retreat);
-    expect(retreat.outcome).toBe('draw');
+    expect(retreat.outcome).toBe('defeat');
     expect(retreat.tick).toBeLessThan(1800);
-    expect(retreat.ships[0].escaped).toBe(true);
+    expect(retreat.ships[0].durability).toBe(100);
   });
 
   it('ignores invalid orders and rejects unfinished results', () => {
     const b = createBattle(setup());
     expect(() => battleResult(b)).toThrow('Battle is not finished');
-    issueCommand(b, 'defender', { type: 'retreat' });
     issueCommand(b, 'defender', { type: 'move', shipIds: [1], x: 300, y: 300 });
     issueCommand(b, 'attacker', { type: 'attack', shipIds: [1], targetId: 1 });
     issueCommand(b, 'attacker', { type: 'move', shipIds: [1], x: NaN, y: 300 });

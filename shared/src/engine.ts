@@ -507,8 +507,7 @@ export class GameEngine extends GameView {
   }
 
   /**
-   * Attack the rival colony instead of paying: sinking every defender takes the colony,
-   * losing every ship costs the sunk ships plus double toll, and a draw sends both fleets home.
+   * Defeating the defenders takes the colony; defeat costs double toll, and draws send both fleets home.
    */
   fight(): BattleReport | null {
     this.assertPhase('awaitingToll');
@@ -552,11 +551,11 @@ export class GameEngine extends GameView {
     switch (result.outcome) {
       case 'victory':
         this.state.owners[node.id] = player.id;
-        this.log(tx('{p} sinks every defender and takes {n} from {o}!', '{p} 击沉所有守军，从 {o} 手中夺取了{n}！', sides));
+        this.log(tx('{p} defeats the defenders and takes {n} from {o}!', '{p} 击败守军，从 {o} 手中夺取了{n}！', sides));
         this.emit({ type: 'claimed', playerId: player.id, nodeId: node.id });
         break;
       case 'defeat':
-        this.log(tx("{p}'s fleet is sunk at {n} and owes {o} double toll.", '{p} 的舰队在{n}全军覆没，须向 {o} 缴纳双倍过路费。', sides));
+        this.log(tx("{p}'s fleet is defeated at {n} and owes {o} double toll.", '{p} 的舰队在{n}战败，须向 {o} 缴纳双倍过路费。', sides));
         report.tollPaid = this.collectToll(player, owner, node, COMBAT.defeatTollMultiplier);
         break;
       case 'draw':
@@ -600,7 +599,7 @@ export class GameEngine extends GameView {
     for (const [side, ships] of [['attacker', attackers], ['defender', defenders]] as const) {
       for (const ship of ships) ship.durability = replay.durability.find((s) => s.id === ship.id && s.side === side)!.durability;
     }
-    const result: BattleResult = { outcome: replay.outcome, rounds: replay.ticks,
+    const result: BattleResult = { outcome: replay.outcome, rounds: replay.ticks, ...(replay.withdrawal ? { withdrawal: replay.withdrawal } : {}),
       attackerSunk: attackers.filter((s) => replay.attackerSunk.includes(s.id)),
       defenderSunk: defenders.filter((s) => replay.defenderSunk.includes(s.id)) };
     this.state.pendingBattle = null;

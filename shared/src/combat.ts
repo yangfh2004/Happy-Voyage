@@ -2,6 +2,7 @@ import type { BattleOutcome, GameState, Player, Ship } from './types';
 import type { Rng } from './compass';
 import { colonyToll } from './buildings';
 import { STRATEGY_RULES } from './strategies';
+import { sinkingCap, withdrawalReason, type BattleWithdrawal } from './withdrawal';
 
 export const COMBAT = {
   /** Volleys exchanged before an undecided battle is called a draw. */
@@ -17,6 +18,7 @@ export interface BattleResult {
   rounds: number;
   attackerSunk: Ship[];
   defenderSunk: Ship[];
+  withdrawal?: BattleWithdrawal;
 }
 
 /** Ships docked at the colony defend it; with none docked, the owner's fleet sails in. */
@@ -36,20 +38,23 @@ function volley(ships: Ship[], rng: Rng, multiplier = 1): number {
 }
 
 /** Cannon fire lands on the most battered ship first; overflow carries to the next. Returns ships sunk. */
-function absorb(line: Ship[], damage: number): Ship[] {
+function absorb(line: Ship[], damage: number, remainingSinks: number): Ship[] {
   const sunk: Ship[] = [];
   for (const ship of [...line].sort((a, b) => a.durability - b.durability)) {
     if (damage <= 0) break;
     const hit = Math.min(damage, ship.durability);
     ship.durability -= hit;
     damage -= hit;
-    if (ship.durability === 0) sunk.push(ship);
+    if (ship.durability === 0) {
+      if (sunk.length < remainingSinks) sunk.push(ship);
+      else ship.durability = 1;
+    }
   }
   return sunk;
 }
 
 /**
- * Both lines fire simultaneously each round until one side is sunk or the rounds run out.
+ * Both lines fire simultaneously until a side is sunk, withdraws, or the rounds run out.
  * Mutates ship durability; the caller removes the sunk ships from their fleets.
  */
 export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng, options: { attackerMultiplier?: number; defenderRng?: Rng; skipFirstDefense?: boolean } = {}): BattleResult {
@@ -58,23 +63,27 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng,
   const attackerSunk: Ship[] = [];
   const defenderSunk: Ship[] = [];
   let rounds = 0;
+  let withdrawal: BattleWithdrawal | undefined;
   while (attackLine.length && defenseLine.length && rounds < COMBAT.rounds) {
     rounds += 1;
     const attackFire = volley(attackLine, rng, options.attackerMultiplier);
     const defenseFire = options.skipFirstDefense && rounds === 1 ? 0 : volley(defenseLine, options.defenderRng ?? rng);
-    const lostDefenders = absorb(defenseLine, attackFire);
-    const lostAttackers = absorb(attackLine, defenseFire);
+    const lostDefenders = absorb(defenseLine, attackFire, sinkingCap(defenders) - defenderSunk.length);
+    const lostAttackers = absorb(attackLine, defenseFire, sinkingCap(attackers) - attackerSunk.length);
     defenderSunk.push(...lostDefenders);
     attackerSunk.push(...lostAttackers);
     defenseLine = defenseLine.filter((ship) => !lostDefenders.includes(ship));
     attackLine = attackLine.filter((ship) => !lostAttackers.includes(ship));
+    const attackerReason = withdrawalReason(attackers), defenderReason = withdrawalReason(defenders);
+    if (!attackLine.length || attackerReason) { if (attackerReason) withdrawal = { side: 'attacker', reason: attackerReason }; break; }
+    if (!defenseLine.length || defenderReason) { if (defenderReason) withdrawal = { side: 'defender', reason: defenderReason }; break; }
   }
   // Losing every ship is a defeat even if the last volley also sank the defenders.
-  const outcome: BattleOutcome = !attackLine.length ? 'defeat' : !defenseLine.length ? 'victory' : 'draw';
-  return { outcome, rounds, attackerSunk, defenderSunk };
+  const outcome: BattleOutcome = !attackLine.length || withdrawal?.side === 'attacker' ? 'defeat' : !defenseLine.length || withdrawal?.side === 'defender' ? 'victory' : 'draw';
+  return { outcome, rounds, attackerSunk, defenderSunk, ...(withdrawal ? { withdrawal } : {}) };
 }
 
-/** Result at fixed cannon rolls (average by default), without touching the real ships or match RNG. */
+/** Forecast with the same withdrawal rules and loss caps, without touching real ships or match RNG. */
 export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], options: { attackerMultiplier?: number; attackerRoll?: number; defenderRoll?: number; skipFirstDefense?: boolean } = {}): BattleOutcome {
   const copy = (ships: Ship[]) => ships.map((ship) => ({ ...ship }));
   return fightNavalBattle(copy(attackers), copy(defenders), () => options.attackerRoll ?? 0.5, {

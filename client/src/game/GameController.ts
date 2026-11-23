@@ -651,11 +651,11 @@ export class GameController {
         const { report } = event;
         const params = { n: ref.node(report.nodeId), r: ref.player(isViewer(report.attacker) ? report.defender : report.attacker), g: report.tollPaid ?? 0 };
         if (isViewer(report.attacker)) {
-          this.headline = report.outcome === 'victory' ? this.makeHeadline(tx("Victory! You sink {r}'s defenders and take {n}.", '胜利！你击沉了 {r} 的守军，夺取了{n}。', params), 'gain')
-            : report.outcome === 'defeat' ? this.makeHeadline(tx('Defeat at {n}: your fleet is sunk and you pay {g}g double toll.', '{n}战败：你的舰队全军覆没，须缴纳 {g} 金币双倍过路费。', params), 'loss')
+          this.headline = report.outcome === 'victory' ? this.makeHeadline(tx("Victory! You defeat {r}'s defenders and take {n}.", '胜利！你击败了 {r} 的守军，夺取了{n}。', params), 'gain')
+            : report.outcome === 'defeat' ? this.makeHeadline(tx('Defeat at {n}: you pay {g}g double toll.', '{n}战败：须缴纳 {g} 金币双倍过路费。', params), 'loss')
             : this.makeHeadline(tx('Stalemate at {n}: both fleets sail home.', '{n}之战不分胜负：双方各自归队。', params), 'loss');
         } else if (isViewer(report.defender)) {
-          this.headline = report.outcome === 'victory' ? this.makeHeadline(tx('{r} sinks your defenders and takes {n}!', '{r} 击沉了你的守军，夺取了{n}！', params), 'loss')
+          this.headline = report.outcome === 'victory' ? this.makeHeadline(tx('{r} defeats your defenders and takes {n}!', '{r} 击败了你的守军，夺取了{n}！', params), 'loss')
             : report.outcome === 'defeat' ? this.makeHeadline(tx('You repel {r} at {n} and collect {g}g double toll!', '你在{n}击退了 {r}，收取 {g} 金币双倍过路费！', params), 'gain')
             : this.makeHeadline(tx('{r} attacks {n}; the battle is a draw and both fleets sail home.', '{r} 进攻{n}，双方不分胜负，各自归队。', params), 'loss');
         }

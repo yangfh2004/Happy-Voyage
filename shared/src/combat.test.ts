@@ -38,63 +38,64 @@ describe('naval combat', () => {
     expect(state.phase).toBe('awaitingSpin');
   });
 
-  it('takes the colony when every defender is sunk', () => {
-    const { engine, state, island, owner, raider, events } = siege(100, 1);
+  it('takes the colony when defenders withdraw and preserves their surviving ships', () => {
+    const { engine, state, island, owner, raider, events } = siege(200, 1);
     const report = engine.fight()!;
     expect(report).toMatchObject({ outcome: 'victory', attacker: raider.id, defender: owner.id, nodeId: island.id, rounds: 1, tollPaid: 0 });
-    expect(report.defenderSunk).toHaveLength(5);
+    expect(report.defenderSunk).toHaveLength(3);
     expect(report.attackerSunk).toEqual([]);
-    expect(owner.fleet).toEqual([]);
+    expect(owner.fleet).toHaveLength(2);
+    expect(owner.fleet.every((s) => s.durability === 1)).toBe(true);
     expect(raider.fleet).toHaveLength(5);
     expect(state.owners[island.id]).toBe(raider.id);
     expect(raider.gold).toBe(1000);
     expect(state.battles).toEqual([report]);
     expect(events).toContainEqual({ type: 'battleFought', report });
     expect(events).toContainEqual({ type: 'claimed', playerId: raider.id, nodeId: island.id });
-    expect(owner.fleetLost).toBe(true);
-    expect(state).toMatchObject({ phase: 'gameOver', winner: raider.id, victory: 'lastAfloat' });
+    expect(owner.fleetLost).toBeUndefined();
+    expect(state.winner).toBeNull();
   });
 
-  it('sinks the attackers and charges double toll on defeat', () => {
+  it('caps attacker losses and charges double toll on defeat', () => {
     const { engine, state, island, owner, raider } = siege(1, 100);
     const toll = colonyToll(state, island.id) * 2;
     const report = engine.fight()!;
     expect(report).toMatchObject({ outcome: 'defeat', tollPaid: toll });
-    expect(report.attackerSunk).toHaveLength(5);
-    expect(raider.fleet).toEqual([]);
+    expect(report.attackerSunk).toHaveLength(3);
+    expect(raider.fleet).toHaveLength(2);
     expect(owner.fleet).toHaveLength(5);
     expect(raider.gold).toBe(1000 - toll);
     expect(owner.gold).toBe(1000 + toll);
     expect(state.owners[island.id]).toBe(owner.id);
     expect(state.battles).toEqual([report]);
-    expect(raider).toMatchObject({ fleetLost: true, bankrupt: false });
-    expect(state).toMatchObject({ phase: 'gameOver', winner: owner.id, victory: 'lastAfloat' });
+    expect(raider).toMatchObject({ bankrupt: false });
+    expect(raider.fleetLost).toBeUndefined();
+    expect(state.winner).toBeNull();
   });
 
-  it('neutralizes the defeated navigator’s other colonies and skips their turn', () => {
-    const { engine, state, owner, raider, island } = siege(100, 1, true);
+  it('keeps a withdrawing navigator’s other colonies and next turn', () => {
+    const { engine, state, owner, island } = siege(200, 1, true);
     const other = state.map.find((node) => node.kind === 'island' && node.id !== island.id)!;
     state.owners[other.id] = owner.id;
     state.buildings[other.id] = { shipyard: 1 };
     engine.fight();
-    expect(state.owners[other.id]).toBeNull();
-    expect(state.buildings[other.id]).toEqual({});
+    expect(state.owners[other.id]).toBe(owner.id);
+    expect(state.buildings[other.id]).toEqual({ shipyard: 1 });
     expect(state.currentPlayer).toBe(2);
     engine.currentPlayer.position = engine.currentPlayer.homePort;
     state.phase = 'moving';
     engine.resolveLanding();
-    expect(state).toMatchObject({ phase: 'awaitingSpin', currentPlayer: raider.id, winner: null });
+    expect(state).toMatchObject({ phase: 'awaitingSpin', currentPlayer: owner.id, winner: null });
   });
 
-  it('does not declare a winner if both remaining fleets are sunk', () => {
+  it('keeps both fleets afloat if both reach the withdrawal cap', () => {
     const { engine, state, owner, raider, events } = siege(1, 1);
     engine.fight();
-    expect(owner.fleetLost).toBe(true);
-    expect(raider.fleetLost).toBe(true);
-    expect(state).toMatchObject({ phase: 'gameOver', winner: null, victory: null });
-    expect(events.filter((event) => event.type === 'gameOver')).toEqual([
-      { type: 'gameOver', winner: null, victory: null, reason: 'No navigators remain afloat.' },
-    ]);
+    expect(owner.fleet).toHaveLength(2);
+    expect(raider.fleet).toHaveLength(2);
+    expect(state.battles[0].outcome).toBe('defeat');
+    expect(state.winner).toBeNull();
+    expect(events.filter((event) => event.type === 'gameOver')).toEqual([]);
   });
 
   it('sends both fleets home after a drawn battle', () => {
@@ -152,7 +153,7 @@ describe('naval combat', () => {
   });
 
   it('lets the AI fight a battle it expects to win and pay otherwise', () => {
-    const strong = siege(100, 1);
+    const strong = siege(200, 1);
     expect(aiShouldFight(strong.state, strong.raider)).toBe(true);
     strong.engine.decideForAI();
     expect(strong.state.battles[0].outcome).toBe('victory');
@@ -174,7 +175,8 @@ describe('naval combat', () => {
     const ship = (id: number, durability: number, firepower = 0) => ({ id, durability, firepower }) as Ship;
     const defenders = [ship(1, 50), ship(2, 5), ship(3, 20)];
     const result = fightNavalBattle([ship(9, 100, 30)], defenders, () => 0.5);
-    expect(result.defenderSunk.map((s) => s.id)).toEqual([2, 3, 1]);
-    expect(result).toMatchObject({ outcome: 'victory', rounds: 3 });
+    expect(result.defenderSunk.map((s) => s.id)).toEqual([2, 3]);
+    expect(defenders[0].durability).toBe(45);
+    expect(result).toMatchObject({ outcome: 'victory', rounds: 1, withdrawal: { side: 'defender', reason: 'losses' } });
   });
 });

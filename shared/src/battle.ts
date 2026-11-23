@@ -1,4 +1,5 @@
 import type { AIDifficulty, BattleOutcome, Ship, ShipType } from './types';
+import { sinkingCap, withdrawalReason, type BattleWithdrawal } from './withdrawal';
 
 export const TICK = 1 / 20;
 export const BATTLE_FIELD = { width: 1600, height: 900 } as const;
@@ -54,6 +55,7 @@ export interface BattleState {
   attackerMultiplier: number;
   ambush: boolean;
   outcome: BattleOutcome | null;
+  withdrawal: BattleWithdrawal | null;
 }
 export type BattleControllers = Partial<Record<BattleSide, AIDifficulty>>;
 export interface RealtimeBattleResult {
@@ -62,6 +64,7 @@ export interface RealtimeBattleResult {
   attackerSunk: number[];
   defenderSunk: number[];
   ticks: number;
+  withdrawal?: BattleWithdrawal;
 }
 
 const active = (s: BattleShip) => !s.sunk && !s.escaped;
@@ -115,7 +118,22 @@ export function createBattle(setup: BattleSetup): BattleState {
     sunk: ship.durability <= 0, escaped: false, order: { type: 'free' }, charge: false,
   }));
   return { tick: 0, rng: setup.seed >>> 0, ships: [...ships(setup.attackers, 'attacker'), ...ships(setup.defenders, 'defender')],
-    cannonballs: [], retreating: false, attackerMultiplier: setup.attackerMultiplier ?? 1, ambush: setup.ambush ?? false, outcome: null };
+    cannonballs: [], retreating: false, attackerMultiplier: setup.attackerMultiplier ?? 1, ambush: setup.ambush ?? false, outcome: null, withdrawal: null };
+}
+
+function withdraw(battle: BattleState, withdrawal: BattleWithdrawal): void {
+  battle.withdrawal = withdrawal;
+  battle.retreating = true;
+  battle.outcome = withdrawal.side === 'attacker' ? 'defeat' : 'victory';
+}
+
+function resolveWithdrawal(battle: BattleState): void {
+  for (const side of ['attacker', 'defender'] as const) {
+    const fleet = battle.ships.filter((s) => s.side === side);
+    if (!fleet.some((s) => !s.sunk)) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
+    const reason = withdrawalReason(fleet);
+    if (reason) { withdraw(battle, { side, reason }); return; }
+  }
 }
 
 export function inBroadsideArc(ship: { x: number; y: number; heading: number }, target: { x: number; y: number }): boolean {
@@ -126,7 +144,7 @@ export function inBroadsideArc(ship: { x: number; y: number; heading: number }, 
 export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleCommand): void {
   if (battle.outcome || (side !== 'attacker' && side !== 'defender')) return;
   if (cmd.type === 'retreat') {
-    if (side === 'attacker') battle.retreating = true;
+    withdraw(battle, { side, reason: 'retreat' });
     return;
   }
   if (cmd.type === 'move' && (!Number.isFinite(cmd.x) || !Number.isFinite(cmd.y))) return;
@@ -161,7 +179,7 @@ export function battleAI(battle: BattleState, side: BattleSide, difficulty: AIDi
   const enemies = battle.ships.filter((s) => s.side !== side && active(s));
   if (!enemies.length) return;
   const total = (ships: BattleShip[]) => ships.reduce((sum, s) => sum + s.durability, 0);
-  if (difficulty === 'hard' && side === 'attacker' && total(own) < total(enemies) * 0.35) issueCommand(battle, side, { type: 'retreat' });
+  if (difficulty === 'hard' && total(own) < total(enemies) * 0.35) { issueCommand(battle, side, { type: 'retreat' }); return; }
   for (const s of own) {
     const target = [...enemies].sort(difficulty === 'easy' ? (a, b) => distance(s, a) - distance(s, b) : (a, b) => a.durability - b.durability)[0];
     if (difficulty === 'hard' && (s.durability < s.maxDurability * 0.3 || s.type === 'cargo')) {
@@ -175,7 +193,12 @@ export function battleAI(battle: BattleState, side: BattleSide, difficulty: AIDi
 
 export function stepBattle(battle: BattleState, controllers: BattleControllers = {}): void {
   if (battle.outcome) return;
-  for (const side of ['attacker', 'defender'] as const) if (controllers[side]) battleAI(battle, side, controllers[side]);
+  resolveWithdrawal(battle);
+  if (battle.outcome) return;
+  for (const side of ['attacker', 'defender'] as const) {
+    if (controllers[side]) battleAI(battle, side, controllers[side]);
+    if (battle.outcome) return;
+  }
   for (const s of battle.ships.filter(active)) {
     const enemies = battle.ships.filter((e) => e.side !== s.side && active(e));
     const order = s.order;
@@ -224,19 +247,22 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
     if (ball.remaining > 0) continue;
     const hit = battle.ships.filter((s) => s.side !== ball.side && active(s) && distance(s, { x: ball.landingX, y: ball.landingY }) <= BATTLE_STATS[s.type].radius)
       .sort((a, b) => distance(a, ball) - distance(b, ball))[0];
-    if (hit) { hit.durability = Math.max(0, hit.durability - ball.damage); hit.sunk = hit.durability === 0; }
+    if (hit) {
+      const fleet = battle.ships.filter((s) => s.side === hit.side);
+      const capped = fleet.filter((s) => s.sunk).length >= sinkingCap(fleet);
+      hit.durability = Math.max(capped ? 1 : 0, hit.durability - ball.damage);
+      hit.sunk = hit.durability === 0;
+    }
   }
   battle.cannonballs = battle.cannonballs.filter((b) => b.remaining > 0);
   battle.tick++;
-  const attackers = battle.ships.filter((s) => s.side === 'attacker' && !s.sunk);
-  const defenders = battle.ships.filter((s) => s.side === 'defender' && !s.sunk);
-  battle.outcome = !attackers.length ? 'defeat' : !defenders.length ? 'victory'
-    : attackers.every((s) => s.escaped) || battle.tick >= 1800 ? 'draw' : null;
+  resolveWithdrawal(battle);
+  if (!battle.outcome && battle.tick >= 1800) battle.outcome = 'draw';
 }
 
 export function battleResult(battle: BattleState): RealtimeBattleResult {
   if (!battle.outcome) throw new Error('Battle is not finished');
-  return { outcome: battle.outcome, ticks: battle.tick,
+  return { outcome: battle.outcome, ticks: battle.tick, ...(battle.withdrawal ? { withdrawal: battle.withdrawal } : {}),
     durability: battle.ships.map((s) => ({ id: s.id, side: s.side, durability: s.durability })),
     attackerSunk: battle.ships.filter((s) => s.side === 'attacker' && s.sunk).map((s) => s.id),
     defenderSunk: battle.ships.filter((s) => s.side === 'defender' && s.sunk).map((s) => s.id) };

@@ -13,6 +13,24 @@ function siege(attackerAI = false, defenderAI = true, mode: 'realtime' | 'auto' 
 }
 
 describe('real-time engine integration', () => {
+  it.each([false, true])('settles a human concession as defeat (defending=%s) without removing survivors', (defending) => {
+    const { game, node } = siege(defending, !defending);
+    const [attacker, defender] = game.state.players;
+    attacker.fleet[0].durability = 70;
+    defender.fleet[0].durability = 80;
+    game.fight();
+    const report = game.finishBattle([{ tick: 0, side: defending ? 'defender' : 'attacker', cmd: { type: 'retreat' } }])!;
+    expect(report.outcome).toBe(defending ? 'victory' : 'defeat');
+    expect(game.state.owners[node.id]).toBe(defending ? attacker.id : defender.id);
+    expect(report.tollPaid > 0).toBe(!defending);
+    expect(attacker.fleet).toHaveLength(5);
+    expect(defender.fleet).toHaveLength(5);
+    expect(attacker.fleet[0].durability).toBe(70);
+    expect(defender.fleet[0].durability).toBe(80);
+    expect(game.state.pendingBattle).toBeNull();
+    expect(game.state.phase).not.toBe('awaitingBattle');
+  });
+
   it('defaults to real-time, snapshots ships, emits battleStarted, and suspends AI decisions', () => {
     const { game } = siege();
     const events: GameEvent[] = [];
@@ -50,8 +68,8 @@ describe('real-time engine integration', () => {
     expect(game.state.inspired).toBe(false);
     expect(game.state.ambush).toBe(false);
     expect(game.state.phase).not.toBe('awaitingBattle');
-    if (outcome === 'victory') { expect(game.state.owners[node.id]).toBe(0); expect(defender.fleet).toHaveLength(0); }
-    if (outcome === 'defeat') { expect(report.tollPaid).toBeGreaterThan(0); expect(attacker.fleet).toHaveLength(0); }
+    if (outcome === 'victory') { expect(game.state.owners[node.id]).toBe(0); expect(defender.fleet).toHaveLength(5); }
+    if (outcome === 'defeat') { expect(report.tollPaid).toBeGreaterThan(0); expect(attacker.fleet).toHaveLength(5); }
     if (outcome === 'draw') { expect(attacker.position).toBe(attacker.homePort); expect(defender.position).toBe(defender.homePort); }
     expect(() => game.finishBattle([])).toThrow('Expected phase awaitingBattle');
   });

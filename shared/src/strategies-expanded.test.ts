@@ -312,7 +312,7 @@ describe('AI strategy safety', () => {
       p.gold = 0;
       g.state.phase = 'awaitingToll';
       for (const ship of p.fleet) { ship.firepower = outcome === 'victory' ? 1000 : 0; ship.durability = 10000; }
-      for (const ship of rival.fleet) { ship.firepower = outcome === 'defeat' ? 100000 : 0; ship.durability = 1; }
+      for (const ship of rival.fleet) { ship.firepower = outcome === 'defeat' ? 100000 : 0; ship.durability = outcome === 'draw' ? 10000 : 1; }
       expect(tollDue(g.state, p, node)).toBeGreaterThan(p.gold);
       expect(forecastColonyBattle(g.state, p)).toBe(outcome);
       g.decideForAI();
