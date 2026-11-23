@@ -25,6 +25,7 @@ export interface BattleSetup {
   ambush?: boolean;
 }
 export type BattleOrder = { type: 'free' } | { type: 'move'; x: number; y: number } | { type: 'attack'; targetId: number };
+export type BattleBattery = 'port' | 'starboard';
 export interface BattleGroup {
   id: number;
   side: BattleSide;
@@ -45,7 +46,7 @@ export interface BattleShip extends Ship {
   heading: number;
   vx: number;
   vy: number;
-  reload: number;
+  reload: Record<BattleBattery, number>;
   sunk: boolean;
   startedAfloat: boolean;
   escaped: boolean;
@@ -55,6 +56,8 @@ export interface BattleShip extends Ship {
 }
 export interface Cannonball {
   side: BattleSide;
+  shipId: number;
+  battery: BattleBattery;
   x: number;
   y: number;
   landingX: number;
@@ -135,7 +138,7 @@ export function createBattle(setup: BattleSetup): BattleState {
   const ships = (fleet: Ship[], side: BattleSide): BattleShip[] => fleet.map((ship, i) => ({
     ...ship, cargo: { ...ship.cargo }, side, x: BATTLE_FIELD.width * (side === 'attacker' ? .1 : .9) + (side === 'attacker' ? 1 : -1) * Math.floor(i / 7) * spacing,
     y: BATTLE_FIELD.height / 2 + (i % 7 - (Math.min(fleet.length, 7) - 1) / 2) * spacing,
-    heading: side === 'attacker' ? 0 : 180, vx: 0, vy: 0, reload: 0,
+    heading: side === 'attacker' ? 0 : 180, vx: 0, vy: 0, reload: { port: 0, starboard: 0 },
     sunk: ship.durability <= 0, startedAfloat: ship.durability > 0, escaped: false, order: { type: 'free' }, charge: false,
   }));
   return { tick: 0, rng: setup.seed >>> 0, ships: [...ships(setup.attackers, 'attacker'), ...ships(setup.defenders, 'defender')],
@@ -302,8 +305,12 @@ function resolveWithdrawal(battle: BattleState): void {
 }
 
 export function inBroadsideArc(ship: { x: number; y: number; heading: number }, target: { x: number; y: number }): boolean {
-  const off = Math.abs(angle(bearing(ship, target) - ship.heading));
-  return off >= 30 && off <= 150;
+  return broadsideBattery(ship, target) !== null;
+}
+
+export function broadsideBattery(ship: { x: number; y: number; heading: number }, target: { x: number; y: number }): BattleBattery | null {
+  const off = angle(bearing(ship, target) - ship.heading);
+  return Math.abs(off) < 30 || Math.abs(off) > 150 ? null : off < 0 ? 'port' : 'starboard';
 }
 
 export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleCommand): void {
@@ -387,7 +394,8 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
   }
   moveGroups(battle);
   for (const s of battle.ships.filter(active)) {
-    if (s.groupId !== undefined) { s.reload = Math.max(0, s.reload - TICK); continue; }
+    s.reload = { port: Math.max(0, s.reload.port - TICK), starboard: Math.max(0, s.reload.starboard - TICK) };
+    if (s.groupId !== undefined) continue;
     const enemies = battle.ships.filter((e) => e.side !== s.side && active(e));
     const order = s.order;
     const target = (order.type === 'attack' ? enemies.find((e) => e.id === order.targetId) : undefined)
@@ -408,24 +416,27 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
     s.x = clamp(s.x + s.vx * TICK, battle.retreating && s.side === 'attacker' ? -100 : stats.radius, BATTLE_FIELD.width - stats.radius);
     s.y = clamp(s.y + s.vy * TICK, stats.radius, BATTLE_FIELD.height - stats.radius);
     if (s.x < 0) { s.escaped = true; continue; }
-    s.reload = Math.max(0, s.reload - TICK);
   }
   separate(battle.ships.filter(active), 0, battle.retreating);
   for (const s of battle.ships.filter(active)) {
-    if (s.reload > 0 || (s.side === 'defender' && battle.ambush && battle.tick < 8 / TICK)) continue;
+    if (s.side === 'defender' && battle.ambush && battle.tick < 8 / TICK) continue;
     const stats = BATTLE_STATS[s.type];
     const targets = battle.ships.filter((e) => e.side !== s.side && active(e) && distance(s, e) <= stats.range && inBroadsideArc(s, e))
-      .sort((a, b) => distance(s, a) - distance(s, b));
+      .sort((a, b) => distance(s, a) - distance(s, b) || a.id - b.id);
     const order = s.order;
-    const target = (order.type === 'attack' ? targets.find((e) => e.id === order.targetId) : undefined) ?? targets[0];
-    if (!target) continue;
-    const flight = distance(s, target) / CANNONBALL_SPEED;
-    const landingX = target.x + target.vx * flight + (random(battle) - 0.5) * 18;
-    const landingY = target.y + target.vy * flight + (random(battle) - 0.5) * 18;
-    battle.cannonballs.push({ side: s.side, x: s.x, y: s.y, landingX, landingY,
-      remaining: Math.hypot(landingX - s.x, landingY - s.y) / CANNONBALL_SPEED,
-      damage: Math.round(s.firepower * (s.side === 'attacker' ? battle.attackerMultiplier : 1) * (0.75 + random(battle) * 0.5)) });
-    s.reload = stats.reload;
+    for (const battery of ['port', 'starboard'] as const) {
+      if (s.reload[battery] > 0) continue;
+      const candidates = targets.filter(e => broadsideBattery(s, e) === battery);
+      const target = (order.type === 'attack' ? candidates.find((e) => e.id === order.targetId) : undefined) ?? candidates[0];
+      if (!target) continue;
+      const flight = distance(s, target) / CANNONBALL_SPEED;
+      const landingX = target.x + target.vx * flight + (random(battle) - 0.5) * 18;
+      const landingY = target.y + target.vy * flight + (random(battle) - 0.5) * 18;
+      battle.cannonballs.push({ side: s.side, shipId: s.id, battery, x: s.x, y: s.y, landingX, landingY,
+        remaining: Math.hypot(landingX - s.x, landingY - s.y) / CANNONBALL_SPEED,
+        damage: Math.round(s.firepower * (s.side === 'attacker' ? battle.attackerMultiplier : 1) * (0.75 + random(battle) * 0.5)) });
+      s.reload[battery] = stats.reload;
+    }
   }
   for (const ball of battle.cannonballs) {
     const fraction = Math.min(1, TICK / ball.remaining);

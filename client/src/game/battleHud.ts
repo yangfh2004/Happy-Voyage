@@ -11,15 +11,15 @@ export function battleClassName(ship: BattleShip, locale: Locale) {
   return classes[shipStyle(ship).variant][locale === 'zh' ? 1 : 0];
 }
 
-export function battleSelectionText(ships: BattleShip[], locale: Locale) {
+export function battleSelectionText(ships: BattleShip[], locale: Locale, compact = false) {
   const zh = locale === 'zh';
   if (!ships.length) return zh ? '点击我方舰船查看详情' : 'Select a friendly ship to inspect';
   if (ships.length > 1) return zh
     ? `已选 ${ships.length} 艘舰船  ·  耐久 ${ships.reduce((n, s) => n + s.durability, 0)}/${ships.reduce((n, s) => n + s.maxDurability, 0)}`
     : `${ships.length} ships selected  ·  Hull ${ships.reduce((n, s) => n + s.durability, 0)}/${ships.reduce((n, s) => n + s.maxDurability, 0)}`;
   const s = ships[0];
-  const reload = s.reload > 0 ? `${zh ? '装填' : 'Reload'} ${s.reload.toFixed(1)}s` : zh ? '就绪' : 'Ready';
-  return `${shipName(s.name, locale)} · ${battleClassName(s, locale)}\n${zh ? '耐久' : 'Hull'} ${s.durability}/${s.maxDurability} · ${zh ? '火力' : 'Guns'} ${s.firepower} · ${zh ? '射程' : 'Range'} ${BATTLE_STATS[s.type].range} · ${reload}`;
+  const reload = (remaining: number) => remaining > 0 ? `${zh ? '装填' : 'Reload'} ${remaining.toFixed(1)}s` : zh ? '就绪' : 'Ready';
+  return `${shipName(s.name, locale)} · ${battleClassName(s, locale)}\n${zh ? '耐久' : 'Hull'} ${s.durability}/${s.maxDurability} · ${zh ? '火力' : 'Guns'} ${s.firepower} · ${zh ? '射程' : 'Range'} ${BATTLE_STATS[s.type].range}${compact ? '\n' : ' · '}${zh ? '左舷' : 'Port'} ${reload(s.reload.port)} · ${zh ? '右舷' : 'Starboard'} ${reload(s.reload.starboard)}`;
 }
 
 export function battleNameVisible(ship: BattleShip, side: BattleShip['side'], selected: Set<number>, ships: BattleShip[]) {
