@@ -237,10 +237,14 @@ function moveGroups(battle: BattleState): void {
           .sort((a, b) => a.along - b.along || a.other.id - b.other.id)[0];
         if (obstacle) {
           const side = obstacle.across > 1 ? -1 : 1;
-          const dx = obstacle.other.x - uy * side * obstacle.radius * 1.2 - s.x;
-          const dy = obstacle.other.y + ux * side * obstacle.radius * 1.2 - s.y;
-          const scale = Math.min(limit, Math.hypot(dx, dy) / TICK) / Math.hypot(dx, dy);
-          vx = dx * scale; vy = dy * scale;
+          const radius = clearance(s);
+          const dx = clamp(obstacle.other.x - uy * side * obstacle.radius * 1.2, radius, BATTLE_FIELD.width - radius) - s.x;
+          const dy = clamp(obstacle.other.y + ux * side * obstacle.radius * 1.2, radius, BATTLE_FIELD.height - radius) - s.y;
+          const distance = Math.hypot(dx, dy);
+          if (distance > .001) {
+            const scale = Math.min(limit, distance / TICK) / distance;
+            vx = dx * scale; vy = dy * scale;
+          }
         }
       }
       const desiredHeading = error < 8 || magnitude < 1 ? group.heading : Math.atan2(vy, vx) * 180 / Math.PI;
