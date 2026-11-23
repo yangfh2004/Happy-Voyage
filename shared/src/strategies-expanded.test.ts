@@ -163,11 +163,12 @@ describe('sea strategy effects', () => {
     const gold = p.gold;
     g.state.currentPlayer = p.id;
     p.fleet[0].durability = 1;
+    const repairFee = p.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0) * 2;
     p.position = g.state.map.find((n) => n.special === 'revival')!.id;
     g.state.phase = 'moving';
     g.resolveLanding();
     expect(p.fleet[0].durability).toBe(p.fleet[0].maxDurability);
-    expect(p.gold).toBe(gold);
+    expect(p.gold).toBe(gold - repairFee);
     expect(p.escortProtection).toBe(true);
     expect(p.revivalProtection).toBe(false);
     g.leaveRevivalIsland();
@@ -178,7 +179,7 @@ describe('sea strategy effects', () => {
     g.resolveLanding();
     expect(p.escortProtection).toBe(false);
     expect(p.revivalProtection).toBe(false);
-    expect(p.gold).toBe(gold);
+    expect(p.gold).toBe(gold - repairFee);
     g.state.currentPlayer = 0;
     g.state.phase = 'moving';
     g.resolveLanding();

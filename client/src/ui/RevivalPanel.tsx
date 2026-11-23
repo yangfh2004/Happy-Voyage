@@ -1,4 +1,4 @@
-import { shipName, type GameState } from '@happy-voyage/shared';
+import { REPAIR_GOLD_PER_POINT, shipName, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
 
@@ -18,10 +18,12 @@ export function RevivalPanel({ state }: { state: GameState }) {
         <h2 id="revival-title">{t('Harbor of Renewal', '复苏港湾')}</h2>
       </div>
     </div>
+    <p>{t('Repairs cost {rate}g per durability point. Repairs are automatic, limited by your gold.', '每点耐久修理费为 {rate} 金币。自动修理，费用以现有金币为限。', { rate: REPAIR_GOLD_PER_POINT })}</p>
     <dl className="revival-tally">
       <div><dt>{t('Durability restored', '恢复耐久')}</dt><dd>{t('{restored} of {damage}', '{restored} / {damage}', { restored, damage })}</dd></div>
       <div><dt>{t('Repair fee paid', '已付修理费')}</dt><dd>{t('{goldSpent}g', '{goldSpent} 金币', { goldSpent })}</dd></div>
     </dl>
+    {restored < damage && <p className="revival-note">{t('Not enough gold for a full repair. Unrepaired damage: {remaining}.', '金币不足，无法全部修复。剩余损伤：{remaining}。', { remaining: damage - restored })}</p>}
     <h3 id="revival-fleet">{t('Fleet condition', '舰队状况')}</h3>
     {fleet.length ? <ul className="revival-fleet" aria-labelledby="revival-fleet">
       {fleet.map((ship) => <li key={ship.id}>

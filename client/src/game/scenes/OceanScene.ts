@@ -25,7 +25,7 @@ const SPECIAL_HELP: Record<string, [string, string]> = {
   skeleton: ['Buy and sell second-hand ships.', '买卖二手船。'],
   treasure: ['Buy lottery numbers and match the draw to win gold.', '购买彩票号码，匹配开奖赢取金币。'],
   mist: ['Duel a hermit to learn a strategy card.', '与隐士对决，学习谋略卡。'],
-  revival: ['Pay for fleet repairs and block the next sea hazard.', '付费修理舰队，并抵挡下一次海上灾难。'],
+  revival: ['Automatic fleet repairs at 2g per durability, limited by your gold.', '自动修理舰队，每点耐久花费2金币，费用以现有金币为限。'],
   nightless: ['Buy and sell cargo at changing market prices.', '按变化的市场价格买卖货物。'],
   wind: ['Exchange fleet cargo for more valuable native goods.', '用船上货物交换更有价值的当地特产。'],
   dragonSnake: ['Recruit a captain and their ships into your fleet.', '招募船长与船只加入舰队。'],
