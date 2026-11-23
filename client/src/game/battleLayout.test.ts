@@ -18,11 +18,19 @@ describe('battlefield layout', () => {
 
   it('puts attackers below defenders in portrait and preserves landscape orientation', () => {
     const portrait = battleLayout(390, 844), landscape = battleLayout(1440, 900);
-    expect(portrait.angle).toBe(-90);
+    expect(portrait.angle).toBe(0);
     expect(battleToScreen(portrait, { x: 160, y: 450 }).y).toBeGreaterThan(battleToScreen(portrait, { x: 1440, y: 450 }).y);
-    expect(portrait.zoom * 1600).toBeCloseTo(652);
+    expect(portrait.bounds.height).toBeCloseTo(portrait.zoom * 1600 * Math.SQRT1_2);
     expect(landscape.angle).toBe(0);
     expect(battleToScreen(landscape, { x: 160, y: 450 }).x).toBeLessThan(battleToScreen(landscape, { x: 1440, y: 450 }).x);
+  });
+
+  it.each([[390, 844], [1280, 720]])('projects height screen-up independently of orientation at %sx%s', (width, height) => {
+    const layout = battleLayout(width, height);
+    const sea = battleToScreen(layout, { x: 500, y: 400 });
+    const mast = battleToScreen(layout, { x: 500, y: 400, z: 100 });
+    expect(mast.x).toBe(sea.x);
+    expect(sea.y - mast.y).toBeCloseTo(100 * Math.SQRT1_2 * layout.zoom);
   });
 
   it.each([.1, .409, 1, 2])('keeps a 44 screen-pixel tap diameter at scale %s', (zoom) => {
