@@ -35,7 +35,7 @@ export interface BattleGroup {
   moveHeading?: number;
   formingTicks?: number;
   progress?: Record<number, { error: number; tick: number }>;
-  detours?: Record<number, { otherId: number; x: number; y: number; side: number; tick: number } | undefined>;
+  slotShipIds?: number[];
   order: BattleOrder;
 }
 export interface BattleShip extends Ship {
@@ -93,8 +93,7 @@ const bearing = (a: { x: number; y: number }, b: { x: number; y: number }) => Ma
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const clearance = (s: { type: ShipType }) => BATTLE_STATS[s.type].radius + 32;
 
-function separate(ships: { x: number; y: number; type: ShipType; side?: BattleSide; id?: number; groupId?: number }[], padding = 0, retreating = false, groups: BattleGroup[] = []): void {
-  const leaders = new Map(groups.map(g => [g.id, g.leaderId]));
+function separate(ships: { x: number; y: number; type: ShipType; side?: BattleSide; groupId?: number }[], padding = 0, retreating = false): void {
   const constrain = (s: typeof ships[number]) => {
     const radius = clearance(s) + padding;
     s.x = clamp(s.x, retreating && s.side === 'attacker' ? -100 : radius, BATTLE_FIELD.width - radius);
@@ -105,6 +104,7 @@ function separate(ships: { x: number; y: number; type: ShipType; side?: BattleSi
     let overlap = 0;
     for (let i = 0; i < ships.length; i++) for (let j = i + 1; j < ships.length; j++) {
       const a = ships[i], b = ships[j];
+      if (a.groupId !== undefined && a.groupId === b.groupId && a.side === b.side) continue;
       const dx = b.x - a.x, dy = b.y - a.y;
       const length = Math.hypot(dx, dy);
       const penetration = clearance(a) + clearance(b) + padding * 2 - length;
@@ -113,10 +113,9 @@ function separate(ships: { x: number; y: number; type: ShipType; side?: BattleSi
       const direction = (i * ships.length + j) * 2.399963229728653;
       const nx = length > .001 ? dx / length : Math.cos(direction);
       const ny = length > .001 ? dy / length : Math.sin(direction);
-      const leaderId = a.groupId !== undefined && a.groupId === b.groupId ? leaders.get(a.groupId) : undefined;
-      const share = leaderId === undefined ? .5 : leaderId === a.id ? 0 : leaderId === b.id ? 1 : .5;
-      a.x -= nx * penetration * share; a.y -= ny * penetration * share;
-      b.x += nx * penetration * (1 - share); b.y += ny * penetration * (1 - share);
+      const push = penetration * .5;
+      a.x -= nx * push; a.y -= ny * push;
+      b.x += nx * push; b.y += ny * push;
       constrain(a); constrain(b);
     }
     if (overlap < .1) break;
@@ -151,7 +150,11 @@ function refreshGroups(battle: BattleState): void {
   battle.groups = battle.groups.filter(group => {
     const members = groupMembers(battle, group);
     group.shipIds = members.map(s => s.id);
-    if (members.length >= 2) { group.leaderId = members[0].id; return true; }
+    if (members.length >= 2) {
+      group.leaderId = members[0].id;
+      if (group.slotShipIds?.length !== members.length || group.slotShipIds[0] !== group.leaderId || group.slotShipIds.some(id => !members.some(s => s.id === id))) assignGroupSlots(battle, group);
+      return true;
+    }
     for (const s of members) {
       delete s.groupId;
       s.order = group.order.type === 'free' ? { type: 'move', x: s.x, y: s.y } : { ...group.order };
@@ -176,11 +179,31 @@ function groupOffsets(battle: BattleState, group: BattleGroup) {
   const rankSize = Math.ceil(members.length / ranks);
   const across = (i: number) => (i % 2 ? 1 : -1) * Math.ceil(i / 2) * spacing;
   const a = group.heading * Math.PI / 180, cos = Math.cos(a), sin = Math.sin(a);
-  return members.map((ship, i) => {
+  const offsets: { ship: BattleShip; x: number; y: number }[] = [];
+  let minX = 0, maxX = 0, minY = 0, maxY = 0;
+  for (let i = 0; offsets.length < members.length && i < members.length ** 2; i++) {
     const x = group.formation === 'column' ? -(i % rankSize) * spacing : group.formation === 'spread' ? -Math.floor(i / columns) * spacing : -Math.floor(i / rankSize) * spacing;
     const y = group.formation === 'line' ? across(i % rankSize) : group.formation === 'spread' ? (i % columns) * spacing : across(Math.floor(i / rankSize));
-    return { ship, x: x * cos - y * sin, y: x * sin + y * cos };
-  });
+    const px = x * cos - y * sin, py = x * sin + y * cos;
+    const nextMinX = Math.min(minX, px), nextMaxX = Math.max(maxX, px), nextMinY = Math.min(minY, py), nextMaxY = Math.max(maxY, py);
+    if (nextMaxX - nextMinX > BATTLE_FIELD.width - margin * 2 || nextMaxY - nextMinY > BATTLE_FIELD.height - margin * 2) continue;
+    offsets.push({ ship: members[offsets.length], x: px, y: py });
+    minX = nextMinX; maxX = nextMaxX; minY = nextMinY; maxY = nextMaxY;
+  }
+  const byId = new Map(members.map(s => [s.id, s]));
+  return offsets.map((p, i) => ({ ...p, ship: byId.get(group.slotShipIds?.[i] ?? p.ship.id) ?? p.ship }));
+}
+
+function assignGroupSlots(battle: BattleState, group: BattleGroup): void {
+  const a = group.heading * Math.PI / 180, sin = Math.sin(a), cos = Math.cos(a);
+  const lateral = (p: { x: number; y: number }) => -p.x * sin + p.y * cos;
+  const members = groupMembers(battle, group).filter(s => s.id !== group.leaderId).sort((a, b) => lateral(a) - lateral(b) || a.id - b.id);
+  delete group.slotShipIds;
+  const slots = groupOffsets(battle, group).map((p, i) => ({ ...p, i })).slice(1).sort((a, b) => lateral(a) - lateral(b) || a.i - b.i);
+  group.slotShipIds = [group.leaderId];
+  delete group.progress;
+  group.formingTicks = 0;
+  for (const [i, slot] of slots.entries()) group.slotShipIds[slot.i] = members[i].id;
 }
 
 function groupAnchor(battle: BattleState, group: BattleGroup, point: { x: number; y: number }) {
@@ -193,7 +216,10 @@ function groupAnchor(battle: BattleState, group: BattleGroup, point: { x: number
 
 export function battleGroupSlots(battle: BattleState, group: BattleGroup) {
   const leader = battle.ships.find(s => s.side === group.side && s.id === group.leaderId)!;
-  return groupOffsets(battle, group).map(p => ({ shipId: p.ship.id, x: leader.x + p.x, y: leader.y + p.y }));
+  const anchor = groupAnchor(battle, group, leader);
+  return groupOffsets(battle, group).map(p => ({ shipId: p.ship.id,
+    x: clamp(anchor.x + p.x, clearance(p.ship), BATTLE_FIELD.width - clearance(p.ship)),
+    y: clamp(anchor.y + p.y, clearance(p.ship), BATTLE_FIELD.height - clearance(p.ship)) }));
 }
 
 function moveGroups(battle: BattleState): void {
@@ -250,43 +276,6 @@ function moveGroups(battle: BattleState): void {
       const limit = error < 1 ? speed : s.speed * 16;
       const magnitude = Math.hypot(vx, vy);
       if (magnitude > limit) { vx *= limit / magnitude; vy *= limit / magnitude; }
-      if (error >= 1 && magnitude > 0) {
-        const length = Math.hypot(ex, ey), ux = ex / length, uy = ey / length;
-        const obstacle = battle.ships.filter(other => other !== s && active(other)).map(other => {
-          const dx = other.x - s.x, dy = other.y - s.y;
-          return { other, along: dx * ux + dy * uy, across: dx * -uy + dy * ux, radius: clearance(s) + clearance(other) + 8 };
-        }).filter(p => p.along > 0 && p.along < Math.min(length, p.radius + limit / 2) && Math.abs(p.across) < p.radius)
-          .sort((a, b) => a.along - b.along || a.other.id - b.other.id)[0];
-        group.detours ??= {};
-        let detour = group.detours[s.id];
-        if (detour && (distance(s, detour) < 4 || !battle.ships.some(other => other.id === detour.otherId && active(other)))) {
-          delete group.detours[s.id]; detour = undefined;
-        }
-        if (obstacle && (!detour || battle.tick - detour.tick >= 2 / TICK)) {
-          const radius = clearance(s);
-          const radial = Math.atan2(s.y - obstacle.other.y, s.x - obstacle.other.x);
-          const routes = [-1, 1].map(side => {
-            const theta = radial + side * Math.PI / 4;
-            const point = { x: clamp(obstacle.other.x + Math.cos(theta) * obstacle.radius * 1.3, radius, BATTLE_FIELD.width - radius),
-              y: clamp(obstacle.other.y + Math.sin(theta) * obstacle.radius * 1.3, radius, BATTLE_FIELD.height - radius) };
-            const dx = point.x - s.x, dy = point.y - s.y;
-            const gap = Math.min(...battle.ships.filter(other => other !== s && other !== obstacle.other && active(other)).map(other => {
-              const t = clamp(((other.x - s.x) * dx + (other.y - s.y) * dy) / (dx * dx + dy * dy || 1), 0, 1);
-              return Math.hypot(other.x - s.x - t * dx, other.y - s.y - t * dy) - clearance(s) - clearance(other);
-            }), distance(point, obstacle.other) - clearance(s) - clearance(obstacle.other));
-            return { ...point, side, gap };
-          }).sort((a, b) => a.gap >= -.1 && b.gap >= -.1 ? distance(a, slot) - distance(b, slot) : b.gap - a.gap);
-          detour = group.detours[s.id] = { ...routes[0], otherId: obstacle.other.id, tick: battle.tick };
-        }
-        if (detour) {
-          const dx = detour.x - s.x, dy = detour.y - s.y;
-          const distance = Math.hypot(dx, dy);
-          if (distance > .001) {
-            const scale = Math.min(limit, distance / TICK) / distance;
-            vx = dx * scale; vy = dy * scale;
-          }
-        }
-      }
       const desiredHeading = error < 8 || magnitude < 1 ? group.heading : Math.atan2(vy, vx) * 180 / Math.PI;
       s.heading = angle(s.heading + clamp(angle(desiredHeading - s.heading), -BATTLE_STATS[s.type].turn * TICK, BATTLE_STATS[s.type].turn * TICK));
       s.vx = vx; s.vy = vy; s.x += vx * TICK; s.y += vy * TICK;
@@ -338,6 +327,7 @@ export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleC
     if (order.type === 'move') group.moveHeading = distance(leader, order) > 1 ? bearing(leader, order) : leader.heading;
     battle.groups.push(group);
     for (const s of ships) { s.groupId = group.id; s.order = { ...order }; s.charge = false; }
+    assignGroupSlots(battle, group);
     return;
   }
   const spacing = Math.max(0, ...ships.map((s) => clearance(s) * 2 + 24)) * 1.5;
@@ -420,7 +410,7 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
     if (s.x < 0) { s.escaped = true; continue; }
     s.reload = Math.max(0, s.reload - TICK);
   }
-  separate(battle.ships.filter(active), 0, battle.retreating, battle.groups);
+  separate(battle.ships.filter(active), 0, battle.retreating);
   for (const s of battle.ships.filter(active)) {
     if (s.reload > 0 || (s.side === 'defender' && battle.ambush && battle.tick < 8 / TICK)) continue;
     const stats = BATTLE_STATS[s.type];

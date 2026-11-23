@@ -56,7 +56,7 @@ describe('real-time battle', () => {
     }
   });
 
-  it.each(['easy', 'normal', 'hard'] as const)('keeps both fleets separated throughout a full %s AI battle', (difficulty) => {
+  it.each(['easy', 'normal', 'hard'] as const)('keeps independent ships separated throughout a full %s AI battle', (difficulty) => {
     const fleet = (start: number) => Array.from({ length: 7 }, (_, i) => {
       const type = (['warship', 'explorer', 'cargo'] as const)[i % 3];
       return { ...ship(start + i), ...SHIP_TYPES[type], type };
@@ -69,6 +69,7 @@ describe('real-time battle', () => {
       const live = battle.ships.filter((s) => !s.sunk && !s.escaped);
       for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
         const a = live[i], b = live[j];
+        if (a.groupId !== undefined && a.groupId === b.groupId && a.side === b.side) continue;
         worstOverlap = Math.max(worstOverlap, BATTLE_STATS[a.type].radius + BATTLE_STATS[b.type].radius + 64 - Math.hypot(a.x - b.x, a.y - b.y));
       }
     }

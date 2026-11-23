@@ -21,6 +21,31 @@ function aligned(formation: Formation, count = 5) {
 }
 
 describe('persistent battle formations', () => {
+  it('assigns lateral slots by position with id ties, independent of fleet array order', () => {
+    const b = createBattle(setup());
+    const ys = [675, 600, 600, 100, 900];
+    members(b).forEach((s, i) => { s.y = ys[i]; });
+    const reversed = JSON.parse(JSON.stringify(b)) as BattleState;
+    reversed.ships.reverse();
+    for (const battle of [b, reversed]) issueCommand(battle, 'attacker', { type: 'free', shipIds: [1, 2, 3, 4, 5], formation: 'line' });
+    const slots = battleGroupSlots(b, b.groups[0]);
+    expect(slots[0].shipId).toBe(1);
+    expect(slots.slice(1).sort((a, b) => a.y - b.y).map(s => s.shipId)).toEqual([4, 2, 3, 5]);
+    expect(battleGroupSlots(reversed, reversed.groups[0])).toEqual(slots);
+  });
+
+  it('lets forming group mates pass through one another while moving straight to slots', () => {
+    const b = aligned('line', 2);
+    const [leader, follower] = members(b);
+    follower.x = leader.x; follower.y = leader.y;
+    stepBattle(b);
+    const slot = battleGroupSlots(b, b.groups[0]).find(s => s.shipId === follower.id)!;
+    expect(follower.x).toBe(leader.x);
+    expect(follower.y).toBeGreaterThan(leader.y);
+    expect(Math.hypot(follower.x - leader.x, follower.y - leader.y)).toBeLessThan(10);
+    expect(follower.vx * (slot.y - follower.y) - follower.vy * (slot.x - follower.x)).toBeCloseTo(0);
+  });
+
   it.each(['line', 'column', 'spread'] as const)('forms a %s from the real spawn without ships blocking each other', formation => {
     const initial = setup();
     initial.attackers[1].signature = true;

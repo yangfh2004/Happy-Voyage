@@ -13,8 +13,9 @@ export function destinationSlots(battle: BattleState, side: BattleSide, shipIds:
   const leader = battle.ships.find(s => s.side === side && s.id === group.leaderId)!;
   const heading = Math.atan2(goal.y - leader.y, goal.x - leader.x);
   const turn = heading - group.heading * Math.PI / 180, cos = Math.cos(turn), sin = Math.sin(turn);
-  return battleGroupSlots(battle, group).map(slot => {
-    const x = slot.x - leader.x, y = slot.y - leader.y;
+  const slots = battleGroupSlots(battle, group), anchor = slots[0];
+  return slots.map(slot => {
+    const x = slot.x - anchor.x, y = slot.y - anchor.y;
     return { x: goal.x + x * cos - y * sin, y: goal.y + x * sin + y * cos };
   });
 }
