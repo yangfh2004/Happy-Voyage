@@ -241,6 +241,10 @@ describe('build menu', () => {
     state.phase = 'awaitingBuild';
     let html = renderToStaticMarkup(<TransferContents state={state} />);
     expect(html).toContain('No docked ships.');
+    expect(html).not.toContain('Dock ships here for free repairs');
+    state.buildings[node.id].shipyard = 1;
+    html = renderToStaticMarkup(<TransferContents state={state} />);
+    expect(html).toContain('Dock ships here for free repairs at the start of your next turn.');
     expect(html).toContain('AUTO load specialties');
     state.docks[node.id].push(...player.fleet.splice(1));
     player.fleet[0].cargo = { Wine: 3 };

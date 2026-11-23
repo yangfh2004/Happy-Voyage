@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import dialogPolyfill from 'dialog-polyfill';
-import { GOODS, cargoLoad, goodName, nodeName, playerName, shipName, type GameState, type Good } from '@happy-voyage/shared';
+import { GOODS, cargoLoad, colonyCanRepair, goodName, nodeName, playerName, shipName, type GameState, type Good } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { gameController } from '../game/GameController';
 import { StatTooltip } from './StatTooltip';
@@ -28,6 +28,7 @@ export function TransferContents({ state }: { state: GameState }) {
     <p>{nodeName(state.map[player.position], locale)} · {playerName(player, locale)}</p>
     {error && <p role="alert">{error}</p>}
     <h3>{t('Island dock', '岛屿码头')}</h3>
+    {colonyCanRepair(state, player.position) && <p>{t('Dock ships here for free repairs at the start of your next turn.', '将船只停靠在此，下次回合开始时免费修好。')}</p>}
     {state.docks[player.position].length === 0 && <p>{t('No docked ships.', '没有停靠的船只。')}</p>}
     {state.docks[player.position].map((ship) => <p key={ship.id}>
       {sn(ship.name)} · <StatTooltip stat="cargoCapacity">{t('Cargo', '货物')} {cargoLoad(ship)}/{ship.cargoCapacity}</StatTooltip>{' '}

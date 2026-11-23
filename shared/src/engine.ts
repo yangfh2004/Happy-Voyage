@@ -9,7 +9,7 @@ import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { HERMITS, NIM_MAX_TAKE, hermitStoneTake, type HermitId, type MistResult } from './mist';
 import { CAPTAINS, MAX_CAPTAINS, recruitOffers, aiRecruitChoice } from './captains';
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyProduction } from './buildings';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyProduction, colonyCanRepair } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
 import { seaEventTx } from './seaEvents';
@@ -976,7 +976,7 @@ export class GameEngine extends GameView {
         kind = aiBuildingChoice(this.state, this.currentPlayer);
       }
       for (const ship of [...this.state.docks[player.position]]) {
-        if (ship.durability === ship.maxDurability || !buildingLevel(this.state, player.position, 'repairYard')) this.boardShip(ship.id);
+        if (ship.durability === ship.maxDurability || !colonyCanRepair(this.state, player.position)) this.boardShip(ship.id);
       }
       const ship = aiShipChoice(player, (type) => this.canBuildShip(type));
       if (ship) this.buildShip(ship);
@@ -1500,13 +1500,13 @@ export class GameEngine extends GameView {
 
   private repairDockedShips(): void {
     for (const node of this.state.map) {
-      if (this.state.owners[node.id] !== this.currentPlayer.id || !buildingLevel(this.state, node.id, 'repairYard')) continue;
+      if (this.state.owners[node.id] !== this.currentPlayer.id || !colonyCanRepair(this.state, node.id)) continue;
       let repaired = 0;
       for (const ship of this.state.docks[node.id]) {
         repaired += ship.maxDurability - ship.durability;
         ship.durability = ship.maxDurability;
       }
-      if (repaired > 0) this.log(tx("{p}'s repair yard at {n} restores {r} docked ship durability for free.", '{p} 在{n}的修船厂免费为停靠的船只恢复 {r} 点耐久。', { p: ref.player(this.currentPlayer.id), n: ref.node(node.id), r: repaired }));
+      if (repaired > 0) this.log(tx("{p}'s colony at {n} restores {r} docked ship durability for free.", '{p} 在{n}的殖民地免费为停靠的船只恢复 {r} 点耐久。', { p: ref.player(this.currentPlayer.id), n: ref.node(node.id), r: repaired }));
     }
   }
 
