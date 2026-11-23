@@ -172,8 +172,11 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
     if (node.id === player.position) continue;
     const pay = wyvern && node.id === player.homePort ? salary : 0;
     const cash = player.gold + pay;
+    const repairFee = node.special === 'revival'
+      ? Math.min(repair, Math.floor(Math.max(0, cash) / REPAIR_GOLD_PER_POINT)) * REPAIR_GOLD_PER_POINT
+      : 0;
     const score = pay + landing(node, cash, true) +
-      (roundsLeft(state) > 0 ? 0.55 * spinValue(node.id, cash) : 0);
+      (roundsLeft(state) > 0 ? 0.55 * spinValue(node.id, cash - repairFee) : 0);
     if (score > bestScore) {
       best = node.id;
       bestScore = score;
