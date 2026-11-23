@@ -3,6 +3,40 @@ import { GameEngine, replayBattle, battleResult } from '@happy-voyage/shared';
 import { BattleSession } from './BattleSession';
 
 describe('live battle commands', () => {
+  it.each(['move', 'attack', 'free'] as const)('reissues a selected group %s order when its formation changes', type => {
+    const engine = new GameEngine({ players: [{ name: 'Human', color: 0, isAI: false }, { name: 'AI', color: 1, isAI: true }], rng: () => .5 });
+    const node = engine.state.map.find(n => n.kind === 'island')!;
+    engine.state.owners[node.id] = 1;
+    engine.currentPlayer.position = node.id;
+    engine.state.phase = 'awaitingToll'; engine.fight();
+    const session = new BattleSession(engine.state.pendingBattle!, engine.state.players);
+    const shipIds = session.battle.ships.filter(s => s.side === 'attacker').map(s => s.id);
+    const order = type === 'move' ? { type, x: 1300, y: 675 } : type === 'attack' ? { type, targetId: engine.state.pendingBattle!.setup.defenders[0].id } : { type };
+    session.command({ ...order, shipIds, formation: 'line' });
+    session.changeFormation(shipIds, 'column');
+    expect(session.battle.groups[0]).toMatchObject({ formation: 'column', order });
+    expect(session.log.at(-1)!.cmd).toEqual({ ...order, shipIds, formation: 'column' });
+    const count = session.log.length;
+    session.changeFormation([], 'spread'); session.changeFormation([shipIds[0]], 'spread');
+    expect(session.log).toHaveLength(count);
+  });
+
+  it('forms a holding group from an ungrouped selection', () => {
+    const engine = new GameEngine({ players: [{ name: 'Human', color: 0, isAI: false }, { name: 'AI', color: 1, isAI: true }], rng: () => .5 });
+    const node = engine.state.map.find(n => n.kind === 'island')!;
+    engine.state.owners[node.id] = 1; engine.currentPlayer.position = node.id;
+    engine.state.phase = 'awaitingToll'; engine.fight();
+    const session = new BattleSession(engine.state.pendingBattle!, engine.state.players);
+    const ids = session.battle.ships.filter(s => s.side === 'attacker').map(s => s.id);
+    session.changeFormation(ids, 'spread');
+    expect(session.battle.groups[0]).toMatchObject({ formation: 'spread', order: { type: 'free' } });
+    const target = session.battle.ships.find(s => s.side === 'defender')!;
+    session.command({ type: 'attack', shipIds: ids, targetId: target.id });
+    target.sunk = true;
+    session.changeFormation(ids, 'line');
+    expect(session.log.at(-1)!.cmd).toMatchObject({ type: 'free', formation: 'line' });
+  });
+
   it('records commands before their tick and matches replay exactly', () => {
     const engine = new GameEngine({ players: [{ name: 'Human', color: 0, isAI: false }, { name: 'AI', color: 1, isAI: true, aiDifficulty: 'hard' }] });
     const node = engine.state.map.find((n) => n.kind === 'island')!;

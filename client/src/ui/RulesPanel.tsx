@@ -25,6 +25,7 @@ export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaig
         <div className="rules-heading"><h2 id="rules-title">{locale === 'zh' ? '玩法说明' : 'How to play'}</h2><button ref={close} onClick={onClose}>{locale === 'zh' ? '关闭' : 'Close'}</button></div>
         {locale === 'zh' ? <RulesZh config={config} islandCount={islandCount} campaign={campaign} /> : <>
         <p>Spin the compass and sail <strong>clockwise</strong> by the number of stops it shows. The arrows show the way.</p>
+        <p>In command battles, orders to multiple ships keep them in formation at the slowest ship's speed. Individual orders detach ships. Changing formation preserves the selected group's order; arrived or free-fire groups hold position.</p>
         <dl>
           <dt>⚑ Ten national home ports</dt><dd>Each navigator starts at their nation’s home port. Collect {config.homeSalary}g when passing or landing on your own port. Other ports charge {SEA_RULES.foreignTax}g, paid to their navigator or to the crown if no active navigator represents that nation.</dd>
           <dt><svg width="23" height="23" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="22" fill="#e6cb75"/><circle cx="23" cy="23" r="16" fill="#79b956"/><circle cx="19" cy="18" r="8" fill="#4c9f50"/></svg> Islands</dt><dd>Your first landing on a neutral island automatically claims it for free. Rivals pay toll or attack your defenders (docked ships, else your fleet). Command battles last up to 90 seconds; auto battles up to three volleys. Defeating defenders takes the colony; attacking defeat costs double toll. Retreat by either side is defeat; timeout is a draw and sends both fleets home. Fleets starting with 2+ ships withdraw after losing half (rounded up) or when the flagship reaches 25% durability. The gold-trim signature ship is flagship; otherwise use highest maximum durability, ties by lowest id. Ships beyond the loss cap survive at 1 durability. A lone starting ship fights on and can sink. Survivors keep their damage. Pirates follow the same rules.</dd>
@@ -56,6 +57,7 @@ export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaig
 function RulesZh({ config, islandCount, campaign }: { config: GameConfig; islandCount: number; campaign?: CampaignState | null }) {
   return <>
     <p>转动罗盘，按显示的步数<strong>顺时针</strong>航行。箭头标出了航向。</p>
+    <p>亲自指挥时，多船指令会保持队形，以最慢舰船的速度前进；单船指令使该船离队。切换队形会保留所选编队的原指令，抵达目的地或自由开火时原地保持队形。</p>
     <dl>
       <dt>⚑ 十个国家的母港</dt><dd>每位航海家从本国母港出发。经过或停靠自己的母港时领取 {config.homeSalary} 金币。其他港口收取 {SEA_RULES.foreignTax} 金币税金，交给该国的航海家；若该国没有在场的航海家，则交给王室。</dd>
       <dt><svg width="23" height="23" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="22" fill="#e6cb75"/><circle cx="23" cy="23" r="16" fill="#79b956"/><circle cx="19" cy="18" r="8" fill="#4c9f50"/></svg> 岛屿</dt><dd>首次抵达中立岛屿即免费占领。对手停靠殖民地须缴纳过路费或攻击守军（优先为停靠船只，否则为舰队）。亲自指挥最多 90 秒，自动结算最多齐射三轮。击败守军即可夺取殖民地，进攻方战败须缴纳双倍过路费。双方均可撤退认输；超时平局则各自归队。开战时有两艘以上的舰队，损失半数船只（向上取整）或旗舰耐久降至 25% 时自动撤退。金边专属船为旗舰；若无则选耐久上限最高者，同值取编号最小者。超过损失上限的船只保留 1 点耐久。开战时仅有一艘船则战斗到底，可被击沉。幸存船只保留损伤。海盗遵循相同规则。</dd>
