@@ -4,6 +4,27 @@ import { RoomMatch } from './roomMatch';
 
 afterEach(() => vi.useRealTimers());
 
+it('synchronizes validated human retreat settings through room revisions and snapshots', () => {
+  const seats: RoomPick[] = [{ name: 'Captain', nation: 'Spain' }, { name: 'Rival', nation: 'Portugal' }];
+  const publish = vi.fn();
+  const match = new RoomMatch(seats, { mode: 'conquest', difficulty: 'normal' }, publish, vi.fn(), { rng: () => .5 });
+  const id = match.engine.currentPlayer.id, revision = match.revision;
+  expect(match.engine.currentPlayer.retreatThreshold).toBe('half');
+  expect(() => match.act(1 - id, revision, ['setRetreatThreshold', 'last'])).toThrow('not your turn');
+  expect(() => match.act(id, revision, ['setRetreatThreshold', 'invalid'])).toThrow('Invalid game command');
+  expect(() => match.act(id, revision, ['setRetreatThreshold'])).toThrow('Invalid game command');
+  expect(match.revision).toBe(revision);
+  match.act(id, revision, ['setRetreatThreshold', 'threeQuarters']);
+  expect(match.revision).toBe(revision + 1);
+  expect(JSON.parse(JSON.stringify(match.engine.state)).players[id].retreatThreshold).toBe('threeQuarters');
+  expect(publish).toHaveBeenCalledOnce();
+  expect(() => match.act(id, revision, ['setRetreatThreshold', 'last'])).toThrow('advanced');
+  match.engine.state.phase = 'moving';
+  expect(() => match.act(id, match.revision, ['setRetreatThreshold', 'last'])).toThrow('Cannot change');
+  expect(match.engine.currentPlayer.retreatThreshold).toBe('threeQuarters');
+  match.dispose();
+});
+
 it('allows players online to return only to their own colony', () => {
   const seats: RoomPick[] = [{ name: 'Captain', nation: 'Spain' }, { name: 'Rival', nation: 'Portugal' }];
   const publish = vi.fn();

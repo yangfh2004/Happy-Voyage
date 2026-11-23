@@ -8,6 +8,7 @@ import { isMuted, setMuted, setVolume, sfx, startSoundtrack, type SoundChannel }
 import type { SeaEventResult } from '@happy-voyage/shared';
 import { landingTarget } from './landingTarget';
 import type { BattleLog } from '@happy-voyage/shared';
+import type { RetreatThreshold } from '@happy-voyage/shared';
 
 export interface SeaNotice {
   id: number;
@@ -352,6 +353,12 @@ export class GameController {
 
   useStrategy(id: StrategyId, target?: number): void {
     if (this.canUseStrategy(id, target)) this.perform(target === undefined ? ['useStrategy', id] : ['useStrategy', id, target], () => this.engine!.useStrategy(id, target));
+  }
+
+  setRetreatThreshold(threshold: RetreatThreshold): void {
+    if (this.isHumanTurn('awaitingToll') || this.isHumanTurn('awaitingSpin')) {
+      this.perform(['setRetreatThreshold', threshold], () => { this.engine!.setRetreatThreshold(threshold); this.changed(); });
+    }
   }
 
   fight(): void {

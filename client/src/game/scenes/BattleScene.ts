@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BATTLE_FIELD, TICK, playerName, shipName, type BattleShip, type Formation } from '@happy-voyage/shared';
+import { BATTLE_FIELD, RETREAT_THRESHOLDS, TICK, sinkingCap, playerName, shipName, type BattleShip, type Formation } from '@happy-voyage/shared';
 import { getLocale, pick } from '../../i18n';
 import { gameController } from '../GameController';
 import { BattleSession } from '../BattleSession';
@@ -26,6 +26,8 @@ export class BattleScene extends Phaser.Scene {
   private enemyHud!: Phaser.GameObjects.Text;
   private countdown!: Phaser.GameObjects.Text;
   private selectionCard!: Phaser.GameObjects.Text;
+  private thresholdLabel!: Phaser.GameObjects.Text;
+  private thresholdButtons: Phaser.GameObjects.Text[] = [];
   private help!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
   private buttons: Phaser.GameObjects.Text[] = [];
@@ -90,6 +92,9 @@ export class BattleScene extends Phaser.Scene {
     this.enemyHud = this.add.text(0, 0, '', style).setOrigin(.5, 0);
     this.countdown = this.add.text(0, 0, '', style).setOrigin(.5);
     this.selectionCard = this.add.text(0, 0, '', { ...style, fontSize: '13px' }).setOrigin(.5, 0);
+    this.thresholdLabel = this.add.text(0, 0, text('Auto-withdraw\nafter losing', '损失几艘船后\n自动撤退'), { ...style, fontSize: '11px' }).setOrigin(1, .5).setDepth(3);
+    this.thresholdButtons = RETREAT_THRESHOLDS.map(threshold => this.add.text(0, 0, '', { ...style, fontSize: '11px' }).setOrigin(.5).setDepth(3)
+      .setInteractive({ useHandCursor: true }).on('pointerup', () => this.session.command({ type: 'retreatThreshold', threshold })));
     [this.hud, this.enemyHud, this.countdown, this.selectionCard].forEach(label => label.setDepth(3));
     this.help = this.add.text(0, 0, '', { ...style, fontSize: '13px', color: '#aed0dd' }).setOrigin(.5, 0);
     this.banner = this.add.text(0, 0, '', { ...style, fontSize: '38px', color: '#ffe6ad' }).setOrigin(.5).setDepth(5).setVisible(false);
@@ -381,7 +386,7 @@ export class BattleScene extends Phaser.Scene {
       const reason = !withdrawal ? '' : withdrawal.reason === 'flagship'
         ? own ? text('Flagship crippled — fleet withdraws', '我方旗舰重伤，舰队撤退') : text('Enemy flagship crippled — fleet withdraws', '敌方旗舰重伤，舰队撤退')
         : withdrawal.reason === 'losses'
-          ? own ? text('Half the fleet lost — fleet withdraws', '我方损失半数舰船，舰队撤退') : text('Enemy fleet loses half — withdraws', '敌方损失半数舰船，舰队撤退')
+          ? own ? text('Loss threshold reached — fleet withdraws', '我方损失达到上限，舰队撤退') : text('Enemy loss threshold reached — withdraws', '敌方损失达到上限，舰队撤退')
           : own ? text('Your fleet withdraws', '我方舰队撤退') : text('Enemy fleet withdraws', '敌舰队撤退');
       const result = outcome === 'draw' ? text('Draw', '平局') : win ? text('Victory', '胜利') : text('Defeat', '战败');
       this.banner.setPosition(width / 2, height / 2).setFontSize(width < 600 ? 20 : 28).setText(reason ? `${result}\n${reason}` : result).setVisible(true);
@@ -422,8 +427,10 @@ export class BattleScene extends Phaser.Scene {
       g.fillStyle(color).fillRect(x + 12, 51, (bannerWidth - 24) * hp / Math.max(1, max), 6);
       const name = owner === null ? text('Pirates', '海盗') : playerName(state.players[owner], getLocale());
       const label = index ? this.enemyHud : this.hud;
-      label.setFontSize(compact ? 12 : 15).setPosition(x + bannerWidth / 2 + 7, 12)
-        .setText(`${name}\n${afloat}/${started} ${text('ships', '艘')} · ${hp}/${max}`);
+      const threshold = this.session.battle.retreatThresholds[side];
+      const lossText = started < 2 || threshold === 'last' ? text('Fight to the end', '战斗到底') : text(`Withdraw at ${sinkingCap(fleet.filter(s => s.startedAfloat), threshold)} lost`, `损失 ${sinkingCap(fleet.filter(s => s.startedAfloat), threshold)} 艘撤退`);
+      label.setFontSize(compact ? 11 : 12).setPosition(x + bannerWidth / 2 + 7, 9)
+        .setText(`${name}\n${afloat}/${started} ${text('ships', '艘')} · ${hp}/${max}\n${lossText}`);
     });
     g.fillStyle(0x251e19).fillCircle(width / 2, 35, 29).lineStyle(3, 0xc5a15b).strokeCircle(width / 2, 35, 29);
     g.lineStyle(1, 0x80663b).strokeCircle(width / 2, 35, 24);
@@ -432,6 +439,18 @@ export class BattleScene extends Phaser.Scene {
     this.panel(g, 6, cardY, width - 12, cardH);
     const selected = this.session.battle.ships.filter(s => this.selected.has(s.id) && s.side === this.session.side && !s.sunk && !s.escaped);
     this.selectionCard.setPosition(width / 2, cardY + (short ? 3 : 7)).setFontSize(short ? 11 : compact ? 12 : 15).setText(battleSelectionText(selected, getLocale(), compact && !short));
+    const thresholdY = cardY + cardH + 28, widths = [44, 44, 44, getLocale() === 'en' ? 132 : 90];
+    const rowWidth = 102 + widths.reduce((sum, w) => sum + w + 4, 0);
+    let thresholdX = (width - rowWidth) / 2 + 102;
+    this.thresholdLabel.setPosition(thresholdX - 8, thresholdY);
+    const options = ['1/4', text('Half', '半数'), '3/4', text('Fight to the last ship', '打到最后一艘')];
+    this.thresholdButtons.forEach((button, i) => {
+      const active = this.session.battle.retreatThresholds[this.session.side] === RETREAT_THRESHOLDS[i];
+      this.panel(g, thresholdX, thresholdY - 22, widths[i], 44, active ? 0x81612d : 0x362820);
+      if (button.style.fixedWidth !== widths[i] || button.style.fixedHeight !== 44) button.setFixedSize(widths[i], 44).setPadding(0, 14, 0, 0);
+      button.setText(options[i]).setPosition(thresholdX + widths[i] / 2, thresholdY);
+      thresholdX += widths[i] + 4;
+    });
     const cols = compact ? 3 : 6, step = Math.min((width - 16) / cols, 170);
     this.panel(g, 0, layout.controlsTop, width, height - layout.controlsTop);
     const names = [text('Fleet', '全舰队'), text('Column', '纵队'), text('Line', '横队'), text('Spread', '散开'), this.paused ? text('Resume', '继续') : text('Pause', '暂停'), text('Retreat', '撤退')];

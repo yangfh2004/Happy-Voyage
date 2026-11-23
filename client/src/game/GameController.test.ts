@@ -53,6 +53,17 @@ function humanTurn() {
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
 }
 
+it('routes retreat threshold changes through the human action guard and refreshes the view', () => {
+  controller.newGame(players);
+  const before = controller.getVersion();
+  controller.setRetreatThreshold('quarter');
+  expect(controller.state!.players[0].retreatThreshold).toBe('quarter');
+  expect(controller.getVersion()).toBeGreaterThan(before);
+  controller.state!.phase = 'moving';
+  controller.setRetreatThreshold('last');
+  expect(controller.state!.players[0].retreatThreshold).toBe('quarter');
+});
+
 it('keeps the selected battle mode between campaign stages', () => {
   controller.newCampaign({ stage: 'first-voyage', navigator: { name: 'Human', nation: 'Spain' } }, 'auto');
   expect(controller.state!.config.battleMode).toBe('auto');

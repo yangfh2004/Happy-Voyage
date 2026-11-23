@@ -8,7 +8,7 @@ export function battleLayout(width: number, height: number) {
   const portrait = height > width;
   const fieldWidth = portrait ? BATTLE_FIELD.height : BATTLE_FIELD.width;
   const fieldHeight = (portrait ? BATTLE_FIELD.width : BATTLE_FIELD.height) * CAMERA_45;
-  const hudBottom = height < 450 ? 108 : 140;
+  const hudBottom = height < 450 ? 156 : 188;
   const controlsTop = height - (width < 650 ? 112 : 64);
   const availableHeight = Math.max(1, controlsTop - 8 - hudBottom);
   const zoom = Math.min(Math.max(1, width) / fieldWidth, availableHeight / fieldHeight);

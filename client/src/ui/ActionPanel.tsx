@@ -14,6 +14,7 @@ import { NavigatorPortrait } from './NavigatorPortrait';
 import { seatTag } from './seats';
 import { StatTooltip } from './StatTooltip';
 import { EventBus } from '../game/EventBus';
+import { RetreatThresholdSelector } from './RetreatThresholdSelector';
 
 const BUILDING_SIZES = { en: ['None', 'Small', 'Medium', 'Large'], zh: ['无', '小型', '中型', '大型'] };
 
@@ -220,9 +221,10 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
               '在 90 秒内击败守军即可夺取殖民地。双方均可认输撤退，撤退即战败。战败须缴纳 {g} 金币双倍过路费；超时则平局。', { g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })
             : t('Defeat the defenders within {r} volleys to take the colony. Defeat costs {g}g double toll; a draw sends both fleets home.',
               '在 {r} 轮齐射内击败守军即可夺取殖民地。战败须缴纳 {g} 金币双倍过路费；平局则双方各自归队。', { r: COMBAT.rounds, g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })}
-          {' '}{t('Fleets starting with 2+ ships withdraw after losing half (rounded up) or when their flagship reaches 25% durability. A lone starting ship fights to the end.',
-            '开战时有两艘以上的舰队，损失半数船只（向上取整）或旗舰耐久降至 25% 时自动撤退。开战时仅有一艘的舰队战斗到底。')}
+          {' '}{t('Choose the fraction of your starting fleet to lose before withdrawing (rounded up). The flagship also withdraws at 25% durability, except with Fight to the last ship. A lone starting ship always fights to the end.',
+            '可选择损失开战舰船的几分之几后撤退（向上取整）。旗舰耐久降至 25% 时也会撤退；选择打到最后一艘则关闭这两项自动撤退。开战时仅有一艘的舰队始终战斗到底。')}
         </p>
+        <RetreatThresholdSelector player={player} />
         <div className="row">
           <button className="primary" onClick={() => gameController.payToll()}>{t('Pay toll', '缴纳过路费')} <kbd>P</kbd></button>
           <button onClick={() => gameController.fight()}>{t('Fight', '开战')} <kbd>F</kbd></button>
@@ -274,6 +276,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
             onSettled={() => gameController.finishSpin(spinId)}
           />
           <div>{body}</div>
+          {atHelm && state.phase === 'awaitingSpin' && <RetreatThresholdSelector player={player} />}
         </div>
       )}
       {gameController.waiting && (

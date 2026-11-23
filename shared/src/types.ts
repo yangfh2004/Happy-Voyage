@@ -38,6 +38,7 @@ export interface MapNode {
 export type AIDifficulty = 'easy' | 'normal' | 'hard';
 
 export interface PlayerSetup {
+  retreatThreshold?: import('./withdrawal').RetreatThreshold;
   name: string;
   nation?: string;
   /** Historical navigator id (see NAVIGATORS); their signature ship replaces the starting ship of its type. */

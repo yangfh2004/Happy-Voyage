@@ -1,5 +1,5 @@
 import type { AIDifficulty, BattleOutcome, Ship, ShipType } from './types';
-import { sinkingCap, withdrawalReason, type BattleWithdrawal } from './withdrawal';
+import { isRetreatThreshold, sinkingCap, withdrawalReason, type BattleWithdrawal, type RetreatThreshold } from './withdrawal';
 
 export const TICK = 1 / 20;
 export const BATTLE_FIELD = { width: 2400, height: 1350 } as const;
@@ -12,12 +12,14 @@ export const BATTLE_STATS: Record<ShipType, { turn: number; range: number; reloa
 export type BattleSide = 'attacker' | 'defender';
 export type Formation = 'column' | 'line' | 'spread';
 export type BattleCommand =
+  | { type: 'retreatThreshold'; threshold: RetreatThreshold }
   | { type: 'move'; shipIds: number[]; x: number; y: number; formation?: Formation }
   | { type: 'attack'; shipIds: number[]; targetId: number; formation?: Formation }
   | { type: 'free'; shipIds: number[]; formation?: Formation }
   | { type: 'retreat' };
 export type BattleLog = { tick: number; side: BattleSide; cmd: BattleCommand }[];
 export interface BattleSetup {
+  retreatThresholds?: Partial<Record<BattleSide, RetreatThreshold>>;
   seed: number;
   attackers: Ship[];
   defenders: Ship[];
@@ -66,6 +68,7 @@ export interface Cannonball {
   damage: number;
 }
 export interface BattleState {
+  retreatThresholds: Record<BattleSide, RetreatThreshold>;
   tick: number;
   rng: number;
   ships: BattleShip[];
@@ -81,6 +84,7 @@ export interface BattleState {
 }
 export type BattleControllers = Partial<Record<BattleSide, AIDifficulty>>;
 export interface RealtimeBattleResult {
+  retreatThresholds: Record<BattleSide, RetreatThreshold>;
   outcome: BattleOutcome;
   durability: { id: number; side: BattleSide; durability: number }[];
   attackerSunk: number[];
@@ -142,6 +146,7 @@ export function createBattle(setup: BattleSetup): BattleState {
     sunk: ship.durability <= 0, startedAfloat: ship.durability > 0, escaped: false, order: { type: 'free' }, charge: false,
   }));
   return { tick: 0, rng: setup.seed >>> 0, ships: [...ships(setup.attackers, 'attacker'), ...ships(setup.defenders, 'defender')],
+    retreatThresholds: { attacker: setup.retreatThresholds?.attacker ?? 'half', defender: setup.retreatThresholds?.defender ?? 'half' },
     groups: [], nextGroupId: 1, lastFormations: { attacker: 'line', defender: 'line' },
     cannonballs: [], retreating: false, attackerMultiplier: setup.attackerMultiplier ?? 1, ambush: setup.ambush ?? false, outcome: null, withdrawal: null };
 }
@@ -299,7 +304,7 @@ function resolveWithdrawal(battle: BattleState): void {
   }
   for (const { side, fleet } of fleets) {
     if (!fleet.some((s) => !s.sunk)) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
-    const reason = withdrawalReason(fleet);
+    const reason = withdrawalReason(fleet, battle.retreatThresholds[side]);
     if (reason) { withdraw(battle, { side, reason }); return; }
   }
 }
@@ -315,6 +320,10 @@ export function broadsideBattery(ship: { x: number; y: number; heading: number }
 
 export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleCommand): void {
   if (battle.outcome || (side !== 'attacker' && side !== 'defender')) return;
+  if (cmd.type === 'retreatThreshold') {
+    if (isRetreatThreshold(cmd.threshold)) battle.retreatThresholds[side] = cmd.threshold;
+    return;
+  }
   if (cmd.type === 'retreat') {
     withdraw(battle, { side, reason: 'retreat' });
     return;
@@ -448,7 +457,7 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
       .sort((a, b) => distance(a, ball) - distance(b, ball))[0];
     if (hit) {
       const fleet = battle.ships.filter((s) => s.side === hit.side && s.startedAfloat);
-      const capped = fleet.filter((s) => s.sunk).length >= sinkingCap(fleet);
+      const capped = fleet.filter((s) => s.sunk).length >= sinkingCap(fleet, battle.retreatThresholds[hit.side]);
       hit.durability = Math.max(capped ? 1 : 0, hit.durability - ball.damage);
       hit.sunk = hit.durability === 0;
     }
@@ -463,6 +472,7 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
 export function battleResult(battle: BattleState): RealtimeBattleResult {
   if (!battle.outcome) throw new Error('Battle is not finished');
   return { outcome: battle.outcome, ticks: battle.tick, ...(battle.withdrawal ? { withdrawal: battle.withdrawal } : {}),
+    retreatThresholds: { ...battle.retreatThresholds },
     durability: battle.ships.map((s) => ({ id: s.id, side: s.side, durability: s.durability })),
     attackerSunk: battle.ships.filter((s) => s.side === 'attacker' && s.startedAfloat && s.sunk).map((s) => s.id),
     defenderSunk: battle.ships.filter((s) => s.side === 'defender' && s.startedAfloat && s.sunk).map((s) => s.id) };
