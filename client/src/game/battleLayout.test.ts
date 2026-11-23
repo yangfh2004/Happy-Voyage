@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { battleLayout, battleTapRadius, battleToScreen, isBattleDrag, placeBattleLabel, screenToBattle, type BattleRect } from './battleLayout';
+import { battleLayout, battleTapRadius, battleToScreen, isBattleDrag, pickBattleShip, placeBattleLabel, screenToBattle, type BattleRect } from './battleLayout';
 
 describe('battlefield layout', () => {
   it.each([[390, 844], [1440, 900], [844, 390], [600, 600]])('round-trips coordinates at %sx%s with the whole field between HUD and controls', (width, height) => {
@@ -8,8 +8,8 @@ describe('battlefield layout', () => {
       const screen = battleToScreen(layout, point);
       expect(screen.x).toBeGreaterThanOrEqual(-.001);
       expect(screen.x).toBeLessThanOrEqual(width + .001);
-      expect(screen.y).toBeGreaterThanOrEqual(86 - .001);
-      expect(screen.y).toBeLessThanOrEqual(height - 104 + .001);
+      expect(screen.y).toBeGreaterThanOrEqual(layout.hudBottom - .001);
+      expect(screen.y).toBeLessThanOrEqual(layout.controlsTop - 8 + .001);
       const back = screenToBattle(layout, screen);
       expect(back.x).toBeCloseTo(point.x);
       expect(back.y).toBeCloseTo(point.y);
@@ -18,11 +18,25 @@ describe('battlefield layout', () => {
 
   it('puts attackers below defenders in portrait and preserves landscape orientation', () => {
     const portrait = battleLayout(390, 844), landscape = battleLayout(1440, 900);
-    expect(portrait.angle).toBe(-90);
+    expect(portrait.angle).toBe(0);
     expect(battleToScreen(portrait, { x: 160, y: 450 }).y).toBeGreaterThan(battleToScreen(portrait, { x: 1440, y: 450 }).y);
-    expect(portrait.zoom * 1600).toBeCloseTo(652);
+    expect(portrait.bounds.height).toBeCloseTo(portrait.zoom * 1600 * Math.SQRT1_2);
     expect(landscape.angle).toBe(0);
     expect(battleToScreen(landscape, { x: 160, y: 450 }).x).toBeLessThan(battleToScreen(landscape, { x: 1440, y: 450 }).x);
+  });
+
+  it('keeps portrait G2 hulls at least 70 CSS pixels long without stretching the field', () => {
+    const layout = battleLayout(390, 844);
+    expect(125 * Math.SQRT1_2 * layout.zoom * layout.shipScale).toBeGreaterThanOrEqual(70);
+    expect(layout.bounds.width / layout.bounds.height).toBeCloseTo(900 / (1600 * Math.SQRT1_2));
+  });
+
+  it.each([[390, 844], [1280, 720]])('projects height screen-up independently of orientation at %sx%s', (width, height) => {
+    const layout = battleLayout(width, height);
+    const sea = battleToScreen(layout, { x: 500, y: 400 });
+    const mast = battleToScreen(layout, { x: 500, y: 400, z: 100 });
+    expect(mast.x).toBe(sea.x);
+    expect(sea.y - mast.y).toBeCloseTo(100 * Math.SQRT1_2 * layout.zoom);
   });
 
   it.each([.1, .409, 1, 2])('keeps a 44 screen-pixel tap diameter at scale %s', (zoom) => {
@@ -63,5 +77,37 @@ describe('battlefield layout', () => {
     const crowded = placeBattleLabel(bounds, [bounds], ship, { width: 80, height: 23 }, 18);
     expect(crowded.y).toBeGreaterThanOrEqual(bounds.y);
     expect(crowded.y + crowded.height).toBeLessThanOrEqual(bounds.y + bounds.height);
+  });
+});
+
+describe('projected ship hit targets', () => {
+  const ship = { id: 1, x: 150, y: 250, depth: 250, radius: 10, bounds: { x: 110, y: 140, width: 80, height: 120 } };
+
+  it('hits the sails and castle well above the waterline in both orientations', () => {
+    for (const [width, height] of [[1280, 720], [390, 844]]) {
+      const layout = battleLayout(width, height);
+      const water = battleToScreen(layout, { x: 800, y: 450 });
+      const mast = battleToScreen(layout, { x: 800, y: 450, z: 90 });
+      const candidate = { ...ship, ...water, bounds: { x: water.x - 30, y: mast.y - 5, width: 60, height: water.y - mast.y + 15 } };
+      expect(Math.hypot(mast.x - water.x, mast.y - water.y)).toBeGreaterThan(22);
+      expect(pickBattleShip(mast, [candidate])).toBe(candidate);
+    }
+  });
+
+  it('keeps the 44 px minimum even for small sprites and rejects empty water', () => {
+    const small = { ...ship, bounds: { x: 148, y: 248, width: 4, height: 4 } };
+    expect(pickBattleShip({ x: 172, y: 250 }, [small])).toBe(small);
+    expect(pickBattleShip({ x: 173, y: 250 }, [small])).toBeUndefined();
+    expect(pickBattleShip({ x: 0, y: 0 }, [ship])).toBeUndefined();
+    expect(pickBattleShip({ x: 150, y: 180 }, [])).toBeUndefined();
+  });
+
+  it('prefers visible sprite hits, then frontmost ships and the nearest at equal depth', () => {
+    const front = { ...ship, id: 2, y: 260, depth: 260 };
+    expect(pickBattleShip({ x: 150, y: 180 }, [ship, front])).toBe(front);
+    const near = { ...front, x: 155 };
+    expect(pickBattleShip({ x: 157, y: 180 }, [front, near])).toBe(near);
+    const padded = { ...front, bounds: { x: 145, y: 250, width: 10, height: 10 }, y: 210 };
+    expect(pickBattleShip({ x: 150, y: 200 }, [padded, ship])).toBe(ship);
   });
 });
