@@ -7,7 +7,7 @@ afterEach(() => vi.useRealTimers());
 it('allows players online to return only to their own colony', () => {
   const seats: RoomPick[] = [{ name: 'Captain', nation: 'Spain' }, { name: 'Rival', nation: 'Portugal' }];
   const publish = vi.fn();
-  const match = new RoomMatch(seats, { mode: 'conquest', difficulty: 'normal' }, publish, vi.fn());
+  const match = new RoomMatch(seats, { mode: 'conquest', difficulty: 'normal' }, publish, vi.fn(), { rng: () => 0.5 });
   const { currentPlayer, state } = match.engine;
   const [own, rival] = state.map.filter((node) => node.kind === 'island');
   state.owners[own.id] = currentPlayer.id;
