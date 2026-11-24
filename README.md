@@ -9,9 +9,9 @@ Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, tradin
 
 ## Desktop downloads / 桌面版下载
 
-Get the desktop app from [GitHub Releases](https://github.com/yangfh2004/Happy-Voyage/releases). No installer or internet connection is needed for local play.
+Get the ZIP for your computer from [GitHub Releases](https://github.com/yangfh2004/Happy-Voyage/releases). Each ZIP includes the app and a Chinese gameplay guide PDF (`Happy-Voyage-玩法说明.pdf`). No installer or internet connection is needed for local play. / 每个 ZIP 都包含游戏和中文版 PDF 玩法说明，本机游玩无需安装或联网。
 
-- **Windows (x64):** Download the portable `.exe` and double-click it. / 下载便携版 `.exe` 后双击运行。
+- **Windows (x64):** Download `happy-voyage-win-x64.zip`, extract it, and double-click the portable `.exe`. / 下载并解压 Windows ZIP 后，双击便携版 `.exe`。
 - **macOS:** Download the `arm64` ZIP for Apple silicon or the `x64` ZIP for Intel. Unzip it and open **Happy Voyage.app**. If macOS blocks the first launch, right-click the app and choose **Open**, or use **System Settings → Privacy & Security → Open Anyway**. / Apple 芯片下载 `arm64`，Intel 下载 `x64`。解压后打开应用；若首次运行被拦截，右键选择「打开」，或前往「系统设置 → 隐私与安全性 → 仍要打开」。
 
 Publishing a GitHub release runs the desktop packaging workflow. To add or replace binaries on an existing release, run **Publish desktop builds** in Actions and enter its tag.

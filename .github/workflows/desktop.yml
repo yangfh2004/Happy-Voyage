@@ -11,14 +11,54 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
+  GUIDE_NAME: Happy-Voyage-玩法说明.pdf
 
 concurrency:
   group: desktop-${{ inputs.release_tag || github.event.release.tag_name }}
   cancel-in-progress: false
 
 jobs:
+  guide:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          path: release-source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Print the tagged Chinese gameplay rules
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk poppler-utils
+          npm ci --prefix desktop
+          mkdir -p guide
+          fc-match -f '%{family}\n' 'Noto Sans CJK SC' | grep -Fx 'Noto Sans CJK SC'
+          node desktop/gameplay-guide.mjs release-source/GAMEPLAY.md "guide/$GUIDE_NAME"
+          pdftotext "guide/$GUIDE_NAME" guide/rendered.txt
+          heading="$(sed -n '1s/^# //p' release-source/GAMEPLAY.md)"
+          test -n "$heading"
+          grep -Fx -- "$heading" guide/rendered.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: happy-voyage-guide
+          path: guide/${{ env.GUIDE_NAME }}
+          if-no-files-found: error
+
   package:
+    needs: guide
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -26,12 +66,8 @@ jobs:
         include:
           - platform: windows
             runner: windows-latest
-            extension: exe
           - platform: macos
             runner: macos-latest
-            extension: zip
-    env:
-      RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,21 +108,69 @@ jobs:
           npm ci
           npm test
           npm run package:${{ matrix.platform }}
-      - name: Verify macOS app signatures
+      - uses: actions/download-artifact@v4
+        with:
+          name: happy-voyage-guide
+          path: guide
+      - name: Zip and verify Windows download
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $exe = "happy-voyage-win-x64.exe"
+          $archive = "packages/happy-voyage-win-x64.zip"
+          New-Item -ItemType Directory -Path packages | Out-Null
+          Compress-Archive -LiteralPath @("desktop/dist/$exe", "guide/$env:GUIDE_NAME") -DestinationPath $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath verify
+          if (!(Test-Path -LiteralPath "verify/$exe") -or !(Test-Path -LiteralPath "verify/$env:GUIDE_NAME")) {
+            throw "Windows ZIP is missing the EXE or PDF"
+          }
+      - name: Zip macOS apps and verify signatures after extraction
         if: runner.os == 'macOS'
         shell: bash
         run: |
-          for app in desktop/dist/mac*/'Happy Voyage.app'; do
-            codesign --verify --deep --strict "$app"
-            codesign --display --verbose "$app" 2>&1 | grep -F 'Signature=adhoc'
+          mkdir -p packages
+          for arch in x64 arm64; do
+            if [[ "$arch" == x64 ]]; then
+              app="desktop/dist/mac/Happy Voyage.app"
+            else
+              app="desktop/dist/mac-arm64/Happy Voyage.app"
+            fi
+            stage="$(mktemp -d)"
+            verify="$(mktemp -d)"
+            archive="packages/happy-voyage-mac-$arch.zip"
+            ditto "$app" "$stage/Happy Voyage.app"
+            cp "guide/$GUIDE_NAME" "$stage/"
+            ditto -c -k "$stage" "$archive"
+            ditto -x -k "$archive" "$verify"
+            cmp "guide/$GUIDE_NAME" "$verify/$GUIDE_NAME"
+            codesign --verify --deep --strict "$verify/Happy Voyage.app"
+            codesign --display --verbose "$verify/Happy Voyage.app" 2>&1 | grep -F 'Signature=adhoc'
           done
       - uses: actions/upload-artifact@v4
         with:
-          name: happy-voyage-${{ matrix.platform }}
-          path: desktop/dist/happy-voyage-*.${{ matrix.extension }}
+          name: happy-voyage-package-${{ matrix.platform }}
+          path: packages/*.zip
           if-no-files-found: error
-      - name: Attach binaries to the GitHub release
-        shell: bash
+
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: happy-voyage-package-*
+          path: packages
+          merge-multiple: true
+      - name: Attach the three ZIPs and remove the old standalone Windows EXE
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload --clobber -- "$RELEASE_TAG" desktop/dist/happy-voyage-*.${{ matrix.extension }}
+        run: |
+          gh release upload --repo "$GITHUB_REPOSITORY" --clobber -- "$RELEASE_TAG" \
+            packages/happy-voyage-win-x64.zip packages/happy-voyage-mac-x64.zip packages/happy-voyage-mac-arm64.zip
+          legacy="$(gh release view --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq 'any(.assets[]; .name == "happy-voyage-win-x64.exe")' -- "$RELEASE_TAG")"
+          if [[ "$legacy" == true ]]; then
+            gh release delete-asset --repo "$GITHUB_REPOSITORY" --yes -- "$RELEASE_TAG" happy-voyage-win-x64.exe
+          fi
