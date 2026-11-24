@@ -1,0 +1,92 @@
+name: Publish desktop builds
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing GitHub release tag (for example, v0.1)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ inputs.release_tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            runner: windows-latest
+            extension: exe
+          - platform: macos
+            runner: macos-latest
+            extension: zip
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          path: release-source
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: release-source/package-lock.json
+      - name: Build the tagged web client
+        working-directory: release-source
+        shell: bash
+        env:
+          VITE_SERVER_URL: ${{ vars.RENDER_SERVER_URL || 'https://happy-voyage.onrender.com' }}
+        run: |
+          npm ci
+          npm run build -w client
+          test -s client/dist/index.html
+          test ! -e client/dist/debug.html
+          cp -R client/dist ../client/dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Package desktop app
+        working-directory: desktop
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: |
+          npm ci
+          npm test
+          npm run package:${{ matrix.platform }}
+      - name: Verify macOS app signatures
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          for app in desktop/dist/mac*/'Happy Voyage.app'; do
+            codesign --verify --deep --strict "$app"
+            codesign --display --verbose "$app" 2>&1 | grep -F 'Signature=adhoc'
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: happy-voyage-${{ matrix.platform }}
+          path: desktop/dist/happy-voyage-*.${{ matrix.extension }}
+          if-no-files-found: error
+      - name: Attach binaries to the GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload --clobber -- "$RELEASE_TAG" desktop/dist/happy-voyage-*.${{ matrix.extension }}

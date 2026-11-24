@@ -1,0 +1,37 @@
+{
+  "name": "happy-voyage-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop edition of Happy Voyage",
+  "author": "Happy Voyage contributors",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "package:dir": "electron-builder --dir --publish never",
+    "package:windows": "electron-builder --win portable --x64 --publish never",
+    "package:macos": "electron-builder --mac zip --x64 --arm64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.happyvoyage.game",
+    "productName": "Happy Voyage",
+    "artifactName": "happy-voyage-${os}-${arch}.${ext}",
+    "files": ["main.cjs", "game-files.cjs"],
+    "extraResources": [
+      {
+        "from": "../client/dist",
+        "to": "game",
+        "filter": ["index.html", "assets/**/*"]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.games",
+      "identity": "-",
+      "hardenedRuntime": false
+    }
+  }
+}
