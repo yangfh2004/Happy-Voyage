@@ -5,11 +5,11 @@ Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, tradin
 
 **Play the demo:** https://raw.githack.com/yangfh2004/Happy-Voyage/demo/index.html (latest `main`)
 
-**[玩法规则（中文）](GAMEPLAY.md)** — the single source of truth for gameplay, including campaigns and online rooms. PRs that change gameplay must update it in the same PR.
+**Gameplay rules:** [简体中文 (canonical)](GAMEPLAY.md) · [English](GAMEPLAY.en.md). The Chinese version is the single source of truth, including for campaigns and online rooms. PRs that change gameplay must update the Chinese rules, and any PR that changes them must also update the English translation.
 
 ## Online rooms
 
-On the [public demo](https://raw.githack.com/yangfh2004/Happy-Voyage/demo/index.html), select **Host online room** and share the invite link. The free room server can sleep when idle, so the first connection may take about a minute. See the [online room rules](GAMEPLAY.md#10-电脑对手与在线房间) for how to start and play.
+On the [public demo](https://raw.githack.com/yangfh2004/Happy-Voyage/demo/index.html), select **Host online room** and share the invite link. The free room server can sleep when idle, so the first connection may take about a minute. See the online room rules in [English](GAMEPLAY.en.md#10-computer-opponents-and-online-rooms) or [Chinese](GAMEPLAY.md#10-电脑对手与在线房间) for how to start and play.
 
 ### Local hosting
 
