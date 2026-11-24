@@ -1,10 +1,9 @@
 import Phaser from 'phaser';
-import { BATTLE_FIELD, RETREAT_THRESHOLDS, TICK, sinkingCap, playerName, shipName, type BattleShip, type Formation } from '@happy-voyage/shared';
+import { BATTLE_FIELD, TICK, sinkingCap, playerName, shipName, type BattleShip, type Formation } from '@happy-voyage/shared';
 import { getLocale, pick } from '../../i18n';
 import { gameController } from '../GameController';
 import { BattleSession } from '../BattleSession';
 import { battleNameVisible, battleSelectionText } from '../battleHud';
-import { bindBattleButton } from '../battleButton';
 import { destinationSlots, markerAlpha, selectionPulse, MOVE_MARKER_SECONDS } from '../battleSelection';
 import { sfx } from '../sfx';
 import { battleShipTexture, broadsideMuzzles, prewarmBattleShips, battleShipModel, shipGrade } from '../battleShipArt';
@@ -27,8 +26,6 @@ export class BattleScene extends Phaser.Scene {
   private enemyHud!: Phaser.GameObjects.Text;
   private countdown!: Phaser.GameObjects.Text;
   private selectionCard!: Phaser.GameObjects.Text;
-  private thresholdLabel!: Phaser.GameObjects.Text;
-  private thresholdButtons: Phaser.GameObjects.Text[] = [];
   private help!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
   private buttons: Phaser.GameObjects.Text[] = [];
@@ -93,12 +90,6 @@ export class BattleScene extends Phaser.Scene {
     this.enemyHud = this.add.text(0, 0, '', style).setOrigin(.5, 0);
     this.countdown = this.add.text(0, 0, '', style).setOrigin(.5);
     this.selectionCard = this.add.text(0, 0, '', { ...style, fontSize: '13px' }).setOrigin(.5, 0);
-    this.thresholdLabel = this.add.text(0, 0, text('Auto-withdraw\nafter losing', '损失几艘船后\n自动撤退'), { ...style, fontSize: '11px' }).setOrigin(1, .5).setDepth(3);
-    this.thresholdButtons = RETREAT_THRESHOLDS.map(threshold => {
-      const button = this.add.text(0, 0, '', { ...style, fontSize: '11px' }).setOrigin(.5).setDepth(3).setInteractive({ useHandCursor: true });
-      bindBattleButton(button, () => this.session.command({ type: 'retreatThreshold', threshold }));
-      return button;
-    });
     [this.hud, this.enemyHud, this.countdown, this.selectionCard].forEach(label => label.setDepth(3));
     this.help = this.add.text(0, 0, '', { ...style, fontSize: '13px', color: '#aed0dd' }).setOrigin(.5, 0);
     this.banner = this.add.text(0, 0, '', { ...style, fontSize: '38px', color: '#ffe6ad' }).setOrigin(.5).setDepth(5).setVisible(false);
@@ -444,19 +435,7 @@ export class BattleScene extends Phaser.Scene {
     const selected = this.session.battle.ships.filter(s => this.selected.has(s.id) && s.side === this.session.side && !s.sunk && !s.escaped);
     this.selectionCard.setPosition(width / 2, cardY + (short ? 3 : 7)).setFontSize(short ? 11 : compact ? 12 : 15).setText(battleSelectionText(selected, getLocale(), compact && !short));
     this.panel(g, 0, layout.controlsTop, width, height - layout.controlsTop);
-    const thresholdY = layout.thresholdY, widths = [44, 44, 44, getLocale() === 'en' ? 132 : 90];
-    const rowWidth = 102 + widths.reduce((sum, w) => sum + w + 4, 0);
-    let thresholdX = (width - rowWidth) / 2 + 102;
-    this.thresholdLabel.setPosition(thresholdX - 8, thresholdY);
-    const options = ['1/4', text('Half', '半数'), '3/4', text('Fight to the last ship', '打到最后一艘')];
-    this.thresholdButtons.forEach((button, i) => {
-      const active = this.session.battle.retreatThresholds[this.session.side] === RETREAT_THRESHOLDS[i];
-      this.panel(g, thresholdX, thresholdY - 22, widths[i], 44, active ? 0x81612d : 0x362820);
-      if (button.style.fixedWidth !== widths[i] || button.style.fixedHeight !== 44) button.setFixedSize(widths[i], 44).setPadding(0, 14, 0, 0);
-      button.setText(options[i]).setPosition(thresholdX + widths[i] / 2, thresholdY);
-      thresholdX += widths[i] + 4;
-    });
-    const cols = layout.controlColumns, step = Math.min((width - 16) / cols, 170);
+    const cols = compact ? 3 : 6, step = Math.min((width - 16) / cols, 170);
     const names = [text('Fleet', '全舰队'), text('Column', '纵队'), text('Line', '横队'), text('Spread', '散开'), this.paused ? text('Resume', '继续') : text('Pause', '暂停'), text('Retreat', '撤退')];
     this.buttons.forEach((b, i) => {
       const x = width / 2 + (i % cols - cols / 2) * step + 3, y = layout.controlsTop + 6 + Math.floor(i / cols) * 48;

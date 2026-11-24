@@ -25,6 +25,22 @@ import { gameController } from '../game/GameController';
 import { setLocale } from '../i18n';
 
 describe('retreat selector', () => {
+  it.each(['en', 'zh'] as const)('does not offer retreat settings outside the pre-battle prompt in %s', locale => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }], rng: () => .5 });
+    const node = engine.state.map.find(n => n.kind === 'island')!;
+    engine.currentPlayer.position = node.id; engine.state.owners[node.id] = 0;
+    setLocale(locale);
+    try {
+      for (const phase of ['awaitingSpin', 'moving', 'awaitingBattle', 'awaitingBuild'] as const) {
+        engine.state.phase = phase;
+        const html = renderToStaticMarkup(<ActionPanel state={engine.state} />);
+        expect(html).not.toContain('Auto-withdraw after losing');
+        expect(html).not.toContain('损失几艘船后自动撤退');
+        expect(html).not.toContain('value="quarter"');
+      }
+    } finally { setLocale('en'); }
+  });
+
   it.each(['en', 'zh'] as const)('renders all four choices and the legacy default in the %s battle prompt', locale => {
     const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }], rng: () => .5 });
     const node = engine.state.map.find(n => n.kind === 'island')!;
