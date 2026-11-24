@@ -15,9 +15,8 @@ describe('battlefield layout', () => {
     expect(bounds.y + bounds.height).toBeLessThanOrEqual(layout.controlsTop - 8 + .001);
     expect(bounds.y + bounds.height / 2).toBeGreaterThanOrEqual(layout.hudBottom);
     expect(bounds.y + bounds.height / 2).toBeLessThan(layout.controlsTop);
-    expect(layout.thresholdY - 22).toBeGreaterThanOrEqual(height < 450 ? layout.controlsTop + 54 : 128);
-    expect(layout.thresholdY + 22).toBeLessThanOrEqual(height < 450 ? height : layout.hudBottom);
-    if (height < 450) expect(layout.controlColumns).toBe(6);
+    expect(layout.hudBottom).toBe(height < 450 ? 108 : 140);
+    expect(height - layout.controlsTop).toBe(width < 650 ? 112 : 64);
   });
 
   it.each([[390, 844], [1440, 900], [844, 390], [600, 600]])('round-trips coordinates at %sx%s with the whole field between HUD and controls', (width, height) => {

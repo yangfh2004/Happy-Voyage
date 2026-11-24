@@ -8,18 +8,15 @@ export function battleLayout(width: number, height: number) {
   const portrait = height > width;
   const fieldWidth = portrait ? BATTLE_FIELD.height : BATTLE_FIELD.width;
   const fieldHeight = (portrait ? BATTLE_FIELD.width : BATTLE_FIELD.height) * CAMERA_45;
-  const short = height < 450;
-  const hudBottom = short ? 108 : 188;
-  const controlsTop = height - (short || width < 650 ? 112 : 64);
-  const controlColumns = short ? 6 : width < 650 ? 3 : 6;
-  const thresholdY = short ? controlsTop + 82 : 156;
+  const hudBottom = height < 450 ? 108 : 140;
+  const controlsTop = height - (width < 650 ? 112 : 64);
   const availableHeight = Math.max(1, controlsTop - 8 - hudBottom);
   const zoom = Math.min(Math.max(1, width) / fieldWidth, availableHeight / fieldHeight);
   const left = (width - fieldWidth * zoom) / 2;
   const top = hudBottom + (availableHeight - fieldHeight * zoom) / 2;
   const bounds = { x: left, y: top, width: fieldWidth * zoom, height: fieldHeight * zoom };
   const shipScale = portrait ? Math.max(1, (70 / 1.5) / (125 * CAMERA_45 * zoom)) : 1;
-  return { portrait, zoom, shipScale, hudBottom, x: left, y: top + (portrait ? fieldHeight * zoom : 0), angle: 0, bounds, controlsTop, controlColumns, thresholdY };
+  return { portrait, zoom, shipScale, hudBottom, x: left, y: top + (portrait ? fieldHeight * zoom : 0), angle: 0, bounds, controlsTop };
 }
 
 export function battleToScreen(layout: ReturnType<typeof battleLayout>, point: Point & { z?: number }): Point {

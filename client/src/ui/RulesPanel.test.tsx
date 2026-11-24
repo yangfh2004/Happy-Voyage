@@ -5,6 +5,16 @@ import { setLocale } from '../i18n';
 import { RulesPanel } from './RulesPanel';
 
 describe('repair rules', () => {
+  it.each(['en', 'zh'] as const)('limits withdrawal setting instructions to the pre-battle prompt in %s', locale => {
+    setLocale(locale);
+    try {
+      const html = renderToStaticMarkup(<RulesPanel config={DEFAULT_CONFIG} onClose={() => {}} />);
+      expect(html).toContain(locale === 'en' ? 'Choose this setting in the pre-battle prompt only' : '仅在开战前的交战提示中选择');
+      expect(html).not.toContain('in the command HUD');
+      expect(html).not.toContain('战中更改');
+    } finally { setLocale('en'); }
+  });
+
   it('explains free occupation, paid Revival repairs, docked maintenance, and damage', () => {
     const html = renderToStaticMarkup(<RulesPanel config={DEFAULT_CONFIG} onClose={() => {}} />);
     expect(html).toContain('automatically claims it for free');

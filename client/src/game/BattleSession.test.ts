@@ -3,7 +3,7 @@ import { GameEngine, replayBattle, battleResult } from '@happy-voyage/shared';
 import { BattleSession } from './BattleSession';
 
 describe('live battle commands', () => {
-  it('logs immediate threshold changes and persists them through authoritative settlement', () => {
+  it('preserves legacy threshold commands through replay and authoritative settlement', () => {
     const engine = new GameEngine({ players: [{ name: 'Human', color: 0, isAI: false }, { name: 'AI', color: 1, isAI: true }], rng: () => .5 });
     const node = engine.state.map.find(n => n.kind === 'island')!;
     engine.state.owners[node.id] = 1; engine.currentPlayer.position = node.id;

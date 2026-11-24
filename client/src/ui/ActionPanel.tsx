@@ -277,7 +277,6 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
             onSettled={() => gameController.finishSpin(spinId)}
           />
           <div>{body}</div>
-          {atHelm && state.phase === 'awaitingSpin' && <RetreatThresholdSelector player={player} />}
         </div>
       )}
       {gameController.waiting && (
