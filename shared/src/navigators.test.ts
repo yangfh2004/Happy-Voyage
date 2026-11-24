@@ -37,7 +37,7 @@ describe('navigators', () => {
       }
       expect(flagship.durability).toBe(flagship.maxDurability);
     }
-    expect(state.players[0].fleet.find((ship) => ship.signature)).toMatchObject({ name: 'Turtle Ship', firepower: 35, maxDurability: 150 });
+    expect(state.players[0].fleet.find((ship) => ship.signature)).toMatchObject({ name: 'Turtle Ship', firepower: 38, maxDurability: 150 });
   });
 
   it('rejects an unknown navigator', () => {

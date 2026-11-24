@@ -38,7 +38,7 @@ export const NAVIGATORS = [
   { id: 'verrazzano', name: 'Verrazzano', chineseName: '韦拉扎诺', nation: 'Italy', title: 'Explorer of the New World Coast',
     signatureShip: { name: 'La Dauphine', type: 'explorer', bonus: { speed: 1, cargoCapacity: 20 } } },
   { id: 'yiSunSin', name: 'Yi Sun-sin', chineseName: '李舜臣', nation: 'Korea', title: 'Admiral of the Turtle Ships',
-    signatureShip: { name: 'Turtle Ship', type: 'warship', bonus: { maxDurability: 30, firepower: 5 } } },
+    signatureShip: { name: 'Turtle Ship', type: 'warship', bonus: { maxDurability: 30, firepower: 8 } } },
 ] as const satisfies readonly Navigator[];
 
 export type NavigatorId = (typeof NAVIGATORS)[number]['id'];
