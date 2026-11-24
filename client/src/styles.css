@@ -517,7 +517,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .transfer-goods th, .transfer-goods td { text-align: left; padding: 5px 4px; border-bottom: 1px solid #8d6e6355; }
 .transfer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
 .transfer-actions button { padding: 3px 9px; }
-.transfer-feedback { position: sticky; bottom: -20px; margin: 0 -24px -20px; padding: 0 24px; background: #fdf6e3; border-top: 1px solid #cba654; }
+.transfer-feedback { position: sticky; bottom: 0; margin: 0 -24px -20px; padding: 0 24px; background: #fdf6e3; border-top: 1px solid #cba654; }
 .transfer-feedback:empty { display: none; }
 .transfer-feedback p { margin: 0; padding: 8px 0; font-weight: 700; color: #1b5e20; }
 .transfer-feedback [role="alert"] { color: #b71c1c; }
