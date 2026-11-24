@@ -528,5 +528,9 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .transfer-section { padding: 10px 8px; }
   .transfer-feedback { margin: 0 -12px -14px; padding: 0 12px; }
   .transfer-actions button { min-width: 0; padding: 3px 7px; }
+  .transfer-goods tr { display: grid; grid-template-columns: minmax(0, 1fr) 5em 5em; align-items: center; border-bottom: 1px solid #8d6e6355; }
+  .transfer-goods :is(th, td) { border-bottom: 0; }
+  .transfer-goods thead th:last-child { display: none; }
+  .transfer-goods .transfer-actions { grid-column: 1 / -1; justify-content: flex-start; padding-top: 0; }
 }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
