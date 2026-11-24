@@ -307,7 +307,12 @@ describe('build menu', () => {
     state.buildings[node.id].shipyard = 1;
     html = renderToStaticMarkup(<TransferContents state={state} />);
     expect(html).toContain('Dock ships here for free repairs at the start of your next turn.');
-    expect(html).toContain('AUTO load specialties');
+    expect(html).toMatch(/disabled="">AUTO load specialties/);
+    expect(html).toContain('No specialties in stock. Build a Collection Field here to produce them.');
+    state.stockpiles[node.id].specialties = { Wine: 4 };
+    html = renderToStaticMarkup(<TransferContents state={state} />);
+    expect(html).not.toMatch(/disabled="">AUTO load specialties/);
+    expect(html).not.toContain('No specialties in stock.');
     state.docks[node.id].push(...player.fleet.splice(1));
     player.fleet[0].cargo = { Wine: 3 };
     state.stockpiles[node.id].iron = 7;

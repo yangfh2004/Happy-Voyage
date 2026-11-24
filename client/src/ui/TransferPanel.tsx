@@ -14,14 +14,24 @@ export function TransferContents({ state }: { state: GameState }) {
   const [selectedId, setSelectedId] = useState(player.fleet[0]?.id);
   const [qty, setQty] = useState(1);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const noticeRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    noticeRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [notice]);
   const selected = player.fleet.find((ship) => ship.id === selectedId) ?? player.fleet[0];
   const stock = state.stockpiles[player.position];
   const fleetFull = player.fleet.length >= MAX_FLEET_SIZE;
-  function act(action: () => void) {
+  const specialtyStock = Object.values(stock.specialties).reduce((sum, qty) => sum + (qty ?? 0), 0);
+  const freeCargo = player.fleet.reduce((sum, ship) => sum + ship.cargoCapacity - cargoLoad(ship), 0);
+  const autoLoadable = Math.min(specialtyStock, freeCargo);
+  function act(action: () => void, success = '') {
     try {
       action();
       setError('');
+      setNotice(success);
     } catch (cause) {
+      setNotice('');
       setError(cause instanceof Error ? cause.message : t('Transfer failed', '调度失败'));
     }
   }
@@ -59,7 +69,10 @@ export function TransferContents({ state }: { state: GameState }) {
         <button disabled={!selected || stored === 0} onClick={() => act(() => gameController.loadCargo(selected!.id, good, qty))}>{t('Load {g}', '装载{g}', { g: gn(good) })}</button>
       </p>;
     })}
-    <button onClick={() => act(() => gameController.autoLoad())}>{t('AUTO load specialties', '自动装载特产')}</button>
+    <button disabled={autoLoadable === 0} onClick={() => act(() => gameController.autoLoad(), t('Loaded {n} specialty units onto the fleet.', '已将 {n} 单位特产装上舰队。', { n: autoLoadable }))}>{t('AUTO load specialties', '自动装载特产')}</button>
+    {notice && <p ref={noticeRef} role="status">{notice}</p>}
+    {specialtyStock === 0 ? <p>{t('No specialties in stock. Build a Collection Field here to produce them.', '库存没有特产。在此建造采集场即可生产特产。')}</p>
+      : freeCargo === 0 && <p>{t('The fleet has no free cargo space.', '舰队货舱已满。')}</p>}
   </>;
 }
 
