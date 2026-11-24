@@ -134,6 +134,22 @@ export function startSoundtrack(): void {
   if (m) startMusic(m);
 }
 
+export function listenForSoundtrackStart(target: EventTarget, start: () => void): () => void {
+  const events = ['pointerdown', 'pointerup', 'keydown'];
+  const options = { capture: true };
+  const onInput = (event: Event) => {
+    const isMouse = (event as PointerEvent).pointerType === 'mouse';
+    // Touch and pen grant browser activation on release, not press.
+    if ((event.type === 'pointerdown' && !isMouse) || (event.type === 'pointerup' && isMouse)) return;
+    if (navigator.userActivation?.isActive === false) return;
+    start();
+  };
+  for (const event of events) target.addEventListener(event, onInput, options);
+  return () => {
+    for (const event of events) target.removeEventListener(event, onInput, options);
+  };
+}
+
 function startMusic(m: Mixer): void {
   if (!waves.length) waves = startWaves(m);
   if (scheduler) return;
