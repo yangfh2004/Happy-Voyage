@@ -5,6 +5,7 @@ const { GAME_URL, serveGameFiles } = require('./game-files.cjs');
 function openWindow(gameSession) {
   const window = new BrowserWindow({
     title: 'Happy Voyage',
+    icon: join(__dirname, 'build/icon.png'),
     width: 1280,
     height: 850,
     webPreferences: {
