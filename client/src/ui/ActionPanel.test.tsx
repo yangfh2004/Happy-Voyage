@@ -292,7 +292,7 @@ describe('build menu', () => {
     expect(html).toContain('Upgrade (300g)');
     expect(html).toContain('Max level');
     expect(html).toContain('Done');
-    expect(html).toContain('Transfers');
+    expect(html).toContain('Ships &amp; cargo transfer');
   });
 
   it('shows transfer stock, cargo, docked ships and the minimum fleet restriction', () => {
@@ -320,9 +320,9 @@ describe('build menu', () => {
     expect(html).toContain('Board Cargo Ship');
     expect(html).toContain('Cargo 3/25');
     expect(html).toContain('Unload Wine from');
-    expect(html).toContain('iron: 7');
+    expect(html).toMatch(/<th scope="row">iron<\/th><td>7<\/td><td>0<\/td>/);
     expect(html).toMatch(/disabled="">Dock/);
-    expect(html).toContain('Load onto ship');
+    expect(html).toContain('Wine 3');
   });
 
   it('shows material prices and why a ship order is unavailable', () => {

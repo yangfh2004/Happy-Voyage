@@ -163,7 +163,10 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
         <h2>{t('Build at {n}', '在{n}建设', { n: at(nodeId) })}</h2>
         <p>{t('Your colony', '你的殖民地')} · <StatTooltip stat="toll">{t('Toll {g}g', '过路费 {g} 金币', { g: colonyToll(state, nodeId) })}</StatTooltip> · <StatTooltip stat="gold">{t('Treasury {g}g', '金库 {g} 金币', { g: player.gold })}</StatTooltip></p>
         <ColonyGoods state={state} nodeId={nodeId} />
-        <button onClick={() => setTransfersOpen(true)}>{t('Transfers', '调度')}</button>
+        <button className="primary transfer-entry" onClick={() => setTransfersOpen(true)}>
+          <strong>{t('Ships & cargo transfer', '船只与资源调度')}</strong>
+          <small>{t('Dock or board ships · load or unload goods', '停靠或归队船只 · 装卸货物')}</small>
+        </button>
         {(Object.keys(BUILDINGS) as BuildingKind[]).map((kind) => {
           const level = buildingLevel(state, nodeId, kind);
           const cost = nextBuildingCost(state, nodeId, kind);

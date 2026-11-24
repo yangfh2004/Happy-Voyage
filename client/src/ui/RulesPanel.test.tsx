@@ -51,11 +51,11 @@ it.each(['en', 'zh'] as const)('explains immediate colony development and defens
   try {
     const html = renderToStaticMarkup(<RulesPanel config={DEFAULT_CONFIG} onClose={() => {}} />);
     if (locale === 'en') {
-      expect(html).toContain('As soon as you claim or capture a colony, you can build and use Transfers to leave ships behind to defend it');
+      expect(html).toContain('As soon as you claim or capture a colony, you can build and use Ships &amp; cargo transfer to leave ships behind to defend it');
       expect(html).not.toMatch(/\p{Script=Han}/u);
     } else {
       expect(html).toContain('占领或夺取殖民地后立即进入建设界面');
-      expect(html).toContain('可建造或用“调度”留下船只防守');
+      expect(html).toContain('可建造或用“船只与资源调度”留下船只防守');
     }
   } finally {
     setLocale('en');
