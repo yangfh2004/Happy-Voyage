@@ -16,7 +16,9 @@ export function TransferContents({ state }: { state: GameState }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const noticeRef = useRef<HTMLParagraphElement>(null);
-  useEffect(() => noticeRef.current?.scrollIntoView?.({ block: 'nearest' }), [notice]);
+  useEffect(() => {
+    noticeRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [notice]);
   const selected = player.fleet.find((ship) => ship.id === selectedId) ?? player.fleet[0];
   const stock = state.stockpiles[player.position];
   const fleetFull = player.fleet.length >= MAX_FLEET_SIZE;
