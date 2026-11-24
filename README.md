@@ -7,6 +7,15 @@ Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, tradin
 
 **Gameplay rules:** [简体中文 (canonical)](GAMEPLAY.md) · [English](GAMEPLAY.en.md). The Chinese version is the single source of truth, including for campaigns and online rooms. PRs that change gameplay must update the Chinese rules, and any PR that changes them must also update the English translation.
 
+## Desktop downloads / 桌面版下载
+
+Get the desktop app from [GitHub Releases](https://github.com/yangfh2004/Happy-Voyage/releases). No installer or internet connection is needed for local play.
+
+- **Windows (x64):** Download the portable `.exe` and double-click it. / 下载便携版 `.exe` 后双击运行。
+- **macOS:** Download the `arm64` ZIP for Apple silicon or the `x64` ZIP for Intel. Unzip it and open **Happy Voyage.app**. If macOS blocks the first launch, right-click the app and choose **Open**, or use **System Settings → Privacy & Security → Open Anyway**. / Apple 芯片下载 `arm64`，Intel 下载 `x64`。解压后打开应用；若首次运行被拦截，右键选择「打开」，或前往「系统设置 → 隐私与安全性 → 仍要打开」。
+
+Publishing a GitHub release runs the desktop packaging workflow. To add or replace binaries on an existing release, run **Publish desktop builds** in Actions and enter its tag.
+
 ## Online rooms
 
 On the [public demo](https://raw.githack.com/yangfh2004/Happy-Voyage/demo/index.html), select **Host online room** and share the invite link. The free room server can sleep when idle, so the first connection may take about a minute. See the online room rules in [English](GAMEPLAY.en.md#10-computer-opponents-and-online-rooms) or [Chinese](GAMEPLAY.md#10-电脑对手与在线房间) for how to start and play.
