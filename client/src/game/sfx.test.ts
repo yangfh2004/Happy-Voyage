@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { DEFAULT_SOUND, parseSoundSettings, sfx, startSoundtrack } from './sfx';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SOUND, listenForSoundtrackStart, parseSoundSettings, sfx, startSoundtrack } from './sfx';
 import { SHANTY } from './shanty';
 
 describe('sound settings', () => {
@@ -22,6 +22,47 @@ describe('sound settings', () => {
       sfx.buy();
       sfx.barter();
     }).not.toThrow();
+  });
+});
+
+describe('soundtrack startup', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function listen() {
+    const target = new EventTarget();
+    const userActivation = { isActive: false };
+    vi.stubGlobal('navigator', { userActivation });
+    const start = vi.fn();
+    const stop = listenForSoundtrackStart(target, start);
+    const input = (type: string, pointerType?: string) =>
+      target.dispatchEvent(Object.assign(new Event(type), { pointerType }));
+    return { userActivation, start, stop, input };
+  }
+
+  it.each(['touch', 'pen'])('starts on the release of the first %s press', (pointerType) => {
+    const { userActivation, start, input } = listen();
+    userActivation.isActive = true;
+    input('pointerdown', pointerType);
+    expect(start).not.toHaveBeenCalled();
+    input('pointerup', pointerType);
+    expect(start).toHaveBeenCalledOnce();
+  });
+
+  it('ignores input without activation and retries on later mouse and keyboard gestures until unmounted', () => {
+    const { userActivation, start, stop, input } = listen();
+    input('keydown');
+    expect(start).not.toHaveBeenCalled();
+    userActivation.isActive = true;
+    input('pointerdown', 'mouse');
+    input('pointerup', 'mouse');
+    expect(start).toHaveBeenCalledOnce();
+    input('keydown');
+    expect(start).toHaveBeenCalledTimes(2);
+    stop();
+    input('pointerdown', 'mouse');
+    input('pointerup', 'touch');
+    input('keydown');
+    expect(start).toHaveBeenCalledTimes(2);
   });
 });
 

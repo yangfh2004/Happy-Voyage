@@ -14,6 +14,7 @@ import { RulesPanel } from './ui/RulesPanel';
 import { EventBus } from './game/EventBus';
 import { RouteDetails } from './ui/RouteDetails';
 import { keyboardShortcuts } from './game/keyboard';
+import { listenForSoundtrackStart } from './game/sfx';
 import { FleetPanel } from './ui/FleetPanel';
 import { SeaNotifications } from './ui/SeaNotifications';
 import { TutorialPanel } from './ui/TutorialPanel';
@@ -93,15 +94,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
     if (!menuOpen) return;
     if (menu) return trapMenuFocus(menu, () => setMenuOpen(false));
   }, [menuOpen, menu]);
-  useEffect(() => {
-    const start = () => gameController.startSoundtrack();
-    window.addEventListener('pointerdown', start, { once: true });
-    window.addEventListener('keydown', start, { once: true });
-    return () => {
-      window.removeEventListener('pointerdown', start);
-      window.removeEventListener('keydown', start);
-    };
-  }, []);
+  useEffect(() => listenForSoundtrackStart(window, () => gameController.startSoundtrack()), []);
   const overlay = useRef<HTMLDivElement>(null);
   const actionSurface = useRef<HTMLElement>(null);
   const needsInput = state && !state.players[state.currentPlayer].isAI &&
