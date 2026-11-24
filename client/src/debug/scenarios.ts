@@ -6,7 +6,7 @@ import { pick } from '../i18n';
 
 export const specialIslands = ['treasure', 'mist', 'skeleton', 'dragonSnake', 'wind', 'nightless', 'revival'] as const satisfies readonly SpecialKind[];
 export const seaEncounters = (Object.keys(SEA_EVENT_NAMES) as EventKind[]).filter((kind) => kind !== 'openSea');
-export const gameScenes = ['landing', 'colonyMarket', 'strategies', 'battle', 'battleCommand', 'battleDefense', 'battlePirates', 'defeat', 'victory'] as const;
+export const gameScenes = ['landing', 'colonyMarket', 'strategies', 'strategyGallery', 'battle', 'battleCommand', 'battleDefense', 'battlePirates', 'defeat', 'victory'] as const;
 type GameScene = (typeof gameScenes)[number];
 export type Scenario = GameScene | `island-${SpecialKind}` | `sea-${EventKind}`;
 
@@ -14,6 +14,7 @@ const sceneNames: Record<GameScene, readonly [string, string]> = {
   landing: ['Landing page', '游戏首页'],
   colonyMarket: ['Colony ship market', '殖民地船只市场'],
   strategies: ['Strategy cards and targets', '谋略卡与目标'],
+  strategyGallery: ['All 20 strategy illustrations', '全部20张谋略卡插画'],
   battle: ['Battle decision', '海战决策'],
   battleCommand: ['Command a colony battle', '指挥殖民地海战'],
   battleDefense: ['Defend against an AI fleet', '抵御电脑舰队'],

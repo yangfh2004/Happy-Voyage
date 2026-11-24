@@ -1,4 +1,4 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyDefenders, COLONY_RETURN_COOLDOWN, COMBAT, forecastColonyBattle, GameView, isEliminated, MAX_FLEET_SIZE, tollDue, SHIP_RECIPES, strategyTarget, type StrategyId, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyToll, colonyDefenders, COLONY_RETURN_COOLDOWN, COMBAT, forecastColonyBattle, GameView, isEliminated, MAX_FLEET_SIZE, tollDue, SHIP_RECIPES, STRATEGIES, STRATEGY_RULES, strategyTarget, type StrategyId, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ShipMarketPanel } from './ShipMarketPanel';
 import { ColonyGoods } from './ColonyGoods';
@@ -15,6 +15,8 @@ import { seatTag } from './seats';
 import { StatTooltip } from './StatTooltip';
 import { EventBus } from '../game/EventBus';
 import { RetreatThresholdSelector } from './RetreatThresholdSelector';
+import { StrategyArt } from './StrategyArt';
+import './strategy-cards.css';
 
 const BUILDING_SIZES = { en: ['None', 'Small', 'Medium', 'Large'], zh: ['无', '小型', '中型', '大型'] };
 
@@ -242,27 +244,38 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
   const strategies = (
     <section aria-label={t('Strategy cards', '谋略卡')}>
       <details className="strategy-cards" open={expandStrategies || undefined} onToggle={(event) => { if (!event.currentTarget.open) setPreviewing(false); }}>
-        <summary>{t('Strategy cards ({n}/5)', '谋略卡（{n}/5）', { n: player.strategies.length })}</summary>
-        {player.strategies.length === 0 && <p>{t('No strategy cards.', '没有谋略卡。')}</p>}
-        {player.strategies.includes('navigate') && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onFocus={() => setPreviewing(true)} onBlur={() => setPreviewing(false)} onChange={(e) => { setDestination(Number(e.target.value)); setPreviewing(true); }}>
-          {state.map.map((node) => <option key={node.id} value={node.id}>{nodeName(node, locale)}</option>)}
-        </select></label>}
+        <summary><span className="strategy-deck-mark" aria-hidden="true">✦</span><span>{t('Strategy cards', '谋略卡')}</span><span className="strategy-hand-count">{player.strategies.length}/{STRATEGY_RULES.handCap}</span></summary>
+        <div className="strategy-hand-intro"><span>{t('Your hand', '你的手牌')}</span><small>{t('One card per turn', '每回合限用一张')}</small></div>
+        {player.strategies.length === 0 && <div className="strategy-empty"><span aria-hidden="true">✦</span><p>{t('No strategy cards.', '没有谋略卡。')}</p></div>}
+        <div className="strategy-hand">
         {player.strategies.map((id, index) => {
           const kind = strategyTarget(id, state.phase);
           const options = kind === 'rival' ? state.players.filter((p) => p.id !== player.id && !isEliminated(p)).map((p) => ({ id: p.id, label: name(p) }))
             : kind === 'rivalColony' ? state.map.filter((n) => gameController.canUseStrategy(id, n.id)).map((n) => ({ id: n.id, label: at(n.id) })) : [];
           const target = kind === 'node' ? destination : kind === 'none' ? undefined : options.some((o) => o.id === targets[id]) ? targets[id] : options[0]?.id;
-          return <div key={`${id}-${index}`}>
-          <strong>{strategyText(id, locale).name}</strong>
-          <p>{strategyText(id, locale).description}</p>
+          const usable = gameController.canUseStrategy(id, target);
+          const phases = STRATEGIES[id].phases;
+          return <article className={`strategy-card ${usable ? 'is-ready' : ''}`} key={`${id}-${index}`} aria-label={strategyText(id, locale).name}>
+          <div className="strategy-card-art"><StrategyArt id={id} /><span className="strategy-card-number" aria-hidden="true">{String(Object.keys(STRATEGIES).indexOf(id) + 1).padStart(2, '0')}</span></div>
+          <div className="strategy-card-body">
+          <h3>{strategyText(id, locale).name}</h3>
+          <small className="strategy-card-timing">{phases.length > 1 ? t('Before spinning · At a rival colony', '转盘前 · 敌方殖民地') : phases.includes('awaitingToll') ? t('At a rival colony', '敌方殖民地') : t('Before spinning', '转盘前')}</small>
+          <p className="strategy-card-description">{strategyText(id, locale).description}</p>
+          <div className="strategy-card-controls">
+          {kind === 'node' && <label>{t('Navigate destination', '导航目的地')} <select className="strategy-destination" value={destination} onFocus={() => setPreviewing(true)} onBlur={() => setPreviewing(false)} onChange={(e) => { setDestination(Number(e.target.value)); setPreviewing(true); }}>
+            {state.map.map((node) => <option key={node.id} value={node.id}>{nodeName(node, locale)}</option>)}
+          </select></label>}
           {(kind === 'rival' || kind === 'rivalColony') && <label>{t('Target for {s}', '「{s}」的目标', { s: strategyText(id, locale).name })}<select value={target ?? ''} onChange={(e) => setTargets({ ...targets, [id]: Number(e.target.value) })}>
             {options.length === 0 && <option value="">{t('No eligible targets', '没有可选目标')}</option>}
             {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
           </select></label>}
-          <button disabled={!gameController.canUseStrategy(id, target)} onClick={() => gameController.useStrategy(id, target)}>{t('Use {s}', '使用「{s}」', { s: strategyText(id, locale).name })}</button>
-        </div>;
+          <span className={`strategy-card-status ${usable ? 'ready' : ''}`}>{usable ? t('Ready to play', '可以使用') : state.strategyUsed ? t('Card already played this turn', '本回合已使用谋略卡') : t('Not available now', '当前不可使用')}</span>
+          <button disabled={!usable} onClick={() => gameController.useStrategy(id, target)}>{t('Use {s}', '使用「{s}」', { s: strategyText(id, locale).name })}</button>
+          </div></div>
+        </article>;
         })}
-        {player.knownHoard !== null && <p>{t('Buried hoard: {n}', '埋藏的宝藏：{n}', { n: at(player.knownHoard) })}</p>}
+        </div>
+        {player.knownHoard !== null && <p className="strategy-hoard">{t('Buried hoard: {n}', '埋藏的宝藏：{n}', { n: at(player.knownHoard) })}</p>}
       </details>
     </section>
   );

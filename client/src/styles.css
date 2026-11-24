@@ -1,7 +1,5 @@
 .building-option { margin-bottom: 12px; }
 .voyage-top, .voyage-bottom, .helm-card, .menu-close, .menu-scrim { display: none; }
-.strategy-cards { margin-top: 14px; text-align: left; }
-.strategy-cards summary { cursor: pointer; padding: 12px; font-weight: 700; border: 1px solid #cba654; border-radius: 10px; }
 .secondary-hud, .voyage-menu { display: contents; }
 .menu-shortcuts { display: none; }
 .resource-icon { width: 18px; height: 18px; vertical-align: middle; }

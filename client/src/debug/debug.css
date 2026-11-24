@@ -56,3 +56,11 @@
   text-align: left;
   min-height: 46px;
 }
+
+.strategy-gallery { height: 100%; overflow: auto; padding: 32px clamp(16px, 4vw, 64px) 56px; background: radial-gradient(ellipse at 50% 0, #204f5b, #0a2637 65%); color: #f1d7a0; }
+.strategy-gallery > header { text-align: center; margin-bottom: 30px; }
+.strategy-gallery > header > p:first-child { font-size: 10px; letter-spacing: .3em; color: #d4b67b; }
+.strategy-gallery h1 { margin: 8px 0; font: 700 clamp(28px, 5vw, 46px) 'Sea Names', Georgia, serif; color: #f4dfb2; }
+.strategy-gallery > header > p:last-child { color: #aec7c2; font-size: 13px; }
+.strategy-gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 24px; max-width: 1400px; margin: auto; }
+.strategy-gallery .strategy-card-body > p { font-size: 13px; line-height: 1.65; color: #445457; margin-bottom: 0; }

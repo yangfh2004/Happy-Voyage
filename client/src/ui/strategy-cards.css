@@ -1,0 +1,59 @@
+.strategy-cards {
+  --strategy-ink: #153c4c;
+  margin-top: 14px;
+  padding: 0 10px 12px;
+  border: 1px solid #b69a62;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ede6d5, #f8f3e6 52%, #e8dfc9);
+  color: var(--strategy-ink);
+  text-align: left;
+}
+.strategy-cards > summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 -10px;
+  padding: 12px;
+  border: 0;
+  border-radius: 13px;
+  background: linear-gradient(120deg, #153e50, #082b3e);
+  color: #f5dfad;
+  font-size: 14px;
+  font-weight: 750;
+  cursor: pointer;
+  list-style: none;
+}
+.strategy-cards > summary::-webkit-details-marker { display: none; }
+.strategy-cards > summary::after { content: '⌄'; margin-left: 3px; transition: transform .18s; }
+.strategy-cards[open] > summary { border-radius: 13px 13px 0 0; border-bottom: 1px solid #c8a86b; }
+.strategy-cards[open] > summary::after { transform: rotate(180deg); }
+.strategy-deck-mark { color: #f4cc7c; font-size: 23px; line-height: 1; }
+.strategy-hand-count { margin-left: auto; padding: 3px 9px; border: 1px solid #a78b57; border-radius: 20px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.strategy-hand-intro { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px; margin: 12px 2px 10px; }
+.strategy-hand-intro > span { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.strategy-hand-intro small { font-size: 11px; color: #65583f; }
+.strategy-hand { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 14px; }
+.strategy-card { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border: 1px solid #b6a077; border-radius: 10px; background: #fff9e9; box-shadow: 0 3px 7px #49351f1f, inset 0 0 0 3px #eadcc0; }
+.strategy-card.is-ready { border-color: #4b817b; box-shadow: 0 3px 8px #123d4b22, 0 0 0 1px #6d9c8933; }
+.strategy-card-art { position: relative; margin: 5px 5px 0; overflow: hidden; border-radius: 6px 6px 0 0; background: #183d51; }
+.strategy-art { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; }
+.strategy-card-number { position: absolute; right: 12px; top: 12px; display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid #e2c38c88; border-radius: 50%; color: #f5dda8; background: #0c2c3ed9; font: 11px Georgia, serif; }
+.strategy-card-body { display: flex; flex-direction: column; flex: 1; padding: 12px; }
+.strategy-card h3 { margin: 0 0 4px; color: #153c4c; font: 700 20px/1.25 'Sea Names', Georgia, serif; overflow-wrap: anywhere; }
+.strategy-card-timing { color: #775d37; font-size: 10px; font-weight: 750; letter-spacing: .025em; }
+.strategy-cards .strategy-card .strategy-card-description { margin: 10px 0 12px; color: #3e4b4b; font-size: 13px; line-height: 1.6; }
+.strategy-card-controls { display: grid; gap: 9px; margin-top: auto; padding-top: 9px; border-top: 1px solid #dacbaa; }
+.strategy-card-controls label { display: grid; gap: 5px; color: #4c584f; font-size: 11px; font-weight: 700; }
+.strategy-card-controls select { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; min-height: 40px; padding: 8px; border: 1px solid #a79c81; border-radius: 5px; color: #173d4d; background: #fffdf5; font-size: 12px; text-overflow: ellipsis; }
+.strategy-card-status { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #6a6356; }
+.strategy-card-status::before { content: ''; width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: #948974; }
+.strategy-card-status.ready { color: #226053; }
+.strategy-card-status.ready::before { background: #2a816a; }
+.strategy-card-controls button { width: 100%; min-height: 44px; margin: 0; padding: 9px 8px; border: 1px solid #1e5a60; border-radius: 6px; background: linear-gradient(#276c70, #174d58); color: #fff2ca; box-shadow: 0 2px 0 #103d48; font: 700 12px 'Sea Names', system-ui, sans-serif; }
+.strategy-card-controls button:hover:not(:disabled) { background: #337b79; }
+.strategy-card-controls button:disabled { opacity: 1; color: #716b60; background: #e8e1d2; border-color: #c4b9a1; box-shadow: none; cursor: not-allowed; }
+.strategy-cards :is(button, select, summary):focus-visible { outline: 3px solid #2c939d; outline-offset: 3px; }
+.strategy-empty { padding: 24px 12px; text-align: center; color: #75664b; }
+.strategy-empty > span { display: block; font-size: 32px; color: #a78b57; }
+.strategy-cards .strategy-hoard { padding: 10px; margin-bottom: 0; border: 1px dashed #b69a62; border-radius: 7px; color: #624c29; font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .strategy-cards > summary::after { transition: none; } }
