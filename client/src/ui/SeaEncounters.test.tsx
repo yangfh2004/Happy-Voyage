@@ -197,6 +197,8 @@ describe('human sea choices wired to the real engine', () => {
     expect(state.players[0].position).toBe(target.id);
     EventBus.emit('move-complete', moveId);
     expect(state.owners[target.id]).toBe(0);
+    expect(state.phase).toBe('awaitingBuild');
+    gameController.finishBuilding();
     expect(state.currentPlayer).toBe(1);
   });
 
@@ -215,6 +217,8 @@ describe('human sea choices wired to the real engine', () => {
     if (event === 'wyvern') {
       expect(state.phase).toBe('moving');
       EventBus.emit('move-complete', moveId);
+      expect(state.phase).toBe('awaitingBuild');
+      vi.advanceTimersByTime(700);
     }
     expect(state.currentPlayer).toBe(1);
     expect(gameController.seaNotices.some((notice) => notice.event.outcome === (event === 'merchant' ? 'accepted' : 'relocated'))).toBe(true);

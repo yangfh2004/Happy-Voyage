@@ -43,6 +43,7 @@ describe('royal campaign', () => {
     const [first, second, third] = islands;
     landAs(game, 0, captain.homePort);
     landAs(game, 1, third.id);
+    game.finishBuilding();
     expect(state.campaign!.progress).toEqual({});
 
     state.currentPlayer = captain.id;
@@ -83,7 +84,6 @@ describe('royal campaign', () => {
     game.finishTrading();
 
     landAs(game, 0, islands[0].id);
-    landAs(game, 0, islands[0].id);
     game.build('lumberMill');
     expect(missions).toHaveLength(1);
     game.build('collectionField');
@@ -97,9 +97,11 @@ describe('royal campaign', () => {
     const { game, state, captain, missions, islands } = voyage('crown-of-the-seas');
     const [first, second, rivalColony] = islands;
     game.useStrategy('navigate', first.id);
+    game.finishBuilding();
     expect(state.campaign!.progress).toEqual({ holdColonies: 1 });
     state.owners[first.id] = 1; // The rival took our original colony.
     landAs(game, 0, second.id);
+    game.finishBuilding();
     expect(state.campaign!.progress).toEqual({ holdColonies: 1 });
     expect(missions).toHaveLength(0);
     state.owners[rivalColony.id] = 1;
@@ -111,6 +113,7 @@ describe('royal campaign', () => {
     landAs(game, 0, rivalColony.id);
     expect(game.fight()!.outcome).toBe('victory');
     expect(state.owners[rivalColony.id]).toBe(captain.id);
+    game.finishBuilding();
     expect(missions).toHaveLength(2);
     expect(state.campaign).toMatchObject({ status: 'completed', progress: { holdColonies: 2, captureColony: 1 } });
   });
@@ -136,6 +139,7 @@ describe('royal campaign', () => {
     for (const ship of state.players[1].fleet) ship.durability = 1;
     landAs(game, 0, islands[1].id);
     game.fight();
+    game.finishBuilding();
     expect(state.campaign!.status).toBe('completed');
   });
 

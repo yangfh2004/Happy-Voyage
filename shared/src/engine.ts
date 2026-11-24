@@ -60,7 +60,7 @@ function emptyStockpile(): ColonyStockpile {
  * The rules of the core loop, independent of any renderer:
  *
  *   awaitingSpin --spinCompass()--> spinning --sail()--> moving --resolveLanding()-->
- *   awaitingClaim --claim()/decline()--> (next player) awaitingSpin ... until gameOver
+ *   awaitingClaim --claim()--> awaitingBuild --finishBuilding()--> (next player) awaitingSpin
  *   (a rival colony instead waits in awaitingToll for payToll() / fight())
  *
  * Renderers can animate the compass and path before the next action.
@@ -446,15 +446,19 @@ export class GameEngine extends GameView {
           this.collectToll(player, this.state.players[owner], node);
         } else {
           this.log(tx('{p} inspects the colony at {n}.', '{p} 视察{n}的殖民地。', { p: ref.player(player.id), n: ref.node(node.id) }));
-          this.state.marketStock = ['explorer', 'cargo', 'warship'];
-          this.state.phase = 'awaitingBuild';
-          this.emit({ type: 'buildOffered', playerId: player.id, nodeId: node.id });
+          this.openColony(node.id);
           return;
         }
         break;
       }
     }
     this.endTurn();
+  }
+
+  private openColony(nodeId: number): void {
+    this.state.marketStock = ['explorer', 'cargo', 'warship'];
+    this.state.phase = 'awaitingBuild';
+    this.emit({ type: 'buildOffered', playerId: this.currentPlayer.id, nodeId });
   }
 
   private royalAudience(player: Player): void {
@@ -486,11 +490,13 @@ export class GameEngine extends GameView {
     this.assertPhase('awaitingClaim');
     const player = this.currentPlayer;
     const node = this.node(this.state.pendingClaim!);
+    this.state.pendingClaim = null;
     this.assignColony(node.id, player);
     this.log(tx('{p} plants the flag on {n}!', '{p} 在{n}插上了旗帜！', { p: ref.player(player.id), n: ref.node(node.id) }));
     this.emit({ type: 'claimed', playerId: player.id, nodeId: node.id });
     this.updateCampaignMission(player.id, 'foundColony', (progress) => progress + 1);
-    this.endTurn();
+    if (player.fleet.length > 0) this.openColony(node.id);
+    else this.endTurn();
   }
 
   /** Sail on without claiming the offered island. */
@@ -596,8 +602,10 @@ export class GameEngine extends GameView {
     }
     this.state.battles.push(report);
     this.emit({ type: 'battleFought', report });
-    if (report.outcome === 'victory') this.updateCampaignMission(player.id, 'captureColony', (progress) => progress + 1);
-    this.endTurn();
+    if (report.outcome === 'victory') {
+      this.updateCampaignMission(player.id, 'captureColony', (progress) => progress + 1);
+      this.openColony(node.id);
+    } else this.endTurn();
     return report;
   }
 

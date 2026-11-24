@@ -119,5 +119,6 @@ export function stageScenario(engine: GameEngine, id: Exclude<Scenario, 'landing
   } else if (id === 'victory') {
     for (const colony of colonies.slice(1)) state.owners[colony.id] = captain.id;
     land(colonies[0].id);
+    engine.finishBuilding();
   }
 }

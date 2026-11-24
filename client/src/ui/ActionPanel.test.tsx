@@ -407,6 +407,7 @@ describe('market menu', () => {
     engine.currentPlayer.position = islands[0].id;
     state.phase = 'moving';
     engine.resolveLanding();
+    engine.finishBuilding();
     Object.assign(gameController, { islandsOwnedBy: (id: number) => engine.islandsOwnedBy(id), netWorth: (id: number) => engine.netWorth(id) });
     const html = renderToStaticMarkup(<ActionPanel state={state} />);
     expect(html).toContain('Victory! Every new continent flies your flag.');

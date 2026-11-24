@@ -63,7 +63,7 @@ describe('random sea encounters', () => {
     sail();
     expect(events.filter((e) => e.type === 'seaEvent')).toMatchObject([{ event: 'pirates', outcome: 'protected' }]);
     expect(game.state.owners[2]).toBe(0);
-    expect(game.state.phase).toBe('awaitingSpin');
+    expect(game.state.phase).toBe('awaitingBuild');
     expect(events.findIndex((e) => e.type === 'seaEvent')).toBeLessThan(events.findIndex((e) => e.type === 'claimed'));
   });
 
@@ -101,7 +101,7 @@ describe('random sea encounters', () => {
     expect(game.state.roamers[0].node).not.toBe(1);
     expect(game.state.players.map((p) => p.position)).not.toContain(game.state.roamers[0].node);
     expect(game.state.owners[2]).toBe(0);
-    expect(game.state.phase).toBe('awaitingSpin');
+    expect(game.state.phase).toBe('awaitingBuild');
   });
 
   it('ignores fleet-loss defeats when resurfacing and skips defeated navigators', () => {
@@ -113,6 +113,7 @@ describe('random sea encounters', () => {
     game.state.roamers = [{ id: 0, kind: 'smallMonster', node: 1 }];
     sail();
     expect(game.state.roamers[0].node).toBe(3);
+    game.finishBuilding();
     expect(game.state.currentPlayer).toBe(2);
   });
 
@@ -120,6 +121,7 @@ describe('random sea encounters', () => {
     const { game, sail } = voyage();
     game.state.roamers = [{ id: 0, kind: 'pirates', node: 8 }];
     sail();
+    game.finishBuilding();
     expect(game.state.round).toBe(2);
     expect(game.state.roamers[0].node).toBe(11);
   });
@@ -128,6 +130,7 @@ describe('random sea encounters', () => {
     const { game, sail } = voyage(0.99);
     game.state.roamers = [{ id: 0, kind: 'pirates', node: 15 }];
     sail();
+    game.finishBuilding();
     expect(game.state.roamers[0].node).toBe(12);
   });
 
@@ -185,7 +188,7 @@ describe('random sea encounters', () => {
     expect(game.state.phase).toBe('awaitingMerchant');
     game.declineMerchant();
     expect(game.state.owners[2]).toBe(0);
-    expect(game.state.phase).toBe('awaitingSpin');
+    expect(game.state.phase).toBe('awaitingBuild');
   });
 
   it('validates merchant quantity, capacity and gold without changing cargo', () => {

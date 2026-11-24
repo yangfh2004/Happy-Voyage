@@ -45,10 +45,11 @@ describe('strategy cards', () => {
     const island = g.state.map.find((n) => n.kind === 'island')!;
     const gold = g.currentPlayer.gold;
     g.useStrategy('navigate', island.id);
-    expect(g.state.phase).toBe('awaitingSpin');
+    expect(g.state.phase).toBe('awaitingBuild');
     expect(g.state.players[0].gold).toBe(gold);
     expect(g.state.players[0].strategies).toEqual([]);
     expect(g.state.owners[island.id]).toBe(0);
+    g.finishBuilding();
     expect(g.state.strategyUsed).toBe(false);
     g.currentPlayer.strategies = ['navigate'];
     g.state.owners[island.id] = 0;
@@ -101,6 +102,7 @@ describe('strategy cards', () => {
     expect(g.state.inspired).toBe(true);
     expect(g.state.phase).toBe('awaitingToll');
     g.fight();
+    if (g.state.phase === 'awaitingBuild') g.finishBuilding();
     expect(g.state.inspired).toBe(false);
     expect(ships.map((s) => s.firepower)).toEqual(power);
   });
@@ -148,7 +150,7 @@ describe('strategy cards', () => {
     const other = game();
     other.currentPlayer.strategies = ['navigate'];
     other.decideForAI();
-    expect(other.state.phase).toBe('awaitingSpin');
+    expect(other.state.phase).toBe('awaitingBuild');
     expect(other.state.players[0].strategies).toEqual([]);
   });
   it('AI uses Navigate for free occupation despite nearby hazards and low gold', () => {
@@ -167,7 +169,7 @@ describe('strategy cards', () => {
     expect(g.state.owners[20]).toBe(player.id);
     expect(player.gold).toBe(0);
     expect(player.strategies).toEqual([]);
-    expect(g.state.phase).toBe('awaitingSpin');
+    expect(g.state.phase).toBe('awaitingBuild');
   });
   it.each(['mislead', 'betray'] as const)('AI forecasts the fallback fleet before using %s on the last docked ship', (card) => {
     const g = game();

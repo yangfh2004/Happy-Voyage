@@ -371,6 +371,7 @@ describe('strategy interactions with fleet-loss defeat', () => {
     rival.fleet[0].firepower = 0;
     g.state.phase = 'awaitingToll';
     g.fight();
+    g.finishBuilding();
     expect(rival.fleetLost).toBe(true);
     expect(rival.bankrupt).toBe(false);
     expect(g.state).toMatchObject({ phase: 'gameOver', winner: p.id, victory: 'lastAfloat' });
