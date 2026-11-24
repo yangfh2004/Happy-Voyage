@@ -34,7 +34,6 @@ export function TransferContents({ state }: { state: GameState }) {
   return <>
     <p>{nodeName(state.map[player.position], locale)} · {playerName(player, locale)}</p>
     {error && <p role="alert">{error}</p>}
-    {notice && <p role="status">{notice}</p>}
     <h3>{t('Colony shipyard', '殖民地船坞')}</h3>
     {colonyCanRepair(state, player.position) && <p>{t('Dock ships here for free repairs at the start of your next turn.', '将船只停靠在此，下次回合开始时免费修好。')}</p>}
     {state.docks[player.position].length === 0 && <p>{t('No docked ships.', '没有停靠的船只。')}</p>}
@@ -67,6 +66,7 @@ export function TransferContents({ state }: { state: GameState }) {
       </p>;
     })}
     <button disabled={autoLoadable === 0} onClick={() => act(() => gameController.autoLoad(), t('Loaded {n} specialty units onto the fleet.', '已将 {n} 单位特产装上舰队。', { n: autoLoadable }))}>{t('AUTO load specialties', '自动装载特产')}</button>
+    {notice && <p role="status">{notice}</p>}
     {specialtyStock === 0 ? <p>{t('No specialties in stock. Build a Collection Field here to produce them.', '库存没有特产。在此建造采集场即可生产特产。')}</p>
       : freeCargo === 0 && <p>{t('The fleet has no free cargo space.', '舰队货舱已满。')}</p>}
   </>;
