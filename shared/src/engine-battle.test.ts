@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { colonyDefenders } from './combat';
 import { GameEngine, SEA_RULES } from './engine';
 import type { GameEvent } from './types';
 
@@ -13,6 +14,32 @@ function siege(attackerAI = false, defenderAI = true, mode: 'realtime' | 'auto' 
 }
 
 describe('real-time engine integration', () => {
+  it.each(['auto', 'realtime'] as const)('lets the conqueror develop and dock a garrison immediately in %s mode', (mode) => {
+    const { game, node } = siege(false, false, mode);
+    const { state, currentPlayer: attacker } = game;
+    for (const ship of attacker.fleet) ship.firepower = 1000;
+    const defenders = state.players[1].fleet.splice(-1);
+    defenders[0].durability = 1;
+    defenders[0].firepower = 0;
+    state.docks[node.id] = defenders;
+    state.buildings[node.id].shipyard = 1;
+    state.stockpiles[node.id] = { lumber: 2, iron: 1, specialties: {} };
+    const gold = attacker.gold;
+    const report = game.fight() ?? game.finishBattle([])!;
+    expect(report.outcome).toBe('victory');
+    expect(state.currentPlayer).toBe(attacker.id);
+    expect(state.phase).toBe('awaitingBuild');
+    expect(state.marketStock).toEqual(['explorer', 'cargo', 'warship']);
+    expect(attacker.gold).toBe(gold);
+    const guard = game.buildShip('explorer');
+    game.dockShip(guard.id);
+    expect(state.docks[node.id]).toEqual([guard]);
+    expect(attacker.fleet).not.toContain(guard);
+    game.finishBuilding();
+    expect(state.currentPlayer).not.toBe(attacker.id);
+    expect(colonyDefenders(state, node.id)).toEqual({ ships: [guard], owner: attacker, fromFleet: false });
+  });
+
   it.each(['auto', 'realtime'] as const)('does not charge double toll for preexisting zero durability under Ambush in %s mode', (mode) => {
     const { game } = siege(false, true, mode);
     const [attacker, defender] = game.state.players;

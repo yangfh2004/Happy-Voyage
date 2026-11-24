@@ -21,6 +21,14 @@ describe('accessibility copy', () => {
       expect(localize('zh', entry)).toMatch(/[\u4e00-\u9fff]/);
     }
   });
+
+  it('describes free occupation and immediate development in the tutorial and distinguishes colony value from a fee', () => {
+    const { text } = TUTORIAL_STEPS[1];
+    expect(localize('en', text)).toContain('claims it for free. After claiming or capturing a colony');
+    expect(localize('zh', text)).toContain('占领或夺取殖民地后，可以立即修建设施');
+    expect(localize('en', STAT_HELP.price.description)).toContain('not a fee');
+    expect(localize('zh', STAT_HELP.price.description)).toContain('不是占领费用');
+  });
 });
 
 describe('chart identity', () => {

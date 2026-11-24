@@ -81,6 +81,7 @@ describe('naval combat', () => {
     engine.fight();
     expect(state.owners[other.id]).toBe(owner.id);
     expect(state.buildings[other.id]).toEqual({ shipyard: 1 });
+    engine.finishBuilding();
     expect(state.currentPlayer).toBe(2);
     engine.currentPlayer.position = engine.currentPlayer.homePort;
     state.phase = 'moving';

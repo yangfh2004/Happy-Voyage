@@ -41,7 +41,7 @@ describe('navigators in the UI', () => {
     const html = renderToStaticMarkup(<PlayerBar state={state} colorBlind paletteToggle={null} onRules={() => {}} onFleet={() => {}} onTutorial={() => {}} />);
     expect(html).toContain('aria-label="Chart marker 1"');
     expect(html).toContain('aria-label="Chart marker 10"');
-    expect(html).toContain('Spendable gold for claiming islands');
+    expect(html).toContain('Spendable gold for construction');
     expect(html).toContain('Ships docked at colonies are counted separately');
     expect(html).toContain('>Tutorial</button>');
   });

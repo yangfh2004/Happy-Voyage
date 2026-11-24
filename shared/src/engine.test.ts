@@ -141,6 +141,16 @@ describe('GameEngine', () => {
     expect(engine.state.phase).not.toBe('awaitingClaim');
     expect(engine.state.owners[2]).toBe(0);
     expect(engine.state.players[0].gold).toBe(startingGold);
+    expect(engine.state.phase).toBe('awaitingBuild');
+    expect(engine.state.currentPlayer).toBe(0);
+    const ship = engine.currentPlayer.fleet[0];
+    engine.dockShip(ship.id);
+    expect(engine.state.docks[2]).toEqual([ship]);
+    if (startingGold > 0) {
+      engine.build('lumberMill');
+      expect(engine.state.buildings[2].lumberMill).toBe(1);
+    }
+    engine.finishBuilding();
     expect(engine.state.currentPlayer).toBe(1);
   });
 
@@ -148,6 +158,7 @@ describe('GameEngine', () => {
     const engine = new GameEngine({ players: twoPlayers, config: { startingGold: 1000 }, rng: spinTwo });
     spinAndSail(engine);
     engine.resolveLanding();
+    engine.finishBuilding();
     engine.currentPlayer.position = 0;
     spinAndSail(engine);
     engine.resolveLanding();
@@ -215,6 +226,7 @@ describe('GameEngine', () => {
     spinAndSail(engine);
     engine.resolveLanding();
     engine.state.players[1].gold = 10;
+    engine.finishBuilding();
     engine.currentPlayer.position = 0;
     spinAndSail(engine);
     engine.resolveLanding();
@@ -257,6 +269,7 @@ describe('GameEngine', () => {
       spinAndSail(engine);
       engine.resolveLanding();
       if (engine.state.phase === 'awaitingClaim') engine.decline();
+      if (engine.state.phase === 'awaitingBuild') engine.finishBuilding();
     }
     expect(turns).toEqual([[0, 1, 2], [0, 1, 2], [0, 1, 2]]);
   });
@@ -268,10 +281,12 @@ describe('GameEngine', () => {
     engine.resolveLanding();
     const price = engine.state.map[2].price!;
     expect(engine.netWorth(0)).toBe(DEFAULT_CONFIG.startingGold + Math.floor(price * 0.75));
+    engine.finishBuilding();
     expect(engine.state.phase).toBe('awaitingSpin');
     spinAndSail(engine);
     engine.resolveLanding();
     if (engine.state.phase === 'awaitingClaim') engine.decline();
+    if (engine.state.phase === 'awaitingBuild') engine.finishBuilding();
     expect(engine.state.winner).toBe(1);
   });
 });

@@ -91,6 +91,7 @@ describe('strategies during random encounters', () => {
     expect(g.state.owners[destination]).toBe(p.id);
     expect(events.filter((e) => e.type === 'claimed')).toHaveLength(1);
     expect(events.filter((e) => e.type === 'merchantOffered')).toHaveLength(1);
+    g.finishBuilding();
     expect(g.state.strategyUsed).toBe(false);
     expect(g.state.compassMultiplier).toBe(1);
   });

@@ -46,11 +46,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function humanTurn() {
+function landHuman() {
   controller.spinCompass();
   controller.finishSpin(controller.spinId);
   EventBus.emit('move-complete', moveId);
+}
+
+function humanTurn() {
+  landHuman();
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
+  if (controller.state?.phase === 'awaitingBuild') controller.finishBuilding();
 }
 
 it('routes retreat threshold changes through the human action guard and refreshes the view', () => {
@@ -226,7 +231,7 @@ it('launches a ship during a human colony visit and announces its arrival', () =
   controller.buildShip('explorer');
   expect(state.players[0].fleet).toHaveLength(5);
 
-  humanTurn();
+  landHuman();
   expect(controller.canBuildShip('explorer')).toBe(true);
   controller.buildShip('explorer');
   controller.buildShip('explorer');
@@ -240,7 +245,7 @@ it('buys and sells ships through the controller at an owned colony', () => {
   controller.newGame(players);
   const state = controller.state!;
   state.owners[2] = 0;
-  humanTurn();
+  landHuman();
   const player = state.players[0];
   const count = player.fleet.length;
   expect(controller.canBuyUsedShip('explorer')).toBe(true);
@@ -282,7 +287,7 @@ describe('pacing', () => {
     replay.mockClear();
     controller.resumeMovement();
     expect(replay).not.toHaveBeenCalled();
-    expect(controller.state?.phase).toBe('awaitingSpin');
+    expect(controller.state?.phase).toBe('awaitingBuild');
   });
 
   it('does not replay a previous voyage after restarting or quitting', () => {
@@ -367,11 +372,11 @@ describe('pacing', () => {
     controller.finishSpin(controller.spinId);
     controller.skipToMyTurn();
     EventBus.emit('move-complete', moveId);
-    expect(controller.state?.phase).toBe('awaitingSpin');
-    expect(controller.waiting).toBe(true);
-    expect(controller.timings.step).toBe(0);
+    expect(controller.state?.phase).toBe('awaitingBuild');
+    expect(controller.waiting).toBe(false);
+    expect(controller.timings.step).toBe(200);
     EventBus.emit('move-complete', moveId);
-    expect(controller.state?.phase).toBe('awaitingSpin');
+    expect(controller.state?.phase).toBe('awaitingBuild');
   });
 
   it('can skip an active spin without waiting for its animation or sailing twice', () => {
@@ -388,8 +393,8 @@ describe('pacing', () => {
     controller.finishSpin(spinId);
     expect(moveId).toBe(skippedMoveId);
     EventBus.emit('move-complete', skippedMoveId);
-    expect(controller.state?.phase).toBe('awaitingSpin');
-    expect(controller.timings.spin).toBe(0);
+    expect(controller.state?.phase).toBe('awaitingBuild');
+    expect(controller.timings.spin).toBe(1400);
   });
 
   it('uses the selected speed for an in-progress spin, including Instant', () => {
@@ -420,7 +425,7 @@ describe('pacing', () => {
     expect(controller.state?.currentPlayer).toBe(0);
     expect(controller.state?.phase).toBe('moving');
     EventBus.emit('move-complete', moveId);
-    expect(controller.state?.phase).toBe('awaitingSpin');
+    expect(controller.state?.phase).toBe('awaitingBuild');
   });
 
   it('ignores skip without a game or at a human decision', () => {
@@ -440,6 +445,7 @@ describe('pacing', () => {
     controller.skipToMyTurn();
     EventBus.emit('move-complete', moveId);
     if (state.phase === 'awaitingClaim') controller.decline();
+    if (state.phase === 'awaitingBuild') controller.finishBuilding();
     await vi.runAllTimersAsync();
     expect(state.phase).toBe('gameOver');
     expect(controller.waiting).toBe(false);
@@ -562,7 +568,7 @@ describe('local multiplayer', () => {
     humanTurn();
     expect(state.currentPlayer).toBe(1);
     expect(state.lastSpin).toBeNull();
-    await vi.advanceTimersByTimeAsync(700);
+    await vi.advanceTimersByTimeAsync(1400);
     expect(state.lastSpin).toBeNull();
     expect(state.currentPlayer).toBe(2);
     expect(state.players[1].strategies).toEqual([]);
@@ -581,7 +587,7 @@ describe('local multiplayer', () => {
     state.players[0].position = (island.id - 2 + state.map.length) % state.map.length;
     state.players[1].strategies = ['navigate'];
     humanTurn();
-    await vi.advanceTimersByTimeAsync(700);
+    await vi.advanceTimersByTimeAsync(1400);
     expect(state.currentPlayer).toBe(2);
     expect(controller.turnNotice).toMatchObject({ params: { p: { id: 2 } } });
     expect(controller.turnAction).toBeNull();
@@ -616,6 +622,8 @@ describe('local multiplayer', () => {
       expect(state.currentPlayer).toBe(seat);
       expect(state.phase).toBe('moving');
       EventBus.emit('move-complete', moveId);
+      expect(state.phase).toBe('awaitingBuild');
+      await vi.advanceTimersByTimeAsync(700);
     }
     expect(state.log.filter((line) => line.includes(' spins '))).toHaveLength(4);
   });

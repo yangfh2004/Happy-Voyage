@@ -59,6 +59,8 @@ describe('AI colony decisions', () => {
     expect(player.position).toBe(target.id);
     expect(state.owners[target.id]).toBe(player.id);
     expect(player.gold).toBe(0);
+    expect(state.phase).toBe('awaitingBuild');
+    engine.decideForAI();
     expect(state.winner).toBe(player.id);
   });
 
@@ -72,13 +74,13 @@ describe('AI colony decisions', () => {
 });
 
 describe('AI rival difficulty', () => {
-  const at = (place: string, rival = false) => {
+  const at = (place: string, rival: boolean | null = false) => {
     const roster = createNationRoster([{ name: 'Captain', nation: 'Spain' }], 'hard').slice(0, 2).reverse();
     const engine = new GameEngine({ players: roster, rng: () => 0.5, config: { battleMode: 'auto' } });
     const { state, currentPlayer: player } = engine;
     const node = state.map.find((n) => n.special === place || n.kind === place)!;
     player.position = node.id;
-    if (node.kind === 'island') state.owners[node.id] = rival ? 1 : 0;
+    if (node.kind === 'island') state.owners[node.id] = rival === null ? null : rival ? 1 : 0;
     state.phase = 'moving';
     engine.resolveLanding();
     return { engine, state, player, node };
@@ -92,6 +94,15 @@ describe('AI rival difficulty', () => {
     expect(hard.state.players.slice(1).every((p) => p.aiDifficulty === 'hard')).toBe(true);
     expect(hard.state.players.map(({ aiDifficulty, ...player }) => player))
       .toEqual(easy.state.players.map(({ aiDifficulty, ...player }) => player));
+  });
+
+  it('develops a newly claimed colony during the same turn', () => {
+    const { engine, state, player, node } = at('island', null);
+    expect(state.phase).toBe('awaitingBuild');
+    expect(engine.currentPlayer.id).toBe(player.id);
+    engine.decideForAI();
+    expect(state.buildings[node.id].collectionField).toBeGreaterThan(0);
+    expect(engine.currentPlayer.id).not.toBe(player.id);
   });
 
   it('develops a supply chain, launches a legal ship and loads its local specialty', () => {
