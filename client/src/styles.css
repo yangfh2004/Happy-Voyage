@@ -506,8 +506,8 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .transfer-hint { margin: 4px 0; font-size: 13px; color: #5d4037; }
 .transfer-columns { display: grid; gap: 4px; }
 .transfer-section ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.transfer-ship { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid #8d6e6355; border-radius: 8px; background: #fff; }
-.transfer-ship > div { min-width: 0; }
+.transfer-ship { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid #8d6e6355; border-radius: 8px; background: #fff; }
+.transfer-ship > div { flex: 1 1 11em; min-width: 0; }
 .transfer-ship small { display: block; font-size: 12px; color: #5d4037; }
 .transfer-ship button { flex-shrink: 0; padding: 4px 10px; }
 .transfer-quick { display: grid; gap: 4px; margin-bottom: 10px; }
@@ -515,11 +515,18 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .transfer-controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 8px; }
 .transfer-controls input { width: 5em; font: inherit; }
 .transfer-goods { width: 100%; border-collapse: collapse; font-size: 14px; }
-.transfer-goods th, .transfer-goods td { text-align: left; padding: 5px 4px; border-bottom: 1px solid #8d6e6355; }
-.transfer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.transfer-goods th, .transfer-goods td { text-align: left; padding: 5px 4px; white-space: nowrap; border-bottom: 1px solid #8d6e6355; }
+.transfer-actions { display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 4px; }
 .transfer-actions button { padding: 3px 9px; }
 .transfer-feedback { position: sticky; bottom: 0; margin: 0 -24px -20px; padding: 0 24px; background: #fdf6e3; border-top: 1px solid #cba654; }
 .transfer-feedback:empty { display: none; }
 .transfer-feedback p { margin: 0; padding: 8px 0; font-weight: 700; color: #1b5e20; }
 .transfer-feedback [role="alert"] { color: #b71c1c; }
+.fleet .stat-trigger { min-width: 0; min-height: 0; }
+@media (max-width: 560px) {
+  .fleet { padding: 14px 12px; }
+  .transfer-section { padding: 10px 8px; }
+  .transfer-feedback { margin: 0 -12px -14px; padding: 0 12px; }
+  .transfer-actions button { min-width: 0; padding: 3px 7px; }
+}
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

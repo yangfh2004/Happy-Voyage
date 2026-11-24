@@ -35,6 +35,16 @@ export function TransferContents({ state }: { state: GameState }) {
       setError(cause instanceof Error ? cause.message : t('Transfer failed', '调度失败'));
     }
   }
+  function moveCargo(direction: 'load' | 'unload', good: Good, amount: number) {
+    if (!selected) return;
+    const limit = direction === 'load' ? Math.min(storedOf(good), selectedFree) : selected.cargo[good] ?? 0;
+    if (!Number.isSafeInteger(amount) || amount <= 0) setError(t('Enter a whole number above 0.', '请输入大于 0 的整数。'));
+    else if (amount > limit) setError(direction === 'load'
+      ? t('Can load at most {n} {g}: limited by colony stock and free cargo space.', '最多可装载 {n} 单位{g}：受殖民地库存和空余货舱限制。', { n: limit, g: gn(good) })
+      : t('Only {n} {g} aboard.', '船上只有 {n} 单位{g}。', { n: limit, g: gn(good) }));
+    else act(() => direction === 'load' ? gameController.loadCargo(selected.id, good, amount) : gameController.unloadCargo(selected.id, good, amount));
+    if (!Number.isSafeInteger(amount) || amount <= 0 || amount > limit) setNotice('');
+  }
   const cargoSummary = (ship: Ship) => {
     const goods = GOODS.filter((good) => (ship.cargo[good] ?? 0) > 0);
     return goods.length ? goods.map((good) => `${gn(good)} ${ship.cargo[good]}`).join(t(', ', '、')) : t('Empty hold', '空舱');
@@ -97,9 +107,9 @@ export function TransferContents({ state }: { state: GameState }) {
               <td>{stored}</td>
               <td>{aboard}</td>
               <td className="transfer-actions">
-                <button disabled={!selected || stored === 0 || selectedFree === 0} aria-label={t('Load {g} onto {s}', '将{g}装上{s}', names)} onClick={() => act(() => gameController.loadCargo(selected!.id, good, qty))}>{t('Load', '装载')}</button>
-                <button disabled={aboard === 0} aria-label={t('Unload {g} from {s}', '从{s}卸下{g}', names)} onClick={() => act(() => gameController.unloadCargo(selected!.id, good, qty))}>{t('Unload', '卸下')}</button>
-                <button disabled={aboard === 0} aria-label={t('Unload all {g} from {s}', '从{s}卸下全部{g}', names)} onClick={() => act(() => gameController.unloadCargo(selected!.id, good, aboard))}>{t('All', '全部')}</button>
+                <button disabled={!selected || stored === 0 || selectedFree === 0} aria-label={t('Load {g} onto {s}', '将{g}装上{s}', names)} onClick={() => moveCargo('load', good, qty)}>{t('Load', '装载')}</button>
+                <button disabled={aboard === 0} aria-label={t('Unload {g} from {s}', '从{s}卸下{g}', names)} onClick={() => moveCargo('unload', good, qty)}>{t('Unload', '卸下')}</button>
+                <button disabled={aboard === 0} aria-label={t('Unload all {g} from {s}', '从{s}卸下全部{g}', names)} onClick={() => moveCargo('unload', good, aboard)}>{t('All', '全部')}</button>
               </td>
             </tr>;
           })}</tbody>
