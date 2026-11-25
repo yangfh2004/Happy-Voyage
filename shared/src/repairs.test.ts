@@ -16,6 +16,7 @@ describe('fleet repairs', () => {
   it.each([1400, 100, 7, 1, 0])('repairs only affordable durability with %ig', (gold) => {
     const engine = game();
     const player = engine.currentPlayer;
+    player.fleet.splice(5);
     expect(player.fleet).toHaveLength(5);
     player.fleet.forEach((ship, index) => { ship.durability -= index + 1; });
     player.gold = gold;
@@ -132,7 +133,7 @@ describe('fleet repairs', () => {
     land(engine, engine.currentPlayer.homePort);
     expect(engine.currentPlayer).toBe(player);
     expect(ship.durability).toBe(ship.maxDurability);
-    expect(player.gold).toBe(gold);
+    expect(player.gold).toBe(gold + 30);
     land(engine, colony);
     engine.boardShip(ship.id);
     engine.finishBuilding();

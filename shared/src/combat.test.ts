@@ -13,6 +13,8 @@ function siege(attackerHp: number, defenderHp: number, thirdSeat = false) {
   const { state } = engine;
   const island = state.map.find((node) => node.kind === 'island')!;
   const [owner, raider] = state.players;
+  owner.fleet.splice(5);
+  raider.fleet.splice(5);
   state.owners[island.id] = owner.id;
   owner.position = island.id + 3;
   owner.fleet.forEach((ship) => { ship.durability = defenderHp; });

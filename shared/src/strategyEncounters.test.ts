@@ -49,16 +49,16 @@ describe('strategies during random encounters', () => {
     expect(g.state.owners[2]).toBe(p.id);
   });
 
-  it.each(['pirates', 'smallMonster'] as const)('Escort blocks an intercepted roaming %s', (kind) => {
+  it.each(['pirates', 'smallMonster'] as const)('Escort blocks a roaming %s on the landing space', (kind) => {
     const { g, p, events, sail, roll } = voyage();
-    g.state.roamers = [{ id: 0, kind, node: 1 }];
+    g.state.roamers = [{ id: 0, kind, node: 2 }];
     p.strategies = ['escort'];
     g.useStrategy('escort');
     roll([0]);
     sail();
     expect(events.filter((e) => e.type === 'seaEvent')).toMatchObject([{ event: kind, outcome: 'protected' }]);
     expect(p.escortProtection).toBe(false);
-    expect(g.state.roamers[0].node).not.toBe(1);
+    expect(g.state.roamers[0].node).not.toBe(2);
     expect(g.state.owners[2]).toBe(p.id);
   });
 
@@ -97,15 +97,22 @@ describe('strategies during random encounters', () => {
     expect(g.state.compassMultiplier).toBe(1);
   });
 
-  it.each(['tailwind', 'reverse'] as const)('%s still intercepts hazards on its transformed route', (card) => {
+  it.each(['tailwind', 'reverse'] as const)('%s triggers roaming hazards only when landing on them, not when passing by', (card) => {
     const { g, p, events, sail, roll } = voyage();
-    g.state.roamers = [{ id: 0, kind: 'smallMonster', node: card === 'reverse' ? 39 : 1 }];
+    const passed = card === 'reverse' ? 39 : 1;
+    const landed = card === 'reverse' ? 38 : 4;
+    g.state.roamers = [
+      { id: 0, kind: 'pirates', node: passed },
+      { id: 1, kind: 'smallMonster', node: landed },
+    ];
     p.strategies = [card];
     g.useStrategy(card);
     roll([0]);
     sail();
-    expect(p.position).toBe(card === 'reverse' ? 38 : 4);
+    expect(p.position).toBe(landed);
     expect(events.filter((e) => e.type === 'seaEvent')).toMatchObject([{ event: 'smallMonster', outcome: 'damaged' }]);
+    expect(g.state.roamers[0].node).toBe(passed);
+    expect(g.state.roamers[1].node).not.toBe(landed);
     expect(g.state.owners[p.position]).toBe(p.id);
   });
 
@@ -154,17 +161,19 @@ describe('strategies during random encounters', () => {
     expect(p.escortProtection).toBe(true);
   });
 
-  it('Hard uses Reverse to avoid a roaming hazard, but not when Escort covers it', () => {
+  it('Hard uses Reverse to avoid a roaming hazard on a landing space, but not when merely passing by or covered by Escort', () => {
     const { g, p } = voyage();
     for (const node of g.state.map) { node.kind = 'event'; node.event = 'openSea'; }
     p.strategies = ['reverse'];
     g.state.roamers = [{ id: 0, kind: 'pirates', node: 1 }];
+    expect(aiSeaStrategy(g.state, p, (id, target) => g.canUseStrategy(id, target))).toBeUndefined();
+    g.state.roamers = [{ id: 0, kind: 'pirates', node: 7 }];
     expect(aiSeaStrategy(g.state, p, (id, target) => g.canUseStrategy(id, target))).toMatchObject({ card: 'reverse' });
     p.escortProtection = true;
     expect(aiSeaStrategy(g.state, p, (id, target) => g.canUseStrategy(id, target))).toBeUndefined();
   });
 
-  it.each([false, true])('Hard spends Escort on the route before estimating the destination storm (roamer: %s)', (roamer) => {
+  it.each([false, true])('Hard spends Escort on a landing roamer before estimating the destination storm (roamer: %s)', (roamer) => {
     const { g, p, events, sail, roll } = voyage();
     for (const node of g.state.map) {
       node.kind = 'event';
@@ -172,7 +181,7 @@ describe('strategies during random encounters', () => {
     }
     p.strategies = ['reverse'];
     p.escortProtection = true;
-    if (roamer) g.state.roamers = [{ id: 0, kind: 'pirates', node: 1 }];
+    if (roamer) g.state.roamers = [2, 6, 7, 8].map((node, id) => ({ id, kind: 'pirates' as const, node }));
     const choice = aiSeaStrategy(g.state, p, (id, target) => g.canUseStrategy(id, target));
     if (roamer) expect(choice).toMatchObject({ card: 'reverse' });
     else expect(choice).toBeUndefined();

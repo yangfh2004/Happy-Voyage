@@ -2,7 +2,7 @@ import { COMPASS_SECTORS } from './compass';
 import { walkPath } from './graph';
 import { colonyDefenders, defaultBattleDeployment, forecastColonyBattle, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
-import { BUILDINGS, buildingLevel, colonyToll, nextBuildingCost } from './buildings';
+import { BUILDINGS, COLONY_PAYBACK_ROUNDS, buildingLevel, colonyCanRepair, colonyToll, nextBuildingCost } from './buildings';
 import { isEliminated, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
 import { SEA_RULES } from './seaRules';
 import { LOTTERY } from './lottery';
@@ -17,9 +17,9 @@ import type { BarterOffer, BuildingKind, GameState, MapNode, MarketOrder, Player
 import { playerRetreatThreshold } from './withdrawal';
 
 const POLICIES = {
-  easy:   { reserve: 450, fleetSize: 3, development: 1 },
-  normal: { reserve: 400, fleetSize: 4, development: 2 },
-  hard:   { reserve: 400, fleetSize: 5, development: 3 },
+  easy:   { reserve: 450, fleetSize: 6, development: 1 },
+  normal: { reserve: 400, fleetSize: 7, development: 2 },
+  hard:   { reserve: 400, fleetSize: 8, development: 3 },
 } as const;
 
 const policy = (player: Player) => POLICIES[player.aiDifficulty ?? 'normal'];
@@ -162,8 +162,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       if (!scores) spinLandings.set(arrivalCash, scores = new Map());
       let score = scores.get(next.id);
       if (score === undefined) scores.set(next.id, score = landing(next, arrivalCash, false));
-      const hazard = !player.escortProtection && state.roamers.some((r) => path.includes(r.node)) ? 180 : 0;
-      return value + odds * (pay + Math.min(400, score) - hazard);
+      return value + odds * (pay + Math.min(400, score));
     }, 0);
   };
 
@@ -230,21 +229,29 @@ export function aiBuildingChoice(state: GameState, player: Player): BuildingKind
     (supplies('ironMine', 'iron') ? 0 : BUILDINGS.ironMine.costs[0]) +
     (level('shipyard') > 0 ? 0 : BUILDINGS.shipyard.costs[0]);
   const needsMaterials = newShip && development > 1 && funding >= remainingSetupCost;
+  const canMake = (type: ShipType) => stock.lumber >= SHIP_RECIPES[type].lumber && stock.iron >= SHIP_RECIPES[type].iron;
+  const yardLevel = level('shipyard');
+  const warshipYardLevel = SHIP_RECIPES.warship.yardLevel;
+  if (newShip && development >= warshipYardLevel && yardLevel > 0 && yardLevel < warshipYardLevel &&
+      aiShipChoice(player, canMake) === 'warship') {
+    const upgradeCost = BUILDINGS.shipyard.costs.slice(yardLevel, warshipYardLevel)
+      .reduce((total, cost) => total + cost, 0);
+    if (funding >= upgradeCost) return 'shipyard';
+  }
   const value = (kind: BuildingKind): number => {
     switch (kind) {
       case 'collectionField': return node.specialty ? Math.min(20, turns) * (level(kind) === 0 ? 6 : 2) : 0;
       case 'lumberMill': return needsMaterials && level(kind) === 0 && stock.lumber < SHIP_RECIPES.explorer.lumber ? 100 : 0;
       case 'ironMine': return needsMaterials && level(kind) === 0 && stock.iron < SHIP_RECIPES.explorer.iron ? 100 : 0;
       case 'shipyard': {
-        const next = level(kind) + 1;
+        const next = yardLevel + 1;
         if (!newShip || next > development) return 0;
         if (next === 1) return supplies('lumberMill', 'lumber') && supplies('ironMine', 'iron') ? 130 : 0;
-        const canMake = (type: ShipType) => stock.lumber >= SHIP_RECIPES[type].lumber && stock.iron >= SHIP_RECIPES[type].iron;
-        if (development === 3 && canMake('warship') && funding >= (next === 2 ? 1000 : 600)) return 175;
         return next === 2 && !player.fleet.some((ship) => ship.type === 'cargo') && canMake('cargo') ? 120 : 0;
       }
       case 'repairYard':
-        return state.docks[node.id].reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0) * REPAIR_GOLD_PER_POINT;
+        return colonyCanRepair(state, node.id) ? 0
+          : state.docks[node.id].reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0) * REPAIR_GOLD_PER_POINT;
     }
   };
   let best: BuildingKind | null = null;
@@ -252,7 +259,9 @@ export function aiBuildingChoice(state: GameState, player: Player): BuildingKind
   for (const kind of Object.keys(BUILDINGS) as BuildingKind[]) {
     const cost = nextBuildingCost(state, node.id, kind);
     if (cost === null || cost > funding) continue;
-    const purpose = value(kind);
+    const starterIndustry = level(kind) === 0 && turns + 1 >= COLONY_PAYBACK_ROUNDS &&
+      (kind === 'lumberMill' || kind === 'ironMine' || (kind === 'collectionField' && node.specialty));
+    const purpose = Math.max(value(kind), starterIndustry ? cost / COLONY_PAYBACK_ROUNDS + 1 : 0);
     if (purpose <= 0 || (kind === 'collectionField' && level(kind) >= development)) continue;
     const benefit = purpose + (development === 1 ? 0 : tollReturn) - cost * 0.25;
     if (benefit > bestReturn) {
@@ -388,11 +397,11 @@ export function aiSeaStrategy(state: GameState, player: Player, canUse: (card: S
     const node = state.map[path.at(-1)!];
     const owner = state.owners[node.id];
     const salary = path.filter((id) => id === player.homePort).length * state.config.homeSalary;
-    const crossesRoamer = state.roamers.some((r) => path.includes(r.node));
-    const escortAtDestination = player.escortProtection && !crossesRoamer;
+    const landsOnRoamer = state.roamers.some((r) => r.node === node.id);
+    const escortAtDestination = player.escortProtection && !landsOnRoamer;
     const value = node.kind === 'island' ? owner === null ? 180 : owner !== player.id ? -tollDue(state, player, node.id) : 20
       : node.event === 'storm' && !escortAtDestination ? -100 : node.event === 'openSea' ? -20 : 0;
-    const hazard = !player.escortProtection && crossesRoamer ? 180 : 0;
+    const hazard = !player.escortProtection && landsOnRoamer ? 180 : 0;
     return sum + odds * (salary + value - hazard);
   }, 0);
   const baseline = player.aiDifficulty === 'hard' ? movementValue(1) : 0;

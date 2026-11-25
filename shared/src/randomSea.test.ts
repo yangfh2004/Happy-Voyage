@@ -23,12 +23,12 @@ function voyage(roll = 0.99) {
 
 describe('random sea encounters', () => {
   it('advances exactly once when a hazard bankrupts a fleet sailing to Skeleton Island', () => {
-    const { game, events, sail } = voyage();
+    const { game, events, sail, roll } = voyage();
     const player = game.currentPlayer;
     game.state.players.push({ ...player, id: 1, name: 'Next', position: 4 });
     game.state.players.push({ ...player, id: 2, name: 'Last', position: 5 });
     game.state.map[2] = { ...game.state.map[2], kind: 'special', special: 'skeleton' };
-    game.state.roamers = [{ id: 0, kind: 'smallMonster', node: 1 }];
+    roll([0, 0.25]);
     player.gold = 1;
     sail();
     expect(player.bankrupt).toBe(true);
@@ -93,15 +93,42 @@ describe('random sea encounters', () => {
     expect(events.find((e) => e.type === 'seaEvent')).toMatchObject({ event: 'turtle' });
   });
 
-  it('intercepts the sailed path before the random roll and resurfaces away from fleets', () => {
+  it('does not trigger roaming hazards when passing by them', () => {
     const { game, events, sail } = voyage();
-    game.state.roamers = [{ id: 0, kind: 'smallMonster', node: 1 }];
+    const player = game.currentPlayer;
+    const gold = player.gold;
+    const durabilities = player.fleet.map((s) => s.durability);
+    game.state.roamers = [
+      { id: 0, kind: 'smallMonster', node: 1 },
+      { id: 1, kind: 'pirates', node: 2 },
+    ];
+    sail(3);
+    expect(events.some((e) => e.type === 'seaEvent')).toBe(false);
+    expect(player.gold).toBe(gold);
+    expect(player.fleet.map((s) => s.durability)).toEqual(durabilities);
+    expect(game.state.roamers.map((r) => r.node)).toEqual([1, 2]);
+    expect(game.state.owners[3]).toBe(0);
+  });
+
+  it('triggers a roaming hazard on landing before the random roll and resurfaces away from fleets', () => {
+    const { game, events, sail } = voyage();
+    game.state.roamers = [{ id: 0, kind: 'smallMonster', node: 2 }];
     sail();
     expect(events.filter((e) => e.type === 'seaEvent')).toMatchObject([{ event: 'smallMonster' }]);
-    expect(game.state.roamers[0].node).not.toBe(1);
+    expect(game.state.roamers[0].node).not.toBe(2);
     expect(game.state.players.map((p) => p.position)).not.toContain(game.state.roamers[0].node);
     expect(game.state.owners[2]).toBe(0);
     expect(game.state.phase).toBe('awaitingBuild');
+  });
+
+  it('triggers a roaming hazard when navigating directly onto its space', () => {
+    const { game, events } = voyage();
+    game.state.roamers = [{ id: 0, kind: 'smallMonster', node: 2 }];
+    game.currentPlayer.strategies = ['navigate'];
+    game.useStrategy('navigate', 2);
+    expect(events.filter((e) => e.type === 'seaEvent')).toMatchObject([{ event: 'smallMonster' }]);
+    expect(game.state.roamers[0].node).not.toBe(2);
+    expect(game.state.owners[2]).toBe(0);
   });
 
   it('ignores fleet-loss defeats when resurfacing and skips defeated navigators', () => {
@@ -110,7 +137,7 @@ describe('random sea encounters', () => {
     game.state.players.push({ ...player, id: 1, name: 'Defeated', position: 3, fleet: [], fleetLost: true });
     game.state.players.push({ ...player, id: 2, name: 'Survivor', position: 4 });
     for (const node of game.state.map.slice(4)) node.kind = 'port';
-    game.state.roamers = [{ id: 0, kind: 'smallMonster', node: 1 }];
+    game.state.roamers = [{ id: 0, kind: 'smallMonster', node: 2 }];
     sail();
     expect(game.state.roamers[0].node).toBe(3);
     game.finishBuilding();

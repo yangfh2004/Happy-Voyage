@@ -72,13 +72,44 @@ describe('fleet capacity at a colony', () => {
     setLocale(locale);
     try {
       const html = renderToStaticMarkup(<TransferContents state={state} />);
-      expect(html).toContain(locale === 'en' ? 'Fleet 10/10' : '舰队 10/10');
+      expect(html).toContain(locale === 'en' ? 'Fleet 20/20' : '舰队 20/20');
       expect(html).toMatch(locale === 'en' ? /<button disabled="">Board / : /<button disabled="">让/);
       if (locale === 'en') expect(html).not.toMatch(/\p{Script=Han}/u);
       state.phase = 'awaitingBuild';
       game.dockShip(player.fleet[0].id);
       const available = renderToStaticMarkup(<TransferContents state={state} />);
       expect(available).toMatch(locale === 'en' ? /<button>Board / : /<button>让/);
+    } finally {
+      setLocale('en');
+    }
+  });
+});
+
+describe('durability at a colony', () => {
+  it.each(['en', 'zh'] as const)('shows durability for fleet and docked ships and local repair availability in %s', (locale) => {
+    const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }], rng: () => 0.5 });
+    const { state, currentPlayer: player } = game;
+    const island = state.map.find((node) => node.kind === 'island')!;
+    state.owners[island.id] = player.id;
+    player.position = island.id;
+    state.phase = 'awaitingBuild';
+    const [docked, sailing] = player.fleet;
+    docked.durability = 4;
+    sailing.durability = 7;
+    game.dockShip(docked.id);
+    setLocale(locale);
+    try {
+      const html = renderToStaticMarkup(<TransferContents state={state} />);
+      const cards = html.match(/<li class="transfer-ship">.*?<\/li>/g) ?? [];
+      const label = locale === 'en' ? 'Durability' : '耐久';
+      expect(cards).toHaveLength(player.fleet.length + 1);
+      expect(cards[0]).toContain(`${label} 7/${sailing.maxDurability}</button>`);
+      expect(cards[player.fleet.length]).toContain(`${label} 4/${docked.maxDurability}</button>`);
+      expect(html).toContain(locale === 'en' ? 'No shipyard or repair yard: docked ships are not repaired here.' : '没有造船厂或修船厂，停靠的船只不会在此修理。');
+      if (locale === 'en') expect(html).not.toMatch(/\p{Script=Han}/u);
+      state.buildings[island.id].repairYard = 1;
+      const withRepairs = renderToStaticMarkup(<TransferContents state={state} />);
+      expect(withRepairs).toContain(locale === 'en' ? 'Dock ships here for free repairs at the start of your next turn.' : '将船只停靠在此，下次回合开始时免费修好。');
     } finally {
       setLocale('en');
     }
@@ -307,13 +338,14 @@ describe('build menu', () => {
     state.phase = 'awaitingBuild';
     let html = renderToStaticMarkup(<ActionPanel state={state} />);
     expect(html).toContain('None');
-    expect(html).toContain('Build (100g)');
+    expect(html).toContain('Build (60g)');
     expect(html).toContain('Build a shipyard to launch ships.');
     expect(html).toContain('disabled');
     state.buildings[node.id] = { lumberMill: 2, repairYard: 1 };
     html = renderToStaticMarkup(<ActionPanel state={state} />);
     expect(html).toContain('Medium');
-    expect(html).toContain('Upgrade (300g)');
+    expect(html).toContain('Upgrade (180g)');
+    expect(html).toContain('Building income: 65g per round');
     expect(html).toContain('Max level');
     expect(html).toContain('Done');
     expect(html).toContain('Ships &amp; cargo transfer');
