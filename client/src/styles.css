@@ -10,7 +10,7 @@
 .atmosphere-status { position: absolute; bottom: 12px; left: 12px; padding: 7px 12px; border: 2px solid #a9f6ef; border-radius: 20px; background: #103c5bed; color: #fff9d9; font-family: 'Sea Names', system-ui, sans-serif; font-size: 13px; font-weight: 700; text-transform: capitalize; pointer-events: none; }
 .building-option small { display: block; margin: 3px 0; }
 .sea-map { position: absolute; inset: 0; }
-.playing .sea-map { position: relative; inset: auto; min-width: 0; min-height: 0; overflow: hidden; }
+.playing .sea-map { position: relative; inset: auto; min-width: 0; min-height: 0; overflow: hidden; isolation: isolate; }
 .sea-notifications { position: absolute; top: 12px; right: 12px; z-index: 20; width: min(440px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: auto; display: grid; gap: 8px; pointer-events: none; }
 .sea-notifications:empty { display: none; }
 .sea-notice { display: flex; align-items: center; gap: 12px; padding: 12px; border: 2px solid #edbf56; border-radius: 12px; background: #092f46; color: #fff6dc; box-shadow: 0 5px 18px #001b2fcc; pointer-events: auto; animation: banner 0.3s ease-out; }
@@ -214,7 +214,11 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .playing { display: grid; grid-template-columns: minmax(0, 1fr) 310px; grid-template-rows: minmax(0, 1fr); }
 .playing .phaser-container { position: relative; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
 .phaser-container canvas { display: block; }
-.playing .overlay { position: relative; display: block; background: #06283d; overflow: auto; padding: 10px; min-height: 0; pointer-events: auto; overscroll-behavior: contain; }
+/* Raise the HUD's whole stacking context above the mobile player strip (5).
+   Safari touch-scrolling can isolate descendants, so a landing card's own
+   z-index cannot lift it out of an otherwise unranked HUD. Map notices stay
+   inside the isolated sea-map context, below menus and their tooltips. */
+.playing .overlay { position: relative; z-index: 10; display: block; background: #06283d; overflow: auto; padding: 10px; min-height: 0; pointer-events: auto; overscroll-behavior: contain; }
 .playing .hud { width: 100%; }
 .chart-controls { display: flex; gap: 6px; }
 .chart-controls button { flex: 1; font-size: 12px; }

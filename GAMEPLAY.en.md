@@ -35,7 +35,7 @@ A navigator goes bankrupt only when a deduction takes their gold below zero; exa
 - **Return to a colony** lets you sail directly to any of your colonies other than your current location before spinning the compass, without spending a card. It becomes available again 12 rounds later: use it in round 2 and it returns in round 14. As with Navigate and Recall, you skip intervening spaces and collect no salary en route, but still resolve the destination.
 - Drag to pan the chart and use the scroll wheel or pinch to zoom. Use **Fit chart** or **Follow ship** to adjust the view. Open **Fleet** to see ships, captains, cargo, and durability; ★ marks the signature ship. The top player bar shows each navigator’s gold, sailing ships, colonies, and strategy cards. Changing game speed or skipping animations does not affect sailing or its outcomes.
 
-- Colony construction, Ships & cargo transfer, and special-island menus open in large windows measuring 90% of the screen width and 80% of its height (72% of the screen area, at least two-thirds), including portrait and landscape phones. Longer menus scroll inside the window; finishing or leaving the menu returns to the chart.
+- Colony construction, Ships & cargo transfer, and special-island menus open in large windows measuring 90% of the screen width and 80% of its height (72% of the screen area, at least two-thirds), including portrait and landscape phones. Windows appear above map notices and the player strip, so neither obscures them. Longer menus scroll inside the window; finishing or leaving the menu returns to the chart.
 
 ## 3. Colonies, fleets, and trade
 
