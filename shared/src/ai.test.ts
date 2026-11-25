@@ -193,6 +193,7 @@ describe('AI rival difficulty', () => {
 
   it('Hard navigates to buy a warship while keeping enough gold to settle more islands', () => {
     const { engine, state, player, node } = at('island');
+    state.config.homeSalary = 0;
     player.fleet.splice(4);
     const market = state.map.find((stop) => stop.special === 'skeleton')!;
     player.strategies = ['navigate'];

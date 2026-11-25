@@ -137,7 +137,8 @@ describe('attached ship berths', () => {
   });
 
   it('respects a measured label near a berth even when its stop is far away', () => {
-    const chart = [map[0], { ...map[1], x: map[0].x + 1000, y: map[0].y }];
+    const land = map.find(node => node.kind === 'island')!;
+    const chart = [map[0], { ...land, x: map[0].x + 1000, y: map[0].y }];
     const players = [{ id: 0, position: chart[0].id }];
     const before = check(chart, players).get(0)!;
     const bounds = shipBounds(before.x, before.y, before.scale);

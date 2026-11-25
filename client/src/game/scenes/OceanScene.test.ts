@@ -65,7 +65,7 @@ afterEach(() => {
 
 it('positions fleet tokens on the match chart even when the sea stops shift node IDs', () => {
   const defaultMap = createDefaultMap();
-  selectGameplayTuning(resolveGameplayTuning({ map: { seaStopsBetweenSectors: { Spain: 6 } } }).rules);
+  selectGameplayTuning(resolveGameplayTuning({ map: { targetSeaSpacing: 320 } }).rules);
   const { state } = new GameEngine({ players: createNationRoster([{ name: 'Captain', nation: 'Netherlands' }]) });
   selectGameplayTuning();
   Object.assign(gameController, { state });

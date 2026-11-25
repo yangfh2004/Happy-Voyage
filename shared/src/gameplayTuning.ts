@@ -78,15 +78,7 @@ const schema = {
     explorer: { durability: positive(80, '探险船最大耐久'), firepower: positive(12, '探险船火力'), cargo: positive(40, '探险船货舱（单位）'), speed: positive(7, '探险船航速'), crew: positive(25, '探险船船员容量（人）'), usedPrice: gold(180, '中古探险船价格'), yardLevel: int(1, 1, 3, '建造探险船所需船厂等级'), lumber: positive(2, '建造探险船所需木材（单位）'), iron: positive(1, '建造探险船所需铁矿（单位）') },
   },
   map: {
-    seaStopsBetweenSectors: {
-      Spain: int(3, 0, 8, '西班牙之后的海格数'), Netherlands: int(2, 0, 8, '荷兰之后的海格数'),
-      England: int(2, 0, 8, '英格兰之后的海格数'), Portugal: int(2, 0, 8, '葡萄牙之后的海格数'),
-      China: int(2, 0, 8, '中国之后的海格数'), France: int(3, 0, 8, '法国之后的海格数'),
-      Japan: int(2, 0, 8, '日本之后的海格数'), Germany: int(2, 0, 8, '德国之后的海格数'),
-      Italy: int(2, 0, 8, '意大利之后的海格数'), Korea: int(3, 0, 8, '韩国之后的海格数'),
-    },
-    extraSeaStops: int(1, 0, 8, '特定较长航段各插入的额外海格数'),
-    seaLaneBias: ratio(.2, -.9, .9, '特定航段的海格位置偏移（海格间距倍数）'),
+    targetSeaSpacing: int(255, 255, 600, '主航线每步的目标距离（地图像素）；数值越大，空白海格越少'),
     colonyBasePrice: gold(100, '新大陆最低定价'),
     colonyPriceIncrease: gold(250, '路线末端相对首块新大陆的定价涨幅'),
     colonyPriceStep: positive(5, '新大陆定价的取整单位（金币）'),

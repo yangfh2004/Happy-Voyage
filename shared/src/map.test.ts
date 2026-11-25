@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultMap, MIN_NODE_SPACING, WORLD } from './map';
-import { successors, windExit, WIND_DIRECTIONS } from './graph';
+import { spinCompass } from './compass';
+import { GAMEPLAY_TUNING } from './gameplayTuning';
+import { successors, walkPath, windExit, WIND_DIRECTIONS } from './graph';
 
 describe('organic archipelagos', () => {
   const map = createDefaultMap();
@@ -8,13 +10,13 @@ describe('organic archipelagos', () => {
     const another = createDefaultMap();
     expect(another).toEqual(map);
     expect(another[0]).not.toBe(map[0]);
-    expect(map).toHaveLength(100);
+    expect(map).toHaveLength(143);
     expect(map.filter((node) => node.kind === 'island')).toHaveLength(40);
     expect(map.filter((node) => node.kind === 'port')).toHaveLength(10);
     expect(map.filter((node) => node.kind === 'special')).toHaveLength(7);
     expect(map.filter((node) => node.kind === 'event')).toHaveLength(13);
     const sea = map.filter((node) => node.kind === 'sea');
-    expect(sea).toHaveLength(30);
+    expect(sea).toHaveLength(73);
     for (const node of sea) {
       expect(Object.keys(node).sort()).toEqual(['chineseName', 'id', 'kind', 'name', 'x', 'y']);
       expect(successors(map, node.id)).toEqual([(node.id + 1) % map.length]);
@@ -57,11 +59,45 @@ describe('organic archipelagos', () => {
         expect(Math.hypot(node.x - map[id].x, node.y - map[id].y)).toBeLessThanOrEqual(typical * 2.5);
         const steps = (id - node.id + map.length) % map.length;
         expect(steps).toBeGreaterThanOrEqual(2);
-        expect(steps).toBeLessThanOrEqual(12);
+        expect(steps).toBeLessThanOrEqual(18);
         const from = stops.indexOf(node), to = stops.indexOf(map[id]);
         expect((to - from + stops.length) % stops.length).toBeLessThanOrEqual(9);
       }
     }
+  });
+  it('keeps main-route step lengths comparable across short and long crossings', () => {
+    for (const node of map) {
+      const next = map[successors(map, node.id)[0]];
+      const distance = Math.hypot(next.x - node.x, next.y - node.y);
+      expect(distance).toBeGreaterThanOrEqual(190);
+      expect(distance).toBeLessThanOrEqual(380);
+    }
+  });
+  it('ends about half of seeded compass moves on blank sea, including wind shortcuts', () => {
+    const { windMinTurns, windExtraTurns } = GAMEPLAY_TUNING.map;
+    let turns = 0, blankLandings = 0;
+    for (let seed = 1; seed <= 16; seed++) {
+      let state = seed;
+      const rng = () => (state = state * 16807 % 2147483647) / 2147483647;
+      const nextWindDuration = () => windMinTurns + Math.floor(rng() * (1 + windExtraTurns));
+      let wind = WIND_DIRECTIONS[Math.floor(rng() * WIND_DIRECTIONS.length)];
+      let turnsLeft = nextWindDuration();
+      const positions = map.filter(node => node.kind === 'port').map(node => node.id);
+      for (let turn = 0; turn < 10000; turn++) {
+        const seat = turn % positions.length;
+        const landing = walkPath(map, positions[seat], spinCompass(rng), wind).at(-1)!;
+        positions[seat] = landing;
+        if (map[landing].kind === 'sea') blankLandings++;
+        turns++;
+        if (--turnsLeft === 0) {
+          const choices = WIND_DIRECTIONS.filter(direction => direction !== wind);
+          wind = choices[Math.floor(rng() * choices.length)];
+          turnsLeft = nextWindDuration();
+        }
+      }
+    }
+    expect(blankLandings / turns).toBeGreaterThanOrEqual(0.45);
+    expect(blankLandings / turns).toBeLessThanOrEqual(0.55);
   });
   it('keeps edges clear of other stops and a complete home-port ring', () => {
     for (const node of map) {

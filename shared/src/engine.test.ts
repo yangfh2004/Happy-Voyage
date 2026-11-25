@@ -270,6 +270,7 @@ describe('GameEngine', () => {
       engine.resolveLanding();
       if (engine.state.phase === 'awaitingClaim') engine.decline();
       if (engine.state.phase === 'awaitingBuild') engine.finishBuilding();
+      if (engine.state.phase === 'awaitingMarket') engine.finishMarket();
     }
     expect(turns).toEqual([[0, 1, 2], [0, 1, 2], [0, 1, 2]]);
   });
