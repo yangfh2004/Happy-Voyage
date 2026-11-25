@@ -162,8 +162,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       if (!scores) spinLandings.set(arrivalCash, scores = new Map());
       let score = scores.get(next.id);
       if (score === undefined) scores.set(next.id, score = landing(next, arrivalCash, false));
-      const hazard = !player.escortProtection && state.roamers.some((r) => path.includes(r.node)) ? 180 : 0;
-      return value + odds * (pay + Math.min(400, score) - hazard);
+      return value + odds * (pay + Math.min(400, score));
     }, 0);
   };
 
@@ -388,11 +387,11 @@ export function aiSeaStrategy(state: GameState, player: Player, canUse: (card: S
     const node = state.map[path.at(-1)!];
     const owner = state.owners[node.id];
     const salary = path.filter((id) => id === player.homePort).length * state.config.homeSalary;
-    const crossesRoamer = state.roamers.some((r) => path.includes(r.node));
-    const escortAtDestination = player.escortProtection && !crossesRoamer;
+    const landsOnRoamer = state.roamers.some((r) => r.node === node.id);
+    const escortAtDestination = player.escortProtection && !landsOnRoamer;
     const value = node.kind === 'island' ? owner === null ? 180 : owner !== player.id ? -tollDue(state, player, node.id) : 20
       : node.event === 'storm' && !escortAtDestination ? -100 : node.event === 'openSea' ? -20 : 0;
-    const hazard = !player.escortProtection && crossesRoamer ? 180 : 0;
+    const hazard = !player.escortProtection && landsOnRoamer ? 180 : 0;
     return sum + odds * (salary + value - hazard);
   }, 0);
   const baseline = player.aiDifficulty === 'hard' ? movementValue(1) : 0;

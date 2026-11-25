@@ -144,7 +144,7 @@ Only ships above 0 durability at the start of battle count toward the starting s
 
 ## 6. Sea encounters
 
-Two roaming pirate groups and one roaming Small sea monster move 1–3 spaces each round along the route, forward or backward, without passing through ports or special islands. The first roaming unit a fleet crosses triggers an encounter, then that unit relocates to an empty space. If no roaming unit is encountered, landing on an Open sea space always triggers a random encounter. Any other non-port landing has a 20% chance to trigger a random encounter before resolving the landing itself. Fixed treasure, storm, and trade wind spaces resolve their own events separately. Escort blocks the next harmful event: Storm, Pirates, either size of sea monster, Destructive sea turtle, or Bermuda whirlpool.
+Two roaming pirate groups and one roaming Small sea monster move 1–3 spaces each round along the route, forward or backward, without passing through ports or special islands. A roaming unit triggers an encounter only when a fleet lands on its space (passing through does not trigger it), then relocates to an empty space. If no roaming unit is at the landing space, landing on an Open sea space always triggers a random encounter. Any other non-port landing has a 20% chance to trigger a random encounter before resolving the landing itself. Fixed treasure, storm, and trade wind spaces resolve their own events separately. Escort blocks the next harmful event: Storm, Pirates, either size of sea monster, Destructive sea turtle, or Bermuda whirlpool.
 
 | Encounter | Random weight (100 total) | Effect |
 | --- | ---: | --- |
