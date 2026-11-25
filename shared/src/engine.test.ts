@@ -255,11 +255,11 @@ describe('GameEngine', () => {
     expect(engine.state.log).toContain(`Rival pays 10g toll to You at ${engine.state.map[2].name}.`);
   });
 
-  it('plays an all-AI game to completion', () => {
+  it('plays a Classic conquest all-AI game to completion', () => {
     const engine = new GameEngine({
       players: [0, 1, 2].map((i) => ({ name: `AI ${i}`, color: i, isAI: true })),
-      rng: aiMatchRng(1),
-      config: gameMode('quick').config,
+      rng: aiMatchRng(28),
+      config: gameMode('conquest').config,
     });
     playAiMatch(engine);
     expect(engine.state.winner).not.toBeNull();
