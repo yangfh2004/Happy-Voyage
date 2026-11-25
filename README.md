@@ -15,6 +15,7 @@ Edit `config.json` next to the Windows EXE or macOS App and relaunch to change l
 
 - **Windows (x64):** Download `happy-voyage-win-x64.zip`, extract it, and double-click the portable `.exe`. / 下载并解压 Windows ZIP 后，双击便携版 `.exe`。
 - **macOS:** Download the `arm64` ZIP for Apple silicon or the `x64` ZIP for Intel. Unzip it and open **Happy Voyage.app**. If macOS blocks the first launch, right-click the app and choose **Open**, or use **System Settings → Privacy & Security → Open Anyway**. / Apple 芯片下载 `arm64`，Intel 下载 `x64`。解压后打开应用；若首次运行被拦截，右键选择「打开」，或前往「系统设置 → 隐私与安全性 → 仍要打开」。
+  Before launching with a custom config, use Finder to move the **app itself** out of Downloads into a folder you own, then put `config.json` beside it. macOS may otherwise run the app from a temporary mount where it cannot find its original neighboring files. / 若要使用自定义配置，请先在 Finder 中将 **App 本身**移出「下载」目录，放入自己的文件夹，再把 `config.json` 放到 App 同目录。否则 macOS 可能从临时挂载位置运行 App，导致它找不到原目录中的配置。
 
 Publishing a GitHub release runs the desktop packaging workflow. To add or replace binaries on an existing release whose tag includes desktop configuration support, run **Publish desktop builds** in Actions and enter its tag.
 
