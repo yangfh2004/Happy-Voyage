@@ -56,7 +56,7 @@ describe('board chrome', () => {
     expect(html).toContain('Turn:');
     expect(html).toContain('aria-controls="voyage-menu"');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain('1400');
+    expect(html).toContain('3200');
     expect(html).toContain('1 ·');
   });
   it('shows the current human and handles an empty fleet', () => {

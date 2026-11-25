@@ -98,7 +98,7 @@ const navigationCases = NAVIGATORS.filter(n => ['columbus', 'cook', 'magellan', 
 function navigatorBattle(navigator: NavigatorId, count: number, side: BattleSide) {
   const engine = new GameEngine({ players: [{ name: 'Navigator', color: 0, isAI: false, navigator }, { name: 'AI', color: 1, isAI: true }], rng: () => .5 });
   const base = engine.state.players[0].fleet;
-  const fleet = count === 2 ? [base.find(s => s.signature)!, base.find(s => !s.signature)!] : [...base];
+  const fleet = count === 2 ? [base.find(s => s.signature)!, base.find(s => !s.signature)!] : base.slice(0, count);
   while (fleet.length < count) {
     const type = base[fleet.length % base.length].type;
     fleet.push({ ...SHIP_TYPES[type], id: fleet.length + 1, type, name: 'Extra ship', durability: SHIP_TYPES[type].maxDurability, cargo: {} });

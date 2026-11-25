@@ -35,7 +35,7 @@ describe('military ranks', () => {
     g.on((event) => events.push(event.type));
     land(g);
     expect(p.rank).toBe(1);
-    expect(p.gold).toBe(before + RANKS[1].purse);
+    expect(p.gold).toBe(before + RANKS[1].purse + 90);
     expect(g.state.royalAudience).toMatchObject({ promoted: true, rank: 1, reward: 200 });
     expect(events).toContain('royalAudience');
     expect(g.state.log.join(' ')).toContain('promotes Navigator to Lieutenant (Junior Grade)!');
@@ -54,10 +54,10 @@ describe('military ranks', () => {
     g.state.buildings[id] = { lumberMill: 1 };
     const before = p.gold;
     land(g);
-    expect(p.gold).toBe(before + 50);
+    expect(p.gold).toBe(before + 50 + 15);
     expect(g.state.royalAudience).toMatchObject({ promoted: false, reward: 50 });
     land(g);
-    expect(p.gold).toBe(before + 50);
+    expect(p.gold).toBe(before + 50 + 2 * 15);
     expect(g.state.royalAudience?.message).toContain('awaits greater deeds');
   });
 
