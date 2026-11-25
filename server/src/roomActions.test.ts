@@ -17,7 +17,7 @@ it('accepts rival and rival colony strategy targets through online actions', () 
   g.state.owners[node] = 1;
   g.state.stockpiles[node].iron = 20;
   applyRoomAction(g, ['useStrategy', 'scorch', node]);
-  expect(g.state.stockpiles[node].iron).toBe(0);
+  expect(g.state.stockpiles[node].iron).toBe(10);
 });
 
 it('rejects malformed, missing, self and extra targets without consuming cards', () => {

@@ -5,6 +5,7 @@ import { forecastMap } from './testMap';
 import { createNationRoster } from './nations';
 import { SEA_RULES } from './seaRules';
 import { MAX_FLEET_SIZE } from './ships';
+import { STRATEGY_RULES } from './strategies';
 
 describe('AI colony decisions', () => {
   it.each(['easy', 'normal', 'hard'] as const)('chooses a free colony at low gold for %s Navigate and Wyvern travel', (difficulty) => {
@@ -242,8 +243,9 @@ describe('AI rival difficulty', () => {
   it('Hard recruits a healthy defector in a favorable battle while Normal saves the card', () => {
     for (const difficulty of ['hard', 'normal'] as const) {
       const { engine, state, player } = at('island', true);
+      player.fleet.pop();
       const defector = state.players[1].fleet[0];
-      state.players[1].fleet.forEach((ship) => { ship.firepower = ship === defector ? 20 : 10; });
+      state.players[1].fleet.forEach((ship) => { ship.firepower = ship === defector ? 10 : 20; });
       player.aiDifficulty = difficulty;
       player.strategies = ['betray'];
       for (const ship of player.fleet) ship.firepower = 120;
@@ -255,10 +257,8 @@ describe('AI rival difficulty', () => {
   });
 
   it.each([
-    [0, 35, 'ambush'],
-    [1, 35, 'ambush'],
-    [0, 30, 'betray'],
-    [1, 30, 'betray'],
+    [0, 42, 'ambush'],
+    [1, 42, 'betray'],
   ] as const)('with %s fleet slots and defender firepower %s, chooses %s', (openSlots, defenderFirepower, card) => {
     const { engine, state, player, node } = at('island', true);
     player.aiDifficulty = 'normal';
@@ -267,27 +267,27 @@ describe('AI rival difficulty', () => {
     state.owners[colony.id] = player.id;
     player.fleet.splice(5);
     while (player.fleet.length < MAX_FLEET_SIZE - openSlots) engine.addShipToFleet(player.id, 'cargo');
-    player.fleet.forEach((ship, i) => { ship.firepower = 14; ship.durability = i < 10 - openSlots ? 50 : 0; });
+    player.fleet.forEach((ship, i) => { ship.firepower = 10; ship.durability = i < 10 - openSlots ? 70 : 0; });
     const flagship = player.fleet.find((ship) => ship.signature)!;
     flagship.durability = flagship.maxDurability;
     const warship = player.fleet.find((ship) => ship.type === 'warship')!;
     warship.durability = warship.maxDurability;
     const rival = state.players[1];
     rival.fleet.splice(5);
-    const defectors = rival.fleet.slice(0, 2);
+    const defector = rival.fleet[0];
     rival.fleet.forEach((ship, i) => {
-      ship.firepower = i < 2 ? 95 : defenderFirepower;
-      ship.durability = i < 2 ? 80 : 25;
+      ship.firepower = i === 0 ? 40 : defenderFirepower;
+      ship.durability = ship.signature ? 80 : i === 0 ? 60 : 70;
     });
 
     engine.decideForAI();
 
     expect(player.strategies).toEqual([card === 'ambush' ? 'betray' : 'ambush']);
     expect(state.battles[0]?.outcome).toBe('victory');
-    expect(state.docks[colony.id]).toEqual(card === 'betray' ? defectors.slice(openSlots) : []);
+    expect(state.docks[colony.id]).toEqual(card === 'betray' ? [defector].slice(openSlots) : []);
   });
 
-  it('Hard can disarm a major rival and still pay the toll instead of risking the fleet', () => {
+  it('Hard can weaken a major rival and still pay the toll instead of risking the fleet', () => {
     const { engine, state, player } = at('island', true);
     const rival = state.players[1];
     const warship = rival.fleet[0];
@@ -296,7 +296,7 @@ describe('AI rival difficulty', () => {
     player.strategies = ['mislead'];
     for (const ship of player.fleet) ship.firepower = 1;
     engine.decideForAI();
-    expect(rival.fleet).not.toContain(warship);
+    expect(warship.durability).toBe(warship.maxDurability - STRATEGY_RULES.misleadDamage);
     expect(player.strategies).toEqual([]);
     expect(player.gold).toBeLessThan(gold);
     expect(state.battles).toHaveLength(0);

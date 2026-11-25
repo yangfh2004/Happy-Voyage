@@ -145,18 +145,18 @@ describe('real-time battle', () => {
     expect(attacker.reload.port).toBeGreaterThan(0);
   });
 
-  it('suppresses defense for eight seconds and multiplies Inspire damage', () => {
+  it('suppresses defense for four seconds and multiplies Inspire damage', () => {
     const ordinary = createBattle({ ...setup(), ambush: true });
     close(ordinary);
     const inspired: BattleState = JSON.parse(JSON.stringify(ordinary));
-    inspired.attackerMultiplier = 1.5;
+    inspired.attackerMultiplier = 1.25;
     stepBattle(ordinary);
     stepBattle(inspired);
     expect(ordinary.cannonballs.every((b) => b.side === 'attacker')).toBe(true);
-    expect(Math.abs(inspired.cannonballs[0].damage - ordinary.cannonballs[0].damage * 1.5)).toBeLessThanOrEqual(1);
+    expect(Math.abs(inspired.cannonballs[0].damage - ordinary.cannonballs[0].damage * 1.25)).toBeLessThanOrEqual(1);
     ordinary.ships[0].firepower = 0;
     ordinary.ships[1].durability = 10000;
-    while (ordinary.tick < 8 / TICK) { stepBattle(ordinary); expect(ordinary.cannonballs.every((b) => b.side === 'attacker')).toBe(true); }
+    while (ordinary.tick < 4 / TICK) { stepBattle(ordinary); expect(ordinary.cannonballs.every((b) => b.side === 'attacker')).toBe(true); }
     stepBattle(ordinary);
     expect(ordinary.cannonballs.some((b) => b.side === 'defender')).toBe(true);
   });

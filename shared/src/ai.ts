@@ -322,12 +322,15 @@ export function aiMarketPurchase(state: GameState, player: Player): MarketOrder 
 
 function battleQuality(state: GameState, player: Player, card?: StrategyId): number {
   const { ships, owner, fromFleet } = colonyDefenders(state, player.position);
-  const defectors = card === 'betray' ? [...ships].sort((a, b) => b.firepower - a.firepower).slice(0, defectionCount(ships.length, fromFleet)) : [];
+  const defectors = card === 'betray' ? [...ships].sort((a, b) => a.firepower - b.firepower).slice(0, defectionCount(ships.length, fromFleet)) : [];
   const availableSlots = Math.max(0, MAX_FLEET_SIZE - player.fleet.length);
   const attackers = defaultBattleDeployment([...player.fleet, ...defectors.slice(0, availableSlots)]);
-  const removesDefender = card === 'mislead' || card === 'betray';
-  const remaining = card === 'betray' ? ships.filter((s) => !defectors.includes(s)) : ships.slice(1);
-  const defenders = defaultBattleDeployment(!removesDefender ? ships : !fromFleet && !remaining.length ? owner.fleet : remaining);
+  const remaining = card === 'betray' ? ships.filter((s) => !defectors.includes(s)) : ships;
+  const defenders = defaultBattleDeployment(card === 'betray'
+    ? (!fromFleet && !remaining.length ? owner.fleet : remaining)
+    : card === 'mislead'
+      ? ships.map((s, i) => i === 0 ? { ...s, durability: Math.min(s.durability, Math.max(1, s.durability - STRATEGY_RULES.misleadDamage)) } : s)
+      : ships);
   const options = { attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner), attackerMultiplier: state.inspired || card === 'inspire' ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: state.ambush || card === 'ambush' };
   const baseline = forecastNavalBattle(attackers, defenders, options);
   if (player.aiDifficulty !== 'hard') return baseline === 'victory' ? 4 : baseline === 'draw' ? 2 : 0;
@@ -357,10 +360,11 @@ export function aiBattleStrategy(state: GameState, player: Player, canUse: (card
   if (!best && player.aiDifficulty === 'hard') {
     // Weakening a major rival's fleet can pay off even if we pay the toll now.
     const { ships, owner, fromFleet } = colonyDefenders(state, player.position);
+    const weakest = [...ships].sort((a, b) => a.firepower - b.firepower)[0];
+    if (weakest && canUse('betray') && (player.fleet.length < policy(player).fleetSize || weakest.type === 'warship') &&
+      weakest.durability >= weakest.maxDurability / 2 && battleQuality(state, player, 'betray') >= baseline) return 'betray';
     const lead = ships[0];
-    if (lead && canUse('betray') && (player.fleet.length < policy(player).fleetSize || lead.type === 'warship') &&
-      lead.durability >= lead.maxDurability / 2 && battleQuality(state, player, 'betray') >= baseline) return 'betray';
-    if (lead?.type === 'warship' && baseline < 4 && canUse('mislead') && fromFleet &&
+    if (lead?.type === 'warship' && lead.durability > 1 && baseline < 4 && canUse('mislead') && fromFleet &&
       (state.players.filter((rival) => !isEliminated(rival)).length === 2 || colonies(state, owner) >= colonies(state, player))) return 'mislead';
   }
   return best;
@@ -382,13 +386,13 @@ export function aiSeaStrategy(state: GameState, player: Player, canUse: (card: S
   ];
   if (leader) {
     for (const card of ['betray', 'mislead', 'plunder', 'blockade', 'gale', 'exchange'] as const) {
-      const useful = card === 'betray' || card === 'mislead' ? leader.fleet.length >= 3 : card === 'plunder' ? leader.gold >= 300 : card === 'blockade' ? !leader.skipNextTurn : card === 'gale' ? leader.fleet.some((s) => s.durability > 30) : owned < colonies(state, leader);
+      const useful = card === 'betray' ? leader.fleet.length >= 3 : card === 'mislead' ? leader.fleet.some((s) => s.durability > 1) : card === 'plunder' ? leader.gold >= 300 : card === 'blockade' ? !leader.skipNextTurn : card === 'gale' ? leader.fleet.some((s) => s.durability > STRATEGY_RULES.galeDamage) : owned < colonies(state, leader);
       candidates.push({ card, target: leader.id, useful });
     }
   }
   const targets = state.map.filter((n) => rivals.some((p) => p.id === state.owners[n.id])).sort((a, b) => worth(state.players[state.owners[b.id]!]) - worth(state.players[state.owners[a.id]!]));
   for (const node of targets) {
-    candidates.push({ card: 'revolt', target: node.id, useful: !state.docks[node.id].length });
+    candidates.push({ card: 'revolt', target: node.id, useful: !state.docks[node.id].length && !Object.values(state.buildings[node.id] ?? {}).some((level) => level > 0) });
     const stock = state.stockpiles[node.id];
     candidates.push({ card: 'scorch', target: node.id, useful: stock.lumber + stock.iron + Object.values(stock.specialties).reduce((a, b) => a + (b ?? 0), 0) >= 5 });
   }

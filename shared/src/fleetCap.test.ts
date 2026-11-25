@@ -117,11 +117,11 @@ describe('sailing fleet limit', () => {
     fill(player);
     state.owners[firstColony] = player.id;
     player.strategies = ['betray'];
-    const expected = [...rival.fleet].sort((a, b) => b.firepower - a.firepower).slice(0, 3);
+    const expected = [...rival.fleet].sort((a, b) => a.firepower - b.firepower).slice(0, 1);
     engine.useStrategy('betray', rival.id);
     expect(player.fleet).toHaveLength(MAX_FLEET_SIZE);
     expect(state.docks[firstColony]).toEqual(expected);
-    expect(rival.fleet).toHaveLength(5);
+    expect(rival.fleet).toHaveLength(7);
   });
 
   it('stops an AI from boarding once its sailing fleet is full', () => {

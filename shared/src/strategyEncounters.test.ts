@@ -21,12 +21,12 @@ describe('strategies during random encounters', () => {
       const { g, p, events, sail, roll } = voyage();
       p.fleet.splice(3);
       p.fleet[1].type = 'explorer';
-      for (const ship of p.fleet) { ship.firepower = 10; ship.durability = 10000; }
+      for (const ship of p.fleet) { ship.firepower = 12; ship.durability = 10000; }
       p.strategies = ['inspire'];
       if (inspired) g.useStrategy('inspire');
       roll(Array(50).fill(0));
       sail();
-      expect(p.fleet.every((ship) => ship.firepower === 10)).toBe(true);
+      expect(p.fleet.every((ship) => ship.firepower === 12)).toBe(true);
       expect(g.state.owners[2]).toBe(p.id);
       return events.find((e): e is SeaEventResult => e.type === 'seaEvent' && e.event === 'pirates');
     };
