@@ -144,7 +144,7 @@ export function TransferPanel({ state, onClose }: { state: GameState; onClose: (
     onClose();
     previousFocus.current?.focus();
   }
-  return createPortal(<dialog className="panel fleet" ref={dialog} onClose={closePanel} onKeyDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="transfers-title">
+  return createPortal(<dialog className="panel fleet transfer-window" ref={dialog} onClose={closePanel} onKeyDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="transfers-title">
     <div className="fleet-heading">
       <h2 id="transfers-title">{t('Ships & cargo transfer', '船只与资源调度')}</h2>
       <button type="button" onClick={() => dialog.current?.close()}>{t('Close', '关闭')}</button>

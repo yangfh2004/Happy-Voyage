@@ -128,7 +128,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
             <HelmCard state={state} colorBlind={colorBlind} atHelm={atHelm} />
             <NextStop state={state} />
             {landing && <p className="landing-hint">⚓ {t('Choose an action on the card', '请在卡片上选择行动')}</p>}
-            {!islandWindow && <section ref={actionSurface} className={landing ? `landing-placement ${chartFocus?.bottom ? 'landing-top' : ''}` : 'turn-action-panel'}>
+            {!islandWindow && <section ref={actionSurface} className={landing ? 'landing-placement' : 'turn-action-panel'}>
             {landing && <LandingHeading state={state} />}
             <ActionPanel state={state} colorBlind={colorBlind} strategyHost={landing ? strategyHost : null} expandStrategies={expandStrategies} />
             </section>}
