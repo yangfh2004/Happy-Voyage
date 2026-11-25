@@ -145,6 +145,14 @@ describe('sea strategy effects', () => {
     expect(g.canUseStrategy('mislead', 1)).toBe(true);
     g.useStrategy('mislead', 1);
     expect(rival.fleet[0].durability).toBe(1);
+    g.state.strategyUsed = false;
+    g.currentPlayer.strategies = ['mislead'];
+    expect(g.canUseStrategy('mislead', 1)).toBe(false);
+    const node = g.state.map.find((n) => n.kind === 'island')!.id;
+    g.state.owners[node] = 1;
+    g.currentPlayer.position = node;
+    g.state.phase = 'awaitingToll';
+    expect(g.canUseStrategy('mislead')).toBe(false);
   });
   it.each([1, 2, 3, 4, 7, 10, 15])('betray recruits the weakest single ship of %s ships with survivor', (count) => {
     const { g, p, rival } = setup('betray');

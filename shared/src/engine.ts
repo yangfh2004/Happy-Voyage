@@ -216,7 +216,7 @@ export class GameEngine extends GameView {
     locate: () => { this.currentPlayer.knownHoard = this.state.hoardNode; },
     inspire: () => { this.state.inspired = true; },
     mislead: (target) => {
-      const ships = this.state.phase === 'awaitingSpin' ? this.state.players[target!].fleet : colonyDefenders(this.state, this.currentPlayer.position).ships;
+      const ships = this.state.phase === 'awaitingSpin' ? this.state.players[target!].fleet.filter((s) => s.durability > 1) : colonyDefenders(this.state, this.currentPlayer.position).ships;
       const ship = ships[this.state.phase === 'awaitingSpin' ? Math.floor(this.rng() * ships.length) : 0];
       if (ship) ship.durability = Math.min(ship.durability, Math.max(1, ship.durability - STRATEGY_RULES.misleadDamage));
     },
