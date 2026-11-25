@@ -77,6 +77,26 @@ describe('random sea encounters', () => {
     expect(events.some((e) => e.type === 'seaEvent')).toBe(false);
   });
 
+  it.each([
+    [SEA_RULES.encounterChance, 0.99, undefined, 0],
+    [0.19, 0, 'pirates', 0],
+    [0.19, 0.99, 'treasure', 50],
+  ] as const)('settles a blank sea landing with encounter roll %s and table roll %s', (chance, outcome, event, reward) => {
+    const { game, events, sail, roll } = voyage();
+    game.state.map[2] = { id: 2, x: 20, y: 0, kind: 'sea', name: 'Open water' };
+    game.state.hoardNode = 2;
+    game.currentPlayer.escortProtection = true;
+    const gold = game.currentPlayer.gold;
+    roll([chance, outcome, 0]);
+    sail();
+    expect(events.filter((e) => e.type === 'seaEvent')).toMatchObject(event ? [{ event }] : []);
+    expect(game.state.hoardNode).toBe(2);
+    expect(game.currentPlayer.gold).toBe(gold + reward);
+    expect(game.currentPlayer.position).toBe(2);
+    expect(game.state.owners[2]).toBeNull();
+    expect(game.state.phase).toBe('awaitingSpin');
+  });
+
   it('guarantees an encounter on an open-sea station even above the ordinary chance', () => {
     const { game, events, sail } = voyage();
     game.state.map[2] = { ...game.state.map[2], kind: 'event', event: 'openSea', name: 'Uncharted Waters' };

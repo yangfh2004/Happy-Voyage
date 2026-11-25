@@ -105,7 +105,7 @@ describe('royal campaign', () => {
     expect(state.campaign!.progress).toEqual({ holdColonies: 1 });
     expect(missions).toHaveLength(0);
     state.owners[rivalColony.id] = 1;
-    for (const ship of state.players[1].fleet) ship.durability = 1;
+    for (const ship of state.players[1].fleet) { ship.durability = 1; ship.firepower = 0; }
     landAs(game, 0, rivalColony.id);
     game.payToll();
     expect(state.campaign!.progress).toEqual({ holdColonies: 1 });
@@ -136,7 +136,7 @@ describe('royal campaign', () => {
     state.round = state.config.maxRounds;
     state.owners[islands[0].id] = 0;
     state.owners[islands[1].id] = 1;
-    for (const ship of state.players[1].fleet) ship.durability = 1;
+    for (const ship of state.players[1].fleet) { ship.durability = 1; ship.firepower = 0; }
     landAs(game, 0, islands[1].id);
     game.fight();
     game.finishBuilding();

@@ -206,6 +206,7 @@ export function nationName(nation: string, locale: Locale): string {
 export function nodeName(node: MapNode, locale: Locale): string {
   if (locale === 'en') return node.name;
   if (node.special) return node.chineseName ?? ZH.specials[node.special];
+  if (node.kind === 'sea') return node.chineseName ?? '海上';
   if (node.kind === 'port' && node.nation) return `${nationName(node.nation, locale)}港`;
   return ZH.lands[node.name] ?? node.name;
 }

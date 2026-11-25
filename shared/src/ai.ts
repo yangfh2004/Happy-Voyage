@@ -1,6 +1,6 @@
 import { COMPASS_SECTORS } from './compass';
 import { walkPath } from './graph';
-import { colonyDefenders, forecastColonyBattle, forecastNavalBattle, tollDue } from './combat';
+import { colonyDefenders, defaultBattleDeployment, forecastColonyBattle, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
 import { BUILDINGS, COLONY_PAYBACK_ROUNDS, buildingLevel, colonyCanRepair, colonyToll, nextBuildingCost } from './buildings';
 import { isEliminated, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
@@ -324,13 +324,13 @@ function battleQuality(state: GameState, player: Player, card?: StrategyId): num
   const { ships, owner, fromFleet } = colonyDefenders(state, player.position);
   const defectors = card === 'betray' ? [...ships].sort((a, b) => a.firepower - b.firepower).slice(0, defectionCount(ships.length, fromFleet)) : [];
   const availableSlots = Math.max(0, MAX_FLEET_SIZE - player.fleet.length);
-  const attackers = [...player.fleet, ...defectors.slice(0, availableSlots)];
+  const attackers = defaultBattleDeployment([...player.fleet, ...defectors.slice(0, availableSlots)]);
   const remaining = card === 'betray' ? ships.filter((s) => !defectors.includes(s)) : ships;
-  const defenders = card === 'betray'
+  const defenders = defaultBattleDeployment(card === 'betray'
     ? (!fromFleet && !remaining.length ? owner.fleet : remaining)
     : card === 'mislead'
       ? ships.map((s, i) => i === 0 ? { ...s, durability: Math.min(s.durability, Math.max(1, s.durability - STRATEGY_RULES.misleadDamage)) } : s)
-      : ships;
+      : ships);
   const options = { attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner), attackerMultiplier: state.inspired || card === 'inspire' ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: state.ambush || card === 'ambush' };
   const baseline = forecastNavalBattle(attackers, defenders, options);
   if (player.aiDifficulty !== 'hard') return baseline === 'victory' ? 4 : baseline === 'draw' ? 2 : 0;

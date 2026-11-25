@@ -58,7 +58,7 @@ describe('real-time engine integration', () => {
   it.each(['auto', 'realtime'] as const)('returns withdrawing docked defenders to their owner in %s mode', (mode) => {
     const { game, node } = siege(false, true, mode);
     const [attacker, defender] = game.state.players;
-    const guards = defender.fleet.splice(1, 2);
+    const guards = defender.fleet.splice(2, 2);
     const ids = guards.map((s) => s.id);
     for (const s of guards) { s.durability = 1; s.firepower = 0; }
     for (const s of attacker.fleet) s.firepower = 1000;
@@ -120,9 +120,32 @@ describe('real-time engine integration', () => {
     expect(game.state.pendingBattle).toMatchObject({ kind: 'colony', attacker: 0, defender: 1, commanders: ['attacker'] });
     expect(events.some((e) => e.type === 'battleStarted')).toBe(true);
     expect(game.state.pendingBattle!.setup.attackers[0]).not.toBe(game.currentPlayer.fleet[0]);
+    expect(game.state.pendingBattle!.setup.attackers.map((ship) => ship.type)).toEqual(['warship', 'warship', 'warship', 'warship']);
     game.decideForAI();
     expect(game.state.phase).toBe('awaitingBattle');
     expect(() => game.fight()).toThrow('Expected phase awaitingToll');
+  });
+
+  it('deploys only the chosen ships and leaves reserves untouched in a real-time battle', () => {
+    const { game, node } = siege();
+    const player = game.currentPlayer;
+    const cargo = player.fleet.find((ship) => ship.type === 'cargo')!;
+    const reserve = player.fleet.find((ship) => ship.type === 'warship')!;
+    cargo.durability = 1;
+    reserve.cargo.Wine = 7;
+    const defender = game.state.players[1];
+    game.state.docks[node.id] = defender.fleet.splice(0, 4);
+    game.state.docks[node.id].push(game.addShipToFleet(defender.id, 'warship'));
+    defender.fleet.pop();
+    game.fight([cargo.id]);
+    const setup = game.state.pendingBattle!.setup;
+    expect(setup.attackers.map((ship) => ship.id)).toEqual([cargo.id]);
+    expect(setup.defenders).toHaveLength(4);
+    expect(setup.defenders.every((ship) => ship.type !== 'cargo')).toBe(true);
+    expect(game.finishBattle([])?.outcome).toBe('defeat');
+    expect(player.fleet).not.toContain(cargo);
+    expect(reserve).toMatchObject({ durability: reserve.maxDurability, cargo: { Wine: 7 } });
+    expect(game.state.docks[node.id].find((ship) => ship.type === 'cargo')?.durability).toBe(100);
   });
 
   it('lets the human defender command when attacked by AI and gives hot-seat control to the attacker', () => {
@@ -200,6 +223,7 @@ describe('real-time engine integration', () => {
     game.state.roamers = [{ id: 1, kind: 'pirates', node: destination }];
     game.resolveLanding();
     expect(game.state.pendingBattle!.resumeLanding).toBe(true);
+    expect(game.state.pendingBattle!.setup.attackers.every((ship) => ship.type !== 'cargo')).toBe(true);
     game.finishBattle([{ tick: 0, side: 'attacker', cmd: { type: 'retreat' } }]);
     expect(game.state.pendingBattle).toBeNull();
     expect(game.state.phase).not.toBe('awaitingBattle');

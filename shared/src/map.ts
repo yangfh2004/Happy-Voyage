@@ -1,7 +1,8 @@
 import { NATIONS } from './nations';
 import type { MapNode, SpecialKind, EventKind, Specialty } from './types';
 
-export const WORLD = { width: 3400, height: 2600 } as const;
+const chartScale = 2;
+export const WORLD = { width: 3400 * chartScale, height: 2600 * chartScale } as const;
 export const MIN_NODE_SPACING = 175;
 
 /** Fixed archipelagos, grouped by nation in route order. */
@@ -27,6 +28,9 @@ const specials: [SpecialKind, string, string][] = [
 ];
 const events: EventKind[] = ['treasure', 'storm', 'tradeWind', 'pirates', 'smallMonster', 'whirlpool', 'bottle', 'floatingCargo', 'merchant', 'wyvern', 'largeMonster', 'turtle', 'treasure'];
 const eventNames = ['Treasure Shoal', 'Tempest Passage', 'Zephyr Strait', 'Pirate Cove', 'Serpent Shallows', 'Bermuda Triangle', 'Drifting Bottle Reef', 'Castaway Cargo Bay', 'Merchant Lane', 'Wyvern Cliffs', 'Kraken Deep', 'Turtle Reach', 'Sunken Crown Shoal'];
+const seaStopsBetweenSectors = [3, 2, 2, 2, 2, 3, 2, 2, 2, 3];
+const longStretches = new Set([25, 31, 33, 36, 42, 51, 59]);
+const seaLaneBias = new Map([[55, .2]]);
 
 export function createDefaultMap(): MapNode[] {
   const nodes: MapNode[] = [];
@@ -50,12 +54,29 @@ export function createDefaultMap(): MapNode[] {
       }
     }
   }
-  const map: MapNode[] = nodes.map((node, id) => {
-    const [x, y] = archipelagos[Math.floor(id / 7)][id % 7];
-    return { ...node, id, x, y };
+  const coordinates = archipelagos.flat();
+  const map: MapNode[] = [];
+  const stopIds: number[] = [];
+  let sea = 0;
+  nodes.forEach((node, index) => {
+    const [x, y] = coordinates[index];
+    stopIds.push(map.length);
+    map.push({ ...node, id: map.length, x: x * chartScale, y: y * chartScale });
+    const count = index % 7 === 6 ? seaStopsBetweenSectors[Math.floor(index / 7)] : Number(longStretches.has(index));
+    const [nextX, nextY] = coordinates[(index + 1) % coordinates.length];
+    for (let j = 1; j <= count; j++) {
+      const fraction = (j + (seaLaneBias.get(index) ?? 0)) / (count + 1);
+      sea++;
+      map.push({
+        id: map.length, kind: 'sea', name: `Open water ${sea}`, chineseName: `海上 ${sea}`,
+        x: (x + (nextX - x) * fraction) * chartScale,
+        y: (y + (nextY - y) * fraction) * chartScale,
+      });
+    }
   });
-  for (const [id, target] of [[2, 7], [12, 19], [18, 20], [28, 31], [34, 38], [44, 53], [50, 53], [60, 64], [66, 69]]) {
-    map[id].next = [(id + 1) % map.length, target];
+  for (const [from, to] of [[2, 7], [12, 19], [18, 20], [28, 31], [34, 38], [44, 53], [50, 53], [60, 64], [66, 69]]) {
+    const id = stopIds[from];
+    map[id].next = [(id + 1) % map.length, stopIds[to]];
   }
   return map;
 }

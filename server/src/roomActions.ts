@@ -44,7 +44,12 @@ const actions: Record<RoomAction[0], Handler> = {
   declineMerchant: noArgs((e) => e.declineMerchant()),
   wyvernFly: oneArg(integer, (e, id) => e.wyvernFly(id)),
   payToll: noArgs((e) => e.payToll()),
-  fight: noArgs((e) => e.fight()),
+  fight: (e, args) => {
+    if (!args.length) { e.fight(); return; }
+    const [ids] = args;
+    if (args.length !== 1 || !Array.isArray(ids) || !ids.every(integer)) invalid();
+    e.fight(ids);
+  },
   useStrategy: (e, [card, target, ...extra]) => {
     if (!keyOf(STRATEGIES)(card) || extra.length) invalid();
     if (target !== undefined && target !== null && !integer(target)) invalid();

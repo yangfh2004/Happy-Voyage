@@ -93,10 +93,10 @@ describe('living sea board', () => {
     expect(g.state.map[homes[0]].nation).toBe('Netherlands');
     expect(g.state.players.every((player) => player.position === player.homePort)).toBe(true);
   });
-  it('has 70 unique stops, forty colonies, seven distinct specials and ten national ports', () => {
+  it('has 100 unique stops, forty colonies, seven distinct specials and ten national ports', () => {
     const map = createDefaultMap();
-    expect(map).toHaveLength(70);
-    expect(new Set(map.map((n) => n.name)).size).toBe(70);
+    expect(map).toHaveLength(100);
+    expect(new Set(map.map((n) => n.name)).size).toBe(100);
     expect(map.filter((n) => n.kind === 'island')).toHaveLength(40);
     expect(new Set(map.filter((n) => n.kind === 'special').map((n) => n.special)).size).toBe(7);
     expect(new Set(map.filter((n) => n.kind === 'port').map((n) => n.nation)).size).toBe(10);

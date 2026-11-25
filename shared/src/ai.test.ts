@@ -244,7 +244,8 @@ describe('AI rival difficulty', () => {
     for (const difficulty of ['hard', 'normal'] as const) {
       const { engine, state, player } = at('island', true);
       player.fleet.pop();
-      const defector = [...state.players[1].fleet].sort((a, b) => a.firepower - b.firepower)[0];
+      const defector = state.players[1].fleet[0];
+      state.players[1].fleet.forEach((ship) => { ship.firepower = ship === defector ? 10 : 20; });
       player.aiDifficulty = difficulty;
       player.strategies = ['betray'];
       for (const ship of player.fleet) ship.firepower = 120;
@@ -256,24 +257,27 @@ describe('AI rival difficulty', () => {
   });
 
   it.each([
-    [0, 45, 'ambush'],
-    [1, 45, 'betray'],
+    [0, 42, 'ambush'],
+    [1, 42, 'betray'],
   ] as const)('with %s fleet slots and defender firepower %s, chooses %s', (openSlots, defenderFirepower, card) => {
     const { engine, state, player, node } = at('island', true);
     player.aiDifficulty = 'normal';
     player.strategies = ['betray', 'ambush'];
     const colony = state.map.find((candidate) => candidate.kind === 'island' && candidate.id !== node.id)!;
     state.owners[colony.id] = player.id;
+    player.fleet.splice(5);
     while (player.fleet.length < MAX_FLEET_SIZE - openSlots) engine.addShipToFleet(player.id, 'cargo');
-    player.fleet.forEach((ship, i) => { ship.firepower = 10; ship.durability = i < 10 - openSlots ? 62 : 0; });
+    player.fleet.forEach((ship, i) => { ship.firepower = 10; ship.durability = i < 10 - openSlots ? 70 : 0; });
     const flagship = player.fleet.find((ship) => ship.signature)!;
     flagship.durability = flagship.maxDurability;
+    const warship = player.fleet.find((ship) => ship.type === 'warship')!;
+    warship.durability = warship.maxDurability;
     const rival = state.players[1];
     rival.fleet.splice(5);
     const defector = rival.fleet[0];
     rival.fleet.forEach((ship, i) => {
       ship.firepower = i === 0 ? 40 : defenderFirepower;
-      ship.durability = ship.signature ? 80 : i === 0 ? 40 : 60;
+      ship.durability = ship.signature ? 80 : i === 0 ? 60 : 70;
     });
 
     engine.decideForAI();

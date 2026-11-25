@@ -294,6 +294,7 @@ describe('battle strategies', () => {
     g.useStrategy('ambush');
     p.fleet.splice(3);
     rival.fleet.splice(3);
+    p.fleet[1].type = rival.fleet[1].type = 'explorer';
     for (const ship of [...p.fleet, ...rival.fleet]) { ship.durability = 10000; ship.firepower = 10; }
     const baseline = p.fleet.map((s) => ({ ...s }));
     fightNavalBattle(baseline, rival.fleet.map((s) => ({ ...s })), () => 0);
@@ -307,6 +308,7 @@ describe('battle strategies', () => {
     const damage = (inspired: boolean) => {
       const { g, p } = setup('inspire');
       p.fleet.splice(3);
+      p.fleet[1].type = 'explorer';
       for (const s of p.fleet) { s.firepower = 12; s.durability = 10000; }
       if (inspired) g.useStrategy('inspire');
       const events: number[] = [];

@@ -4,6 +4,30 @@ import { RoomMatch } from './roomMatch';
 
 afterEach(() => vi.useRealTimers());
 
+it('validates online deployments against the acting player and applies only the selected combatants', () => {
+  const seats: RoomPick[] = [{ name: 'Captain', nation: 'Spain' }, { name: 'Rival', nation: 'Portugal' }];
+  const match = new RoomMatch(seats, { mode: 'conquest', difficulty: 'normal' }, vi.fn(), vi.fn(), { rng: () => 0.5 });
+  const { currentPlayer, state } = match.engine;
+  const rival = state.players.find((player) => player !== currentPlayer)!;
+  const island = state.map.find((node) => node.kind === 'island')!;
+  state.owners[island.id] = rival.id;
+  currentPlayer.position = island.id;
+  state.phase = 'awaitingToll';
+  const [reserve, cargo] = currentPlayer.fleet;
+  cargo.durability = 1;
+  const revision = match.revision;
+  expect(() => match.act(rival.id, revision, ['fight', [cargo.id]])).toThrow('not your turn');
+  expect(() => match.act(currentPlayer.id, revision, ['fight', [String(cargo.id)]])).toThrow('Invalid game command');
+  for (const ids of [[], [cargo.id, cargo.id], [rival.fleet[0].id], currentPlayer.fleet.map((ship) => ship.id)]) {
+    expect(() => match.act(currentPlayer.id, revision, ['fight', ids])).toThrow('Invalid battle deployment');
+  }
+  match.act(currentPlayer.id, revision, ['fight', [cargo.id]]);
+  expect(match.revision).toBe(revision + 1);
+  expect(state.battles.at(-1)).toMatchObject({ outcome: 'defeat', attackerSunk: [cargo.name] });
+  expect(reserve.durability).toBe(reserve.maxDurability);
+  match.dispose();
+});
+
 it('synchronizes validated human retreat settings through room revisions and snapshots', () => {
   const seats: RoomPick[] = [{ name: 'Captain', nation: 'Spain' }, { name: 'Rival', nation: 'Portugal' }];
   const publish = vi.fn();

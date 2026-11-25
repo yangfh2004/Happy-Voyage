@@ -135,6 +135,9 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .actions :is(select, option), .strategy-cards :is(select, option) { font-family: 'Sea Names', system-ui, -apple-system, 'Segoe UI', sans-serif; }
 .strategy-destination { font: inherit; }
 .actions .row { display: flex; gap: 8px; justify-content: center; }
+.battle-deployment { min-width: 0; margin: 8px 0; border: 1px solid #987747; border-radius: 6px; text-align: start; }
+.battle-deployment label { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
+.battle-deployment label:has(input:disabled) { opacity: .65; cursor: default; }
 .action-content { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; }
 .compass { display: grid; justify-items: center; color: #0a3d62; font-size: 13px; font-weight: 700; }
 .compass svg { width: 112px; height: 112px; font-size: 9px; }

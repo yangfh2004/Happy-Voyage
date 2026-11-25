@@ -227,6 +227,30 @@ describe('turn controls', () => {
 });
 
 describe('build menu', () => {
+  it('matches auto-resolve when a reboarded flagship is tied for lowest durability', () => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }], rng: () => .5, config: { battleMode: 'auto' } });
+    const { state, currentPlayer: player } = engine;
+    const node = state.map.find((n) => n.kind === 'island')!;
+    const [flagship, escort] = player.fleet;
+    player.fleet = [flagship, escort];
+    Object.assign(flagship, { type: 'warship', signature: true, durability: 100, maxDurability: 100, firepower: 20 });
+    Object.assign(escort, { type: 'warship', signature: false, durability: 100, maxDurability: 100, firepower: 20 });
+    state.players[1].fleet = [{ ...state.players[1].fleet[0], durability: 40, firepower: 75 }];
+    player.position = node.id;
+    state.owners[node.id] = player.id;
+    state.phase = 'awaitingBuild';
+    engine.dockShip(flagship.id);
+    engine.boardShip(flagship.id);
+    state.owners[node.id] = 1;
+    state.phase = 'awaitingToll';
+
+    const html = renderToStaticMarkup(<ActionPanel state={state} />);
+    expect(engine.fight([flagship.id, escort.id])?.outcome).toBe('victory');
+    expect(escort.durability).toBe(25);
+    expect(flagship.durability).toBe(100);
+    expect(html).toContain('(likely victory)');
+  });
+
   it('updates the toll battle forecast after playing Inspire without changing ship stats', () => {
     const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }] });
     const { state } = engine;
@@ -408,8 +432,10 @@ describe('build menu', () => {
     expect(html).toContain(`Rival&#x27;s colony at ${island.name}`);
     expect(html).toContain(`Pay ${island.toll}g toll`);
     expect(html).toContain(`${island.toll! * 2}g double toll`);
-    expect(html).toContain('Defenders: 8 ships');
+    expect(html).toContain('Defenders: 4 ships');
     expect(html).toContain('Fight <kbd>F</kbd>');
+    expect(html).toContain('Choose ships for battle · 4/4');
+    expect(html).toMatch(/<input(?=[^>]*disabled)(?![^>]*checked)[^>]*\/><span>Cargo Ship/);
   });
 });
 

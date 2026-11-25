@@ -4,7 +4,7 @@ import { berthObstacles, boxesOverlap, MAX_BERTH_OFFSET, MIN_BERTH_SCALE, SINGLE
 
 function check(map: MapNode[], players: { id: number; position: number }[], labels?: Map<number, BerthBox>, previous?: Map<number, MooredBerth>) {
   const placements = occupiedShipPlacements(map, players, labels, previous);
-  const names = berthObstacles(map, labels).filter((_, i) => i % 2 === 1);
+  const names = berthObstacles(map.filter(node => node.kind !== 'sea'), labels).filter((_, i) => i % 2 === 1);
   expect(placements.size).toBe(players.length);
   const boxes: BerthBox[] = [];
   for (const player of players) {
@@ -136,6 +136,14 @@ describe('attached ship berths', () => {
     check(map, [{ id: 0, position: 0 }], new Map([[0, { left: node.x - 230, right: node.x + 230, top: node.y - 250, bottom: node.y - 80 }]]));
   });
 
+  it('respects a measured label near a berth even when its stop is far away', () => {
+    const chart = [map[0], { ...map[1], x: map[0].x + 1000, y: map[0].y }];
+    const players = [{ id: 0, position: chart[0].id }];
+    const before = check(chart, players).get(0)!;
+    const bounds = shipBounds(before.x, before.y, before.scale);
+    expect(check(chart, players, new Map([[chart[1].id, bounds]])).get(0)).not.toEqual(before);
+  });
+
   it('places a single ship at the shore of every stop', () => {
     for (const node of map) {
       const berth = check(map, [{ id: 0, position: node.id }]).get(0)!;
@@ -159,6 +167,12 @@ describe('attached ship berths', () => {
     expect(positions.size).toBe(players.length);
     for (const berth of positions.values()) expect(berth.scale).toBe(MIN_BERTH_SCALE);
     expect(() => occupiedShipPlacements(map, Array.from({ length: 20 }, (_, id) => ({ id, position: 11 })))).not.toThrow();
+  });
+
+  it('positions ships at a sea marker without reserving an island or label', () => {
+    const node = map.find(node => node.kind === 'sea')!;
+    expect(berthObstacles([node])).toEqual([{ left: node.x - 17, right: node.x + 17, top: node.y - 17, bottom: node.y + 17 }]);
+    check(map, [{ id: 0, position: node.id }, { id: 1, position: node.id }]);
   });
 
   it('handles empty charts, missing stops and empty fleets', () => {
