@@ -51,8 +51,9 @@ export function tollDue(state: GameState, _player: Player, nodeId: number, multi
 }
 
 function volley(ships: Ship[], rng: Rng, hitRng: Rng, multiplier = 1, forecastAccuracy?: number): number {
-  return ships.reduce((sum, ship) => forecastAccuracy === undefined && hitRng() >= COMBAT.hitChance ? sum
-    : sum + Math.round(ship.firepower * multiplier * (COMBAT.minRoll + rng() * COMBAT.rollSpread) * (forecastAccuracy ?? 1)), 0);
+  const damage = ships.reduce((sum, ship) => forecastAccuracy === undefined && hitRng() >= COMBAT.hitChance ? sum
+    : sum + Math.round(ship.firepower * multiplier * (COMBAT.minRoll + rng() * COMBAT.rollSpread)), 0);
+  return damage * (forecastAccuracy ?? 1);
 }
 
 /** Cannon fire lands on the most battered ship first; overflow carries to the next. Returns ships sunk. */

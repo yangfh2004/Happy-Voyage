@@ -51,6 +51,18 @@ describe('configurable retreat thresholds', () => {
     }
   });
 
+  it('accumulates fractional expected damage from weak shots across the battle', () => {
+    const attackers = fleet(4).map(ship => ({ ...ship, firepower: 1 }));
+    const defenders = [{ ...fleet(1)[0], id: 5, durability: 1 }];
+    try {
+      selectGameplayTuning(resolveGameplayTuning({ combat: { hitChance: 0.1 } }).rules);
+      expect(forecastNavalBattle(attackers, defenders)).toBe('victory');
+      expect(defenders[0].durability).toBe(1);
+    } finally {
+      selectGameplayTuning();
+    }
+  });
+
   it('uses the capped docked defense with its owner threshold even beyond the sailing fleet cap', () => {
     const engine = siege();
     const owner = engine.state.players[1], nodeId = engine.currentPlayer.position;
