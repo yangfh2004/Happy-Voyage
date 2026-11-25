@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { battleResult, createBattle, issueCommand, replayBattle, stepBattle, TICK, type BattleLog } from './battle';
 import { COMBAT, defaultBattleDeployment, fightNavalBattle, forecastColonyBattle, forecastNavalBattle } from './combat';
 import { GameEngine } from './engine';
+import { resolveGameplayTuning, selectGameplayTuning } from './gameplayTuning';
 import { MAX_FLEET_SIZE, SHIP_TYPES } from './ships';
 import type { Ship } from './types';
 import { isRetreatThreshold, playerRetreatThreshold, RETREAT_THRESHOLDS, sinkingCap, withdrawalReason } from './withdrawal';
@@ -15,6 +16,22 @@ function siege(attackerAI = false, defenderAI = false) {
 }
 
 describe('configurable retreat thresholds', () => {
+  it('estimates damage below the stock hit chance without affecting actual hit rolls', () => {
+    const [attacker] = fleet(1);
+    attacker.firepower = 100;
+    const defenders = fleet(1);
+    try {
+      selectGameplayTuning(resolveGameplayTuning({ combat: { hitChance: 0.3 } }).rules);
+      expect(forecastNavalBattle([attacker], defenders)).toBe('victory');
+      expect(fightNavalBattle([attacker], defenders, () => 0.5).outcome).toBe('draw');
+      selectGameplayTuning(resolveGameplayTuning({ combat: { hitChance: 0 } }).rules);
+      expect(forecastNavalBattle([attacker], defenders)).toBe('draw');
+      expect(defenders[0].durability).toBe(100);
+    } finally {
+      selectGameplayTuning();
+    }
+  });
+
   it('uses the capped docked defense with its owner threshold even beyond the sailing fleet cap', () => {
     const engine = siege();
     const owner = engine.state.players[1], nodeId = engine.currentPlayer.position;

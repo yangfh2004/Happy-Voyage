@@ -1,4 +1,4 @@
-import { GAMEPLAY_TUNING } from './gameplayTuning';
+import { DEFAULT_GAMEPLAY_TUNING, GAMEPLAY_TUNING } from './gameplayTuning';
 import type { BattleOutcome, GameState, Player, Ship } from './types';
 import type { Rng } from './compass';
 import { colonyToll } from './buildings';
@@ -46,9 +46,9 @@ export function tollDue(state: GameState, _player: Player, nodeId: number, multi
   return colonyToll(state, nodeId) * multiplier;
 }
 
-function volley(ships: Ship[], rng: Rng, hitRng: Rng, multiplier = 1): number {
-  return ships.reduce((sum, ship) => hitRng() >= COMBAT.hitChance ? sum
-    : sum + Math.round(ship.firepower * multiplier * (COMBAT.minRoll + rng() * COMBAT.rollSpread)), 0);
+function volley(ships: Ship[], rng: Rng, hitRng: Rng, multiplier = 1, forecastAccuracy?: number): number {
+  return ships.reduce((sum, ship) => forecastAccuracy === undefined && hitRng() >= COMBAT.hitChance ? sum
+    : sum + Math.round(ship.firepower * multiplier * (COMBAT.minRoll + rng() * COMBAT.rollSpread) * (forecastAccuracy ?? 1)), 0);
 }
 
 /** Cannon fire lands on the most battered ship first; overflow carries to the next. Returns ships sunk. */
@@ -67,11 +67,17 @@ function absorb(line: Ship[], damage: number, remainingSinks: number): Ship[] {
   return sunk;
 }
 
+type BattleOptions = { attackerMultiplier?: number; defenderRng?: Rng; hitRng?: Rng; skipFirstDefense?: boolean; attackerThreshold?: RetreatThreshold; defenderThreshold?: RetreatThreshold };
+
 /**
  * Both lines fire simultaneously until a side is sunk, withdraws, or the rounds run out.
  * Mutates ship durability; the caller removes the sunk ships from their fleets.
  */
-export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng, options: { attackerMultiplier?: number; defenderRng?: Rng; hitRng?: Rng; skipFirstDefense?: boolean; attackerThreshold?: RetreatThreshold; defenderThreshold?: RetreatThreshold } = {}): BattleResult {
+export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng, options: BattleOptions = {}): BattleResult {
+  return resolveNavalBattle(attackers, defenders, rng, options);
+}
+
+function resolveNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng, options: BattleOptions, forecastAccuracy?: number): BattleResult {
   const attackFleet = attackers.filter((s) => s.durability > 0);
   const defenseFleet = defenders.filter((s) => s.durability > 0);
   let attackLine = [...attackFleet];
@@ -82,8 +88,8 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng,
   let withdrawal: BattleWithdrawal | undefined;
   while (attackLine.length && defenseLine.length && rounds < COMBAT.rounds) {
     rounds += 1;
-    const attackFire = volley(attackLine, rng, options.hitRng ?? rng, options.attackerMultiplier);
-    const defenseFire = volley(defenseLine, options.defenderRng ?? rng, options.hitRng ?? rng, options.skipFirstDefense && rounds === 1 ? STRATEGY_RULES.ambushDefenseMultiplier : 1);
+    const attackFire = volley(attackLine, rng, options.hitRng ?? rng, options.attackerMultiplier, forecastAccuracy);
+    const defenseFire = volley(defenseLine, options.defenderRng ?? rng, options.hitRng ?? rng, options.skipFirstDefense && rounds === 1 ? STRATEGY_RULES.ambushDefenseMultiplier : 1, forecastAccuracy);
     const lostDefenders = absorb(defenseLine, attackFire, sinkingCap(defenseFleet, options.defenderThreshold) - defenderSunk.length);
     const lostAttackers = absorb(attackLine, defenseFire, sinkingCap(attackFleet, options.attackerThreshold) - attackerSunk.length);
     defenderSunk.push(...lostDefenders);
@@ -102,13 +108,14 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng,
 /** Forecast with the same withdrawal rules and loss caps, without touching real ships or match RNG. */
 export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], options: { attackerMultiplier?: number; attackerRoll?: number; defenderRoll?: number; skipFirstDefense?: boolean; attackerThreshold?: RetreatThreshold; defenderThreshold?: RetreatThreshold } = {}): BattleOutcome {
   const copy = (ships: Ship[]) => ships.map((ship) => ({ ...ship }));
-  return fightNavalBattle(copy(attackers), copy(defenders), () => options.attackerRoll ?? 0.5, {
+  // Keep the stock full-hit estimate, scaling forecast damage down for lower accuracy.
+  const accuracy = Math.min(1, COMBAT.hitChance / DEFAULT_GAMEPLAY_TUNING.combat.hitChance);
+  return resolveNavalBattle(copy(attackers), copy(defenders), () => options.attackerRoll ?? 0.5, {
     attackerMultiplier: options.attackerMultiplier,
     attackerThreshold: options.attackerThreshold, defenderThreshold: options.defenderThreshold,
     skipFirstDefense: options.skipFirstDefense,
     defenderRng: () => options.defenderRoll ?? 0.5,
-    hitRng: () => 0.5,
-  }).outcome;
+  }, accuracy).outcome;
 }
 
 export function forecastColonyBattle(state: GameState, player: Player, shipIds?: number[]): BattleOutcome {
