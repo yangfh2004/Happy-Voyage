@@ -64,11 +64,12 @@ describe('board chrome', () => {
     const { state } = game();
     state.players[1].strategies = state.players[1].strategies.slice(0, 1);
     const html = renderToStaticMarkup(<VoyageTopBar state={state} colorBlind={false} onMenu={() => {}} menuOpen={false} />);
-    expect(html.match(/aria-label="Colonies and strategy cards"/g)).toHaveLength(state.players.length);
-    expect(html).toContain('</svg> 1 · <svg');
-    expect(html).toContain('</svg> 1</span>');
-    expect(html).toContain('</svg> 0 · <svg');
-    expect(html).toContain('</svg> 3</span>');
+    expect(html.match(/>Colonies<\/span> /g)).toHaveLength(state.players.length);
+    expect(html).toContain('>Colonies</span> 1 · ');
+    expect(html).toContain('>Strategy cards</span> 1</span>');
+    expect(html).toContain('>Colonies</span> 0 · ');
+    expect(html).toContain('>Strategy cards</span> 3</span>');
+    expect(html).toContain('>Gold</span> 1400 · ');
   });
   it('shows the current human and handles an empty fleet', () => {
     const { state } = game();

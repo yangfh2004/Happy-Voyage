@@ -20,6 +20,8 @@ function ResourceIcon({ kind = 'gold' }: { kind?: Resource }) {
   return <svg className="resource-icon" viewBox="0 0 24 24" aria-hidden="true">{RESOURCE_ART[kind]}</svg>;
 }
 
+const SrLabel = ({ text }: { text: string }) => <span className="visually-hidden">{text}</span>;
+
 export function endTurnAction(state: GameState, atHelm: boolean, lotteryRevealed = true) {
   if (!atHelm) return null;
   switch (state.phase) {
@@ -57,8 +59,8 @@ export function VoyageTopBar({ state, colorBlind, onMenu, menuOpen }: { state: G
           {p.id === state.currentPlayer && <span className="current-label">♛ {t('CURRENT TURN', '当前回合')}</span>}
           {p.navigator && <NavigatorPortrait navigator={p.navigator} color={color} size={30} />}
           <strong>{!badge && <span className="seat-number">{p.id + 1} </span>}{badge && `${badge} · `}{playerName(p, locale)}</strong>
-          <span aria-label={t('Gold and ships', '金币与船只')}><ResourceIcon /> {gameController.displayGold(p)} · <ResourceIcon kind="ship" /> {p.fleet.length}</span>
-          <span aria-label={t('Colonies and strategy cards', '殖民地与谋略卡')}><ResourceIcon kind="colony" /> {gameController.islandsOwnedBy(p.id)} · <ResourceIcon kind="card" /> {p.strategies.length}</span>
+          <span><ResourceIcon /><SrLabel text={t('Gold', '金币')} /> {gameController.displayGold(p)} · <ResourceIcon kind="ship" /><SrLabel text={t('Ships', '船只')} /> {p.fleet.length}</span>
+          <span><ResourceIcon kind="colony" /><SrLabel text={t('Colonies', '殖民地')} /> {gameController.islandsOwnedBy(p.id)} · <ResourceIcon kind="card" /><SrLabel text={t('Strategy cards', '谋略卡')} /> {p.strategies.length}</span>
           <small>{p.fleetLost ? t('Fleet lost', '舰队覆没') : p.bankrupt ? t('Bankrupt', '破产') : p.isAI ? t('AI', '电脑') : t('Player', '玩家')}</small>
         </div>;
       })}
