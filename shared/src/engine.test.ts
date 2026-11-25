@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG, EVENT_GOLD, GameEngine } from './engine';
 import type { Rng } from './compass';
 import { createDefaultMap } from './map';
+import { gameMode } from './modes';
 
 const spinTwo: Rng = () => 0;
 const spinTwelve: Rng = () => 0.999;
@@ -13,6 +14,26 @@ function spinAndSail(engine: GameEngine, accountingOnly = true): number[] {
   }
   engine.spinCompass();
   return engine.sail();
+}
+
+function playAiMatch(engine: GameEngine): void {
+  engine.start();
+  let guard = 0;
+  while (engine.state.phase !== 'gameOver' && guard++ < 10_000) {
+    const { phase, round, currentPlayer } = engine.state;
+    if (phase === 'spinning') engine.sail();
+    else if (phase === 'moving') engine.resolveLanding();
+    else {
+      engine.decideForAI();
+      if (phase === 'awaitingSpin' && engine.state.phase === phase &&
+          engine.state.currentPlayer === currentPlayer && engine.state.round === round) engine.spinCompass();
+    }
+  }
+  expect(engine.state.phase).toBe('gameOver');
+}
+
+function aiMatchRng(seed: number): Rng {
+  return () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
 }
 
 const twoPlayers = [
@@ -235,26 +256,38 @@ describe('GameEngine', () => {
   });
 
   it('plays an all-AI game to completion', () => {
-    let rngState = 1;
     const engine = new GameEngine({
       players: [0, 1, 2].map((i) => ({ name: `AI ${i}`, color: i, isAI: true })),
-      rng: () => {
-        rngState = (Math.imul(rngState, 1664525) + 1013904223) >>> 0;
-        return rngState / 4294967296;
-      },
+      rng: aiMatchRng(1),
+      config: gameMode('quick').config,
     });
-    engine.start();
-    let guard = 0;
-    while (engine.state.phase !== 'gameOver' && guard++ < 10_000) {
-      if (engine.state.phase === 'awaitingSpin') {
-        engine.decideForAI();
-        if (engine.state.phase === 'awaitingSpin') spinAndSail(engine, false);
-      }
-      else if (engine.state.phase === 'moving') engine.resolveLanding();
-      else engine.decideForAI();
-    }
-    expect(engine.state.phase).toBe('gameOver');
+    playAiMatch(engine);
     expect(engine.state.winner).not.toBeNull();
+  });
+
+  it.each(['easy', 'normal', 'hard'] as const)('ends about half of %s AI turns on blank sea', (aiDifficulty) => {
+    let blankLandings = 0, turns = 0;
+    for (let seed = 1; seed <= 8; seed++) {
+      const engine = new GameEngine({
+        players: Array.from({ length: 4 }, (_, i) => ({ name: `AI ${i}`, color: i, isAI: true, aiDifficulty })),
+        rng: aiMatchRng(seed),
+        config: { ...gameMode('quick').config, battleMode: 'auto' },
+      });
+      let previousPlayer: number | undefined;
+      engine.on(event => {
+        if (event.type !== 'turnStarted' && event.type !== 'gameOver') return;
+        if (previousPlayer !== undefined) {
+          const { position } = engine.state.players[previousPlayer];
+          if (engine.state.map[position].kind === 'sea') blankLandings++;
+          turns++;
+        }
+        if (event.type === 'turnStarted') previousPlayer = event.playerId;
+      });
+      playAiMatch(engine);
+    }
+    expect(turns).toBeGreaterThan(1000);
+    expect(blankLandings / turns).toBeGreaterThanOrEqual(0.45);
+    expect(blankLandings / turns).toBeLessThanOrEqual(0.55);
   });
 
   it('keeps cyclic turn order without skipping or repeating a navigator', () => {
