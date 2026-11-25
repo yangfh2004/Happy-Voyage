@@ -119,9 +119,9 @@ export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], option
   }).outcome;
 }
 
-export function forecastColonyBattle(state: GameState, player: Player, attackers = defaultBattleDeployment(player.fleet)): BattleOutcome {
+export function forecastColonyBattle(state: GameState, player: Player, shipIds?: number[]): BattleOutcome {
   const { ships, owner } = colonyDefenders(state, player.position);
-  return forecastNavalBattle(attackers, defaultBattleDeployment(ships), {
+  return forecastNavalBattle(selectBattleDeployment(player.fleet, shipIds), defaultBattleDeployment(ships), {
     attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner),
     attackerMultiplier: state.inspired ? STRATEGY_RULES.inspireMultiplier : 1,
     skipFirstDefense: state.ambush,

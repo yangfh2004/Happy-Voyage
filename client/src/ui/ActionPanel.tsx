@@ -242,7 +242,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
     const defenders = defaultBattleDeployment(ships);
     const firepower = (ships: { firepower: number }[]) => ships.reduce((sum, ship) => sum + ship.firepower, 0);
     const hull = (ships: { durability: number }[]) => ships.reduce((sum, ship) => sum + ship.durability, 0);
-    const forecast = (locale === 'zh' ? { victory: '可能获胜', defeat: '可能战败', draw: '可能平局' } : { victory: 'likely victory', defeat: 'likely defeat', draw: 'likely draw' })[forecastColonyBattle(state, player, selected)];
+    const forecast = canFight ? (locale === 'zh' ? { victory: '可能获胜', defeat: '可能战败', draw: '可能平局' } : { victory: 'likely victory', defeat: 'likely defeat', draw: 'likely draw' })[forecastColonyBattle(state, player, shipIds)] : null;
     body = (
       <>
         <h2>{t("{o}'s colony at {n}", '{o} 在{n}的殖民地', { o: name(owner), n: at(island.id) })}</h2>
@@ -250,7 +250,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
           : t('Pay {g}g toll, or open fire on the docked ships?', '缴纳 {g} 金币过路费，还是向停靠的船只开火？', { g: tollDue(state, player, island.id) })}</p>
         <p>
           {t('Your deployed ships:', '你的出阵船只：')} <StatTooltip stat="ships">{t('{n} ships', '{n} 艘船', { n: selected.length })}</StatTooltip> · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(selected) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(selected) })}</StatTooltip>{t('.', '。')}<br />
-          {t('Defenders:', '守军：')} {t('{n} ships', '{n} 艘船', { n: defenders.length })} · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(defenders) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(defenders) })}</StatTooltip> {t('({forecast}).', '（{forecast}）。', { forecast })}
+          {t('Defenders:', '守军：')} {t('{n} ships', '{n} 艘船', { n: defenders.length })} · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(defenders) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(defenders) })}</StatTooltip> {forecast && t('({forecast}).', '（{forecast}）。', { forecast })}
         </p>
         <p>
           {state.config.battleMode === 'realtime'
