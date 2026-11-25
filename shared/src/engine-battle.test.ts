@@ -51,7 +51,7 @@ describe('real-time engine integration', () => {
     const report = game.fight() ?? game.finishBattle([])!;
     expect(report).toMatchObject({ outcome: 'draw', attackerSunk: [], defenderSunk: [], tollPaid: 0 });
     expect(attacker.gold).toBe(gold);
-    expect(attacker.fleet).toHaveLength(5);
+    expect(attacker.fleet).toHaveLength(8);
     expect(attacker.fleet.slice(0, 3).map((s) => s.durability)).toEqual([0, 0, 0]);
   });
 
@@ -103,8 +103,8 @@ describe('real-time engine integration', () => {
     expect(report.outcome).toBe(defending ? 'victory' : 'defeat');
     expect(game.state.owners[node.id]).toBe(defending ? attacker.id : defender.id);
     expect(report.tollPaid > 0).toBe(!defending);
-    expect(attacker.fleet).toHaveLength(5);
-    expect(defender.fleet).toHaveLength(5);
+    expect(attacker.fleet).toHaveLength(8);
+    expect(defender.fleet).toHaveLength(8);
     expect(attacker.fleet[0].durability).toBe(70);
     expect(defender.fleet[0].durability).toBe(80);
     expect(game.state.pendingBattle).toBeNull();
@@ -148,8 +148,8 @@ describe('real-time engine integration', () => {
     expect(game.state.inspired).toBe(false);
     expect(game.state.ambush).toBe(false);
     expect(game.state.phase).not.toBe('awaitingBattle');
-    if (outcome === 'victory') { expect(game.state.owners[node.id]).toBe(0); expect(defender.fleet).toHaveLength(5); }
-    if (outcome === 'defeat') { expect(report.tollPaid).toBeGreaterThan(0); expect(attacker.fleet).toHaveLength(5); }
+    if (outcome === 'victory') { expect(game.state.owners[node.id]).toBe(0); expect(defender.fleet).toHaveLength(8); }
+    if (outcome === 'defeat') { expect(report.tollPaid).toBeGreaterThan(0); expect(attacker.fleet).toHaveLength(8); }
     if (outcome === 'draw') { expect(attacker.position).toBe(attacker.homePort); expect(defender.position).toBe(defender.homePort); }
     expect(() => game.finishBattle([])).toThrow('Expected phase awaitingBattle');
   });

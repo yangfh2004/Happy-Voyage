@@ -74,9 +74,9 @@ describe('AI colony decisions', () => {
 });
 
 describe('AI rival difficulty', () => {
-  const at = (place: string, rival: boolean | null = false) => {
+  const at = (place: string, rival: boolean | null = false, rng = () => 0.5) => {
     const roster = createNationRoster([{ name: 'Captain', nation: 'Spain' }], 'hard').slice(0, 2).reverse();
-    const engine = new GameEngine({ players: roster, rng: () => 0.5, config: { battleMode: 'auto' } });
+    const engine = new GameEngine({ players: roster, rng, config: { battleMode: 'auto' } });
     const { state, currentPlayer: player } = engine;
     const node = state.map.find((n) => n.special === place || n.kind === place)!;
     player.position = node.id;
@@ -108,6 +108,7 @@ describe('AI rival difficulty', () => {
   it('develops a supply chain, launches a legal ship and loads its local specialty', () => {
     const { engine, state, player, node } = at('island');
     player.fleet = player.fleet.slice(0, 3);
+    state.marketStock = [];
     engine.decideForAI();
     expect(state.buildings[node.id]).toMatchObject({ lumberMill: 1, ironMine: 1, shipyard: 1 });
     expect(state.buildings[node.id].collectionField).toBeGreaterThanOrEqual(1);
@@ -119,6 +120,36 @@ describe('AI rival difficulty', () => {
     expect(player.fleet).toHaveLength(4);
     expect(state.stockpiles[node.id]).toEqual({ lumber: 0, iron: 0, specialties: { [node.specialty!]: 0 } });
     expect(player.fleet[0].cargo[node.specialty!]).toBe(7);
+  });
+
+  it.each([[1, 600], [2, 360]])('Hard upgrades a level-%i yard and launches a warship given %ig above reserve', (shipyard, budget) => {
+    const { engine, state, player, node } = at('island');
+    player.fleet = player.fleet.slice(1, 4);
+    player.gold = 650 + budget;
+    state.buildings[node.id] = { shipyard, lumberMill: 1, ironMine: 1, collectionField: 3 };
+    Object.assign(state.stockpiles[node.id], { lumber: 6, iron: 4 });
+
+    engine.decideForAI();
+
+    expect(state.buildings[node.id].shipyard).toBe(3);
+    expect(player.fleet.at(-1)?.type).toBe('warship');
+    expect(player.gold).toBe(650);
+  });
+
+  it('builds missing cargo without buying an unnecessary warship upgrade', () => {
+    let seed = 42;
+    const { engine, state, player, node } = at('island', false, () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32));
+    player.fleet = player.fleet.filter((ship) => ship.type !== 'cargo').slice(0, 3);
+    player.gold = 1_010;
+    state.marketStock = [];
+    state.buildings[node.id] = { shipyard: 2, lumberMill: 1, ironMine: 1, collectionField: 3 };
+    Object.assign(state.stockpiles[node.id], { lumber: 6, iron: 4 });
+
+    engine.decideForAI();
+
+    expect(state.buildings[node.id].shipyard).toBe(2);
+    expect(player.fleet.at(-1)?.type).toBe('cargo');
+    expect(player.gold).toBe(1_010);
   });
 
   it.each(['easy', 'normal', 'hard'] as const)('%s replaces a lost ship with an affordable fallback', (difficulty) => {
@@ -161,7 +192,7 @@ describe('AI rival difficulty', () => {
 
   it('Hard navigates to buy a warship while keeping enough gold to settle more islands', () => {
     const { engine, state, player, node } = at('island');
-    player.fleet.pop();
+    player.fleet.splice(4);
     const market = state.map.find((stop) => stop.special === 'skeleton')!;
     player.strategies = ['navigate'];
     player.gold = 800;
@@ -234,10 +265,11 @@ describe('AI rival difficulty', () => {
     const colony = state.map.find((candidate) => candidate.kind === 'island' && candidate.id !== node.id)!;
     state.owners[colony.id] = player.id;
     while (player.fleet.length < MAX_FLEET_SIZE - openSlots) engine.addShipToFleet(player.id, 'cargo');
-    for (const ship of player.fleet) { ship.firepower = 9; ship.durability = 50; }
+    player.fleet.forEach((ship, i) => { ship.firepower = 9; ship.durability = i < 10 - openSlots ? 50 : 0; });
     const flagship = player.fleet.find((ship) => ship.signature)!;
     flagship.durability = flagship.maxDurability;
     const rival = state.players[1];
+    rival.fleet.splice(5);
     const defectors = rival.fleet.slice(0, 2);
     rival.fleet.forEach((ship, i) => {
       ship.firepower = i < 2 ? 95 : defenderFirepower;
