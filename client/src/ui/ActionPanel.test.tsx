@@ -85,6 +85,37 @@ describe('fleet capacity at a colony', () => {
   });
 });
 
+describe('durability at a colony', () => {
+  it.each(['en', 'zh'] as const)('shows durability for fleet and docked ships and local repair availability in %s', (locale) => {
+    const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }], rng: () => 0.5 });
+    const { state, currentPlayer: player } = game;
+    const island = state.map.find((node) => node.kind === 'island')!;
+    state.owners[island.id] = player.id;
+    player.position = island.id;
+    state.phase = 'awaitingBuild';
+    const [docked, sailing] = player.fleet;
+    docked.durability = 4;
+    sailing.durability = 7;
+    game.dockShip(docked.id);
+    setLocale(locale);
+    try {
+      const html = renderToStaticMarkup(<TransferContents state={state} />);
+      const cards = html.match(/<li class="transfer-ship">.*?<\/li>/g) ?? [];
+      const label = locale === 'en' ? 'Durability' : '耐久';
+      expect(cards).toHaveLength(player.fleet.length + 1);
+      expect(cards[0]).toContain(`${label} 7/${sailing.maxDurability}</button>`);
+      expect(cards[player.fleet.length]).toContain(`${label} 4/${docked.maxDurability}</button>`);
+      expect(html).toContain(locale === 'en' ? 'No shipyard or repair yard: docked ships are not repaired here.' : '没有造船厂或修船厂，停靠的船只不会在此修理。');
+      if (locale === 'en') expect(html).not.toMatch(/\p{Script=Han}/u);
+      state.buildings[island.id].repairYard = 1;
+      const withRepairs = renderToStaticMarkup(<TransferContents state={state} />);
+      expect(withRepairs).toContain(locale === 'en' ? 'Dock ships here for free repairs at the start of your next turn.' : '将船只停靠在此，下次回合开始时免费修好。');
+    } finally {
+      setLocale('en');
+    }
+  });
+});
+
 describe('colony return', () => {
   it.each(['en', 'zh'] as const)('offers the direct return on a human turn in %s', (locale) => {
     const game = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }] });

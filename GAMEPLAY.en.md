@@ -59,7 +59,7 @@ A navigator goes bankrupt only when a deduction takes their gold below zero; exa
 | Repair yard | 150 (level 1 only) | Repairs docked ships for free without a shipyard |
 | Collection field | 80 / 160 / 240 | Produces 1 unit of the local specialty per level each round |
 
-**Dockside repairs**: A colony with either a Shipyard or a Repair yard fully repairs all ships docked there for free at the start of its owner's turn. Ships are not repaired immediately upon landing or docking, and ships still in the sailing fleet are not repaired. Repaired ships can rejoin the fleet on the next visit.
+**Dockside repairs**: Ships & cargo transfer shows current/max durability for every ship in your sailing fleet and every ship docked at the colony. It also tells you whether the colony offers automatic repairs. A colony with either a Shipyard or a Repair yard fully repairs all ships docked there for free at the start of its owner's turn. Ships are not repaired immediately upon landing or docking, and ships still in the sailing fleet are not repaired. Repaired ships can rejoin the fleet on the next visit.
 
 ### Ships
 
@@ -144,7 +144,7 @@ Only ships above 0 durability at the start of battle count toward the starting s
 
 ## 6. Sea encounters
 
-Two roaming pirate groups and one roaming Small sea monster move 1–3 spaces each round along the route, forward or backward, without passing through ports or special islands. The first roaming unit a fleet crosses triggers an encounter, then that unit relocates to an empty space. If no roaming unit is encountered, landing on an Open sea space always triggers a random encounter. Any other non-port landing has a 20% chance to trigger a random encounter before resolving the landing itself. Fixed treasure, storm, and trade wind spaces resolve their own events separately. Escort blocks the next harmful event: Storm, Pirates, either size of sea monster, Destructive sea turtle, or Bermuda whirlpool.
+Two roaming pirate groups and one roaming Small sea monster move 1–3 spaces each round along the route, forward or backward, without passing through ports or special islands. A roaming unit triggers an encounter only when a fleet lands on its space (passing through does not trigger it), then relocates to an empty space. If no roaming unit is at the landing space, landing on an Open sea space always triggers a random encounter. Any other non-port landing has a 20% chance to trigger a random encounter before resolving the landing itself. Fixed treasure, storm, and trade wind spaces resolve their own events separately. Escort blocks the next harmful event: Storm, Pirates, either size of sea monster, Destructive sea turtle, or Bermuda whirlpool.
 
 | Encounter | Random weight (100 total) | Effect |
 | --- | ---: | --- |
