@@ -16,6 +16,15 @@ export function roomLink(roomId: string | null): URL {
   return url;
 }
 
+export function roomInviteLink(roomId: string): URL {
+  const current = roomLink(roomId);
+  if (current.origin !== 'https://raw.githack.com' ||
+      current.pathname !== '/yangfh2004/Happy-Voyage/demo/debug/debug.html') return current;
+  const invite = new URL('../index.html', current);
+  invite.searchParams.set(ROOM_QUERY, roomId);
+  return invite;
+}
+
 function savePass(roomId: string, token: string | null): void {
   try {
     if (token) sessionStorage.setItem(storageKey(roomId), token);

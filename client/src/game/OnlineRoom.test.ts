@@ -1,10 +1,23 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { io } from 'socket.io-client';
-import { OnlineRoom } from './OnlineRoom';
+import { OnlineRoom, roomInviteLink, roomLink } from './OnlineRoom';
 
 vi.mock('socket.io-client', () => ({ io: vi.fn() }));
 
 afterEach(() => vi.unstubAllEnvs());
+afterEach(() => vi.unstubAllGlobals());
+
+it('shares the normal game URL from the desktop tester without dropping its preview from browser history', () => {
+  const demo = 'https://raw.githack.com/yangfh2004/Happy-Voyage/demo';
+  vi.stubGlobal('window', { location: { href: `${demo}/debug/debug.html?preview=landing` } });
+  expect(roomInviteLink('test-room').href).toBe(`${demo}/index.html?room=test-room`);
+  expect(roomLink('test-room').href).toBe(`${demo}/debug/debug.html?preview=landing&room=test-room`);
+});
+
+it('keeps the deployed path and unrelated parameters for ordinary web invites', () => {
+  vi.stubGlobal('window', { location: { href: 'https://example.com/Happy-Voyage/?theme=sea' } });
+  expect(roomInviteLink('test-room').href).toBe('https://example.com/Happy-Voyage/?theme=sea&room=test-room');
+});
 
 it.each([
   { serverUrl: '', connected: false, requestTimeout: 4500 },
