@@ -1513,13 +1513,13 @@ export class GameEngine extends GameView {
     this.state.mistDuel = null;
     this.state.revivalReport = null;
     this.state.pendingRecruits = null;
-    if (this.checkVictory()) return;
-
     const lastPosition = turnOrderPosition(this.state, this.state.currentPlayer);
     let next = this.nextActivePlayer(lastPosition + 1);
+    if (next !== undefined && this.checkVictory()) return;
     while (next === undefined) {
-      this.produceColonyGoods();
       this.payColonyIncome();
+      if (this.checkVictory()) return;
+      this.produceColonyGoods();
       advanceMarket(this.state.market);
       this.state.round += 1;
       this.moveRoamers();

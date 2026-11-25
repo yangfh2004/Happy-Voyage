@@ -172,4 +172,29 @@ describe('colony buildings', () => {
     expect(engine.state.buildings[node.id]).toMatchObject({ lumberMill: 1, ironMine: 1, collectionField: expect.any(Number) });
     expect(engine.state.players[0].gold).toBeGreaterThanOrEqual({ easy: 450, normal: 400, hard: 650 }[difficulty]);
   });
+
+  it.each([0, 1])('pays the final round’s income only if the conquest by seat %i completes the round', (seat) => {
+    const { engine, node } = visit();
+    const { state } = engine;
+    state.config.islandsToWin = 2;
+    state.currentPlayer = seat;
+    state.owners[node.id] = seat;
+    state.buildings[node.id] = { lumberMill: 1 };
+    const [target, rivalColony] = state.map.filter((stop) => stop.kind === 'island' && stop.id !== node.id);
+    state.owners[rivalColony.id] = 1 - seat;
+    state.buildings[rivalColony.id] = { ironMine: 1 };
+    engine.currentPlayer.position = target.id;
+    engine.resolveLanding();
+
+    const events: string[] = [];
+    engine.on((event) => events.push(event.type));
+    engine.finishBuilding();
+
+    expect(state).toMatchObject({ phase: 'gameOver', winner: seat, victory: 'islandGoal' });
+    expect(state.players[seat].gold).toBe(DEFAULT_CONFIG.startingGold + (seat === 1 ? 15 : 0));
+    expect(state.players[1 - seat].gold).toBe(DEFAULT_CONFIG.startingGold + (seat === 1 ? 20 : 0));
+    expect(events.filter((event) => event === 'goldChanged' || event === 'gameOver')).toEqual(
+      seat === 1 ? ['goldChanged', 'goldChanged', 'gameOver'] : ['gameOver'],
+    );
+  });
 });
