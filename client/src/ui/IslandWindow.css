@@ -6,7 +6,10 @@
   position: fixed;
   inset: 0;
   margin: auto;
-  width: min(660px, calc(100% - 24px));
+  width: 90vw;
+  height: 80vh;
+  height: 80dvh;
+  max-width: calc(100% - 24px);
   max-height: calc(100% - 24px);
   max-height: calc(100dvh - 24px);
   padding: 0;
@@ -53,7 +56,6 @@
   --island-deep: #153f41;
   --island-paper: #f5f7ee;
   --island-gold: #f6d798;
-  width: min(570px, calc(100% - 24px));
 }
 .revival-hero {
   display: grid;
@@ -176,7 +178,6 @@
   --island-deep: #462b29;
   --island-paper: #fff2dd;
   --island-gold: #efbe7a;
-  width: min(760px, calc(100% - 24px));
 }
 .ship-market-ledger {
   display: grid;
@@ -212,7 +213,6 @@
   --island-deep: #6b2827;
   --island-paper: #fff4e4;
   --island-gold: #efc585;
-  width: min(780px, calc(100% - 24px));
 }
 .tavern-roster { display: grid; gap: 10px; margin-block: 16px; }
 .tavern-captain {

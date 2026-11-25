@@ -404,8 +404,6 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .next-stop small { font-weight: 800; letter-spacing: .1em; color: #87672a; }
   .next-stop strong { font-size: 20px; }
   .landing-hint { display: block; padding: 20px 10px; border: 2px dashed #b59751; border-radius: 14px; text-align: center; color: #174365; font-weight: 650; }
-  .landing-placement { position: fixed; z-index: 15; left: 24px; bottom: 122px; width: calc(100vw - 412px); max-height: calc((100vh - 344px) / 2); overflow-y: auto; overscroll-behavior: contain; border: 2px solid #ddb953; border-radius: 20px; padding: 10px 16px; background: linear-gradient(#fffdf4, #f3ecd9); box-shadow: 0 8px 28px #001b35aa; animation: landfall .25s ease-out; }
-  .landing-placement.landing-top { top: 150px; bottom: auto; }
   .landing-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid #cfbc8c; padding-bottom: 8px; margin-bottom: 8px; }
   .landing-heading small { color: #8b6426; letter-spacing: .1em; font-weight: 800; }
   .landing-heading h2 { font-size: 24px; margin: 4px 0; }
@@ -417,8 +415,6 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .playing .landing-placement .actions button.primary::before { content: '⚓ '; }
   .playing .landing-placement .actions .row > button:not(.primary)::before { content: '➜ '; }
   .playing .landing-placement .strategy-cards { margin-top: 12px; }
-  @keyframes landfall { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-  @media (prefers-reduced-motion: reduce) { .landing-placement { animation: none; } }
 }
 
 @media (max-width: 700px) and (orientation: portrait) {
@@ -468,7 +464,6 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .playing .turn-action-panel .action-content > div:last-child { flex: 1; min-width: 0; }
   .playing .turn-action-panel .actions .primary.big { width: 100%; min-height: 54px; font-size: 20px; }
   .playing .turn-action-panel .actions .primary.big kbd { display: none; }
-  .playing .landing-placement { position: static; animation: mobile-sheet .25s ease-out; }
   .playing .overlay.has-landing { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
   .has-landing .helm-card { display: none; }
   .landing-heading { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid #c3a157; padding-bottom: 5px; }
@@ -491,6 +486,33 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .strategy-cards summary { padding: 7px; }
   @keyframes mobile-sheet { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
 }
+/* Landing decisions use 90% × 80% = 72% of the screen, including short menus.
+   Keep their own scroll surface instead of squeezing them into the HUD. */
+.playing .landing-placement, .fleet.transfer-window {
+  position: fixed;
+  z-index: 15;
+  inset: 0;
+  margin: auto;
+  width: 90vw;
+  height: 80vh;
+  height: 80dvh;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 2px solid #ddb953;
+  border-radius: 20px;
+  padding: clamp(14px, 3vw, 28px);
+  background: linear-gradient(#fffdf4, #f3ecd9);
+  box-shadow: 0 8px 28px #001b35aa;
+}
+/* A transformed mobile HUD would make the fixed card relative to the HUD. */
+.playing .overlay.has-landing { animation: none; }
+.playing .landing-placement .actions { padding: 0; background: transparent; border: 0; box-shadow: none; }
+.playing .landing-placement .action-content { display: block; }
+.playing .landing-placement .actions p { font-size: 1rem; line-height: 1.5; }
+.playing .landing-placement button:not(.stat-trigger) { min-height: 44px; }
 @media (prefers-reduced-motion: reduce) { .playing .overlay.is-your-turn, .playing .landing-placement { animation: none; } }
 
 @media (pointer: coarse) {
