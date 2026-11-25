@@ -16,6 +16,25 @@ function siege(attackerAI = false, defenderAI = false) {
 }
 
 describe('configurable retreat thresholds', () => {
+  it.each([[false, 'realtime', 'victory'], [true, 'realtime', 'draw'], [false, 'auto', 'draw']] as const)(
+    'ignores auto-resolve hit rate only for real Command battles (AI attacker: %s, lobby mode: %s)',
+    (attackerAI, mode, expected) => {
+      const engine = siege(attackerAI, true);
+      engine.state.config.battleMode = mode;
+      engine.currentPlayer.fleet = [{ ...fleet(1)[0], firepower: 100 }];
+      engine.state.players[1].fleet = [{ ...fleet(1)[0], id: 2 }];
+      try {
+        selectGameplayTuning(resolveGameplayTuning({ combat: { hitChance: 0 } }).rules);
+        expect(forecastColonyBattle(engine.state, engine.currentPlayer)).toBe(expected);
+        const actual = engine.fight();
+        if (expected === 'victory') expect(engine.state.phase).toBe('awaitingBattle');
+        else expect(actual?.outcome).toBe('draw');
+      } finally {
+        selectGameplayTuning();
+      }
+    },
+  );
+
   it('estimates damage below the stock hit chance without affecting actual hit rolls', () => {
     const [attacker] = fleet(1);
     attacker.firepower = 100;

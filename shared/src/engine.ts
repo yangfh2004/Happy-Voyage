@@ -2,7 +2,7 @@ import { DEFAULT_GAMEPLAY_TUNING, GAMEPLAY_TUNING } from './gameplayTuning';
 import { aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount,
   aiTravelTarget, aiBattleStrategy, aiSeaStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase, aiMistTake } from './ai';
 import { STRATEGIES, STRATEGY_RULES, strategyTarget, defectionCount, type StrategyId } from './strategies';
-import { COMBAT, colonyDefenders, defaultBattleDeployment, fightNavalBattle, selectBattleDeployment, tollDue } from './combat';
+import { COMBAT, colonyBattleMode, colonyDefenders, defaultBattleDeployment, fightNavalBattle, selectBattleDeployment, tollDue } from './combat';
 import type { BattleResult } from './combat';
 import { replayBattle, type BattleLog, type BattleControllers } from './battle';
 import { isRetreatThreshold, playerRetreatThreshold, type RetreatThreshold } from './withdrawal';
@@ -569,7 +569,7 @@ export class GameEngine extends GameView {
     const { ships, owner, fromFleet } = colonyDefenders(this.state, node.id);
     const attackers = selectBattleDeployment(player.fleet, shipIds);
     const defenders = defaultBattleDeployment(ships);
-    if (this.state.config.battleMode === 'realtime' && (!player.isAI || !owner.isAI)) {
+    if (colonyBattleMode(this.state, player, owner) === 'realtime') {
       this.startBattle('colony', attackers, defenders, owner.id);
       return null;
     }

@@ -1,5 +1,5 @@
 import { DEFAULT_GAMEPLAY_TUNING, GAMEPLAY_TUNING } from './gameplayTuning';
-import type { BattleOutcome, GameState, Player, Ship } from './types';
+import type { BattleOutcome, GameConfig, GameState, Player, Ship } from './types';
 import type { Rng } from './compass';
 import { colonyToll } from './buildings';
 import { STRATEGY_RULES } from './strategies';
@@ -39,6 +39,10 @@ export function colonyDefenders(state: GameState, nodeId: number): { ships: Ship
   const owner = state.players[state.owners[nodeId]!];
   const docked = state.docks[nodeId] ?? [];
   return docked.length ? { ships: docked, owner, fromFleet: false } : { ships: owner.fleet, owner, fromFleet: true };
+}
+
+export function colonyBattleMode(state: GameState, attacker: Player, defender: Player): GameConfig['battleMode'] {
+  return attacker.isAI && defender.isAI ? 'auto' : state.config.battleMode;
 }
 
 /** Toll owed at a rival colony. */
@@ -106,10 +110,10 @@ function resolveNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng, opti
 }
 
 /** Forecast with the same withdrawal rules and loss caps, without touching real ships or match RNG. */
-export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], options: { attackerMultiplier?: number; attackerRoll?: number; defenderRoll?: number; skipFirstDefense?: boolean; attackerThreshold?: RetreatThreshold; defenderThreshold?: RetreatThreshold } = {}): BattleOutcome {
+export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], options: { battleMode?: GameConfig['battleMode']; attackerMultiplier?: number; attackerRoll?: number; defenderRoll?: number; skipFirstDefense?: boolean; attackerThreshold?: RetreatThreshold; defenderThreshold?: RetreatThreshold } = {}): BattleOutcome {
   const copy = (ships: Ship[]) => ships.map((ship) => ({ ...ship }));
   // Keep the stock full-hit estimate, scaling forecast damage down for lower accuracy.
-  const accuracy = Math.min(1, COMBAT.hitChance / DEFAULT_GAMEPLAY_TUNING.combat.hitChance);
+  const accuracy = options.battleMode === 'realtime' ? 1 : Math.min(1, COMBAT.hitChance / DEFAULT_GAMEPLAY_TUNING.combat.hitChance);
   return resolveNavalBattle(copy(attackers), copy(defenders), () => options.attackerRoll ?? 0.5, {
     attackerMultiplier: options.attackerMultiplier,
     attackerThreshold: options.attackerThreshold, defenderThreshold: options.defenderThreshold,
@@ -121,6 +125,7 @@ export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], option
 export function forecastColonyBattle(state: GameState, player: Player, shipIds?: number[]): BattleOutcome {
   const { ships, owner } = colonyDefenders(state, player.position);
   return forecastNavalBattle(selectBattleDeployment(player.fleet, shipIds), defaultBattleDeployment(ships), {
+    battleMode: colonyBattleMode(state, player, owner),
     attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner),
     attackerMultiplier: state.inspired ? STRATEGY_RULES.inspireMultiplier : 1,
     skipFirstDefense: state.ambush,

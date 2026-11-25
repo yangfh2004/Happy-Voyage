@@ -10,7 +10,7 @@ The values below are this version's defaults. The desktop edition can override v
 
 Fleet capacity can be set to 2–40 ships. You may start with just one ship, but capacity cannot be set to 1: you cannot dock your last ship or board another without an open slot.
 
-Lowering the auto-resolve hit chance also reduces estimated cannon damage in pre-battle forecasts. At a 0% hit chance the forecast deals no cannon damage. Actual battles still roll for each ship's hit independently.
+Lowering the auto-resolve hit chance also reduces estimated cannon damage in auto-resolve forecasts. At a 0% hit chance those forecasts deal no cannon damage. This setting does not affect Command forecasts or cannonball impacts; actual auto-resolve battles still roll for each ship's hit independently.
 
 - **Local match**: There are 2–10 nations, with 4 by default. Up to 6 people (and at least 1, but no more than the total number of seats) can take turns on one device; the computer controls the remaining seats. Players choose distinct nations and start at their respective home ports. Human seats go first in join order, followed by the computer seats in a fixed order. The defaults are Classic conquest, Normal difficulty, and Command for naval battles.
 - **Background music**: With sound enabled, the music starts automatically after the first click, tap, or keypress that the browser accepts for playback. There is no need to toggle sound.
