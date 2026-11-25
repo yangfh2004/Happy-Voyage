@@ -69,7 +69,7 @@ describe('board chrome', () => {
     expect(html).toContain('>Strategy cards</span> 1</span>');
     expect(html).toContain('>Colonies</span> 0 · ');
     expect(html).toContain('>Strategy cards</span> 3</span>');
-    expect(html).toContain('>Gold</span> 1400 · ');
+    expect(html).toContain(`>Gold</span> ${state.players[0].gold} · `);
   });
   it('shows the current human and handles an empty fleet', () => {
     const { state } = game();
