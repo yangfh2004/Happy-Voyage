@@ -46,12 +46,13 @@ describe('Dragon Snake captains', () => {
     expect(p.gold).toBe(gold - CAPTAINS[0].fee);
     expect(p.captains).toEqual(['ines']);
     expect(g.state.pendingRecruits).toBeNull();
-    g.state.owners[1] = 1;
+    const colony = g.state.map.find(node => node.kind === 'island')!;
+    g.state.owners[colony.id] = 1;
     for (let i = 0; i < 2; i++) {
       const before = p.gold;
-      land(g, 1);
+      land(g, colony.id);
       g.payToll();
-      expect(p.gold).toBe(before - g.state.map[1].toll!);
+      expect(p.gold).toBe(before - colony.toll!);
     }
     expect(p.captains).toEqual(['ines']);
     expect(() => g.recruitCaptain(0)).toThrow('Expected phase');

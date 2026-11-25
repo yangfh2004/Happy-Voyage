@@ -29,7 +29,6 @@ const specials: [SpecialKind, string, string][] = [
 ];
 const events: EventKind[] = ['treasure', 'storm', 'tradeWind', 'pirates', 'smallMonster', 'whirlpool', 'bottle', 'floatingCargo', 'merchant', 'wyvern', 'largeMonster', 'turtle', 'treasure'];
 const eventNames = ['Treasure Shoal', 'Tempest Passage', 'Zephyr Strait', 'Pirate Cove', 'Serpent Shallows', 'Bermuda Triangle', 'Drifting Bottle Reef', 'Castaway Cargo Bay', 'Merchant Lane', 'Wyvern Cliffs', 'Kraken Deep', 'Turtle Reach', 'Sunken Crown Shoal'];
-const longStretches = new Set([25, 31, 33, 36, 42, 51, 59]);
 
 export function createDefaultMap(): MapNode[] {
   const rules = GAMEPLAY_TUNING.map;
@@ -62,10 +61,10 @@ export function createDefaultMap(): MapNode[] {
     const [x, y] = coordinates[index];
     stopIds.push(map.length);
     map.push({ ...node, id: map.length, x: x * chartScale, y: y * chartScale });
-    const count = index % 7 === 6 ? rules.seaStopsBetweenSectors[NATIONS[Math.floor(index / 7)].name] : longStretches.has(index) ? rules.extraSeaStops : 0;
     const [nextX, nextY] = coordinates[(index + 1) % coordinates.length];
-    for (let j = 1; j <= count; j++) {
-      const fraction = (j + (index === 55 ? rules.seaLaneBias : 0)) / (count + 1);
+    const segments = Math.max(1, Math.round(Math.hypot(nextX - x, nextY - y) * chartScale / rules.targetSeaSpacing));
+    for (let j = 1; j < segments; j++) {
+      const fraction = j / segments;
       sea++;
       map.push({
         id: map.length, kind: 'sea', name: `Open water ${sea}`, chineseName: `海上 ${sea}`,

@@ -33,15 +33,17 @@ describe('landing target', () => {
     const engine = game();
     const { state } = engine;
     const netherlands = state.map.find(node => node.kind === 'port' && node.nation === 'Netherlands')!.id;
-    state.players[0].position = 1;
+    const fork = state.map.find(node => node.next?.[1] === netherlands)!.id;
+    const from = fork - 1;
+    state.players[0].position = from;
     state.wind.direction = 'E';
     engine.spinCompass();
     state.lastSpin = 2;
-    expect(sailingRoute(state)).toEqual([1, 2, netherlands]);
+    expect(sailingRoute(state)).toEqual([from, fork, netherlands]);
     expect(landingTarget(state)?.nodeId).toBe(netherlands);
     const path = engine.sail();
-    expect(path).toEqual([2, netherlands]);
-    expect(sailingRoute(state, { playerId: 0, path, sailFrom: 1 })).toEqual([1, 2, netherlands]);
+    expect(path).toEqual([fork, netherlands]);
+    expect(sailingRoute(state, { playerId: 0, path, sailFrom: from })).toEqual([from, fork, netherlands]);
   });
   it('uses the actual movement path, not an already-updated ship position or stale compass result', () => {
     const { state } = game();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultMap, MIN_NODE_SPACING, WORLD } from './map';
-import { successors, windExit, WIND_DIRECTIONS } from './graph';
+import { successors, walkPath, windExit, WIND_DIRECTIONS } from './graph';
 
 describe('organic archipelagos', () => {
   const map = createDefaultMap();
@@ -8,13 +8,13 @@ describe('organic archipelagos', () => {
     const another = createDefaultMap();
     expect(another).toEqual(map);
     expect(another[0]).not.toBe(map[0]);
-    expect(map).toHaveLength(100);
+    expect(map).toHaveLength(143);
     expect(map.filter((node) => node.kind === 'island')).toHaveLength(40);
     expect(map.filter((node) => node.kind === 'port')).toHaveLength(10);
     expect(map.filter((node) => node.kind === 'special')).toHaveLength(7);
     expect(map.filter((node) => node.kind === 'event')).toHaveLength(13);
     const sea = map.filter((node) => node.kind === 'sea');
-    expect(sea).toHaveLength(30);
+    expect(sea).toHaveLength(73);
     for (const node of sea) {
       expect(Object.keys(node).sort()).toEqual(['chineseName', 'id', 'kind', 'name', 'x', 'y']);
       expect(successors(map, node.id)).toEqual([(node.id + 1) % map.length]);
@@ -57,10 +57,34 @@ describe('organic archipelagos', () => {
         expect(Math.hypot(node.x - map[id].x, node.y - map[id].y)).toBeLessThanOrEqual(typical * 2.5);
         const steps = (id - node.id + map.length) % map.length;
         expect(steps).toBeGreaterThanOrEqual(2);
-        expect(steps).toBeLessThanOrEqual(12);
+        expect(steps).toBeLessThanOrEqual(18);
         const from = stops.indexOf(node), to = stops.indexOf(map[id]);
         expect((to - from + stops.length) % stops.length).toBeLessThanOrEqual(9);
       }
+    }
+  });
+  it('preserves the wind choices of all nine forks after redistributing blank squares', () => {
+    const shortcutWinds = new Map([
+      ['Canary Isles', ['E', 'S']], ['Tempest Passage', ['E', 'S']],
+      ['Pernambuco', ['E', 'S']], ['China Port', ['E', 'S']],
+      ['Benin', ['S', 'W']], ['Madagascar', ['N', 'W']],
+      ['Goa', ['E']], ['Ocean Crossing', ['N']], ['Ryukyu', ['N']],
+    ]);
+    const chosenWinds = new Map(map.filter(node => successors(map, node.id).length > 1).map(node => [
+      node.name, WIND_DIRECTIONS.filter(wind => windExit(map, node.id, wind) === successors(map, node.id)[1]),
+    ]));
+    expect(chosenWinds).toEqual(shortcutWinds);
+    const goa = map.find(node => node.name === 'Goa')!;
+    const [blank, calicut] = walkPath(map, goa.id, 2, 'N').map(id => map[id]);
+    expect(blank.kind).toBe('sea');
+    expect(calicut.name).toBe('Calicut');
+  });
+  it('keeps main-route step lengths comparable across short and long crossings', () => {
+    for (const node of map) {
+      const next = map[successors(map, node.id)[0]];
+      const distance = Math.hypot(next.x - node.x, next.y - node.y);
+      expect(distance).toBeGreaterThanOrEqual(190);
+      expect(distance).toBeLessThanOrEqual(380);
     }
   });
   it('keeps edges clear of other stops and a complete home-port ring', () => {

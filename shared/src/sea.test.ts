@@ -93,10 +93,10 @@ describe('living sea board', () => {
     expect(g.state.map[homes[0]].nation).toBe('Netherlands');
     expect(g.state.players.every((player) => player.position === player.homePort)).toBe(true);
   });
-  it('has 100 unique stops, forty colonies, seven distinct specials and ten national ports', () => {
+  it('has 143 unique stops, forty colonies, seven distinct specials and ten national ports', () => {
     const map = createDefaultMap();
-    expect(map).toHaveLength(100);
-    expect(new Set(map.map((n) => n.name)).size).toBe(100);
+    expect(map).toHaveLength(143);
+    expect(new Set(map.map((n) => n.name)).size).toBe(143);
     expect(map.filter((n) => n.kind === 'island')).toHaveLength(40);
     expect(new Set(map.filter((n) => n.kind === 'special').map((n) => n.special)).size).toBe(7);
     expect(new Set(map.filter((n) => n.kind === 'port').map((n) => n.nation)).size).toBe(10);
@@ -171,11 +171,12 @@ describe('living sea board', () => {
     expect(p.gold).toBe(g.state.config.startingGold - LOTTERY.ticketPrice);
     g.state.currentPlayer = 0;
     p.captains = ['ines'];
-    g.state.owners[1] = 1;
+    const colony = g.state.map.find(node => node.kind === 'island')!;
+    g.state.owners[colony.id] = 1;
     const gold = p.gold;
-    land(g, 1);
+    land(g, colony.id);
     g.payToll();
-    expect(p.gold).toBe(gold - g.state.map[1].toll!);
+    expect(p.gold).toBe(gold - colony.toll!);
     expect(p.captains).toEqual(['ines']);
   });
 

@@ -188,20 +188,7 @@
     }
   },
   "map": {
-    "seaStopsBetweenSectors": {
-      "Spain": 3,
-      "Netherlands": 2,
-      "England": 2,
-      "Portugal": 2,
-      "China": 2,
-      "France": 3,
-      "Japan": 2,
-      "Germany": 2,
-      "Italy": 2,
-      "Korea": 3
-    },
-    "extraSeaStops": 1,
-    "seaLaneBias": 0.2,
+    "targetSeaSpacing": 255,
     "colonyBasePrice": 100,
     "colonyPriceIncrease": 250,
     "colonyPriceStep": 5,
