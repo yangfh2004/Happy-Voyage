@@ -375,7 +375,6 @@ export class GameEngine extends GameView {
 
     // Each pass of (or landing on) the home port pays the royal salary, once the fleet has sailed.
     const homePasses = this.pendingPath.filter((id) => id === player.homePort).length;
-    const sailedPath = this.pendingPath;
     this.pendingPath = [];
     if (homePasses > 0) {
       const salary = (this.state.config.homeSalary + RANKS[player.rank].salary) * homePasses;
@@ -385,7 +384,7 @@ export class GameEngine extends GameView {
 
     if (this.encounterPending) {
       this.encounterPending = false;
-      const roamer = sailedPath.map((id) => this.state.roamers.find((r) => r.node === id)).find(Boolean);
+      const roamer = this.state.roamers.find((r) => r.node === node.id);
       let event = roamer?.kind as MapNode['event'];
       if (roamer) {
         const nodes = this.roamerNodes().filter((n) => !this.state.roamers.some((r) => r.node === n.id));
