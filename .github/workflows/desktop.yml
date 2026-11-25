@@ -30,6 +30,8 @@ concurrency:
 jobs:
   guide:
     runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.pin-source.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,6 +42,10 @@ jobs:
           ref: ${{ env.SOURCE_REF }}
           path: release-source
           persist-credentials: false
+      - name: Record the checked-out source commit
+        id: pin-source
+        working-directory: release-source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -89,7 +95,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.SOURCE_REF }}
+          ref: ${{ needs.guide.outputs.source_sha }}
           path: release-source
           persist-credentials: false
       - uses: actions/setup-node@v4
