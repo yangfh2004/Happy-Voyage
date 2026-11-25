@@ -242,14 +242,14 @@ describe('build menu', () => {
     attacker.firepower = 30;
     attacker.durability = 200;
     defender.firepower = 10;
-    defender.durability = 120;
+    defender.durability = 105;
     player.strategies = ['inspire'];
     expect(renderToStaticMarkup(<ActionPanel state={state} />)).toContain('(likely draw)');
     engine.useStrategy('inspire');
     expect(renderToStaticMarkup(<ActionPanel state={state} />)).toContain('(likely victory)');
     expect(attacker.firepower).toBe(30);
     expect(attacker.durability).toBe(200);
-    expect(defender.durability).toBe(120);
+    expect(defender.durability).toBe(105);
   });
   it('shows strategy names, descriptions, destinations, hand counts and revealed hoard', () => {
     const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: true }] });

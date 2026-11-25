@@ -217,11 +217,12 @@ export class GameEngine extends GameView {
     inspire: () => { this.state.inspired = true; },
     mislead: (target) => {
       const ships = this.state.phase === 'awaitingSpin' ? this.state.players[target!].fleet : colonyDefenders(this.state, this.currentPlayer.position).ships;
-      ships.splice(this.state.phase === 'awaitingSpin' ? Math.floor(this.rng() * ships.length) : 0, 1);
+      const ship = ships[this.state.phase === 'awaitingSpin' ? Math.floor(this.rng() * ships.length) : 0];
+      if (ship) ship.durability = Math.min(ship.durability, Math.max(1, ship.durability - STRATEGY_RULES.misleadDamage));
     },
     betray: (target) => {
       const { ships, fromFleet } = this.state.phase === 'awaitingSpin' ? { ships: this.state.players[target!].fleet, fromFleet: true } : colonyDefenders(this.state, this.currentPlayer.position);
-      const selected = [...ships].sort((a, b) => b.firepower - a.firepower).slice(0, defectionCount(ships.length, fromFleet));
+      const selected = [...ships].sort((a, b) => a.firepower - b.firepower).slice(0, defectionCount(ships.length, fromFleet));
       for (const ship of selected) { ships.splice(ships.indexOf(ship), 1); this.receiveShip(this.currentPlayer, ship); }
     },
     tailwind: () => { this.state.compassMultiplier = 2; },
@@ -229,11 +230,11 @@ export class GameEngine extends GameView {
     blockade: (target) => { this.state.players[target!].skipNextTurn = true; },
     plunder: (target) => {
       const rival = this.state.players[target!];
-      const amount = Math.min(300, Math.floor(Math.max(0, rival.gold) * 0.15));
+      const amount = Math.min(STRATEGY_RULES.plunderCap, Math.floor(Math.max(0, rival.gold) * STRATEGY_RULES.plunderRate));
       this.changeGold(rival, -amount, 'plunder');
       this.changeGold(this.currentPlayer, amount, 'plunder');
     },
-    gale: (target) => { for (const ship of this.state.players[target!].fleet) ship.durability = Math.min(ship.durability, Math.max(1, ship.durability - 30)); },
+    gale: (target) => { for (const ship of this.state.players[target!].fleet) ship.durability = Math.min(ship.durability, Math.max(1, ship.durability - STRATEGY_RULES.galeDamage)); },
     escort: () => { this.currentPlayer.escortProtection = true; },
     exemption: () => {
       const player = this.currentPlayer;
@@ -248,14 +249,23 @@ export class GameEngine extends GameView {
       this.state.docks[target!] = [];
     },
     harvest: () => { this.produceColonyGoods(this.currentPlayer.id); },
-    charter: () => { this.changeGold(this.currentPlayer, Math.min(600, 60 * this.islandsOwnedBy(this.currentPlayer.id)), 'trade charter'); },
-    repair: () => { for (const ship of this.currentPlayer.fleet) ship.durability = ship.maxDurability; },
+    charter: () => { this.changeGold(this.currentPlayer, Math.min(STRATEGY_RULES.charterCap, STRATEGY_RULES.charterPerColony * this.islandsOwnedBy(this.currentPlayer.id)), 'trade charter'); },
+    repair: () => { for (const ship of this.currentPlayer.fleet) ship.durability = Math.min(ship.maxDurability, ship.durability + STRATEGY_RULES.repairAmount); },
     recall: () => { this.strategyHandlers.navigate(this.currentPlayer.homePort); },
     exchange: (target) => {
       const rival = this.state.players[target!];
       [this.currentPlayer.position, rival.position] = [rival.position, this.currentPlayer.position];
     },
-    scorch: (target) => { this.state.stockpiles[target!] = emptyStockpile(); },
+    scorch: (target) => {
+      const stock = this.state.stockpiles[target!];
+      stock.lumber = Math.floor(stock.lumber / 2);
+      stock.iron = Math.floor(stock.iron / 2);
+      for (const [good, qty] of Object.entries(stock.specialties) as [Specialty, number][]) {
+        const remaining = Math.floor(qty / 2);
+        if (remaining > 0) stock.specialties[good] = remaining;
+        else delete stock.specialties[good];
+      }
+    },
   };
 
   private sailDirectly(nodeId: number): void {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine } from './engine';
-import { STRATEGIES, strategyTarget, type StrategyId } from './strategies';
+import { STRATEGIES, STRATEGY_RULES, strategyTarget, type StrategyId } from './strategies';
 import { fightNavalBattle, forecastColonyBattle, tollDue } from './combat';
 import { colonyProduction } from './buildings';
 import { walkPath } from './graph';
@@ -97,11 +97,11 @@ describe('sea strategy effects', () => {
     expect(g.state.phase).toBe('awaitingSpin');
     expect(g.state.players.every((p) => !p.skipNextTurn)).toBe(true);
   });
-  it.each([0, 1000, 10000])('plunder takes capped 15%% from %s gold', (gold) => {
+  it.each([0, 1000, 10000])('plunder takes capped 10%% from %s gold', (gold) => {
     const { g, p, rival } = setup('plunder');
     rival.gold = gold;
     const before = p.gold;
-    const amount = Math.min(300, Math.floor(gold * 0.15));
+    const amount = Math.min(STRATEGY_RULES.plunderCap, Math.floor(gold * STRATEGY_RULES.plunderRate));
     g.useStrategy('plunder', 1);
     expect(rival.gold).toBe(gold - amount);
     expect(p.gold).toBe(before + amount);
@@ -111,7 +111,7 @@ describe('sea strategy effects', () => {
     rival.fleet[0].durability = 5;
     const before = rival.fleet.map((s) => s.durability);
     g.useStrategy('gale', 1);
-    expect(rival.fleet.map((s) => s.durability)).toEqual(before.map((n) => Math.max(1, n - 30)));
+    expect(rival.fleet.map((s) => s.durability)).toEqual(before.map((n) => Math.max(1, n - STRATEGY_RULES.galeDamage)));
   });
   it.each(['storm', 'whirlpool'] as const)('gale does not repair ships left at zero durability by %s', (event) => {
     const { g, p, rival } = setup('gale');
@@ -127,33 +127,37 @@ describe('sea strategy effects', () => {
     g.state.currentPlayer = p.id;
     g.state.phase = 'awaitingSpin';
     g.useStrategy('gale', rival.id);
-    expect(rival.fleet.map((s) => s.durability)).toEqual(before.map((n) => Math.min(n, Math.max(1, n - 30))));
+    expect(rival.fleet.map((s) => s.durability)).toEqual(before.map((n) => Math.min(n, Math.max(1, n - STRATEGY_RULES.galeDamage))));
     expect(ship.durability).toBe(0);
   });
-  it('mislead wrecks a random ship but never the last', () => {
+  it('mislead damages a random rival fleet ship without sinking', () => {
     const { g, rival } = setup('mislead');
     const first = rival.fleet[0];
+    const before = first.durability;
     const count = rival.fleet.length;
     g.useStrategy('mislead', 1);
-    expect(rival.fleet).not.toContain(first);
-    expect(rival.fleet).toHaveLength(count - 1);
+    expect(rival.fleet).toHaveLength(count);
+    expect(first.durability).toBe(before - STRATEGY_RULES.misleadDamage);
     rival.fleet.splice(1);
+    rival.fleet[0].durability = 10;
     g.state.strategyUsed = false;
     g.currentPlayer.strategies = ['mislead'];
-    expect(g.canUseStrategy('mislead', 1)).toBe(false);
+    expect(g.canUseStrategy('mislead', 1)).toBe(true);
+    g.useStrategy('mislead', 1);
+    expect(rival.fleet[0].durability).toBe(1);
   });
-  it.each([1, 2, 3, 4, 7, 10, 15])('betray recruits the strongest third of %s ships with cap and survivor', (count) => {
+  it.each([1, 2, 3, 4, 7, 10, 15])('betray recruits the weakest single ship of %s ships with survivor', (count) => {
     const { g, p, rival } = setup('betray');
     rival.fleet = [];
     const initial = p.fleet.length;
     const cargo = g.addShipToFleet(1, 'cargo');
     cargo.firepower = 0;
     for (let i = 1; i < count; i++) rival.fleet.push({ ...cargo, id: g.state.nextShipId++, firepower: i, cargo: {} });
-    const best = [...rival.fleet].reverse().slice(0, Math.max(0, Math.min(3, Math.ceil(count / 3), count - 1)));
+    const weakest = rival.fleet[0];
     if (count === 1) { expect(g.canUseStrategy('betray', 1)).toBe(false); return; }
     g.useStrategy('betray', 1);
-    expect(p.fleet.slice(initial)).toEqual(best);
-    expect(rival.fleet.length).toBe(count - best.length);
+    expect(p.fleet.slice(initial)).toEqual([weakest]);
+    expect(rival.fleet.length).toBe(count - 1);
   });
   it('escort survives turns and harmless events, then blocks one harmful event independently of revival', () => {
     const { g, p } = setup('escort');
@@ -187,12 +191,14 @@ describe('sea strategy effects', () => {
     g.resolveLanding();
     expect(p.gold).toBeLessThan(gold);
   });
-  it('revolt rejects docked ships then clears ownership, buildings and goods', () => {
+  it('revolt rejects docked ships and developed colonies, then clears ownership and goods', () => {
     const { g, rival, node } = setup('revolt');
     g.state.docks[node] = [rival.fleet.pop()!];
     expect(g.canUseStrategy('revolt', node)).toBe(false);
     g.state.docks[node] = [];
     g.state.buildings[node] = { lumberMill: 1 };
+    expect(g.canUseStrategy('revolt', node)).toBe(false);
+    g.state.buildings[node] = {};
     g.state.stockpiles[node] = { lumber: 10, iron: 20, specialties: { Spices: 5 } };
     g.useStrategy('revolt', node);
     expect(g.state.owners[node]).toBeNull();
@@ -211,18 +217,20 @@ describe('sea strategy effects', () => {
     expect(Object.values(g.state.stockpiles[own].specialties).reduce((a, b) => a + (b ?? 0), 0)).toBe(expected.specialty);
     expect(g.state.stockpiles[node]).toEqual({ lumber: 0, iron: 0, specialties: {} });
   });
-  it.each([0, 3, 12])('charter pays for %s colonies with a 600g cap', (count) => {
+  it.each([0, 3, 12])('charter pays for %s colonies with a 300g cap', (count) => {
     const { g, p } = setup('charter');
     g.state.map.filter((n) => n.kind === 'island').slice(0, count).forEach((n) => { g.state.owners[n.id] = 0; });
     const gold = p.gold;
     g.useStrategy('charter');
-    expect(p.gold - gold).toBe(Math.min(600, 60 * count));
+    expect(p.gold - gold).toBe(Math.min(STRATEGY_RULES.charterCap, STRATEGY_RULES.charterPerColony * count));
   });
-  it('repair restores every ship, including an empty fleet', () => {
+  it('repair restores up to 30 durability per ship, including an empty fleet', () => {
     const { g, p } = setup('repair');
     p.fleet.forEach((s) => { s.durability = 1; });
+    p.fleet[0].durability = p.fleet[0].maxDurability - 10;
     g.useStrategy('repair');
-    expect(p.fleet.every((s) => s.durability === s.maxDurability)).toBe(true);
+    expect(p.fleet[0].durability).toBe(p.fleet[0].maxDurability);
+    expect(p.fleet.slice(1).every((s) => s.durability === 1 + STRATEGY_RULES.repairAmount)).toBe(true);
     p.fleet = [];
     p.strategies = ['repair'];
     g.state.strategyUsed = false;
@@ -245,13 +253,13 @@ describe('sea strategy effects', () => {
     expect(g.state.phase).toBe('awaitingSpin');
     expect(g.state.strategyUsed).toBe(true);
   });
-  it('scorch destroys all goods but not buildings, ships or ownership', () => {
+  it('scorch destroys half of stored goods (rounded up) without touching buildings, ships or ownership', () => {
     const { g, node, rival } = setup('scorch');
     g.state.buildings[node] = { ironMine: 1 };
     g.state.docks[node] = [rival.fleet.pop()!];
-    g.state.stockpiles[node] = { lumber: 10, iron: 20, specialties: { Spices: 5 } };
+    g.state.stockpiles[node] = { lumber: 10, iron: 20, specialties: { Spices: 5, Silk: 1 } };
     g.useStrategy('scorch', node);
-    expect(g.state.stockpiles[node]).toEqual({ lumber: 0, iron: 0, specialties: {} });
+    expect(g.state.stockpiles[node]).toEqual({ lumber: 5, iron: 10, specialties: { Spices: 2 } });
     expect(g.state.buildings[node]).toEqual({ ironMine: 1 });
     expect(g.state.docks[node]).toHaveLength(1);
     expect(g.state.owners[node]).toBe(1);
@@ -271,7 +279,7 @@ describe('battle strategies', () => {
     expect(tolls).toEqual([0]);
     expect(g.currentPlayer.id).toBe(1);
   });
-  it('ambush suppresses the first defensive volley only', () => {
+  it('ambush halves the first defensive volley only', () => {
     const { g, p, rival, node } = setup('ambush');
     p.position = node;
     g.state.phase = 'awaitingToll';
@@ -283,7 +291,7 @@ describe('battle strategies', () => {
     fightNavalBattle(baseline, rival.fleet.map((s) => ({ ...s })), () => 0);
     const before = p.fleet.reduce((sum, s) => sum + s.durability, 0);
     g.fight();
-    expect(before - p.fleet.reduce((sum, s) => sum + s.durability, 0)).toBe(48);
+    expect(before - p.fleet.reduce((sum, s) => sum + s.durability, 0)).toBe(60);
     expect(before - baseline.reduce((sum, s) => sum + s.durability, 0)).toBe(72);
     expect(g.state.ambush).toBe(false);
   });
@@ -291,14 +299,14 @@ describe('battle strategies', () => {
     const damage = (inspired: boolean) => {
       const { g, p } = setup('inspire');
       p.fleet.splice(3);
-      for (const s of p.fleet) { s.firepower = 10; s.durability = 10000; }
+      for (const s of p.fleet) { s.firepower = 12; s.durability = 10000; }
       if (inspired) g.useStrategy('inspire');
       const events: number[] = [];
       g.on((e) => { if (e.type === 'seaEvent') events.push(e.gold ?? 0); });
       p.position = eventStop(g, 'pirates');
       g.state.phase = 'moving';
       g.resolveLanding();
-      expect(p.fleet.every((s) => s.firepower === 10)).toBe(true);
+      expect(p.fleet.every((s) => s.firepower === 12)).toBe(true);
       return events[0];
     };
     expect(damage(true)).toBeGreaterThan(damage(false));
@@ -357,15 +365,15 @@ describe('AI strategy safety', () => {
 });
 
 describe('strategy interactions with fleet-loss defeat', () => {
-  it.each(['mislead', 'betray'] as const)('%s preserves a rival last ship and a later battle wipe-out eliminates them', (card) => {
-    const { g, p, rival, node } = setup(card);
+  it('betray preserves a rival last ship and a later battle wipe-out eliminates them', () => {
+    const { g, p, rival, node } = setup('betray');
     rival.fleet.splice(2);
-    g.useStrategy(card, rival.id);
+    g.useStrategy('betray', rival.id);
     expect(rival.fleet).toHaveLength(1);
     expect(rival.fleetLost).not.toBe(true);
     g.state.strategyUsed = false;
-    p.strategies = [card];
-    expect(g.canUseStrategy(card, rival.id)).toBe(false);
+    p.strategies = ['betray'];
+    expect(g.canUseStrategy('betray', rival.id)).toBe(false);
     p.position = node;
     rival.fleet[0].durability = 1;
     rival.fleet[0].firepower = 0;
@@ -375,6 +383,14 @@ describe('strategy interactions with fleet-loss defeat', () => {
     expect(rival.fleetLost).toBe(true);
     expect(rival.bankrupt).toBe(false);
     expect(g.state).toMatchObject({ phase: 'gameOver', winner: p.id, victory: 'lastAfloat' });
+  });
+  it('mislead leaves durability at one, not a fleet-loss defeat', () => {
+    const { g, rival } = setup('mislead');
+    rival.fleet.splice(1);
+    rival.fleet[0].durability = 2;
+    g.useStrategy('mislead', rival.id);
+    expect(rival.fleet[0].durability).toBe(1);
+    expect(rival.fleetLost).not.toBe(true);
   });
   it('gale leaves durability at one, not a fleet-loss defeat', () => {
     const { g, rival, node } = setup('gale');
