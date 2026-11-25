@@ -1,7 +1,8 @@
+import { GAMEPLAY_TUNING } from '@happy-voyage/shared';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import dialogPolyfill from 'dialog-polyfill';
-import { GOODS, MAX_FLEET_SIZE, cargoLoad, colonyCanRepair, goodName, nodeName, playerName, shipName, type GameState, type Good, type Ship } from '@happy-voyage/shared';
+import { GOODS, cargoLoad, colonyCanRepair, goodName, nodeName, playerName, shipName, type GameState, type Good, type Ship } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { gameController } from '../game/GameController';
 import { StatTooltip } from './StatTooltip';
@@ -18,7 +19,7 @@ export function TransferContents({ state }: { state: GameState }) {
   const selected = player.fleet.find((ship) => ship.id === selectedId) ?? player.fleet[0];
   const stock = state.stockpiles[player.position];
   const docked = state.docks[player.position];
-  const fleetFull = player.fleet.length >= MAX_FLEET_SIZE;
+  const fleetFull = player.fleet.length >= GAMEPLAY_TUNING.ships.maxFleetSize;
   const specialtyStock = Object.values(stock.specialties).reduce((sum, qty) => sum + (qty ?? 0), 0);
   const freeCargo = player.fleet.reduce((sum, ship) => sum + ship.cargoCapacity - cargoLoad(ship), 0);
   const autoLoadable = Math.min(specialtyStock, freeCargo);
@@ -67,7 +68,7 @@ export function TransferContents({ state }: { state: GameState }) {
           : t('No shipyard or repair yard: docked ships are not repaired here.', '没有造船厂或修船厂，停靠的船只不会在此修理。')}</p>
       <div className="transfer-columns">
         <div>
-          <h4>{t('Fleet {n}/{max}', '舰队 {n}/{max}', { n: player.fleet.length, max: MAX_FLEET_SIZE })}</h4>
+          <h4>{t('Fleet {n}/{max}', '舰队 {n}/{max}', { n: player.fleet.length, max: GAMEPLAY_TUNING.ships.maxFleetSize })}</h4>
           <ul>{player.fleet.map((ship) => shipCard(ship,
             <button disabled={player.fleet.length <= 1} onClick={() => act(() => gameController.dockShip(ship.id))}>{t('Dock {s}', '停靠{s}', { s: sn(ship.name) })}</button>))}</ul>
         </div>

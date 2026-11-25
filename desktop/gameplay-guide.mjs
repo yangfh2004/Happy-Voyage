@@ -9,18 +9,21 @@ import { Marked } from 'marked';
 const markdownRenderer = new Marked({ gfm: true, renderer: { html: () => '' } });
 
 export function renderGuide(markdown) {
+  const title = /^# (.+)$/m.exec(markdown)?.[1].trim() ?? '欢乐大航海';
+  const htmlTitle = title.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  const footer = JSON.stringify(`欢乐大航海 · ${title.split('｜').at(-1)}`).replaceAll('<', '\\3c ');
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri https://github.com">
   <base href="https://github.com/yangfh2004/Happy-Voyage/blob/main/">
-  <title>欢乐大航海：七海霸权｜玩法规则</title>
+  <title>${htmlTitle}</title>
   <style>
     @page {
       size: A4;
       margin: 16mm 16mm 19mm;
-      @bottom-left { content: '欢乐大航海 · 玩法规则'; color: #436277; font-size: 8.5pt; }
+      @bottom-left { content: ${footer}; color: #436277; font-size: 8.5pt; }
       @bottom-right { content: counter(page) ' / ' counter(pages); color: #436277; font-size: 8.5pt; }
     }
     html {

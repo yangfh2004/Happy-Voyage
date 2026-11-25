@@ -16,6 +16,7 @@ permissions:
 env:
   RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
   GUIDE_NAME: Happy-Voyage-玩法说明.pdf
+  CONFIG_GUIDE_NAME: Happy-Voyage-配置说明.pdf
 
 concurrency:
   group: desktop-${{ inputs.release_tag || github.event.release.tag_name }}
@@ -39,22 +40,30 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: desktop/package-lock.json
-      - name: Print the tagged Chinese gameplay rules
+      - name: Print the tagged Chinese guides and collect the default config
         run: |
           sudo apt-get update
           sudo apt-get install -y fonts-noto-cjk poppler-utils
           npm ci --prefix desktop
           mkdir -p guide
           fc-match -f '%{family}\n' 'Noto Sans CJK SC' | grep -Fx 'Noto Sans CJK SC'
-          node desktop/gameplay-guide.mjs release-source/GAMEPLAY.md "guide/$GUIDE_NAME"
-          pdftotext "guide/$GUIDE_NAME" guide/rendered.txt
-          heading="$(sed -n '1s/^# //p' release-source/GAMEPLAY.md)"
-          test -n "$heading"
-          grep -Fx -- "$heading" guide/rendered.txt
+          print_guide() {
+            node desktop/gameplay-guide.mjs "$1" "guide/$2"
+            pdftotext "guide/$2" "guide/$2.txt"
+            heading="$(sed -n '1s/^# //p' "$1")"
+            test -n "$heading"
+            grep -Fx -- "$heading" "guide/$2.txt"
+          }
+          print_guide release-source/GAMEPLAY.md "$GUIDE_NAME"
+          print_guide release-source/配置说明.md "$CONFIG_GUIDE_NAME"
+          cp release-source/desktop/config.json guide/config.json
       - uses: actions/upload-artifact@v4
         with:
           name: happy-voyage-guide
-          path: guide/${{ env.GUIDE_NAME }}
+          path: |
+            guide/${{ env.GUIDE_NAME }}
+            guide/${{ env.CONFIG_GUIDE_NAME }}
+            guide/config.json
           if-no-files-found: error
 
   package:
@@ -83,7 +92,7 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: release-source/package-lock.json
-      - name: Build the tagged web client
+      - name: Build the tagged game and desktop tester separately
         working-directory: release-source
         shell: bash
         env:
@@ -94,6 +103,9 @@ jobs:
           test -s client/dist/index.html
           test ! -e client/dist/debug.html
           cp -R client/dist ../client/dist
+          npm run build:debug -w client
+          test -s client/dist-debug/debug.html
+          cp -R client/dist-debug ../client/dist-debug
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -119,10 +131,14 @@ jobs:
           $exe = "happy-voyage-win-x64.exe"
           $archive = "packages/happy-voyage-win-x64.zip"
           New-Item -ItemType Directory -Path packages | Out-Null
-          Compress-Archive -LiteralPath @("desktop/dist/$exe", "guide/$env:GUIDE_NAME") -DestinationPath $archive
+          $guides = @($env:GUIDE_NAME, $env:CONFIG_GUIDE_NAME, "config.json")
+          $files = @("desktop/dist/$exe") + ($guides | ForEach-Object { "guide/$_" })
+          Compress-Archive -LiteralPath $files -DestinationPath $archive
           Expand-Archive -LiteralPath $archive -DestinationPath verify
-          if (!(Test-Path -LiteralPath "verify/$exe") -or !(Test-Path -LiteralPath "verify/$env:GUIDE_NAME")) {
-            throw "Windows ZIP is missing the EXE or PDF"
+          foreach ($file in (@($exe) + $guides)) {
+            if (!(Test-Path -LiteralPath "verify/$file" -PathType Leaf)) {
+              throw "Windows ZIP is missing $file"
+            }
           }
       - name: Zip macOS apps and verify signatures after extraction
         if: runner.os == 'macOS'
@@ -139,10 +155,12 @@ jobs:
             verify="$(mktemp -d)"
             archive="packages/happy-voyage-mac-$arch.zip"
             ditto "$app" "$stage/Happy Voyage.app"
-            cp "guide/$GUIDE_NAME" "$stage/"
+            cp "guide/$GUIDE_NAME" "guide/$CONFIG_GUIDE_NAME" guide/config.json "$stage/"
             ditto -c -k "$stage" "$archive"
             ditto -x -k "$archive" "$verify"
-            cmp "guide/$GUIDE_NAME" "$verify/$GUIDE_NAME"
+            for file in "$GUIDE_NAME" "$CONFIG_GUIDE_NAME" config.json; do
+              cmp "guide/$file" "$verify/$file"
+            done
             codesign --verify --deep --strict "$verify/Happy Voyage.app"
             codesign --display --verbose "$verify/Happy Voyage.app" 2>&1 | grep -F 'Signature=adhoc'
           done

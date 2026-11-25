@@ -3,7 +3,7 @@ import { GAME_MODES, MAX_ROOM_PLAYERS, MIN_ROOM_PLAYERS, NATIONS, ROOM_ID_PATTER
 import { useT } from '../i18n';
 import type { Locale } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
-import { OFFLINE, roomLink, type OnlineRoom } from '../game/OnlineRoom';
+import { OFFLINE, roomInviteLink, type OnlineRoom } from '../game/OnlineRoom';
 
 const ROOM_ERRORS_ZH: Record<string, string> = {
   [OFFLINE]: '无法连接房间服务器。',
@@ -38,11 +38,11 @@ export function OnlineMenu({ room }: { room: OnlineRoom }) {
         <>
           <p>{modeText(lobby.mode, locale).name} · {t('{d} rivals', '{d}对手', { d: level(lobby.difficulty) })}</p>
           <label>{t('Invite link', '邀请链接')}
-            <input ref={inviteField} value={roomLink(lobby.id).href} readOnly onFocus={(event) => event.currentTarget.select()} />
+            <input ref={inviteField} value={roomInviteLink(lobby.id).href} readOnly onFocus={(event) => event.currentTarget.select()} />
           </label>
           <button type="button" onClick={async () => {
             try {
-              await navigator.clipboard.writeText(roomLink(lobby.id).href);
+              await navigator.clipboard.writeText(roomInviteLink(lobby.id).href);
               setCopied(true);
             } catch {
               setCopied(false);

@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { createNationRoster, GameEngine } from '@happy-voyage/shared';
+import { createNationRoster, DEFAULT_GAMEPLAY_TUNING, GameEngine } from '@happy-voyage/shared';
 
 vi.mock('../game/GameController', () => ({ gameController: {
+  localTuning: DEFAULT_GAMEPLAY_TUNING,
   muted: false, islandsOwnedBy: () => 0, newGame: vi.fn(), displayGold: (p: { gold: number }) => p.gold,
 } }));
 vi.mock('./SpeedControl', () => ({ SpeedControl: () => null }));

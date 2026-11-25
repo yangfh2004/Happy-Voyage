@@ -6,6 +6,12 @@ The [Chinese gameplay document](GAMEPLAY.md) is the single source of truth for t
 
 ## 1. Setup and victory
 
+The values below are this version's defaults. The desktop edition can override values for local matches and campaigns using `config.json` next to the app; see the [Chinese configuration guide](配置说明.md). Online rooms are unaffected.
+
+Fleet capacity can be set to 2–40 ships. You may start with just one ship, but capacity cannot be set to 1: you cannot dock your last ship or board another without an open slot.
+
+Lowering the auto-resolve hit chance also reduces estimated cannon damage in auto-resolve forecasts. At a 0% hit chance those forecasts deal no cannon damage. This setting does not affect Command forecasts or cannonball impacts; actual auto-resolve battles still roll for each ship's hit independently.
+
 - **Local match**: There are 2–10 nations, with 4 by default. Up to 6 people (and at least 1, but no more than the total number of seats) can take turns on one device; the computer controls the remaining seats. Players choose distinct nations and start at their respective home ports. Human seats go first in join order, followed by the computer seats in a fixed order. The defaults are Classic conquest, Normal difficulty, and Command for naval battles.
 - **Background music**: With sound enabled, the music starts automatically after the first click, tap, or keypress that the browser accepts for playback. There is no need to toggle sound.
 - **Standard match starting resources**: Each navigator starts as an Ensign with 3,200 gold, 8 ships at full durability (4 Warships, 1 Cargo Ship, and 3 Explorers), and 3 random, distinct Strategy cards. The navigator's signature ship replaces one ship of the same type. All new continents start neutral. Campaign starting gold and other settings are listed in Section 9; the starting fleet is the same.

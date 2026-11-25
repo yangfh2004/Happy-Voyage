@@ -37,7 +37,7 @@ const SPECIAL_HELP: Record<string, [string, string]> = {
  * reports when a move animation finishes.
  */
 export class OceanScene extends Phaser.Scene {
-  private map: MapNode[] = createDefaultMap();
+  private map: MapNode[] = gameController.state?.map ?? createDefaultMap();
   private following = true;
   private pinch: { distance: number; zoom: number } | null = null;
   private ships = new Map<number, Phaser.GameObjects.Image>();

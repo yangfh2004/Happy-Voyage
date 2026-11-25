@@ -1,4 +1,4 @@
-import { tx } from '@happy-voyage/shared';
+import { COMBAT, tx } from '@happy-voyage/shared';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import type { GameEvent } from '@happy-voyage/shared';
 
@@ -57,6 +57,29 @@ function humanTurn() {
   if (controller.state?.phase === 'awaitingClaim') controller.decline();
   if (controller.state?.phase === 'awaitingBuild') controller.finishBuilding();
 }
+
+it('applies desktop config only while a local match is active', () => {
+  vi.stubGlobal('happyVoyageDesktop', { config: { starting: { gold: 9999, fleet: ['warship'] }, combat: { deploymentLimit: 1 } } });
+  controller = new GameController();
+  expect(COMBAT.deploymentLimit).toBe(4);
+  controller.newGame(players);
+  expect(controller.state!.players[0].gold).toBe(9999);
+  expect(controller.state!.players[0].fleet).toHaveLength(1);
+  expect(COMBAT.deploymentLimit).toBe(1);
+  controller.quit();
+  expect(COMBAT.deploymentLimit).toBe(4);
+});
+
+it('starts tester preview voyages with the config exposed by the launcher preload', () => {
+  vi.stubGlobal('window', {
+    frameElement: {},
+    parent: { happyVoyageDesktop: { config: { starting: { gold: 9999, fleet: ['warship'] } } } },
+  });
+  controller = new GameController();
+  controller.newGame(players);
+  expect(controller.state!.players[0].gold).toBe(9999);
+  expect(controller.state!.players[0].fleet).toHaveLength(1);
+});
 
 it('routes retreat threshold changes through the human action guard and refreshes the view', () => {
   controller.newGame(players);

@@ -1,4 +1,5 @@
-import { HERMITS, NIM_MAX_TAKE, SEA_RULES, hermitText, strategyText, type GameState } from '@happy-voyage/shared';
+import { GAMEPLAY_TUNING } from '@happy-voyage/shared';
+import { HERMITS, SEA_RULES, hermitText, strategyText, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
 
@@ -13,7 +14,7 @@ export function MistPanel({ state }: { state: GameState }) {
 
   return <section aria-labelledby="mist-title" className="mist">
     <h2 id="mist-title">{t('Mist Island duel', '迷雾岛对决')}</h2>
-    <p>{t('Take 1–{m} stones in a row from the end. Whoever takes the last stone loses.', '每次从末端连续拿 1–{m} 枚棋子。拿到最后一枚者输。', { m: NIM_MAX_TAKE })}</p>
+    <p>{t('Take 1–{m} stones in a row from the end. Whoever takes the last stone loses.', '每次从末端连续拿 1–{m} 枚棋子。拿到最后一枚者输。', { m: GAMEPLAY_TUNING.sea.nimMaxTake })}</p>
     {!hermit ? <>
       <p>{t('Choose a hermit to challenge. Win to learn their strategy.', '选择一位隐士挑战。获胜即可学到他的谋略。')}</p>
       <div className="mist-choices mist-hermits" role="group" aria-label={t('Choose a hermit', '选择隐士')}>
@@ -48,7 +49,7 @@ export function MistPanel({ state }: { state: GameState }) {
       </div>
       {result ? <button className="primary" onClick={() => gameController.leaveMistIsland()}>{t('Sail on', '继续航行')}</button>
         : <div className="mist-choices mist-moves" role="group" aria-label={t('Take stones', '拿取棋子')}>
-          {Array.from({ length: NIM_MAX_TAKE }, (_, i) => i + 1).map((count) => (
+          {Array.from({ length: GAMEPLAY_TUNING.sea.nimMaxTake }, (_, i) => i + 1).map((count) => (
             <button key={count} className="primary" disabled={count > stonesLeft} onClick={() => gameController.takeMistStones(count)}>
               {t('Take {n}', '拿 {n}', { n: stoneCount(count) })}
             </button>

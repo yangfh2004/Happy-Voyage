@@ -2,11 +2,6 @@ import type { CSSProperties } from 'react';
 import { COMPASS_SECTORS } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 
-const sectors = COMPASS_SECTORS.map(({ steps, odds }, index) => {
-  const start = (COMPASS_SECTORS.slice(0, index).reduce((sum, sector) => sum + sector.odds, 0) - COMPASS_SECTORS[0].odds / 2) * 360;
-  return { steps, start, center: start + odds * 180 };
-});
-
 function point(angle: number, radius: number) {
   const radians = angle * Math.PI / 180;
   return { x: radius * Math.sin(radians), y: -radius * Math.cos(radians) };
@@ -23,6 +18,12 @@ interface CompassProps {
 
 export function Compass({ spinId, result, multiplier = 1, spinning, duration, onSettled }: CompassProps) {
   const { t } = useT();
+  let start = -COMPASS_SECTORS[0].odds * 180;
+  const sectors = COMPASS_SECTORS.map(({ steps, odds }) => {
+    const sector = { steps, start, center: start + odds * 180 };
+    start += odds * 360;
+    return sector;
+  });
   const rawResult = result === null ? null : result / multiplier;
   const angle = sectors.find(({ steps }) => steps === rawResult)?.center ?? 0;
   const needleStyle = {

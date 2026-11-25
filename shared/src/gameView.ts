@@ -1,7 +1,7 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import { buildingLevel, buildingValue, nextBuildingCost } from './buildings';
 import { colonyDefenders } from './combat';
 import { LOTTERY } from './lottery';
-import { NIM_MAX_TAKE } from './mist';
 import { colonyValue, isEliminated } from './rules';
 import { cargoLoad, SHIP_RECIPES, USED_SHIP_PRICES } from './ships';
 import { STRATEGIES, strategyTarget, type StrategyId } from './strategies';
@@ -72,7 +72,7 @@ export class GameView {
   canTakeMistStones(count: number): boolean {
     const duel = this.state.mistDuel;
     return this.state.phase === 'awaitingMistDuel' && !!duel?.hermitId && !duel.result &&
-      Number.isInteger(count) && count >= 1 && count <= Math.min(NIM_MAX_TAKE, duel.stonesLeft);
+      Number.isInteger(count) && count >= 1 && count <= Math.min(GAMEPLAY_TUNING.sea.nimMaxTake, duel.stonesLeft);
   }
 
   canLeaveMistIsland(): boolean {

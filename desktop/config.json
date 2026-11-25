@@ -1,0 +1,526 @@
+{
+  "debug": false,
+  "ranks": {
+    "meritPerColony": 100,
+    "meritPerBuildingLevel": 25,
+    "goldPerAudienceMerit": 2,
+    "ensign": {
+      "salary": 0,
+      "taxDiscount": 0
+    },
+    "junior": {
+      "merit": 100,
+      "salary": 50,
+      "taxDiscount": 0.1,
+      "purse": 200
+    },
+    "lieutenant": {
+      "merit": 250,
+      "salary": 100,
+      "taxDiscount": 0.2,
+      "purse": 350
+    },
+    "lieutenantCommander": {
+      "merit": 450,
+      "salary": 175,
+      "taxDiscount": 0.3,
+      "purse": 500
+    },
+    "commander": {
+      "merit": 700,
+      "salary": 250,
+      "taxDiscount": 0.4,
+      "purse": 700
+    },
+    "captain": {
+      "merit": 1000,
+      "salary": 350,
+      "taxDiscount": 0.5,
+      "purse": 1000
+    }
+  },
+  "captains": {
+    "max": 3,
+    "offers": 3,
+    "aiReserve": 200,
+    "ines": {
+      "minRank": 0,
+      "fee": 180
+    },
+    "rui": {
+      "minRank": 0,
+      "fee": 300
+    },
+    "mei": {
+      "minRank": 0,
+      "fee": 450
+    },
+    "gaspar": {
+      "minRank": 1,
+      "fee": 480
+    },
+    "amara": {
+      "minRank": 2,
+      "fee": 480
+    },
+    "lin": {
+      "minRank": 2,
+      "fee": 750
+    },
+    "duarte": {
+      "minRank": 3,
+      "fee": 750
+    },
+    "zahra": {
+      "minRank": 4,
+      "fee": 900
+    },
+    "leonor": {
+      "minRank": 5,
+      "fee": 900
+    }
+  },
+  "flagshipBonuses": {
+    "columbus": {
+      "maxDurability": 20,
+      "cargoCapacity": 20
+    },
+    "juliana": {
+      "cargoCapacity": 40
+    },
+    "cook": {
+      "maxDurability": 20,
+      "speed": 1
+    },
+    "magellan": {
+      "speed": 2
+    },
+    "zhengHe": {
+      "cargoCapacity": 30,
+      "crewCapacity": 20
+    },
+    "morgan": {
+      "firepower": 10
+    },
+    "hasekura": {
+      "maxDurability": 20,
+      "firepower": 5
+    },
+    "behaim": {
+      "maxDurability": 40
+    },
+    "verrazzano": {
+      "speed": 1,
+      "cargoCapacity": 20
+    },
+    "yiSunSin": {
+      "maxDurability": 30,
+      "firepower": 8
+    }
+  },
+  "starting": {
+    "gold": 3200,
+    "homeSalary": 400,
+    "strategies": 3,
+    "fleet": [
+      "warship",
+      "cargo",
+      "explorer",
+      "explorer",
+      "explorer",
+      "warship",
+      "warship",
+      "warship"
+    ]
+  },
+  "localSeats": {
+    "total": 4,
+    "humanLimit": 6
+  },
+  "pacing": {
+    "Normal": {
+      "ai": 700,
+      "step": 200,
+      "spin": 1400
+    },
+    "Fast": {
+      "ai": 250,
+      "step": 70,
+      "spin": 500
+    }
+  },
+  "ships": {
+    "maxFleetSize": 20,
+    "usedCondition": 0.6,
+    "saleMultiplier": 0.5,
+    "warship": {
+      "durability": 120,
+      "firepower": 30,
+      "cargo": 25,
+      "speed": 4,
+      "crew": 60,
+      "usedPrice": 450,
+      "yardLevel": 3,
+      "lumber": 6,
+      "iron": 4
+    },
+    "cargo": {
+      "durability": 100,
+      "firepower": 8,
+      "cargo": 120,
+      "speed": 3,
+      "crew": 30,
+      "usedPrice": 300,
+      "yardLevel": 2,
+      "lumber": 4,
+      "iron": 2
+    },
+    "explorer": {
+      "durability": 80,
+      "firepower": 12,
+      "cargo": 40,
+      "speed": 7,
+      "crew": 25,
+      "usedPrice": 180,
+      "yardLevel": 1,
+      "lumber": 2,
+      "iron": 1
+    }
+  },
+  "map": {
+    "seaStopsBetweenSectors": {
+      "Spain": 3,
+      "Netherlands": 2,
+      "England": 2,
+      "Portugal": 2,
+      "China": 2,
+      "France": 3,
+      "Japan": 2,
+      "Germany": 2,
+      "Italy": 2,
+      "Korea": 3
+    },
+    "extraSeaStops": 1,
+    "seaLaneBias": 0.2,
+    "colonyBasePrice": 100,
+    "colonyPriceIncrease": 250,
+    "colonyPriceStep": 5,
+    "baseTollRate": 0.35,
+    "ironYieldMin": 1,
+    "ironYieldVariants": 3,
+    "windMinTurns": 2,
+    "windExtraTurns": 2
+  },
+  "economy": {
+    "repairGoldPerPoint": 2,
+    "seaHazardDamage": 10,
+    "colonyReturnCooldown": 12,
+    "colonyResaleRate": 0.75,
+    "buildingTollRate": 0.25,
+    "colonyPaybackRounds": 4,
+    "lumberPerLevel": 1,
+    "specialtyPerLevel": 1,
+    "buildings": {
+      "lumberMill": {
+        "level1": 60,
+        "level2": 120,
+        "level3": 180
+      },
+      "ironMine": {
+        "level1": 80,
+        "level2": 160,
+        "level3": 240
+      },
+      "shipyard": {
+        "level1": 120,
+        "level2": 240,
+        "level3": 360
+      },
+      "repairYard": {
+        "level1": 80
+      },
+      "collectionField": {
+        "level1": 60,
+        "level2": 120,
+        "level3": 180
+      }
+    }
+  },
+  "modes": {
+    "conquest": {
+      "islandsToWin": 9007199254740991,
+      "maxRounds": 999
+    },
+    "quick": {
+      "islandsToWin": 10,
+      "maxRounds": 50
+    },
+    "sprint": {
+      "islandsToWin": 6,
+      "maxRounds": 20
+    }
+  },
+  "campaign": {
+    "first-voyage": {
+      "config": {
+        "startingGold": 1400,
+        "homeSalary": 400,
+        "maxRounds": 999
+      },
+      "rivals": 1,
+      "foundColony": {
+        "target": 1,
+        "reward": 150
+      },
+      "reportHome": {
+        "target": 1,
+        "reward": 250
+      }
+    },
+    "merchant-charter": {
+      "config": {
+        "startingGold": 1600,
+        "homeSalary": 400,
+        "maxRounds": 28
+      },
+      "rivals": 2,
+      "sellSpecialties": {
+        "target": 3,
+        "reward": 200
+      },
+      "buildCollectionField": {
+        "target": 1,
+        "reward": 250
+      }
+    },
+    "crown-of-the-seas": {
+      "config": {
+        "startingGold": 1200,
+        "homeSalary": 300,
+        "maxRounds": 20
+      },
+      "rivals": 3,
+      "holdColonies": {
+        "target": 2,
+        "reward": 250
+      },
+      "captureColony": {
+        "target": 1,
+        "reward": 400
+      }
+    }
+  },
+  "market": {
+    "basePrice": {
+      "lumber": 10,
+      "iron": 14,
+      "Wine": 18,
+      "Sugar": 13,
+      "Cotton": 12,
+      "Timber": 15,
+      "Cocoa": 16,
+      "Tobacco": 17,
+      "Silver": 24,
+      "Spices": 22,
+      "Silk": 21,
+      "Tea": 19
+    },
+    "normalStock": 16,
+    "recoveryPerRound": 2,
+    "featuredDemand": 3,
+    "repairDemand": 4,
+    "repairDemandRounds": 1,
+    "buySpreadRate": 0.25,
+    "discountCapRate": 0.5,
+    "premiumCapRate": 1
+  },
+  "barter": {
+    "values": {
+      "lumber": 10,
+      "iron": 20,
+      "Cotton": 25,
+      "Timber": 30,
+      "Sugar": 35,
+      "Wine": 40,
+      "Cocoa": 45,
+      "Tobacco": 50,
+      "Tea": 60,
+      "Spices": 75,
+      "Silk": 90,
+      "Silver": 100
+    },
+    "giveValueCap": 50,
+    "offers": 3,
+    "maxUnits": 5
+  },
+  "compass": {
+    "step2": 1,
+    "step3": 2,
+    "step4": 3,
+    "step5": 4,
+    "step6": 5,
+    "step7": 6,
+    "step8": 5,
+    "step9": 4,
+    "step10": 3,
+    "step11": 2,
+    "step12": 1
+  },
+  "combat": {
+    "deploymentLimit": 4,
+    "hitChance": 0.85,
+    "rounds": 3,
+    "minRoll": 0.75,
+    "rollSpread": 0.5,
+    "defeatTollMultiplier": 2,
+    "flagshipRetreat": 0.25,
+    "lossFraction": {
+      "quarter": 0.25,
+      "half": 0.5,
+      "threeQuarters": 0.75
+    },
+    "cannonballSpeed": 800,
+    "realtimeLimit": 90,
+    "movementScale": 16,
+    "minRealtimeRoll": 0.75,
+    "realtimeRollSpread": 0.5,
+    "baseScatter": 18,
+    "distanceScatter": 88,
+    "aiDecisionSeconds": 1,
+    "aiRetreatStrength": 0.35,
+    "battleStats": {
+      "warship": {
+        "turn": 50,
+        "range": 640,
+        "reload": 3,
+        "radius": 22
+      },
+      "cargo": {
+        "turn": 45,
+        "range": 440,
+        "reload": 3,
+        "radius": 20
+      },
+      "explorer": {
+        "turn": 90,
+        "range": 520,
+        "reload": 2,
+        "radius": 16
+      }
+    }
+  },
+  "strategies": {
+    "handCap": 5,
+    "hoardGold": 200,
+    "inspireMultiplier": 1.25,
+    "bottleChance": 0.5,
+    "misleadDamage": 40,
+    "betrayMaxShips": 1,
+    "plunderRate": 0.1,
+    "plunderCap": 150,
+    "galeDamage": 15,
+    "ambushDefenseMultiplier": 0.5,
+    "ambushSeconds": 4,
+    "charterPerColony": 40,
+    "charterCap": 300,
+    "repairAmount": 30,
+    "tailwindMultiplier": 2,
+    "scorchRemaining": 0.5
+  },
+  "sea": {
+    "roamingPirates": 2,
+    "roamingMonsters": 1,
+    "roamerStartDistance": 3,
+    "roamerMaxSteps": 3,
+    "encounterChance": 0.2,
+    "merchantDiscount": 0.8,
+    "merchantReserve": 500,
+    "encounterWeights": {
+      "pirates": 18,
+      "smallMonster": 16,
+      "whirlpool": 12,
+      "bottle": 14,
+      "floatingCargo": 14,
+      "merchant": 14,
+      "wyvern": 4,
+      "largeMonster": 4,
+      "turtle": 4
+    },
+    "blankSeaSalvageWeight": 14,
+    "foreignTax": 40,
+    "nimStones": 12,
+    "nimPrize": 130,
+    "nimMaxTake": 3,
+    "pirates": 80,
+    "pirateLoot": 140,
+    "pirateDurability": 90,
+    "pirateFirepower": 24,
+    "smallMonster": 30,
+    "largeMonster": 110,
+    "smallMonsterDamage": 12,
+    "largeMonsterDamage": 55,
+    "monsterSinkChance": 0.35,
+    "turtleDamage": 70,
+    "whirlpoolLoss": 60,
+    "whirlpoolSteps": 4,
+    "whirlpoolDamageChance": 0.33,
+    "relocationLimit": 4,
+    "bottle": 70,
+    "bottlePrize": 600,
+    "bottlePrizeChance": 0.1,
+    "bottleRepairChance": 0.3,
+    "floatingCargo": 100,
+    "cargoGoldChance": 0.5,
+    "cargoUnits": 4,
+    "merchantPremium": 1.5,
+    "merchantUnits": 5,
+    "treasure": {
+      "min": 50,
+      "max": 200,
+      "step": 50
+    },
+    "storm": {
+      "min": 50,
+      "max": 100,
+      "step": 25
+    },
+    "tradeWind": {
+      "base": 50,
+      "perColony": 30
+    }
+  },
+  "ai": {
+    "easy": {
+      "reserve": 450,
+      "fleetSize": 6,
+      "development": 1
+    },
+    "normal": {
+      "reserve": 400,
+      "fleetSize": 7,
+      "development": 2
+    },
+    "hard": {
+      "reserve": 400,
+      "fleetSize": 8,
+      "development": 3
+    },
+    "lotteryReserve": 600,
+    "lotteryPicks": 3
+  },
+  "lottery": {
+    "balls": 20,
+    "drawn": 5,
+    "maxPicks": 5,
+    "ticketPrice": 40,
+    "timerSeconds": 20,
+    "payouts": {
+      "zero": 0,
+      "one": 80,
+      "two": 240,
+      "three": 720,
+      "four": 2400,
+      "five": 8000
+    }
+  }
+}

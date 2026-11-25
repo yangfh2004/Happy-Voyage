@@ -1,3 +1,4 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import { NATIONS } from './nations';
 import type { MapNode, SpecialKind, EventKind, Specialty } from './types';
 
@@ -28,19 +29,18 @@ const specials: [SpecialKind, string, string][] = [
 ];
 const events: EventKind[] = ['treasure', 'storm', 'tradeWind', 'pirates', 'smallMonster', 'whirlpool', 'bottle', 'floatingCargo', 'merchant', 'wyvern', 'largeMonster', 'turtle', 'treasure'];
 const eventNames = ['Treasure Shoal', 'Tempest Passage', 'Zephyr Strait', 'Pirate Cove', 'Serpent Shallows', 'Bermuda Triangle', 'Drifting Bottle Reef', 'Castaway Cargo Bay', 'Merchant Lane', 'Wyvern Cliffs', 'Kraken Deep', 'Turtle Reach', 'Sunken Crown Shoal'];
-const seaStopsBetweenSectors = [3, 2, 2, 2, 2, 3, 2, 2, 2, 3];
 const longStretches = new Set([25, 31, 33, 36, 42, 51, 59]);
-const seaLaneBias = new Map([[55, .2]]);
 
 export function createDefaultMap(): MapNode[] {
+  const rules = GAMEPLAY_TUNING.map;
   const nodes: MapNode[] = [];
   let event = 0;
   for (const [sector, { name: nation }] of NATIONS.entries()) {
     nodes.push({ id: 0, name: `${nation} Port`, nation, kind: 'port', x: 0, y: 0 });
     for (let j = 0; j < 4; j++) {
       const i = sector * 4 + j;
-      const price = Math.round((100 + i * 250 / 39) / 5) * 5;
-      nodes.push({ id: 0, name: lands[i], kind: 'island', price, toll: Math.round(price * 0.35), specialty: goods[i % goods.length], ironYield: 1 + i % 3, x: 0, y: 0 });
+      const price = Math.round((rules.colonyBasePrice + i * rules.colonyPriceIncrease / 39) / rules.colonyPriceStep) * rules.colonyPriceStep;
+      nodes.push({ id: 0, name: lands[i], kind: 'island', price, toll: Math.round(price * rules.baseTollRate), specialty: goods[i % goods.length], ironYield: rules.ironYieldMin + i % rules.ironYieldVariants, x: 0, y: 0 });
       if (j === 1 && sector < 7) {
         const [special, name, chineseName] = specials[sector];
         nodes.push({ id: 0, name, chineseName, special, kind: 'special', x: 0, y: 0 });
@@ -62,10 +62,10 @@ export function createDefaultMap(): MapNode[] {
     const [x, y] = coordinates[index];
     stopIds.push(map.length);
     map.push({ ...node, id: map.length, x: x * chartScale, y: y * chartScale });
-    const count = index % 7 === 6 ? seaStopsBetweenSectors[Math.floor(index / 7)] : Number(longStretches.has(index));
+    const count = index % 7 === 6 ? rules.seaStopsBetweenSectors[NATIONS[Math.floor(index / 7)].name] : longStretches.has(index) ? rules.extraSeaStops : 0;
     const [nextX, nextY] = coordinates[(index + 1) % coordinates.length];
     for (let j = 1; j <= count; j++) {
-      const fraction = (j + (seaLaneBias.get(index) ?? 0)) / (count + 1);
+      const fraction = (j + (index === 55 ? rules.seaLaneBias : 0)) / (count + 1);
       sea++;
       map.push({
         id: map.length, kind: 'sea', name: `Open water ${sea}`, chineseName: `海上 ${sea}`,

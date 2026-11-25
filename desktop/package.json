@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
+    "generate:config": "node generate-config.mjs",
     "package:dir": "electron-builder --dir --publish never",
     "package:windows": "electron-builder --win portable --x64 --publish never",
     "package:macos": "electron-builder --mac dir --x64 --arm64 --publish never"
@@ -21,12 +22,17 @@
     "appId": "com.happyvoyage.game",
     "productName": "Happy Voyage",
     "artifactName": "happy-voyage-${os}-${arch}.${ext}",
-    "files": ["main.cjs", "game-files.cjs", "build/icon.png"],
+    "files": ["main.cjs", "game-files.cjs", "player-config.cjs", "preload.cjs", "build/icon.png"],
     "extraResources": [
       {
         "from": "../client/dist",
         "to": "game",
         "filter": ["index.html", "assets/**/*"]
+      },
+      {
+        "from": "../client/dist-debug",
+        "to": "debug",
+        "filter": ["debug.html", "assets/**/*"]
       }
     ],
     "win": {

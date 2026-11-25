@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CAPTAINS, MAX_CAPTAINS, captainDescriptionText, captainName, rankName, type GameState } from '@happy-voyage/shared';
+import { CAPTAINS, GAMEPLAY_TUNING, captainDescriptionText, captainName, rankName, type GameState } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { gameController } from '../game/GameController';
 import { StatTooltip } from './StatTooltip';
@@ -8,7 +8,7 @@ export function RecruitPanel({ state }: { state: GameState }) {
   const [error, setError] = useState('');
   const { t, locale } = useT();
   const player = state.players[state.currentPlayer];
-  const full = player.captains.length >= MAX_CAPTAINS;
+  const full = player.captains.length >= GAMEPLAY_TUNING.captains.max;
   function recruit(index: number) {
     try { gameController.recruitCaptain(index); }
     catch (cause) { setError(cause instanceof Error ? cause.message : t('Recruitment failed', '招募失败')); }
@@ -16,7 +16,7 @@ export function RecruitPanel({ state }: { state: GameState }) {
   return <section aria-labelledby="recruit-title">
     <h2 id="recruit-title">{t("Dragon Snake Island · Sailors' tavern", '龙蛇岛 · 水手酒馆')}</h2>
     <p>{t('Recruit a captain together with their ships. Ships beyond the fleet limit are stored.', '招募船长和他们的船只。超出舰队上限的船只会存放起来。')}</p>
-    <p><StatTooltip stat="captains">{t('Captains aboard: {n}/{m}', '船上的船长：{n}/{m}', { n: player.captains.length, m: MAX_CAPTAINS })}</StatTooltip>{t('. ', '。')}<StatTooltip stat="gold">{t('Treasury: {g}g', '金库：{g} 金币', { g: player.gold })}</StatTooltip>{t('.', '。')}</p>
+    <p><StatTooltip stat="captains">{t('Captains aboard: {n}/{m}', '船上的船长：{n}/{m}', { n: player.captains.length, m: GAMEPLAY_TUNING.captains.max })}</StatTooltip>{t('. ', '。')}<StatTooltip stat="gold">{t('Treasury: {g}g', '金库：{g} 金币', { g: player.gold })}</StatTooltip>{t('.', '。')}</p>
     {full && <p>{t('Crew is full. No more captains can join.', '船员已满，无法再招募船长。')}</p>}
     {error && <p role="alert">{error}</p>}
     <div className="tavern-roster">

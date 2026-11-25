@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { battleResult, createBattle, issueCommand, replayBattle, stepBattle, TICK, type BattleLog } from './battle';
 import { COMBAT, defaultBattleDeployment, fightNavalBattle, forecastColonyBattle, forecastNavalBattle } from './combat';
 import { GameEngine } from './engine';
+import { resolveGameplayTuning, selectGameplayTuning } from './gameplayTuning';
 import { MAX_FLEET_SIZE, SHIP_TYPES } from './ships';
 import type { Ship } from './types';
 import { isRetreatThreshold, playerRetreatThreshold, RETREAT_THRESHOLDS, sinkingCap, withdrawalReason } from './withdrawal';
@@ -15,6 +16,53 @@ function siege(attackerAI = false, defenderAI = false) {
 }
 
 describe('configurable retreat thresholds', () => {
+  it.each([[false, 'realtime', 'victory'], [true, 'realtime', 'draw'], [false, 'auto', 'draw']] as const)(
+    'ignores auto-resolve hit rate only for real Command battles (AI attacker: %s, lobby mode: %s)',
+    (attackerAI, mode, expected) => {
+      const engine = siege(attackerAI, true);
+      engine.state.config.battleMode = mode;
+      engine.currentPlayer.fleet = [{ ...fleet(1)[0], firepower: 100 }];
+      engine.state.players[1].fleet = [{ ...fleet(1)[0], id: 2 }];
+      try {
+        selectGameplayTuning(resolveGameplayTuning({ combat: { hitChance: 0 } }).rules);
+        expect(forecastColonyBattle(engine.state, engine.currentPlayer)).toBe(expected);
+        const actual = engine.fight();
+        if (expected === 'victory') expect(engine.state.phase).toBe('awaitingBattle');
+        else expect(actual?.outcome).toBe('draw');
+      } finally {
+        selectGameplayTuning();
+      }
+    },
+  );
+
+  it('estimates damage below the stock hit chance without affecting actual hit rolls', () => {
+    const [attacker] = fleet(1);
+    attacker.firepower = 100;
+    const defenders = fleet(1);
+    try {
+      selectGameplayTuning(resolveGameplayTuning({ combat: { hitChance: 0.3 } }).rules);
+      expect(forecastNavalBattle([attacker], defenders)).toBe('victory');
+      expect(fightNavalBattle([attacker], defenders, () => 0.5).outcome).toBe('draw');
+      selectGameplayTuning(resolveGameplayTuning({ combat: { hitChance: 0 } }).rules);
+      expect(forecastNavalBattle([attacker], defenders)).toBe('draw');
+      expect(defenders[0].durability).toBe(100);
+    } finally {
+      selectGameplayTuning();
+    }
+  });
+
+  it('accumulates fractional expected damage from weak shots across the battle', () => {
+    const attackers = fleet(4).map(ship => ({ ...ship, firepower: 1 }));
+    const defenders = [{ ...fleet(1)[0], id: 5, durability: 1 }];
+    try {
+      selectGameplayTuning(resolveGameplayTuning({ combat: { hitChance: 0.1 } }).rules);
+      expect(forecastNavalBattle(attackers, defenders)).toBe('victory');
+      expect(defenders[0].durability).toBe(1);
+    } finally {
+      selectGameplayTuning();
+    }
+  });
+
   it('uses the capped docked defense with its owner threshold even beyond the sailing fleet cap', () => {
     const engine = siege();
     const owner = engine.state.players[1], nodeId = engine.currentPlayer.position;

@@ -3,7 +3,7 @@ const { mkdir, mkdtemp, rm, writeFile } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const test = require('node:test');
-const { GAME_URL, serveGameFiles } = require('./game-files.cjs');
+const { DEBUG_URL, GAME_URL, serveGameFiles } = require('./game-files.cjs');
 
 test('serves the bundled game from the hosted demo origin without fetching it', async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'happy-voyage-desktop-'));
@@ -38,4 +38,20 @@ test('passes the room server request through unchanged', async () => {
     return mockResponse;
   });
   assert.equal(await handle(request), mockResponse);
+});
+
+test('exposes the tester page and its assets only when the debug directory is enabled', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'happy-voyage-debug-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await mkdir(join(directory, 'assets'));
+  await writeFile(join(directory, 'debug.html'), '<title>Window Tester</title>');
+  await writeFile(join(directory, 'assets', 'tester.js'), 'export {};');
+  const asset = new URL('assets/tester.js', DEBUG_URL);
+  const disabled = serveGameFiles(directory, () => assert.fail('Unexpected network request'));
+  const enabled = serveGameFiles(directory, () => assert.fail('Unexpected network request'), directory);
+  for (const url of [DEBUG_URL, asset, new URL('?preview=repair', DEBUG_URL)]) {
+    assert.equal((await disabled(new Request(url))).status, 404);
+    assert.equal((await enabled(new Request(url))).status, 200);
+  }
+  assert.equal((await enabled(new Request(new URL('index.html', DEBUG_URL)))).status, 404);
 });

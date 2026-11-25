@@ -1,14 +1,21 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
+
 /** A random source returning [0, 1). Injected so tests and servers can seed it. */
 export type Rng = () => number;
 
-const SLOT_COUNT = 36;
-export const COMPASS_SECTORS = Array.from({ length: 11 }, (_, index) => {
-  const slots = 6 - Math.abs(index - 5);
-  return { steps: index + 2, slots, odds: slots / SLOT_COUNT };
+export const COMPASS_SECTORS = Object.keys(GAMEPLAY_TUNING.compass).map((key, index) => {
+  const step = key as keyof typeof GAMEPLAY_TUNING.compass;
+  return {
+    steps: index + 2,
+    get slots() { return GAMEPLAY_TUNING.compass[step]; },
+    get odds() { return this.slots / slotCount(); },
+  };
 });
 
+const slotCount = () => Object.values(GAMEPLAY_TUNING.compass).reduce((sum, weight) => sum + weight, 0);
+
 export function spinCompass(rng: Rng): number {
-  const target = Math.floor(rng() * SLOT_COUNT);
+  const target = Math.floor(rng() * slotCount());
   let edge = 0;
   for (const sector of COMPASS_SECTORS) {
     edge += sector.slots;

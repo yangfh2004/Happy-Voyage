@@ -1,15 +1,13 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import type { AIDifficulty, BattleOutcome, Ship, ShipType } from './types';
 import { STRATEGY_RULES } from './strategies';
 import { isRetreatThreshold, sinkingCap, withdrawalReason, type BattleWithdrawal, type RetreatThreshold } from './withdrawal';
 
 export const TICK = 1 / 20;
 export const BATTLE_FIELD = { width: 2400, height: 1350 } as const;
-const CANNONBALL_SPEED = 800;
-export const BATTLE_STATS: Record<ShipType, { turn: number; range: number; reload: number; radius: number }> = {
-  warship: { turn: 50, range: 640, reload: 3, radius: 22 },
-  cargo: { turn: 45, range: 440, reload: 3, radius: 20 },
-  explorer: { turn: 90, range: 520, reload: 2, radius: 16 },
-};
+export const BATTLE_STATS = GAMEPLAY_TUNING.combat.battleStats;
+const rules = GAMEPLAY_TUNING.combat;
+const tickLimit = () => rules.realtimeLimit / TICK;
 export type BattleSide = 'attacker' | 'defender';
 export type Formation = 'column' | 'line' | 'spread';
 export type BattleCommand =
@@ -236,7 +234,7 @@ export function battleGroupSlots(battle: BattleState, group: BattleGroup) {
 function moveGroups(battle: BattleState): void {
   for (const group of battle.groups) {
     const members = groupMembers(battle, group), leader = members[0];
-    const speed = Math.min(...members.map(s => s.speed)) * 16;
+    const speed = Math.min(...members.map(s => s.speed)) * rules.movementScale;
     const order = group.order;
     const target = order.type === 'attack' ? battle.ships.find(s => s.side !== group.side && s.id === order.targetId && active(s)) : undefined;
     if (group.order.type === 'attack' && !target) {
@@ -257,7 +255,7 @@ function moveGroups(battle: BattleState): void {
       goal = target;
     }
     const assembled = battleGroupSlots(battle, group).every(slot => distance(members.find(s => s.id === slot.shipId)!, slot) < 1);
-    const turn = assembled ? Math.min(BATTLE_STATS[leader.type].turn, ...groupOffsets(battle, group).slice(1).map(p => p.ship.speed * 16 / Math.hypot(p.x, p.y) * 180 / Math.PI)) : BATTLE_STATS[leader.type].turn;
+    const turn = assembled ? Math.min(BATTLE_STATS[leader.type].turn, ...groupOffsets(battle, group).slice(1).map(p => p.ship.speed * rules.movementScale / Math.hypot(p.x, p.y) * 180 / Math.PI)) : BATTLE_STATS[leader.type].turn;
     group.heading = angle(group.heading + clamp(angle(desired - group.heading), -turn * TICK, turn * TICK));
     const a = (group.order.type === 'move' ? bearing(leader, goal) : group.heading) * Math.PI / 180;
     const slots = battleGroupSlots(battle, group);
@@ -284,7 +282,7 @@ function moveGroups(battle: BattleState): void {
       const ex = slot.x - s.x, ey = slot.y - s.y;
       let vx = ex / TICK, vy = ey / TICK;
       const error = Math.hypot(ex - leader.vx * TICK, ey - leader.vy * TICK);
-      const limit = error < 1 ? speed : s.speed * 16;
+      const limit = error < 1 ? speed : s.speed * rules.movementScale;
       const magnitude = Math.hypot(vx, vy);
       if (magnitude > limit) { vx *= limit / magnitude; vy *= limit / magnitude; }
       const desiredHeading = error < 8 || magnitude < 1 ? group.heading : Math.atan2(vy, vx) * 180 / Math.PI;
@@ -372,12 +370,12 @@ export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleC
 }
 
 export function battleAI(battle: BattleState, side: BattleSide, difficulty: AIDifficulty): void {
-  if (battle.outcome || battle.tick % 20 !== 0) return;
+  if (battle.outcome || battle.tick % (rules.aiDecisionSeconds / TICK) !== 0) return;
   const own = battle.ships.filter((s) => s.side === side && active(s));
   const enemies = battle.ships.filter((s) => s.side !== side && active(s));
   if (!enemies.length) return;
   const total = (ships: BattleShip[]) => ships.reduce((sum, s) => sum + s.durability, 0);
-  if (difficulty === 'hard' && total(own) < total(enemies) * 0.35) { issueCommand(battle, side, { type: 'retreat' }); return; }
+  if (difficulty === 'hard' && total(own) < total(enemies) * rules.aiRetreatStrength) { issueCommand(battle, side, { type: 'retreat' }); return; }
   const leader = [...own].sort(flagshipOrder)[0];
   if (!leader) return;
   const target = [...enemies].sort(difficulty === 'easy' ? (a, b) => distance(leader, a) - distance(leader, b) : (a, b) => a.durability - b.durability || a.id - b.id)[0];
@@ -423,8 +421,8 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
       desired = moving ? bow : bow + (angle(s.heading - bow) >= 0 ? 90 : -90);
     }
     s.heading = angle(s.heading + clamp(angle(desired - s.heading), -stats.turn * TICK, stats.turn * TICK));
-    s.vx = moving ? Math.cos(s.heading * Math.PI / 180) * s.speed * 16 : 0;
-    s.vy = moving ? Math.sin(s.heading * Math.PI / 180) * s.speed * 16 : 0;
+    s.vx = moving ? Math.cos(s.heading * Math.PI / 180) * s.speed * rules.movementScale : 0;
+    s.vy = moving ? Math.sin(s.heading * Math.PI / 180) * s.speed * rules.movementScale : 0;
     s.x = clamp(s.x + s.vx * TICK, battle.retreating && s.side === 'attacker' ? -100 : stats.radius, BATTLE_FIELD.width - stats.radius);
     s.y = clamp(s.y + s.vy * TICK, stats.radius, BATTLE_FIELD.height - stats.radius);
     if (s.x < 0) { s.escaped = true; continue; }
@@ -442,13 +440,13 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
       const target = (order.type === 'attack' ? candidates.find((e) => e.id === order.targetId) : undefined) ?? candidates[0];
       if (!target) continue;
       const rangeToTarget = distance(s, target);
-      const flight = rangeToTarget / CANNONBALL_SPEED;
-      const spread = 18 + 88 * Math.max(0, rangeToTarget / stats.range - 0.5);
+      const flight = rangeToTarget / GAMEPLAY_TUNING.combat.cannonballSpeed;
+      const spread = rules.baseScatter + rules.distanceScatter * Math.max(0, rangeToTarget / stats.range - 0.5);
       const landingX = target.x + target.vx * flight + (random(battle) - 0.5) * spread;
       const landingY = target.y + target.vy * flight + (random(battle) - 0.5) * spread;
       battle.cannonballs.push({ side: s.side, shipId: s.id, battery, x: s.x, y: s.y, landingX, landingY,
-        remaining: Math.hypot(landingX - s.x, landingY - s.y) / CANNONBALL_SPEED,
-        damage: Math.round(s.firepower * (s.side === 'attacker' ? battle.attackerMultiplier : 1) * (0.75 + random(battle) * 0.5)) });
+        remaining: Math.hypot(landingX - s.x, landingY - s.y) / GAMEPLAY_TUNING.combat.cannonballSpeed,
+        damage: Math.round(s.firepower * (s.side === 'attacker' ? battle.attackerMultiplier : 1) * (rules.minRealtimeRoll + random(battle) * rules.realtimeRollSpread)) });
       s.reload[battery] = stats.reload;
     }
   }
@@ -472,7 +470,7 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
   battle.tick++;
   refreshGroups(battle);
   resolveWithdrawal(battle);
-  if (!battle.outcome && battle.tick >= 1800) battle.outcome = 'draw';
+  if (!battle.outcome && battle.tick >= tickLimit()) battle.outcome = 'draw';
 }
 
 export function battleResult(battle: BattleState): RealtimeBattleResult {
@@ -486,7 +484,7 @@ export function battleResult(battle: BattleState): RealtimeBattleResult {
 
 export function replayBattle(setup: BattleSetup, log: BattleLog, controllers: BattleControllers = {}): RealtimeBattleResult {
   const battle = createBattle(setup);
-  const commands = log.filter((entry) => Number.isInteger(entry.tick) && entry.tick >= 0 && entry.tick < 1800)
+  const commands = log.filter((entry) => Number.isInteger(entry.tick) && entry.tick >= 0 && entry.tick < tickLimit())
     .map((entry, index) => ({ ...entry, index })).sort((a, b) => a.tick - b.tick || a.index - b.index);
   let next = 0;
   while (!battle.outcome) {

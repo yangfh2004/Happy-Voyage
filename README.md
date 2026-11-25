@@ -9,12 +9,17 @@ Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, tradin
 
 ## Desktop downloads / 桌面版下载
 
-Get the ZIP for your computer from [GitHub Releases](https://github.com/yangfh2004/Happy-Voyage/releases). Each ZIP includes the app and a Chinese gameplay guide PDF (`Happy-Voyage-玩法说明.pdf`). No installer or internet connection is needed for local play. / 每个 ZIP 都包含游戏和中文版 PDF 玩法说明，本机游玩无需安装或联网。
+Get the ZIP for your computer from [GitHub Releases](https://github.com/yangfh2004/Happy-Voyage/releases). New ZIPs include the app, `config.json`, and two Chinese PDFs: `Happy-Voyage-玩法说明.pdf` and `Happy-Voyage-配置说明.pdf`. Local play requires neither an installer nor internet access. / 新版 ZIP 包含游戏、配置文件、中文版玩法和配置说明两份 PDF。本机游玩无需安装或联网。
+
+Edit `config.json` next to the Windows EXE or macOS App and relaunch to change local gameplay values. Missing or malformed files fall back to defaults; online rooms keep server rules. / 编辑与 Windows EXE 或 macOS App 同目录的 `config.json`，重启后即可自定义本机玩法。文件缺失或格式错误时使用默认值；在线房间始终以服务器为准。详见[配置说明](配置说明.md)。
+
+To open the desktop window tester, set `"debug": true` in `config.json`, relaunch, and press **Ctrl+Shift+D** (**⌘+Shift+D** on macOS). It is off by default. / 在 `config.json` 中设置 `"debug": true`，重启后按 **Ctrl+Shift+D**（macOS：**⌘+Shift+D**）打开页面测试窗口。默认关闭。
 
 - **Windows (x64):** Download `happy-voyage-win-x64.zip`, extract it, and double-click the portable `.exe`. / 下载并解压 Windows ZIP 后，双击便携版 `.exe`。
 - **macOS:** Download the `arm64` ZIP for Apple silicon or the `x64` ZIP for Intel. Unzip it and open **Happy Voyage.app**. If macOS blocks the first launch, right-click the app and choose **Open**, or use **System Settings → Privacy & Security → Open Anyway**. / Apple 芯片下载 `arm64`，Intel 下载 `x64`。解压后打开应用；若首次运行被拦截，右键选择「打开」，或前往「系统设置 → 隐私与安全性 → 仍要打开」。
+  Before launching with a custom config, use Finder to move the **app itself** out of Downloads into a folder you own, then put `config.json` beside it. macOS may otherwise run the app from a temporary mount where it cannot find its original neighboring files. / 若要使用自定义配置，请先在 Finder 中将 **App 本身**移出「下载」目录，放入自己的文件夹，再把 `config.json` 放到 App 同目录。否则 macOS 可能从临时挂载位置运行 App，导致它找不到原目录中的配置。
 
-Publishing a GitHub release runs the desktop packaging workflow. To add or replace binaries on an existing release, run **Publish desktop builds** in Actions and enter its tag.
+Publishing a GitHub release runs the desktop packaging workflow. To add or replace binaries on an existing release whose tag includes desktop configuration support, run **Publish desktop builds** in Actions and enter its tag.
 
 ## Online rooms
 
@@ -99,7 +104,8 @@ to pick another. The language control switches both the tester and the game.
 
 `npm run build:debug -w client` writes a static build to `client/dist-debug`. The demo workflow
 publishes it separately to the `demo-debug` branch; a pinned link ends in `/<demo-debug commit>/debug.html`.
-The release build, normal demo, and GitHub Pages do not include the tester or its scenarios.
+The web release build, normal demo, and GitHub Pages do not include the tester or its scenarios.
+The desktop packager uses both `npm run build -w client` and `npm run build:debug -w client`.
 
 ### AI balance playtest
 

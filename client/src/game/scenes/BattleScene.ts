@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BATTLE_FIELD, TICK, sinkingCap, playerName, shipName, type BattleShip, type Formation } from '@happy-voyage/shared';
+import { BATTLE_FIELD, GAMEPLAY_TUNING, TICK, sinkingCap, playerName, shipName, type BattleShip, type Formation } from '@happy-voyage/shared';
 import { getLocale, pick } from '../../i18n';
 import { gameController } from '../GameController';
 import { BattleSession } from '../BattleSession';
@@ -429,7 +429,7 @@ export class BattleScene extends Phaser.Scene {
     });
     g.fillStyle(0x251e19).fillCircle(width / 2, 35, 29).lineStyle(3, 0xc5a15b).strokeCircle(width / 2, 35, 29);
     g.lineStyle(1, 0x80663b).strokeCircle(width / 2, 35, 24);
-    this.countdown.setPosition(width / 2, 35).setFontSize(22).setText(`${Math.max(0, Math.ceil(90 - this.session.battle.tick * TICK))}`);
+    this.countdown.setPosition(width / 2, 35).setFontSize(22).setText(`${Math.max(0, Math.ceil(GAMEPLAY_TUNING.combat.realtimeLimit - this.session.battle.tick * TICK))}`);
     const cardY = short ? 69 : 76, cardH = short ? 34 : 52;
     this.panel(g, 6, cardY, width - 12, cardH);
     const selected = this.session.battle.ships.filter(s => this.selected.has(s.id) && s.side === this.session.side && !s.sunk && !s.escaped);

@@ -1,3 +1,4 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import { ZH, localize, tx, type Locale, type Text } from './i18n';
 import { createDefaultMap } from './map';
 import type { GameConfig } from './types';
@@ -23,19 +24,19 @@ export const GAME_MODES: readonly GameMode[] = [
     id: 'conquest',
     name: 'Classic conquest',
     description: 'The original rule: hold every new continent at once. No round limit.',
-    config: { islandsToWin: Number.MAX_SAFE_INTEGER, maxRounds: NO_ROUND_LIMIT },
+    config: GAMEPLAY_TUNING.modes.conquest,
   },
   {
     id: 'quick',
     name: 'Quick match',
     description: 'Claim 10 islands, or be richest after 50 rounds.',
-    config: { islandsToWin: 10, maxRounds: 50 },
+    config: GAMEPLAY_TUNING.modes.quick,
   },
   {
     id: 'sprint',
     name: 'Sprint',
     description: 'Claim 6 islands, or be richest after 20 rounds.',
-    config: { islandsToWin: 6, maxRounds: 20 },
+    config: GAMEPLAY_TUNING.modes.sprint,
   },
 ];
 
@@ -75,4 +76,3 @@ export function modeText(id: GameModeId, locale: Locale): { name: string; descri
   const mode = GAME_MODES.find((candidate) => candidate.id === id)!;
   return locale === 'zh' ? ZH.modes[id] : { name: mode.name, description: mode.description };
 }
-

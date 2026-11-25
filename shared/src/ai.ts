@@ -1,26 +1,22 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import { COMPASS_SECTORS } from './compass';
 import { walkPath } from './graph';
-import { colonyDefenders, defaultBattleDeployment, forecastColonyBattle, forecastNavalBattle, tollDue } from './combat';
+import { colonyBattleMode, colonyDefenders, defaultBattleDeployment, forecastColonyBattle, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
-import { BUILDINGS, COLONY_PAYBACK_ROUNDS, buildingLevel, colonyCanRepair, colonyToll, nextBuildingCost } from './buildings';
-import { isEliminated, turnOrderPosition, REPAIR_GOLD_PER_POINT } from './rules';
+import { BUILDINGS, buildingLevel, colonyCanRepair, colonyToll, nextBuildingCost } from './buildings';
+import { isEliminated, turnOrderPosition } from './rules';
 import { SEA_RULES } from './seaRules';
 import { LOTTERY } from './lottery';
 import { RANKS, foreignTaxDue, playerMerit } from './ranks';
-import { GOODS, MAX_FLEET_SIZE, SHIP_RECIPES, USED_SHIP_PRICES, cargoLoad, shipSalePrice } from './ships';
+import { GOODS, SHIP_RECIPES, USED_SHIP_PRICES, cargoLoad, shipSalePrice } from './ships';
 import { normalMarketSale, quoteMarketTrade } from './market';
-import { hermitStoneTake, NIM_MAX_TAKE, type HermitId } from './mist';
+import { hermitStoneTake, type HermitId } from './mist';
 import { STRATEGY_RULES, defectionCount, type StrategyId } from './strategies';
 import { roundsLeft as roundsToPlay } from './modes';
 import { GameView } from './gameView';
 import type { BarterOffer, BuildingKind, GameState, MapNode, MarketOrder, Player, ShipType } from './types';
 import { playerRetreatThreshold } from './withdrawal';
-
-const POLICIES = {
-  easy:   { reserve: 450, fleetSize: 6, development: 1 },
-  normal: { reserve: 400, fleetSize: 7, development: 2 },
-  hard:   { reserve: 400, fleetSize: 8, development: 3 },
-} as const;
+const POLICIES = GAMEPLAY_TUNING.ai;
 
 const policy = (player: Player) => POLICIES[player.aiDifficulty ?? 'normal'];
 const roundsLeft = (state: GameState) => roundsToPlay(state.config, state.round);
@@ -30,11 +26,11 @@ const cargoUnits = (player: Player) => player.fleet.reduce((sum, ship) => sum + 
 const freeCargo = (player: Player) => player.fleet.reduce((sum, ship) => sum + ship.cargoCapacity - cargoLoad(ship), 0);
 
 /** Gold an AI keeps back before buying lottery numbers. */
-export const AI_LOTTERY_RESERVE = 600;
+export const AI_LOTTERY_RESERVE = GAMEPLAY_TUNING.ai.lotteryReserve;
 
 /** How many Treasure Island numbers the AI buys: up to three, never dipping below its reserve. */
 export function aiLotteryPickCount(gold: number): number {
-  return Math.max(0, Math.min(3, Math.floor((gold - AI_LOTTERY_RESERVE) / LOTTERY.ticketPrice)));
+  return Math.max(0, Math.min(LOTTERY.maxPicks, GAMEPLAY_TUNING.ai.lotteryPicks, Math.floor((gold - GAMEPLAY_TUNING.ai.lotteryReserve) / LOTTERY.ticketPrice)));
 }
 
 export function aiBarterChoice(player: Player, offers: BarterOffer[]): number | null {
@@ -76,7 +72,7 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
     if (node.special === 'nightless' && cargoUnits(player) >= 8) return cargoUnits(player) * 12;
     if (node.special === 'revival') {
       const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
-      return Math.min(damage, Math.floor(Math.max(0, player.gold) / REPAIR_GOLD_PER_POINT));
+      return Math.min(damage, Math.floor(Math.max(0, player.gold) / GAMEPLAY_TUNING.economy.repairGoldPerPoint));
     }
     if (wyvern && node.id === player.homePort) return state.config.homeSalary;
     return 0;
@@ -147,7 +143,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       return warships.length < 2 && cash >= 900 ? 540 : 90;
     }
     if (node.special === 'nightless') return cargoUnits(player) * 10;
-    if (node.special === 'revival') return Math.min(repair, Math.floor(Math.max(0, cash) / REPAIR_GOLD_PER_POINT));
+    if (node.special === 'revival') return Math.min(repair, Math.floor(Math.max(0, cash) / GAMEPLAY_TUNING.economy.repairGoldPerPoint));
     return 0;
   };
 
@@ -173,7 +169,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
     const pay = wyvern && node.id === player.homePort ? salary : 0;
     const cash = player.gold + pay;
     const repairFee = node.special === 'revival'
-      ? Math.min(repair, Math.floor(Math.max(0, cash) / REPAIR_GOLD_PER_POINT)) * REPAIR_GOLD_PER_POINT
+      ? Math.min(repair, Math.floor(Math.max(0, cash) / GAMEPLAY_TUNING.economy.repairGoldPerPoint)) * GAMEPLAY_TUNING.economy.repairGoldPerPoint
       : 0;
     const score = pay + landing(node, cash, true) +
       (roundsLeft(state) > 0 ? 0.55 * spinValue(node.id, cash - repairFee) : 0);
@@ -187,12 +183,19 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
 
 export function aiMistTake(hermit: HermitId, stones: number): number {
   // Search the known hermit replies for a line that leaves it the last stone.
-  for (let take = 1; take <= Math.min(NIM_MAX_TAKE, stones - 1); take++) {
-    const remainder = stones - take;
-    const next = remainder - hermitStoneTake(hermit, remainder);
-    if (next === 0 || (next > 1 && aiMistTake(hermit, next) !== 0)) return take;
+  const winningMoves = [0, 0];
+  for (let count = 2; count <= stones; count++) {
+    winningMoves[count] = 0;
+    for (let take = 1; take <= Math.min(GAMEPLAY_TUNING.sea.nimMaxTake, count - 1); take++) {
+      const remainder = count - take;
+      const next = remainder - hermitStoneTake(hermit, remainder);
+      if (next === 0 || winningMoves[next] > 0) {
+        winningMoves[count] = take;
+        break;
+      }
+    }
   }
-  return 0;
+  return winningMoves[stones] ?? 0;
 }
 
 export function aiWyvernTarget(state: GameState, player: Player): number {
@@ -251,7 +254,7 @@ export function aiBuildingChoice(state: GameState, player: Player): BuildingKind
       }
       case 'repairYard':
         return colonyCanRepair(state, node.id) ? 0
-          : state.docks[node.id].reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0) * REPAIR_GOLD_PER_POINT;
+          : state.docks[node.id].reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0) * GAMEPLAY_TUNING.economy.repairGoldPerPoint;
     }
   };
   let best: BuildingKind | null = null;
@@ -259,9 +262,9 @@ export function aiBuildingChoice(state: GameState, player: Player): BuildingKind
   for (const kind of Object.keys(BUILDINGS) as BuildingKind[]) {
     const cost = nextBuildingCost(state, node.id, kind);
     if (cost === null || cost > funding) continue;
-    const starterIndustry = level(kind) === 0 && turns + 1 >= COLONY_PAYBACK_ROUNDS &&
+    const starterIndustry = level(kind) === 0 && turns + 1 >= GAMEPLAY_TUNING.economy.colonyPaybackRounds &&
       (kind === 'lumberMill' || kind === 'ironMine' || (kind === 'collectionField' && node.specialty));
-    const purpose = Math.max(value(kind), starterIndustry ? cost / COLONY_PAYBACK_ROUNDS + 1 : 0);
+    const purpose = Math.max(value(kind), starterIndustry ? cost / GAMEPLAY_TUNING.economy.colonyPaybackRounds + 1 : 0);
     if (purpose <= 0 || (kind === 'collectionField' && level(kind) >= development)) continue;
     const benefit = purpose + (development === 1 ? 0 : tollReturn) - cost * 0.25;
     if (benefit > bestReturn) {
@@ -323,7 +326,7 @@ export function aiMarketPurchase(state: GameState, player: Player): MarketOrder 
 function battleQuality(state: GameState, player: Player, card?: StrategyId): number {
   const { ships, owner, fromFleet } = colonyDefenders(state, player.position);
   const defectors = card === 'betray' ? [...ships].sort((a, b) => a.firepower - b.firepower).slice(0, defectionCount(ships.length, fromFleet)) : [];
-  const availableSlots = Math.max(0, MAX_FLEET_SIZE - player.fleet.length);
+  const availableSlots = Math.max(0, GAMEPLAY_TUNING.ships.maxFleetSize - player.fleet.length);
   const attackers = defaultBattleDeployment([...player.fleet, ...defectors.slice(0, availableSlots)]);
   const remaining = card === 'betray' ? ships.filter((s) => !defectors.includes(s)) : ships;
   const defenders = defaultBattleDeployment(card === 'betray'
@@ -331,7 +334,7 @@ function battleQuality(state: GameState, player: Player, card?: StrategyId): num
     : card === 'mislead'
       ? ships.map((s, i) => i === 0 ? { ...s, durability: Math.min(s.durability, Math.max(1, s.durability - STRATEGY_RULES.misleadDamage)) } : s)
       : ships);
-  const options = { attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner), attackerMultiplier: state.inspired || card === 'inspire' ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: state.ambush || card === 'ambush' };
+  const options = { battleMode: colonyBattleMode(state, player, owner), attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner), attackerMultiplier: state.inspired || card === 'inspire' ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: state.ambush || card === 'ambush' };
   const baseline = forecastNavalBattle(attackers, defenders, options);
   if (player.aiDifficulty !== 'hard') return baseline === 'victory' ? 4 : baseline === 'draw' ? 2 : 0;
   // Stress-test with weaker attack and stronger defense rolls, without drawing from the match RNG.
