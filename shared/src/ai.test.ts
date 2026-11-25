@@ -122,6 +122,20 @@ describe('AI rival difficulty', () => {
     expect(player.fleet[0].cargo[node.specialty!]).toBe(7);
   });
 
+  it.each([[1, 600], [2, 360]])('Hard upgrades a level-%i yard and launches a warship given %ig above reserve', (shipyard, budget) => {
+    const { engine, state, player, node } = at('island');
+    player.fleet = player.fleet.slice(1, 4);
+    player.gold = 650 + budget;
+    state.buildings[node.id] = { shipyard, lumberMill: 1, ironMine: 1, collectionField: 3 };
+    Object.assign(state.stockpiles[node.id], { lumber: 6, iron: 4 });
+
+    engine.decideForAI();
+
+    expect(state.buildings[node.id].shipyard).toBe(3);
+    expect(player.fleet.at(-1)?.type).toBe('warship');
+    expect(player.gold).toBe(650);
+  });
+
   it.each(['easy', 'normal', 'hard'] as const)('%s replaces a lost ship with an affordable fallback', (difficulty) => {
     const { engine, player } = at('skeleton');
     player.aiDifficulty = difficulty;
