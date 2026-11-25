@@ -3,6 +3,8 @@ const { join } = require('node:path');
 const { DEBUG_URL, GAME_URL, serveGameFiles } = require('./game-files.cjs');
 const { loadPlayerConfig, playerConfigPath } = require('./player-config.cjs');
 
+let tester;
+
 function openWindow(gameSession, page = GAME_URL, debugEnabled = false) {
   const window = new BrowserWindow({
     title: 'Happy Voyage',
@@ -23,7 +25,6 @@ function openWindow(gameSession, page = GAME_URL, debugEnabled = false) {
     if (url.origin !== page.origin || url.pathname !== page.pathname) event.preventDefault();
   });
   if (debugEnabled) {
-    let tester;
     window.webContents.on('before-input-event', (event, input) => {
       const modifier = process.platform === 'darwin' ? input.meta : input.control;
       if (input.type !== 'keyDown' || !modifier || !input.shift || input.alt || input.code !== 'KeyD') return;
@@ -70,9 +71,9 @@ app.whenReady().then(async () => {
   // Keep the hosted demo origin for room requests and invite links while serving the game offline.
   gameSession.protocol.handle('https', serveGameFiles(directory, (request) =>
     gameSession.fetch(request, { bypassCustomProtocolHandlers: true }), debugDirectory));
-  openWindow(gameSession, GAME_URL, debugEnabled);
+  let mainWindow = openWindow(gameSession, GAME_URL, debugEnabled);
   app.on('activate', () => {
-    if (!BrowserWindow.getAllWindows().length) openWindow(gameSession, GAME_URL, debugEnabled);
+    if (mainWindow.isDestroyed()) mainWindow = openWindow(gameSession, GAME_URL, debugEnabled);
   });
 });
 

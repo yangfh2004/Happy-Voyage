@@ -61,3 +61,24 @@ test('only shares config with the game and enabled tester main frames', async ()
     assert.equal(exposed, debugEnabled ? config : undefined);
   }
 });
+
+test('Dock activation restores the main game without duplicating the open tester', async () => {
+  const { app, windows } = await launch(true);
+  const shortcut = (window) => window.webContents.emit('before-input-event', { preventDefault() {} }, {
+    type: 'keyDown', meta: true, shift: true, code: 'KeyD',
+  });
+  const [mainWindow] = windows;
+  shortcut(mainWindow);
+  const [, tester] = windows;
+  assert.equal(tester.url, DEBUG_URL.href);
+  mainWindow.close();
+
+  app.emit('activate');
+  app.emit('activate');
+  assert.equal(windows.length, 3);
+  const restored = windows[2];
+  assert.equal(restored.url, GAME_URL.href);
+  shortcut(restored);
+  assert.equal(tester.focused, true);
+  assert.equal(windows.length, 3);
+});
