@@ -4,7 +4,6 @@ import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
 import { StatTooltip } from './StatTooltip';
 
-const NUMBERS = Array.from({ length: LOTTERY.balls }, (_, i) => i + 1);
 const percent = (chance: number) => `${chance >= 0.01 ? Math.round(chance * 100) : (chance * 100).toFixed(2)}%`;
 
 /** Treasure Island (金银岛): pick numbers before the timer runs out, then watch the balls leave the glass jar. */
@@ -30,7 +29,8 @@ export function LotteryPanel({ state }: { state: GameState }) {
       </p>
       <div className="lottery-window-board">
         <div className="lottery-grid" role="group" aria-label={t('Lottery numbers', '彩票号码')}>
-          {NUMBERS.map((n) => {
+          {Array.from({ length: LOTTERY.balls }, (_, i) => {
+            const n = i + 1;
             const picked = lottery.picks.includes(n);
             return <button key={n} className={picked ? 'ball picked' : 'ball'} aria-pressed={picked}
               disabled={picked || !gameController.canBuyLotteryNumber(n)} onClick={() => gameController.buyLotteryNumber(n)}>{n}</button>;

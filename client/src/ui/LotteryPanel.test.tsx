@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { GameEngine, LOTTERY } from '@happy-voyage/shared';
+import { GameEngine, LOTTERY, resolveGameplayTuning, selectGameplayTuning } from '@happy-voyage/shared';
 import { LotteryPanel } from './LotteryPanel';
 
 vi.mock('../game/GameController', () => ({ gameController: {
@@ -17,6 +17,16 @@ function treasureGame() {
 }
 
 describe('LotteryPanel', () => {
+  afterEach(() => selectGameplayTuning());
+
+  it('offers numbers beyond 20 when the configured jar has more balls', () => {
+    selectGameplayTuning(resolveGameplayTuning({ lottery: { balls: 25 } }).rules);
+    const g = treasureGame();
+    const html = renderToStaticMarkup(<LotteryPanel state={g.state} />);
+    expect(html.match(/class="ball/g)).toHaveLength(25);
+    expect(html).toContain('>25</button>');
+  });
+
   it('shows the timer, number picker and prize odds while numbers are on sale', () => {
     const g = treasureGame();
     g.buyLotteryNumber(3);
