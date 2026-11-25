@@ -56,4 +56,13 @@ describe('desktop gameplay tuning', () => {
     expect(rejected.rules.starting.fleet).toEqual(starting.fleet);
     expect(resolveGameplayTuning({ starting, ships: { maxFleetSize: 2 } }).warnings).toEqual([]);
   });
+
+  it('warns on settings for nonexistent Wind Island rewards and Ensign promotion', () => {
+    const { rules, warnings } = resolveGameplayTuning({
+      sea: { barterPerColony: 9999 },
+      ranks: { ensign: { merit: 50, purse: 9999, salary: 75 } },
+    });
+    expect(warnings).toEqual(['ranks.ensign.merit', 'ranks.ensign.purse', 'sea.barterPerColony']);
+    expect(rules.ranks.ensign.salary).toBe(75);
+  });
 });

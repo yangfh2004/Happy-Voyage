@@ -4,10 +4,8 @@
     "meritPerBuildingLevel": 25,
     "goldPerAudienceMerit": 2,
     "ensign": {
-      "merit": 0,
       "salary": 0,
-      "taxDiscount": 0,
-      "purse": 0
+      "taxDiscount": 0
     },
     "junior": {
       "merit": 100,
@@ -452,7 +450,6 @@
     "nimStones": 12,
     "nimPrize": 130,
     "nimMaxTake": 3,
-    "barterPerColony": 25,
     "pirates": 80,
     "pirateLoot": 140,
     "pirateDurability": 90,

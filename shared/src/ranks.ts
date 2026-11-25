@@ -3,7 +3,7 @@ import type { GameState } from './types';
 import { SEA_RULES } from './seaRules';
 
 export const RANKS = [
-  { name: 'Ensign', chineseName: '少尉', get merit() { return GAMEPLAY_TUNING.ranks.ensign.merit; }, get salary() { return GAMEPLAY_TUNING.ranks.ensign.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.ensign.taxDiscount; }, get purse() { return GAMEPLAY_TUNING.ranks.ensign.purse; } },
+  { name: 'Ensign', chineseName: '少尉', merit: 0, get salary() { return GAMEPLAY_TUNING.ranks.ensign.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.ensign.taxDiscount; }, purse: 0 },
   { name: 'Lieutenant (Junior Grade)', chineseName: '中尉', get merit() { return GAMEPLAY_TUNING.ranks.junior.merit; }, get salary() { return GAMEPLAY_TUNING.ranks.junior.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.junior.taxDiscount; }, get purse() { return GAMEPLAY_TUNING.ranks.junior.purse; } },
   { name: 'Lieutenant', chineseName: '上尉', get merit() { return GAMEPLAY_TUNING.ranks.lieutenant.merit; }, get salary() { return GAMEPLAY_TUNING.ranks.lieutenant.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.lieutenant.taxDiscount; }, get purse() { return GAMEPLAY_TUNING.ranks.lieutenant.purse; } },
   { name: 'Lieutenant Commander', chineseName: '少校', get merit() { return GAMEPLAY_TUNING.ranks.lieutenantCommander.merit; }, get salary() { return GAMEPLAY_TUNING.ranks.lieutenantCommander.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.lieutenantCommander.taxDiscount; }, get purse() { return GAMEPLAY_TUNING.ranks.lieutenantCommander.purse; } },
