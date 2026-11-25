@@ -69,7 +69,7 @@ export function fightNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng,
   while (attackLine.length && defenseLine.length && rounds < COMBAT.rounds) {
     rounds += 1;
     const attackFire = volley(attackLine, rng, options.attackerMultiplier);
-    const defenseFire = options.skipFirstDefense && rounds === 1 ? 0 : volley(defenseLine, options.defenderRng ?? rng);
+    const defenseFire = volley(defenseLine, options.defenderRng ?? rng, options.skipFirstDefense && rounds === 1 ? STRATEGY_RULES.ambushDefenseMultiplier : 1);
     const lostDefenders = absorb(defenseLine, attackFire, sinkingCap(defenseFleet, options.defenderThreshold) - defenderSunk.length);
     const lostAttackers = absorb(attackLine, defenseFire, sinkingCap(attackFleet, options.attackerThreshold) - attackerSunk.length);
     defenderSunk.push(...lostDefenders);

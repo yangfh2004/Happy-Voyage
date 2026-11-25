@@ -35,17 +35,19 @@ export class GameView {
       if (!Number.isInteger(target) || this.state.map[target!]?.kind !== 'island') return false;
       const owner = this.state.owners[target!];
       if (owner === null || owner === undefined || owner === this.currentPlayer.id || isEliminated(this.state.players[owner])) return false;
-      if (id === 'revolt' && this.state.docks[target!].length > 0) return false;
+      if (id === 'revolt' && (this.state.docks[target!].length > 0 || Object.values(this.state.buildings[target!] ?? {}).some((level) => level > 0))) return false;
     }
     if (id === 'locate') return this.hoardExists ?? (this.state.hoardNode !== null);
     if (this.state.phase === 'awaitingSpin') {
-      if (id === 'mislead' || id === 'betray') return this.state.players[target!].fleet.length > 1;
+      if (id === 'mislead') return this.state.players[target!].fleet.some((s) => s.durability > 1);
+      if (id === 'betray') return this.state.players[target!].fleet.length > 1;
       return true;
     }
     const owner = this.state.owners[this.currentPlayer.position];
     if (owner === null || owner === undefined || owner === this.currentPlayer.id) return false;
     if (id !== 'mislead' && id !== 'betray') return true;
     const defenders = colonyDefenders(this.state, this.currentPlayer.position);
+    if (id === 'mislead') return (defenders.ships[0]?.durability ?? 0) > 1;
     return defenders.ships.length > (defenders.fromFleet ? 1 : 0);
   }
 
