@@ -173,6 +173,24 @@ describe('colony buildings', () => {
     expect(engine.state.players[0].gold).toBeGreaterThanOrEqual({ easy: 450, normal: 400, hard: 650 }[difficulty]);
   });
 
+  it('finishes an affordable Hard AI warship upgrade before building a collection field', () => {
+    const { engine, node } = visit('hard');
+    const { state, currentPlayer: player } = engine;
+    player.fleet.splice(0, 1);
+    player.fleet.splice(3);
+    player.gold = 1_250;
+    state.buildings[node.id] = { shipyard: 1, lumberMill: 1, ironMine: 1 };
+    Object.assign(state.stockpiles[node.id], { lumber: 6, iron: 4 });
+    engine.resolveLanding();
+
+    engine.decideForAI();
+
+    expect(state.buildings[node.id]).toMatchObject({ shipyard: 3 });
+    expect(state.buildings[node.id].collectionField).toBeUndefined();
+    expect(player.fleet.at(-1)?.type).toBe('warship');
+    expect(player.gold).toBe(650);
+  });
+
   it.each([0, 1])('pays the final round’s income only if the conquest by seat %i completes the round', (seat) => {
     const { engine, node } = visit();
     const { state } = engine;

@@ -229,19 +229,24 @@ export function aiBuildingChoice(state: GameState, player: Player): BuildingKind
     (supplies('ironMine', 'iron') ? 0 : BUILDINGS.ironMine.costs[0]) +
     (level('shipyard') > 0 ? 0 : BUILDINGS.shipyard.costs[0]);
   const needsMaterials = newShip && development > 1 && funding >= remainingSetupCost;
+  const canMake = (type: ShipType) => stock.lumber >= SHIP_RECIPES[type].lumber && stock.iron >= SHIP_RECIPES[type].iron;
+  const yardLevel = level('shipyard');
+  const warshipYardLevel = SHIP_RECIPES.warship.yardLevel;
+  if (newShip && development >= warshipYardLevel && yardLevel > 0 && yardLevel < warshipYardLevel &&
+      aiShipChoice(player, canMake) === 'warship') {
+    const upgradeCost = BUILDINGS.shipyard.costs.slice(yardLevel, warshipYardLevel)
+      .reduce((total, cost) => total + cost, 0);
+    if (funding >= upgradeCost) return 'shipyard';
+  }
   const value = (kind: BuildingKind): number => {
     switch (kind) {
       case 'collectionField': return node.specialty ? Math.min(20, turns) * (level(kind) === 0 ? 6 : 2) : 0;
       case 'lumberMill': return needsMaterials && level(kind) === 0 && stock.lumber < SHIP_RECIPES.explorer.lumber ? 100 : 0;
       case 'ironMine': return needsMaterials && level(kind) === 0 && stock.iron < SHIP_RECIPES.explorer.iron ? 100 : 0;
       case 'shipyard': {
-        const next = level(kind) + 1;
+        const next = yardLevel + 1;
         if (!newShip || next > development) return 0;
         if (next === 1) return supplies('lumberMill', 'lumber') && supplies('ironMine', 'iron') ? 130 : 0;
-        const canMake = (type: ShipType) => stock.lumber >= SHIP_RECIPES[type].lumber && stock.iron >= SHIP_RECIPES[type].iron;
-        const warshipUpgradeCost = BUILDINGS.shipyard.costs.slice(next - 1, SHIP_RECIPES.warship.yardLevel)
-          .reduce((total, cost) => total + cost, 0);
-        if (development === 3 && funding >= warshipUpgradeCost && aiShipChoice(player, canMake) === 'warship') return 175;
         return next === 2 && !player.fleet.some((ship) => ship.type === 'cargo') && canMake('cargo') ? 120 : 0;
       }
       case 'repairYard':
