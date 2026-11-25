@@ -36,7 +36,6 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
   const [fleetOpen, setFleetOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
-  const [strategyHost, setStrategyHost] = useState<HTMLDivElement | null>(null);
   const [chartFocus, setChartFocus] = useState<{ x: number; y: number; bottom: boolean } | null>(null);
   useEffect(() => {
     const update = (focus: typeof chartFocus) => setChartFocus(old => JSON.stringify(old) === JSON.stringify(focus) ? old : focus);
@@ -130,9 +129,8 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
             {landing && <p className="landing-hint">⚓ {t('Choose an action on the card', '请在卡片上选择行动')}</p>}
             {!islandWindow && <section ref={actionSurface} className={landing ? 'landing-placement' : 'turn-action-panel'}>
             {landing && <LandingHeading state={state} />}
-            <ActionPanel state={state} colorBlind={colorBlind} strategyHost={landing ? strategyHost : null} expandStrategies={expandStrategies} />
+            <ActionPanel state={state} colorBlind={colorBlind} expandStrategies={expandStrategies} />
             </section>}
-            <div ref={setStrategyHost} className="strategy-host" />
             {!tutorialOpen && <TurnCoach state={state} atHelm={atHelm} target={chartFocus} />}
             <div className={`secondary-hud ${menuOpen ? 'is-open' : ''}`}>
             {menuOpen && <button className="menu-scrim" aria-label={t('Close menu', '关闭菜单')} onClick={() => setMenuOpen(false)} />}
