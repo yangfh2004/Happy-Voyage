@@ -154,7 +154,7 @@ describe('Colony ship trading and free Skeleton Island visits', () => {
   it('keeps the last sailing ship when selling at a colony, avoiding fleet-loss defeat', () => {
     const engine = colony();
     const player = engine.currentPlayer;
-    expect(player.fleet).toHaveLength(5);
+    expect(player.fleet).toHaveLength(8);
     for (const ship of [...player.fleet].slice(1)) engine.sellShip(ship.id);
     expect(player.fleet).toHaveLength(1);
     const before = structuredClone(engine.state);

@@ -10,7 +10,7 @@ import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { HERMITS, NIM_MAX_TAKE, hermitStoneTake, type HermitId, type MistResult } from './mist';
 import { CAPTAINS, MAX_CAPTAINS, recruitOffers, aiRecruitChoice } from './captains';
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyProduction, colonyCanRepair } from './buildings';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyIncome, colonyProduction, colonyCanRepair } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
 import { seaEventTx } from './seaEvents';
@@ -33,7 +33,7 @@ import type { VictoryKind, BattleReport, ColonyStockpile, GameConfig, GameEvent,
 export const DEFAULT_CONFIG: GameConfig = {
   battleMode: 'realtime',
   startingStrategies: 3,
-  startingGold: 1400,
+  startingGold: 3200,
   homeSalary: 400,
   ...GAME_MODES[0].config,
 };
@@ -1519,6 +1519,7 @@ export class GameEngine extends GameView {
     let next = this.nextActivePlayer(lastPosition + 1);
     while (next === undefined) {
       this.produceColonyGoods();
+      this.payColonyIncome();
       advanceMarket(this.state.market);
       this.state.round += 1;
       this.moveRoamers();
@@ -1554,6 +1555,17 @@ export class GameEngine extends GameView {
         ship.durability = ship.maxDurability;
       }
       if (repaired > 0) this.log(tx("{p}'s colony at {n} restores {r} docked ship durability for free.", '{p} 在{n}的殖民地免费为停靠的船只恢复 {r} 点耐久。', { p: ref.player(this.currentPlayer.id), n: ref.node(node.id), r: repaired }));
+    }
+  }
+
+  private payColonyIncome(): void {
+    for (const player of this.state.players) {
+      if (isEliminated(player)) continue;
+      const income = this.state.owners.reduce<number>((sum, owner, id) =>
+        sum + (owner === player.id ? colonyIncome(this.state, id) : 0), 0);
+      if (income === 0) continue;
+      this.changeGold(player, income, 'colony income');
+      this.log(tx('{p} earns {g}g from colony buildings.', '{p} 从殖民地建筑获得 {g} 金币。', { p: ref.player(player.id), g: income }));
     }
   }
 

@@ -72,7 +72,7 @@ describe('fleet capacity at a colony', () => {
     setLocale(locale);
     try {
       const html = renderToStaticMarkup(<TransferContents state={state} />);
-      expect(html).toContain(locale === 'en' ? 'Fleet 10/10' : '舰队 10/10');
+      expect(html).toContain(locale === 'en' ? 'Fleet 20/20' : '舰队 20/20');
       expect(html).toMatch(locale === 'en' ? /<button disabled="">Board / : /<button disabled="">让/);
       if (locale === 'en') expect(html).not.toMatch(/\p{Script=Han}/u);
       state.phase = 'awaitingBuild';
@@ -283,13 +283,14 @@ describe('build menu', () => {
     state.phase = 'awaitingBuild';
     let html = renderToStaticMarkup(<ActionPanel state={state} />);
     expect(html).toContain('None');
-    expect(html).toContain('Build (100g)');
+    expect(html).toContain('Build (60g)');
     expect(html).toContain('Build a shipyard to launch ships.');
     expect(html).toContain('disabled');
     state.buildings[node.id] = { lumberMill: 2, repairYard: 1 };
     html = renderToStaticMarkup(<ActionPanel state={state} />);
     expect(html).toContain('Medium');
-    expect(html).toContain('Upgrade (300g)');
+    expect(html).toContain('Upgrade (180g)');
+    expect(html).toContain('Building income: 65g per round');
     expect(html).toContain('Max level');
     expect(html).toContain('Done');
     expect(html).toContain('Ships &amp; cargo transfer');
@@ -376,7 +377,7 @@ describe('build menu', () => {
     expect(html).toContain(`Rival&#x27;s colony at ${island.name}`);
     expect(html).toContain(`Pay ${island.toll}g toll`);
     expect(html).toContain(`${island.toll! * 2}g double toll`);
-    expect(html).toContain('Defenders: 5 ships');
+    expect(html).toContain('Defenders: 8 ships');
     expect(html).toContain('Fight <kbd>F</kbd>');
   });
 });

@@ -108,6 +108,7 @@ describe('AI rival difficulty', () => {
   it('develops a supply chain, launches a legal ship and loads its local specialty', () => {
     const { engine, state, player, node } = at('island');
     player.fleet = player.fleet.slice(0, 3);
+    state.marketStock = [];
     engine.decideForAI();
     expect(state.buildings[node.id]).toMatchObject({ lumberMill: 1, ironMine: 1, shipyard: 1 });
     expect(state.buildings[node.id].collectionField).toBeGreaterThanOrEqual(1);
@@ -161,7 +162,7 @@ describe('AI rival difficulty', () => {
 
   it('Hard navigates to buy a warship while keeping enough gold to settle more islands', () => {
     const { engine, state, player, node } = at('island');
-    player.fleet.pop();
+    player.fleet.splice(4);
     const market = state.map.find((stop) => stop.special === 'skeleton')!;
     player.strategies = ['navigate'];
     player.gold = 800;
@@ -234,10 +235,11 @@ describe('AI rival difficulty', () => {
     const colony = state.map.find((candidate) => candidate.kind === 'island' && candidate.id !== node.id)!;
     state.owners[colony.id] = player.id;
     while (player.fleet.length < MAX_FLEET_SIZE - openSlots) engine.addShipToFleet(player.id, 'cargo');
-    for (const ship of player.fleet) { ship.firepower = 9; ship.durability = 50; }
+    player.fleet.forEach((ship, i) => { ship.firepower = 9; ship.durability = i < 10 - openSlots ? 50 : 0; });
     const flagship = player.fleet.find((ship) => ship.signature)!;
     flagship.durability = flagship.maxDurability;
     const rival = state.players[1];
+    rival.fleet.splice(5);
     const defectors = rival.fleet.slice(0, 2);
     rival.fleet.forEach((ship, i) => {
       ship.firepower = i < 2 ? 95 : defenderFirepower;

@@ -8,7 +8,7 @@ The [Chinese gameplay document](GAMEPLAY.md) is the single source of truth for t
 
 - **Local match**: There are 2–10 nations, with 4 by default. Up to 6 people (and at least 1, but no more than the total number of seats) can take turns on one device; the computer controls the remaining seats. Players choose distinct nations and start at their respective home ports. Human seats go first in join order, followed by the computer seats in a fixed order. The defaults are Classic conquest, Normal difficulty, and Command for naval battles.
 - **Background music**: With sound enabled, the music starts automatically after the first click, tap, or keypress that the browser accepts for playback. There is no need to toggle sound.
-- **Standard match starting resources**: Each navigator starts as an Ensign with 1,400 gold, 5 ships at full durability (1 Warship, 1 Cargo Ship, and 3 Explorers), and 3 random, distinct Strategy cards. The navigator's signature ship replaces one ship of the same type. All new continents start neutral. Campaigns have their own setup; see Section 9.
+- **Standard match starting resources**: Each navigator starts as an Ensign with 3,200 gold, 8 ships at full durability (4 Warships, 1 Cargo Ship, and 3 Explorers), and 3 random, distinct Strategy cards. The navigator's signature ship replaces one ship of the same type. All new continents start neutral. Campaign starting gold and other settings are listed in Section 9; the starting fleet is the same.
 
 | Mode | Territory victory | Round limit |
 | --- | --- | --- |
@@ -53,11 +53,13 @@ A navigator goes bankrupt only when a deduction takes their gold below zero; exa
 
 | Building | Gold cost by level | Effect |
 | --- | --- | --- |
-| Lumber mill | 100 / 200 / 300 | Produces 1 lumber per level each round |
-| Iron mine | 120 / 240 / 360 | Produces the local base yield (1–3 iron) per level each round |
-| Shipyard | 200 / 400 / 600 | Unlocks local shipbuilding; higher levels unlock more ship types. Repairs docked ships for free starting at level 1 |
-| Repair yard | 150 (level 1 only) | Repairs docked ships for free without a shipyard |
-| Collection field | 80 / 160 / 240 | Produces 1 unit of the local specialty per level each round |
+| Lumber mill | 60 / 120 / 180 | Produces 1 lumber per level each round |
+| Iron mine | 80 / 160 / 240 | Produces the local base yield (1–3 iron) per level each round |
+| Shipyard | 120 / 240 / 360 | Unlocks local shipbuilding; higher levels unlock more ship types. Repairs docked ships for free starting at level 1 |
+| Repair yard | 80 (level 1 only) | Repairs docked ships for free without a shipyard |
+| Collection field | 60 / 120 / 180 | Produces 1 unit of the local specialty per level each round |
+
+**Building income**: At the end of each round, the current owner receives one quarter of the total cost of all completed building levels on that island, rounded down, even if no rival lands or pays a toll. Each level pays back in four rounds as long as you hold the colony. For example, a level-one lumber mill, iron mine, and shipyard cost 260 gold together and pay 65 gold per round. Tolls and material production are separate.
 
 **Dockside repairs**: A colony with either a Shipyard or a Repair yard fully repairs all ships docked there for free at the start of its owner's turn. Ships are not repaired immediately upon landing or docking, and ships still in the sailing fleet are not repaired. Repaired ships can rejoin the fleet on the next visit.
 
@@ -71,7 +73,7 @@ A navigator goes bankrupt only when a deduction takes their gold below zero; exa
 
 Shipbuilding uses only materials from the local stockpile. New ships start at full durability. On each visit to Skeleton Island or one of your colonies, one used ship of each type is available for purchase. Purchased ships come with 60% of max durability, rounded down. You may sell any ship in your sailing fleet with an empty hold as long as at least one ship remains. Its sale price is 50% of the used purchase price for that type, multiplied by its current fraction of max durability and rounded down. Selling does not replenish stock for that visit.
 
-Each navigator's sailing fleet holds at most **10 ships**. Newly acquired or returning ships fill open fleet slots first. Excess ships keep their durability and cargo and are left at the docks in your current colony; if you are not at one of your colonies, they go to your first colony in chart order. Docks do not require a Shipyard and do not count toward the fleet limit. If you own no colonies, excess ships are held until you acquire one, then sent to its docks. Use **Ships & cargo transfer** at your colony to retrieve ships. If the fleet is full, dock a ship from the fleet first.
+Each navigator's sailing fleet holds at most **20 ships**. Newly acquired or returning ships fill open fleet slots first. Excess ships keep their durability and cargo and are left at the docks in your current colony; if you are not at one of your colonies, they go to your first colony in chart order. Docks do not require a Shipyard and do not count toward the fleet limit. If you own no colonies, excess ships are held until you acquire one, then sent to its docks. Use **Ships & cargo transfer** at your colony to retrieve ships. If the fleet is full, dock a ship from the fleet first.
 
 | Nation / Navigator | Flagship | Bonuses over the base ship type |
 | --- | --- | --- |
@@ -122,7 +124,7 @@ Each time you pass through or land at your home port along the sailing route, co
 | Commander | 700 | 250 | 40% | 700 |
 | Captain | 1,000 | 350 | 50% | 1,000 |
 
-Foreign tax is due only when you **land at** a foreign port: 40 gold × (1 − your current tax discount), rounded up. The gold goes to the active navigator who owns the port, or to the Crown if the port has no owner or its owner has been eliminated. If you are short on cash, ships are seized to cover the tax in order of lowest used sale price first, with ties going to the lowest ship ID. Seized ships fill open slots in the host's sailing fleet (up to 10 ships), with excess ships going to their colony docks as described in Section 3. If there is no host, the Crown takes the ships. No change is given. You go bankrupt if you still owe tax after the seizures or have no ships left.
+Foreign tax is due only when you **land at** a foreign port: 40 gold × (1 − your current tax discount), rounded up. The gold goes to the active navigator who owns the port, or to the Crown if the port has no owner or its owner has been eliminated. If you are short on cash, ships are seized to cover the tax in order of lowest used sale price first, with ties going to the lowest ship ID. Seized ships fill open slots in the host's sailing fleet (up to 20 ships), with excess ships going to their colony docks as described in Section 3. If there is no host, the Crown takes the ships. No change is given. You go bankrupt if you still owe tax after the seizures or have no ships left.
 
 ## 5. Naval battles
 
@@ -227,6 +229,6 @@ The three stages are independent and can be played in any order. Each is a local
 
 ## 10. Computer opponents and online rooms
 
-- **Computer opponents**: Easy, Normal, and Hard change decisions only, not starting resources, compass odds, or ship stats. The computer follows the same rules for claiming land, paying tolls, fighting, building, trading, repairing, and using Strategy cards. When transferring ships at a colony that can repair them, it leaves damaged docked ships there until they are fixed. Easy opponents tend to hoard cash and build less. Normal opponents weigh the returns from trade, tolls, and construction. Hard opponents also use the compass distribution to estimate the next move, choose safer opportunities to attack, and prioritize replenishing their fleets. The computer buys at most 3 numbers on Treasure Island and will not let its gold fall below 600 by buying them. Hard opponents choose the Brook Hermit on Mist Island and calculate how many tokens to take.
+- **Computer opponents**: Easy, Normal, and Hard change decisions only, not starting resources, compass odds, or ship stats. The computer follows the same rules for claiming land, paying tolls, fighting, building, trading, repairing, and using Strategy cards. When transferring ships at a colony that can repair them, it leaves damaged docked ships there until they are fixed. All difficulties invest when they claim or visit their own colonies: with enough rounds left to recover the cost, they build lumber mills, iron mines, and collection fields where there is a local specialty, while keeping cash in reserve. Easy opponents tend to save cash and upgrade less. Normal opponents weigh the returns from trade, tolls, and construction. Hard opponents also use the compass distribution to estimate the next move, choose safer opportunities to attack, and prioritize replenishing their fleets. The computer buys at most 3 numbers on Treasure Island and will not let its gold fall below 600 by buying them. Hard opponents choose the Brook Hermit on Mist Island and calculate how many tokens to take.
 - **Online rooms**: Choose **Host online room**, set the standard match mode and computer difficulty, and send the invite link to the other players. Each room supports 2–6 humans, with distinct nations; the computer fills the remaining nations to make 10 seats. The host can start when at least two humans are present and all humans are online. No one can join after the match starts. Naval battles always auto-resolve, and campaigns are unavailable.
 - **Disconnects and whose turn it is**: Refreshing or reopening the invite in the same tab reconnects you using the seat token stored in that tab. Before a match starts, a disconnected seat is freed after about 30 seconds; leaving voluntarily frees it immediately. If the host leaves, the first remaining seat becomes host. During a match, disconnected players keep their seats. The match only stalls when one of them needs to act; the computer does not take over. Movement and lottery countdowns already in progress can still resolve. A match is cleared after all humans have been offline for about an hour. Rooms exist only in server memory and do not survive a restart.

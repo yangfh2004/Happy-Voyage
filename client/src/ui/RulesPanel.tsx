@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useT } from '../i18n';
 import { tx } from '@happy-voyage/shared';
-import { COLONY_RETURN_COOLDOWN, EVENT_GOLD, LOTTERY, MAX_FLEET_SIZE, NIM_MAX_TAKE, SEA_RULES, SEA_HAZARD_DAMAGE, DEFAULT_ISLAND_COUNT, hasRoundLimit, winConditionText, winConditionTx, localize, type CampaignState, type GameConfig } from '@happy-voyage/shared';
+import { COLONY_PAYBACK_ROUNDS, COLONY_RETURN_COOLDOWN, EVENT_GOLD, LOTTERY, MAX_FLEET_SIZE, NIM_MAX_TAKE, SEA_RULES, SEA_HAZARD_DAMAGE, DEFAULT_ISLAND_COUNT, hasRoundLimit, winConditionText, winConditionTx, localize, type CampaignState, type GameConfig } from '@happy-voyage/shared';
 
 const TURN_ORDER = tx('Navigators take turns in seat order, skipping eliminated players.', '航海家按座位顺序轮流行动，跳过已失败的玩家。');
 
@@ -34,6 +34,7 @@ export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaig
           <dt><span className="rule-icon treasure">≈</span> Trade Winds</dt><dd>Earn +{EVENT_GOLD.tradeWind.base}g plus {EVENT_GOLD.tradeWind.perColony}g per colony you own.</dd>
         </dl>
         <p><strong>Colony development:</strong> As soon as you claim or capture a colony, you can build and use Ships & cargo transfer to leave ships behind to defend it, just as on a return visit. Choose Done when ready to leave.</p>
+        <p>Buildings pay their owner gold at the end of each round, even without tolls. Each building level recovers its cost in {COLONY_PAYBACK_ROUNDS} rounds if you hold the colony.</p>
         <p><strong>Shipyards:</strong> Build a lumber mill, iron mine, and shipyard at your colony. Each round, the mill and mine add materials to the colony's stockpile. Spend those materials at the yard to build a new ship; upgrade the yard to unlock bigger ships.</p>
         <p><strong>Fleet limit:</strong> At most {MAX_FLEET_SIZE} ships can sail with each navigator. Extra ships go to the dock at your current colony or the first colony you own in chart order, even without a shipyard building. If you own none, they’re held in reserve until you gain one. Use Ships &amp; cargo transfer at the colony to board them; dock a sailing ship first if your fleet is full.</p>
         <p><strong>Return to a colony:</strong> At the start of your turn, you can sail directly to one of your other colonies instead of spinning. You can do this once every {COLONY_RETURN_COOLDOWN} rounds, even before the colony has a shipyard.</p>
@@ -68,6 +69,7 @@ function RulesZh({ config, islandCount, campaign }: { config: GameConfig; island
       <dt><span className="rule-icon treasure">≈</span> 信风</dt><dd>获得 +{EVENT_GOLD.tradeWind.base} 金币，每拥有一块殖民地再加 {EVENT_GOLD.tradeWind.perColony} 金币。</dd>
     </dl>
     <p><strong>殖民地建设：</strong>占领或夺取殖民地后立即进入建设界面，与再次停靠己方殖民地一样，可建造或用“船只与资源调度”留下船只防守。准备好后选择“完成”离开。</p>
+    <p>每轮结束时，建筑会为岛主带来金币，不需要收取过路费。只要继续持有殖民地，每级建筑 {COLONY_PAYBACK_ROUNDS} 轮即可回本。</p>
     <p><strong>造船厂：</strong>在己方殖民地可以建造木材厂、铁矿厂和造船厂。每回合木材厂和铁矿厂会向殖民地仓库补充材料。在造船厂消耗这些材料即可造船；升级造船厂可解锁更大的船。</p>
     <p><strong>舰队上限：</strong>每位航海家的航行舰队最多 {MAX_FLEET_SIZE} 艘船。多出的船留在当地的己方殖民地船坞，或送往海图顺序中的第一座己方殖民地，无需建造船厂。没有殖民地时暂存，获得殖民地后再送往船坞。到当地用“船只与资源调度”取回；舰队已满时，先停靠一艘随行船只。</p>
     <p><strong>返回殖民地：</strong>回合开始时，你可以直接航行到自己所在位置以外的任意一座己方殖民地，不必转动罗盘。即使目的地尚未建造船厂，也可以每 {COLONY_RETURN_COOLDOWN} 回合使用一次。</p>
