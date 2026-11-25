@@ -80,6 +80,7 @@ interface Mixer {
   ctx: AudioContext;
   master: GainNode;
   buses: Record<SoundChannel, GainNode>;
+  primed: boolean;
 }
 let mixer: Mixer | null = null;
 let wanted = false;
@@ -103,14 +104,26 @@ function applyMix(): void {
     // Let the fade finish before freezing the clock.
     setTimeout(() => { if (settings.muted && ctx.state === 'running') void ctx.suspend(); }, 150);
   } else {
-    if (ctx.state === 'suspended') void ctx.resume();
-    if (wanted) startMusic(mixer);
+    if (wanted) startSoundtrack();
+    else resume(ctx);
   }
+}
+
+function resume(ctx: AudioContext): void {
+  if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+    void ctx.resume().catch(() => {});
+  }
+}
+
+export function resumeSoundtrack(): void {
+  if (mixer && !settings.muted) resume(mixer.ctx);
 }
 
 function mix(): Mixer | null {
   if (settings.muted || typeof AudioContext === 'undefined') return null;
   if (!mixer) {
+    const audioSession = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (audioSession) audioSession.type = 'playback';
     const ctx = new AudioContext();
     const master = ctx.createGain();
     const compressor = ctx.createDynamicsCompressor();
@@ -121,9 +134,9 @@ function mix(): Mixer | null {
       gain.connect(master);
       return gain;
     };
-    mixer = { ctx, master, buses: { music: bus(settings.music), waves: bus(settings.waves), effects: bus(settings.effects) } };
+    mixer = { ctx, master, buses: { music: bus(settings.music), waves: bus(settings.waves), effects: bus(settings.effects) }, primed: false };
   }
-  if (mixer.ctx.state === 'suspended') void mixer.ctx.resume();
+  resume(mixer.ctx);
   return mixer;
 }
 
@@ -131,17 +144,28 @@ function mix(): Mixer | null {
 export function startSoundtrack(): void {
   wanted = true;
   const m = mix();
-  if (m) startMusic(m);
+  if (!m) return;
+  const { ctx } = m;
+  if (!m.primed || ctx.state === 'suspended' || ctx.state === 'interrupted') {
+    const silence = ctx.createBufferSource();
+    silence.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    silence.connect(ctx.destination);
+    silence.onended = () => silence.disconnect();
+    silence.start();
+    m.primed = true;
+  }
+  startMusic(m);
 }
 
 export function listenForSoundtrackStart(target: EventTarget, start: () => void): () => void {
-  const events = ['pointerdown', 'pointerup', 'keydown'];
-  const options = { capture: true };
+  const events = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+  const options = { capture: true, passive: true };
   const onInput = (event: Event) => {
-    const isMouse = (event as PointerEvent).pointerType === 'mouse';
-    // Touch and pen grant browser activation on release, not press.
-    if ((event.type === 'pointerdown' && !isMouse) || (event.type === 'pointerup' && isMouse)) return;
-    if (navigator.userActivation?.isActive === false) return;
+    const { pointerType } = event as PointerEvent;
+    // iOS WebKit may require touchend or click even when a touch pointerup reports activation.
+    if ((event.type === 'pointerdown' && pointerType !== 'mouse') ||
+        (event.type === 'pointerup' && pointerType !== 'pen')) return;
+    if (event.type !== 'touchend' && event.type !== 'click' && navigator.userActivation?.isActive === false) return;
     start();
   };
   for (const event of events) target.addEventListener(event, onInput, options);

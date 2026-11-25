@@ -11,6 +11,7 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
     width: parent.clientWidth,
     height: parent.clientHeight,
     backgroundColor: '#0b4f7c',
+    audio: { noAudio: true },
     scale: { mode: Phaser.Scale.NONE, autoCenter: Phaser.Scale.NO_CENTER },
     scene: [BootScene, OceanScene, BattleScene],
   };
