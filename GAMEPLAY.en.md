@@ -59,7 +59,7 @@ A navigator goes bankrupt only when a deduction takes their gold below zero; exa
 | Repair yard | 150 (level 1 only) | Repairs docked ships for free without a shipyard |
 | Collection field | 80 / 160 / 240 | Produces 1 unit of the local specialty per level each round |
 
-**Dockside repairs**: A colony with either a Shipyard or a Repair yard fully repairs all ships docked there for free at the start of its owner's turn. Ships are not repaired immediately upon landing or docking, and ships still in the sailing fleet are not repaired. Repaired ships can rejoin the fleet on the next visit.
+**Dockside repairs**: Ships & cargo transfer shows current/max durability for every ship in your sailing fleet and every ship docked at the colony. It also tells you whether the colony offers automatic repairs. A colony with either a Shipyard or a Repair yard fully repairs all ships docked there for free at the start of its owner's turn. Ships are not repaired immediately upon landing or docking, and ships still in the sailing fleet are not repaired. Repaired ships can rejoin the fleet on the next visit.
 
 ### Ships
 
