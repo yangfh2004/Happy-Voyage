@@ -136,6 +136,14 @@ describe('attached ship berths', () => {
     check(map, [{ id: 0, position: 0 }], new Map([[0, { left: node.x - 230, right: node.x + 230, top: node.y - 250, bottom: node.y - 80 }]]));
   });
 
+  it('respects a measured label near a berth even when its stop is far away', () => {
+    const chart = [map[0], { ...map[1], x: map[0].x + 1000, y: map[0].y }];
+    const players = [{ id: 0, position: chart[0].id }];
+    const before = check(chart, players).get(0)!;
+    const bounds = shipBounds(before.x, before.y, before.scale);
+    expect(check(chart, players, new Map([[chart[1].id, bounds]])).get(0)).not.toEqual(before);
+  });
+
   it('places a single ship at the shore of every stop', () => {
     for (const node of map) {
       const berth = check(map, [{ id: 0, position: node.id }]).get(0)!;
