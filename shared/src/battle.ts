@@ -441,9 +441,11 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
       const candidates = targets.filter(e => broadsideBattery(s, e) === battery);
       const target = (order.type === 'attack' ? candidates.find((e) => e.id === order.targetId) : undefined) ?? candidates[0];
       if (!target) continue;
-      const flight = distance(s, target) / CANNONBALL_SPEED;
-      const landingX = target.x + target.vx * flight + (random(battle) - 0.5) * 18;
-      const landingY = target.y + target.vy * flight + (random(battle) - 0.5) * 18;
+      const rangeToTarget = distance(s, target);
+      const flight = rangeToTarget / CANNONBALL_SPEED;
+      const spread = 18 + 88 * Math.max(0, rangeToTarget / stats.range - 0.5);
+      const landingX = target.x + target.vx * flight + (random(battle) - 0.5) * spread;
+      const landingY = target.y + target.vy * flight + (random(battle) - 0.5) * spread;
       battle.cannonballs.push({ side: s.side, shipId: s.id, battery, x: s.x, y: s.y, landingX, landingY,
         remaining: Math.hypot(landingX - s.x, landingY - s.y) / CANNONBALL_SPEED,
         damage: Math.round(s.firepower * (s.side === 'attacker' ? battle.attackerMultiplier : 1) * (0.75 + random(battle) * 0.5)) });

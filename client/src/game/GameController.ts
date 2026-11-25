@@ -361,8 +361,10 @@ export class GameController {
     }
   }
 
-  fight(): void {
-    if (this.isHumanTurn('awaitingToll')) this.perform(['fight'], () => this.engine!.fight());
+  fight(shipIds?: number[]): void {
+    if (!this.isHumanTurn('awaitingToll')) return;
+    if (shipIds) this.perform(['fight', shipIds], () => this.engine!.fight(shipIds));
+    else EventBus.emit('fight-requested');
   }
 
   finishBattle(log: BattleLog): void {

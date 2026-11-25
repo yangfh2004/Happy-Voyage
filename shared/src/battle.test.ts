@@ -118,7 +118,7 @@ describe('real-time battle', () => {
   });
 
   it('hits a stationary hull but a target can dodge after the shot', () => {
-    const stationary = createBattle(setup());
+    const stationary = createBattle({ ...setup(), seed: 42 });
     close(stationary);
     stationary.ships[1].x = stationary.ships[0].x + BATTLE_STATS.warship.range * .9;
     stationary.ships[1].order = { type: 'move', x: stationary.ships[1].x, y: stationary.ships[1].y };
@@ -130,6 +130,19 @@ describe('real-time battle', () => {
     for (let i = 0; i < 20; i++) { stepBattle(stationary); stepBattle(dodging); }
     expect(stationary.ships[1].durability).toBeLessThan(100);
     expect(dodging.ships[1].durability).toBe(100);
+  });
+
+  it('can miss a stationary ship at long range', () => {
+    const battle = createBattle(setup());
+    close(battle);
+    const [attacker, target] = battle.ships;
+    target.x = attacker.x + BATTLE_STATS.warship.range * .9;
+    target.order = { type: 'move', x: target.x, y: target.y };
+    target.firepower = 0;
+    for (let i = 0; i < 20; i++) stepBattle(battle);
+    expect(target.durability).toBe(100);
+    expect(attacker.reload.port).toBeLessThan(BATTLE_STATS.warship.reload);
+    expect(attacker.reload.port).toBeGreaterThan(0);
   });
 
   it('suppresses defense for four seconds and multiplies Inspire damage', () => {

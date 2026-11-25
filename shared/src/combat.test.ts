@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GameEngine } from './engine';
 import { aiShouldFight } from './ai';
 import { colonyToll } from './buildings';
-import { fightNavalBattle } from './combat';
+import { COMBAT, defaultBattleDeployment, fightNavalBattle } from './combat';
 import type { GameEvent, Ship } from './types';
 
 const players = [{ name: 'Owner', color: 0, isAI: true }, { name: 'Raider', color: 1, isAI: true }];
@@ -29,6 +29,44 @@ function siege(attackerHp: number, defenderHp: number, thirdSeat = false) {
 }
 
 describe('naval combat', () => {
+  it('prioritizes afloat warships, excludes cargo by default, and caps the line', () => {
+    const { engine, raider } = siege(100, 100);
+    const added = [engine.addShipToFleet(raider.id, 'warship'), engine.addShipToFleet(raider.id, 'warship')];
+    const destroyed = raider.fleet[0];
+    destroyed.durability = 0;
+    const deployment = defaultBattleDeployment(raider.fleet);
+    expect(deployment).toHaveLength(COMBAT.deploymentLimit);
+    expect(deployment.slice(0, 2)).toEqual(added);
+    expect(deployment.some((ship) => ship.type === 'cargo' || ship === destroyed)).toBe(false);
+    const onlyCargo = raider.fleet.filter((ship) => ship.type === 'cargo');
+    expect(defaultBattleDeployment([...onlyCargo, destroyed])).toEqual(onlyCargo);
+  });
+
+  it('lets a smaller docked garrison repel a larger fleet without touching the reserves', () => {
+    const { engine, state, island, owner, raider } = siege(15, 100);
+    const guards = [owner.fleet.shift()!, engine.addShipToFleet(owner.id, 'warship')];
+    owner.fleet.splice(owner.fleet.indexOf(guards[1]), 1);
+    state.docks[island.id] = guards;
+    for (let i = 0; i < 4; i++) engine.addShipToFleet(raider.id, 'explorer').durability = 15;
+    const deployment = defaultBattleDeployment(raider.fleet);
+    const reserves = raider.fleet.filter((ship) => !deployment.includes(ship));
+    const before = reserves.map((ship) => ship.durability);
+    const report = engine.fight()!;
+    expect(report.outcome).toBe('defeat');
+    expect(report.tollPaid).toBe(colonyToll(state, island.id) * 2);
+    expect(state.owners[island.id]).toBe(owner.id);
+    expect(reserves.map((ship) => ship.durability)).toEqual(before);
+  });
+
+  it('can miss on every shot even when outnumbering the defender', () => {
+    const { raider, owner } = siege(100, 100);
+    const attackers = defaultBattleDeployment(raider.fleet);
+    const defender = owner.fleet[0];
+    expect(fightNavalBattle(attackers, [defender], () => 0.99)).toMatchObject({ outcome: 'draw', rounds: 3 });
+    expect(defender.durability).toBe(100);
+    expect(attackers.every((ship) => ship.durability === 100)).toBe(true);
+  });
+
   it('offers the toll-or-fight choice on a rival colony', () => {
     const { state, events, raider, owner, island, engine } = siege(100, 100);
     expect(state.phase).toBe('awaitingToll');
@@ -44,9 +82,9 @@ describe('naval combat', () => {
     const { engine, state, island, owner, raider, events } = siege(200, 1);
     const report = engine.fight()!;
     expect(report).toMatchObject({ outcome: 'victory', attacker: raider.id, defender: owner.id, nodeId: island.id, rounds: 1, tollPaid: 0 });
-    expect(report.defenderSunk).toHaveLength(3);
+    expect(report.defenderSunk).toHaveLength(2);
     expect(report.attackerSunk).toEqual([]);
-    expect(owner.fleet).toHaveLength(2);
+    expect(owner.fleet).toHaveLength(3);
     expect(owner.fleet.every((s) => s.durability === 1)).toBe(true);
     expect(raider.fleet).toHaveLength(5);
     expect(state.owners[island.id]).toBe(raider.id);
@@ -63,8 +101,8 @@ describe('naval combat', () => {
     const toll = colonyToll(state, island.id) * 2;
     const report = engine.fight()!;
     expect(report).toMatchObject({ outcome: 'defeat', tollPaid: toll });
-    expect(report.attackerSunk).toHaveLength(3);
-    expect(raider.fleet).toHaveLength(2);
+    expect(report.attackerSunk).toHaveLength(2);
+    expect(raider.fleet).toHaveLength(3);
     expect(owner.fleet).toHaveLength(5);
     expect(raider.gold).toBe(1000 - toll);
     expect(owner.gold).toBe(1000 + toll);
@@ -94,8 +132,8 @@ describe('naval combat', () => {
   it('keeps both fleets afloat if both reach the withdrawal cap', () => {
     const { engine, state, owner, raider, events } = siege(1, 1);
     engine.fight();
-    expect(owner.fleet).toHaveLength(2);
-    expect(raider.fleet).toHaveLength(2);
+    expect(owner.fleet).toHaveLength(3);
+    expect(raider.fleet).toHaveLength(3);
     expect(state.battles[0].outcome).toBe('defeat');
     expect(state.winner).toBeNull();
     expect(events.filter((event) => event.type === 'gameOver')).toEqual([]);
