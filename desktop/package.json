@@ -28,6 +28,11 @@
         "from": "../client/dist",
         "to": "game",
         "filter": ["index.html", "assets/**/*"]
+      },
+      {
+        "from": "../client/dist-debug",
+        "to": "debug",
+        "filter": ["debug.html", "assets/**/*"]
       }
     ],
     "win": {

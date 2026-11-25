@@ -24,5 +24,17 @@ test('leaves missing config absent and distinguishes invalid and valid JSON file
     assert.deepEqual(await loadPlayerConfig(path), { invalid: true });
   }
   await writeFile(path, '{"starting":{"gold":9999}}');
-  assert.deepEqual(await loadPlayerConfig(path), { config: { starting: { gold: 9999 } } });
+  assert.deepEqual(await loadPlayerConfig(path), { config: { starting: { gold: 9999 } }, debugEnabled: false });
+});
+
+test('only a JSON boolean true enables desktop debug, separately from gameplay tuning', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'happy-voyage-config-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  t.mock.method(console, 'warn', () => {});
+  const path = join(directory, 'config.json');
+  for (const debug of [true, false, 'true', 1, null]) {
+    await writeFile(path, JSON.stringify({ debug, starting: { gold: 9999 } }));
+    assert.deepEqual(await loadPlayerConfig(path), { config: { starting: { gold: 9999 } }, debugEnabled: debug === true });
+  }
+  assert.equal(console.warn.mock.callCount(), 3);
 });

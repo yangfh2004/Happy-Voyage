@@ -12,7 +12,9 @@ async function loadPlayerConfig(path) {
   try {
     const config = JSON.parse(await readFile(path, 'utf8'));
     if (config === null || typeof config !== 'object' || Array.isArray(config)) return { invalid: true };
-    return { config };
+    const { debug, ...gameplay } = config;
+    if (debug !== undefined && typeof debug !== 'boolean') console.warn('Ignoring config.json debug: expected a boolean');
+    return { config: gameplay, debugEnabled: debug === true };
   } catch (error) {
     return error.code === 'ENOENT' ? {} : { invalid: true };
   }

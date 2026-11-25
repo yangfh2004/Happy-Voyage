@@ -1,4 +1,5 @@
 {
+  "debug": false,
   "ranks": {
     "meritPerColony": 100,
     "meritPerBuildingLevel": 25,

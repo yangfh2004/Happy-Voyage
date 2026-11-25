@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { DEFAULT_GAMEPLAY_TUNING, gameplayTuningFields } from '../shared/src/gameplayTuning.ts';
 
-export const configJSON = () => JSON.stringify(DEFAULT_GAMEPLAY_TUNING, null, 2) + '\n';
+export const configJSON = () => JSON.stringify({ debug: false, ...DEFAULT_GAMEPLAY_TUNING }, null, 2) + '\n';
 
 export function configGuide() {
   const sections = new Map();
@@ -40,6 +40,12 @@ macOS 首次使用自定义配置前，请在 Finder 中将 **App 本身**移出
 ## 字段、默认值与有效范围
 
 路径中的点代表下一级对象。概率和比例用小数，例如 0.25 表示 25%。宝藏和风暴的最低值不得超过最高值。
+
+### 桌面测试
+
+| 字段路径 | 说明 | 默认 | 有效范围 |
+| --- | --- | --- | --- |
+| \`debug\` | 开启桌面版的页面测试功能。改为 \`true\` 并重启后，在主窗口按 **Ctrl+Shift+D**（macOS：**⌘+Shift+D**）打开测试窗口，可选择要测试的场景。省略此字段或设为 \`false\` 时无法打开。 | \`false\` | \`true\` 或 \`false\`，不要加引号 |
 
 ${[...sections].map(([section, rows]) => `### ${section}
 
