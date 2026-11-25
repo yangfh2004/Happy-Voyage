@@ -241,7 +241,7 @@ export function aiBuildingChoice(state: GameState, player: Player): BuildingKind
         const canMake = (type: ShipType) => stock.lumber >= SHIP_RECIPES[type].lumber && stock.iron >= SHIP_RECIPES[type].iron;
         const warshipUpgradeCost = BUILDINGS.shipyard.costs.slice(next - 1, SHIP_RECIPES.warship.yardLevel)
           .reduce((total, cost) => total + cost, 0);
-        if (development === 3 && canMake('warship') && funding >= warshipUpgradeCost) return 175;
+        if (development === 3 && funding >= warshipUpgradeCost && aiShipChoice(player, canMake) === 'warship') return 175;
         return next === 2 && !player.fleet.some((ship) => ship.type === 'cargo') && canMake('cargo') ? 120 : 0;
       }
       case 'repairYard':

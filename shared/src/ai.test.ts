@@ -74,9 +74,9 @@ describe('AI colony decisions', () => {
 });
 
 describe('AI rival difficulty', () => {
-  const at = (place: string, rival: boolean | null = false) => {
+  const at = (place: string, rival: boolean | null = false, rng = () => 0.5) => {
     const roster = createNationRoster([{ name: 'Captain', nation: 'Spain' }], 'hard').slice(0, 2).reverse();
-    const engine = new GameEngine({ players: roster, rng: () => 0.5, config: { battleMode: 'auto' } });
+    const engine = new GameEngine({ players: roster, rng, config: { battleMode: 'auto' } });
     const { state, currentPlayer: player } = engine;
     const node = state.map.find((n) => n.special === place || n.kind === place)!;
     player.position = node.id;
@@ -134,6 +134,22 @@ describe('AI rival difficulty', () => {
     expect(state.buildings[node.id].shipyard).toBe(3);
     expect(player.fleet.at(-1)?.type).toBe('warship');
     expect(player.gold).toBe(650);
+  });
+
+  it('builds missing cargo without buying an unnecessary warship upgrade', () => {
+    let seed = 42;
+    const { engine, state, player, node } = at('island', false, () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32));
+    player.fleet = player.fleet.filter((ship) => ship.type !== 'cargo').slice(0, 3);
+    player.gold = 1_010;
+    state.marketStock = [];
+    state.buildings[node.id] = { shipyard: 2, lumberMill: 1, ironMine: 1, collectionField: 3 };
+    Object.assign(state.stockpiles[node.id], { lumber: 6, iron: 4 });
+
+    engine.decideForAI();
+
+    expect(state.buildings[node.id].shipyard).toBe(2);
+    expect(player.fleet.at(-1)?.type).toBe('cargo');
+    expect(player.gold).toBe(1_010);
   });
 
   it.each(['easy', 'normal', 'hard'] as const)('%s replaces a lost ship with an affordable fallback', (difficulty) => {
