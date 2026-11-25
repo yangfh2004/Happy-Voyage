@@ -162,7 +162,7 @@ Two roaming pirate groups and one roaming Small sea monster move 1–3 spaces ea
 
 Sea monster and turtle damage cannot reduce positive durability below 1. Storms and whirlpools can reduce it to 0 but do not remove ships. Whirlpools and wyverns can change the destination at most 4 times combined per voyage.
 
-- **Sunken treasure**: Find 50, 100, 150, or 200 gold with equal probability. A separate buried hoard lies in a random treasure space; digging it up yields an additional 300 gold. It is then reburied in another treasure space and every player's existing clues are invalidated.
+- **Sunken treasure**: Find 50, 100, 150, or 200 gold with equal probability. A separate buried hoard lies in a random treasure space; digging it up yields an additional 200 gold. It is then reburied in another treasure space and every player's existing clues are invalidated.
 - **Storm**: Each ship loses up to 10 durability, and you lose 50, 75, or 100 gold at random. Demand for lumber and iron increases on Nightless Island.
 - **Trade winds**: Gain 50 gold plus 30 per colony you own. Nightless Island gains 3 units of stock for every good.
 
@@ -197,25 +197,25 @@ You can hold at most 5 cards. If your hand is full, discard any new card immedia
 | Strategy | When to play | Effect |
 | --- | --- | --- |
 | Navigate | Before spinning | Go directly to any space on the chart without spinning the compass. |
-| Inspire | Before spinning / during negotiations | Boost your side's attacking firepower by 50% this turn, including against pirates. The bonus expires as soon as a real-time pirate battle ends. |
-| Mislead | Before spinning / during negotiations | Remove a random ship from the rival's fleet, or remove the first defending ship if played during negotiations. It cannot remove the last ship in a rival's sailing fleet; this restriction does not apply to docked defenders. |
+| Inspire | Before spinning / during negotiations | Boost your side's attacking firepower by 25% this turn, including against pirates. The bonus expires as soon as a real-time pirate battle ends. |
+| Mislead | Before spinning / during negotiations | Deal up to 40 durability damage to a random ship in the rival's sailing fleet, or to the lead defender if played during negotiations. Positive durability cannot drop below 1. |
 | Locate | Before spinning | Reveal the location of the buried hoard until it is dug up. |
-| Betray | Before spinning / during negotiations | Ships from a rival fleet or defending force defect to your side, subject to Section 3's fleet limit. Take one third of their ships, rounded up, to a maximum of 3, prioritizing the highest firepower. At least one ship must remain in a rival's sailing fleet. |
+| Betray | Before spinning / during negotiations | The lowest-firepower ship from a rival fleet or defending force defects to your side, subject to Section 3's fleet limit. At least one ship must remain in a rival's sailing fleet. |
 | Tailwind | Before spinning | Double the compass result. |
 | Reverse Course | Before spinning | Keep the compass result, but sail backward along the main route. |
 | Blockade | Before spinning | A chosen rival skips their next turn. |
-| Plunder | Before spinning | Take 15% of a rival's gold, rounded down and capped at 300. |
-| Call the Gale | Before spinning | Each ship in a rival's sailing fleet loses up to 30 durability, but positive durability cannot drop below 1. |
+| Plunder | Before spinning | Take 10% of a rival's gold, rounded down and capped at 150. |
+| Call the Gale | Before spinning | Each ship in a rival's sailing fleet loses up to 15 durability, but positive durability cannot drop below 1. |
 | Escort | Before spinning | Block your next harmful sea encounter. Protection persists across turns until used. |
 | Toll Exemption | During negotiations | Waive this colony toll and end your turn. Does not waive foreign tax. |
-| Surprise Attack | During negotiations | In an auto-resolved colony battle, the defenders do not fire back in the first round. In a real-time battle, the defenders cannot fire for the first 8 seconds. |
-| Incite Revolt | Before spinning | Return a rival colony with no docked ships to neutral, clearing its buildings and stockpile. |
+| Surprise Attack | During negotiations | In an auto-resolved colony battle, defenders deal half firepower in the first round. In a real-time battle, defenders cannot fire for the first 4 seconds. |
+| Incite Revolt | Before spinning | Return an undeveloped rival colony (no docked ships and no buildings) to neutral, clearing its stockpile. |
 | Harvest | Before spinning | All your colonies immediately produce an extra round of goods. |
-| Trade Charter | Before spinning | Gain 60 gold per colony you own, up to 600 total. |
-| Emergency Repairs | Before spinning | Fully repair the sailing fleet for free. |
+| Trade Charter | Before spinning | Gain 40 gold per colony you own, up to 300 total. |
+| Emergency Repairs | Before spinning | Restore up to 30 durability to each ship in the sailing fleet for free (up to max durability). |
 | Recall | Before spinning | Go directly to your home port for a royal audience without collecting salary en route. |
 | Exchange Positions | Before spinning | Swap fleet positions with a chosen rival without resolving either landing. You still have to spin the compass. |
-| Burn Stores | Before spinning | Clear a chosen rival colony's stockpile without destroying buildings or ships. |
+| Burn Stores | Before spinning | Destroy half of a chosen rival colony's stockpile (rounded up per resource) without destroying buildings or ships. |
 
 ## 9. King's Campaign
 

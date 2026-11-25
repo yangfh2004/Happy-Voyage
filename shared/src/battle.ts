@@ -1,4 +1,5 @@
 import type { AIDifficulty, BattleOutcome, Ship, ShipType } from './types';
+import { STRATEGY_RULES } from './strategies';
 import { isRetreatThreshold, sinkingCap, withdrawalReason, type BattleWithdrawal, type RetreatThreshold } from './withdrawal';
 
 export const TICK = 1 / 20;
@@ -430,7 +431,7 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
   }
   separate(battle.ships.filter(active), 0, battle.retreating);
   for (const s of battle.ships.filter(active)) {
-    if (s.side === 'defender' && battle.ambush && battle.tick < 8 / TICK) continue;
+    if (s.side === 'defender' && battle.ambush && battle.tick < STRATEGY_RULES.ambushSeconds / TICK) continue;
     const stats = BATTLE_STATS[s.type];
     const targets = battle.ships.filter((e) => e.side !== s.side && active(e) && distance(s, e) <= stats.range && inBroadsideArc(s, e))
       .sort((a, b) => distance(s, a) - distance(s, b) || a.id - b.id);
