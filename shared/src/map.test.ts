@@ -65,6 +65,22 @@ describe('organic archipelagos', () => {
       }
     }
   });
+  it('preserves the wind choices of all nine forks after redistributing blank squares', () => {
+    const shortcutWinds = new Map([
+      ['Canary Isles', ['E', 'S']], ['Tempest Passage', ['E', 'S']],
+      ['Pernambuco', ['E', 'S']], ['China Port', ['E', 'S']],
+      ['Benin', ['S', 'W']], ['Madagascar', ['N', 'W']],
+      ['Goa', ['E']], ['Ocean Crossing', ['N']], ['Ryukyu', ['N']],
+    ]);
+    const chosenWinds = new Map(map.filter(node => successors(map, node.id).length > 1).map(node => [
+      node.name, WIND_DIRECTIONS.filter(wind => windExit(map, node.id, wind) === successors(map, node.id)[1]),
+    ]));
+    expect(chosenWinds).toEqual(shortcutWinds);
+    const goa = map.find(node => node.name === 'Goa')!;
+    const [blank, calicut] = walkPath(map, goa.id, 2, 'N').map(id => map[id]);
+    expect(blank.kind).toBe('sea');
+    expect(calicut.name).toBe('Calicut');
+  });
   it('keeps main-route step lengths comparable across short and long crossings', () => {
     for (const node of map) {
       const next = map[successors(map, node.id)[0]];

@@ -8,6 +8,18 @@ export function successors(map: MapNode[], id: number): number[] {
   return map[id].next ?? [(id + 1) % map.length];
 }
 
+function mainRouteAnchor(map: MapNode[], from: number, first: MapNode): MapNode {
+  let target = first;
+  for (let remaining = map.length; target.kind === 'sea' && remaining > 0; remaining--) {
+    const exits = successors(map, target.id);
+    if (exits.length !== 1) return target;
+    const next = map[exits[0]];
+    if (!next || next.id === from) return first;
+    target = next;
+  }
+  return target.kind === 'sea' ? first : target;
+}
+
 export function windExit(map: MapNode[], id: number, wind: WindDirection): number {
   const exits = successors(map, id);
   if (!exits.length) throw new Error(`No exits at map node: ${id}`);
@@ -18,7 +30,8 @@ export function windExit(map: MapNode[], id: number, wind: WindDirection): numbe
   for (const exit of exits) {
     const target = map[exit];
     if (!target) throw new Error(`Unknown map node: ${exit}`);
-    const dot = (target.x - node.x) * wx + (target.y - node.y) * wy;
+    const anchor = exits.length > 1 && exit === exits[0] ? mainRouteAnchor(map, id, target) : target;
+    const dot = (anchor.x - node.x) * wx + (anchor.y - node.y) * wy;
     if (dot > alignment) { best = exit; alignment = dot; }
   }
   return best;
