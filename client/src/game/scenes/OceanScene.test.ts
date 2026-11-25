@@ -9,7 +9,7 @@ import { OceanScene } from './OceanScene';
 import { EventBus } from '../EventBus';
 import { gameController } from '../GameController';
 import { routeEdge } from '../routeEdge';
-import { createDefaultMap, createNationRoster, GameEngine, WORLD, type GameEvent, type GameState, type MapNode, type WindDirection } from '@happy-voyage/shared';
+import { createDefaultMap, createNationRoster, GameEngine, resolveGameplayTuning, selectGameplayTuning, WORLD, type GameEvent, type GameState, type MapNode, type WindDirection } from '@happy-voyage/shared';
 import { setLocale } from '../../i18n';
 import { playLanding, reducedLandingMotion } from '../landingEffects';
 import { shipBounds, type MooredBerth } from '../shipBerths';
@@ -58,7 +58,23 @@ beforeEach(() => {
   }) as unknown as SceneHarness;
 });
 
-afterEach(() => setLocale('en'));
+afterEach(() => {
+  setLocale('en');
+  selectGameplayTuning();
+});
+
+it('positions fleet tokens on the match chart even when the sea stops shift node IDs', () => {
+  const defaultMap = createDefaultMap();
+  selectGameplayTuning(resolveGameplayTuning({ map: { seaStopsBetweenSectors: { Spain: 6 } } }).rules);
+  const { state } = new GameEngine({ players: createNationRoster([{ name: 'Captain', nation: 'Netherlands' }]) });
+  selectGameplayTuning();
+  Object.assign(gameController, { state });
+  const ocean = new OceanScene() as unknown as SceneHarness;
+  const stop = state.map[state.players[0].position];
+  expect(defaultMap[stop.id].name).not.toBe(stop.name);
+  const [x, y] = ocean.tokenPosition(0, stop.id);
+  expect(Math.hypot(x - stop.x, y - stop.y)).toBeLessThan(15);
+});
 
 describe('map label language and themed stop hover', () => {
   it('draws distinct localized roaming tokens, moves them with state, and clears stale tokens', () => {

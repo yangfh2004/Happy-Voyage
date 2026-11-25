@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { DEFAULT_CONFIG, playerName } from '@happy-voyage/shared';
 import { PhaserGame } from './game/PhaserGame';
 import { Atmosphere } from './ui/Atmosphere';
@@ -102,6 +102,8 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
       state.phase === 'awaitingRecruit' || state.phase === 'awaitingLottery' || state.phase === 'awaitingBarter' || state.phase === 'awaitingCargoMarket' || state.phase === 'awaitingToll' ||
       state.phase === 'awaitingMerchant' || state.phase === 'awaitingWyvern' || state.phase === 'awaitingRevival');
   const prompt = state && (needsInput || landing) ? `${state.round}:${state.currentPlayer}:${state.phase}` : null;
+  const map = state?.map;
+  const chartKey = useMemo(() => map ? JSON.stringify(map) : 'default-chart', [map]);
   useLayoutEffect(() => {
     if (prompt && overlay.current) overlay.current.scrollTop = 0;
     if (prompt && actionSurface.current) actionSurface.current.scrollTop = 0;
@@ -113,7 +115,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
     <div className={`app ${state ? 'playing' : ''} ${state?.phase === 'awaitingBattle' ? 'battling' : ''}`}>
       {state && <VoyageTopBar state={state} colorBlind={colorBlind} menuOpen={menuOpen} onMenu={() => setMenuOpen(!menuOpen)} />}
       <div className="sea-map">
-        <PhaserGame />
+        <PhaserGame key={chartKey} />
         <Atmosphere state={state} />
         {state && <div className="board-notices">
           <TurnIndicator state={state} notice={gameController.turnNotice} action={gameController.turnAction} />
