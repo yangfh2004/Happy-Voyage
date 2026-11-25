@@ -70,7 +70,7 @@ const schema = {
     Fast: { ai: int(250, 0, 5000, '快速下电脑行动等待（毫秒）'), step: int(70, 0, 5000, '快速下逐格航行时间（毫秒）'), spin: int(500, 0, 5000, '快速下罗盘动画时间（毫秒）') },
   },
   ships: {
-    maxFleetSize: int(20, 1, 40, '每位航海家的舰队上限（艘）'),
+    maxFleetSize: int(20, 2, 40, '每位航海家的舰队上限（艘）；至少留出两艘船的容量，才可更换唯一的随行船'),
     usedCondition: ratio(0.6, 0.05, 1, '中古船初始耐久比例'),
     saleMultiplier: ratio(0.5, 0, 1, '中古船卖价折扣，另乘当前耐久比例'),
     warship: { durability: positive(120, '战舰最大耐久'), firepower: positive(30, '战舰火力'), cargo: positive(25, '战舰货舱（单位）'), speed: positive(4, '战舰航速'), crew: positive(60, '战舰船员容量（人）'), usedPrice: gold(450, '中古战舰价格'), yardLevel: int(3, 1, 3, '建造战舰所需船厂等级'), lumber: positive(6, '建造战舰所需木材（单位）'), iron: positive(4, '建造战舰所需铁矿（单位）') },

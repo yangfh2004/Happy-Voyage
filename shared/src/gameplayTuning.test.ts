@@ -47,4 +47,13 @@ describe('desktop gameplay tuning', () => {
     expect(rules).toEqual(DEFAULT_GAMEPLAY_TUNING);
     expect(gameplayTuningFields().length).toBeGreaterThan(100);
   });
+
+  it('rejects a one-ship capacity even if the starting fleet fits', () => {
+    const starting = { fleet: ['warship'] };
+    const rejected = resolveGameplayTuning({ starting, ships: { maxFleetSize: 1 } });
+    expect(rejected.warnings).toEqual(['ships.maxFleetSize']);
+    expect(rejected.rules.ships.maxFleetSize).toBe(DEFAULT_GAMEPLAY_TUNING.ships.maxFleetSize);
+    expect(rejected.rules.starting.fleet).toEqual(starting.fleet);
+    expect(resolveGameplayTuning({ starting, ships: { maxFleetSize: 2 } }).warnings).toEqual([]);
+  });
 });
