@@ -72,14 +72,14 @@ describe('strategy cards', () => {
     expect(g.state.players.every((p) => p.knownHoard === null)).toBe(true);
     expect(g.state.hoardNode).not.toBe(node);
   });
-  it.each(['mislead', 'betray'] as const)('%s removes one defender and protects the last fleet ship', (id) => {
+  it.each(['mislead', 'betray'] as const)('%s removes defenders and protects the last fleet ship', (id) => {
     const g = game();
     const node = rival(g);
     g.currentPlayer.strategies = [id];
     const fleet = g.state.players[1].fleet;
     const ship = id === 'betray' ? [...fleet].sort((a, b) => b.firepower - a.firepower)[0] : fleet[0];
     g.useStrategy(id);
-    expect(fleet).toHaveLength(id === 'betray' ? 3 : 4);
+    expect(fleet).toHaveLength(id === 'betray' ? 5 : 7);
     expect(g.currentPlayer.fleet.includes(ship)).toBe(id === 'betray');
     expect(g.state.phase).toBe('awaitingToll');
     g.state.strategyUsed = false;

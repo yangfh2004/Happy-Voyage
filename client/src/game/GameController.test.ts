@@ -229,13 +229,13 @@ it('launches a ship during a human colony visit and announces its arrival', () =
   state.buildings[2].shipyard = 1;
   state.stockpiles[2] = { lumber: 2, iron: 1, specialties: {} };
   controller.buildShip('explorer');
-  expect(state.players[0].fleet).toHaveLength(5);
+  expect(state.players[0].fleet).toHaveLength(8);
 
   landHuman();
   expect(controller.canBuildShip('explorer')).toBe(true);
   controller.buildShip('explorer');
   controller.buildShip('explorer');
-  expect(state.players[0].fleet).toHaveLength(6);
+  expect(state.players[0].fleet).toHaveLength(9);
   expect(state.players[0].fleet.at(-1)?.type).toBe('explorer');
   expect(controller.headline?.text).toBe(`${state.players[0].fleet.at(-1)?.name} joined your fleet.`);
   expect(controller.canBuildShip('explorer')).toBe(false);
