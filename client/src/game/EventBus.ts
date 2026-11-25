@@ -13,5 +13,6 @@ import Phaser from 'phaser';
  *   'navigate-preview'       ({ playerId, nodeId } | null) preview the focused Navigate selector
  *   'chart-focus'            ({ x, y, bottom } | null) viewport position of target or landed stop
  *   'engine-event'           (GameEvent)              every engine event, for board effects
+ *   'fight-requested'       ()                       submit the current battle selection
  */
 export const EventBus = new Phaser.Events.EventEmitter();

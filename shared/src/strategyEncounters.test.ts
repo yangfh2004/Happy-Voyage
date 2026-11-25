@@ -20,6 +20,7 @@ describe('strategies during random encounters', () => {
     const fight = (inspired: boolean) => {
       const { g, p, events, sail, roll } = voyage();
       p.fleet.splice(3);
+      p.fleet[1].type = 'explorer';
       for (const ship of p.fleet) { ship.firepower = 10; ship.durability = 10000; }
       p.strategies = ['inspire'];
       if (inspired) g.useStrategy('inspire');

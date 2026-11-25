@@ -223,10 +223,10 @@ describe('AI rival difficulty', () => {
   });
 
   it.each([
-    [0, 85, 'ambush'],
-    [1, 85, 'ambush'],
-    [0, 75, 'betray'],
-    [1, 75, 'betray'],
+    [0, 35, 'ambush'],
+    [1, 35, 'ambush'],
+    [0, 30, 'betray'],
+    [1, 30, 'betray'],
   ] as const)('with %s fleet slots and defender firepower %s, chooses %s', (openSlots, defenderFirepower, card) => {
     const { engine, state, player, node } = at('island', true);
     player.aiDifficulty = 'normal';
@@ -234,9 +234,11 @@ describe('AI rival difficulty', () => {
     const colony = state.map.find((candidate) => candidate.kind === 'island' && candidate.id !== node.id)!;
     state.owners[colony.id] = player.id;
     while (player.fleet.length < MAX_FLEET_SIZE - openSlots) engine.addShipToFleet(player.id, 'cargo');
-    for (const ship of player.fleet) { ship.firepower = 9; ship.durability = 50; }
+    for (const ship of player.fleet) { ship.firepower = 14; ship.durability = 50; }
     const flagship = player.fleet.find((ship) => ship.signature)!;
     flagship.durability = flagship.maxDurability;
+    const warship = player.fleet.find((ship) => ship.type === 'warship')!;
+    warship.durability = warship.maxDurability;
     const rival = state.players[1];
     const defectors = rival.fleet.slice(0, 2);
     rival.fleet.forEach((ship, i) => {

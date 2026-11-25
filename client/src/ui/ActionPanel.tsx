@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TransferPanel } from './TransferPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
-import { CAMPAIGN_STAGES, SPIN_COMPASS_LABEL, buildingDescription, buildingName, campaignStage, chartIdentity, goodName, nationName, nodeName, playerName, shipTypeName, stageText, strategyText } from '@happy-voyage/shared';
+import { CAMPAIGN_STAGES, SPIN_COMPASS_LABEL, buildingDescription, buildingName, campaignStage, chartIdentity, defaultBattleDeployment, goodName, nationName, nodeName, playerName, shipName, shipTypeName, stageText, strategyText } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { seatTag } from './seats';
@@ -47,6 +47,36 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
     </p>
   ));
   const atHelm = !player.isAI && (!room || gameController.canHelm);
+  const battlePrompt = atHelm && state.phase === 'awaitingToll'
+    ? `${state.round}:${player.id}:${player.position}:${state.phase}` : null;
+  const [battleChoice, setBattleChoice] = useState<{ prompt: string; ids: number[] }>();
+  const eligible = battlePrompt ? player.fleet.filter((ship) => ship.durability > 0) : [];
+  const selected = !battlePrompt ? [] : battleChoice?.prompt === battlePrompt
+    ? eligible.filter((ship) => battleChoice.ids.includes(ship.id))
+    : defaultBattleDeployment(eligible);
+  const shipIds = selected.map((ship) => ship.id);
+  const canFight = !!battlePrompt && shipIds.length > 0;
+  useEffect(() => { if (!battlePrompt) setBattleChoice(undefined); }, [battlePrompt]);
+  useEffect(() => {
+    if (!canFight) return;
+    const fight = () => gameController.fight(shipIds);
+    EventBus.on('fight-requested', fight);
+    return () => { EventBus.off('fight-requested', fight); };
+  }, [canFight, shipIds]);
+  const deployment = (
+    <fieldset className="battle-deployment">
+      <legend>{t('Choose ships for battle', '选择出阵船只')} · {shipIds.length}/{COMBAT.deploymentLimit}</legend>
+      {eligible.map((ship) => {
+        const checked = shipIds.includes(ship.id);
+        return <label key={ship.id}>
+          <input type="checkbox" checked={checked} disabled={!checked && shipIds.length >= COMBAT.deploymentLimit}
+            onChange={() => battlePrompt && setBattleChoice({ prompt: battlePrompt, ids: checked ? shipIds.filter((id) => id !== ship.id) : [...shipIds, ship.id] })} />
+          <span>{shipName(ship.name, locale)}{ship.signature && ` · ${shipTypeName(ship.type, locale)}`} · {t('{d}/{max} durability', '耐久 {d}/{max}', { d: ship.durability, max: ship.maxDurability })}</span>
+        </label>;
+      })}
+    </fieldset>
+  );
+  const fightButton = <button disabled={!canFight} onClick={() => gameController.fight(shipIds)}>{t('Fight', '开战')} <kbd>F</kbd></button>;
   const canPreview = atHelm && state.phase === 'awaitingSpin' && player.strategies.includes('navigate') && !state.strategyUsed;
   useEffect(() => {
     EventBus.emit('navigate-preview', previewing && canPreview ? { playerId: player.id, nodeId: destination } : null);
@@ -208,17 +238,18 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
     );
   } else if (state.phase === 'awaitingToll') {
     const island = state.map[player.position];
-    const { ships: defenders, owner, fromFleet } = colonyDefenders(state, island.id);
+    const { ships, owner, fromFleet } = colonyDefenders(state, island.id);
+    const defenders = defaultBattleDeployment(ships);
     const firepower = (ships: { firepower: number }[]) => ships.reduce((sum, ship) => sum + ship.firepower, 0);
     const hull = (ships: { durability: number }[]) => ships.reduce((sum, ship) => sum + ship.durability, 0);
-    const forecast = (locale === 'zh' ? { victory: '可能获胜', defeat: '可能战败', draw: '可能平局' } : { victory: 'likely victory', defeat: 'likely defeat', draw: 'likely draw' })[forecastColonyBattle(state, player)];
+    const forecast = (locale === 'zh' ? { victory: '可能获胜', defeat: '可能战败', draw: '可能平局' } : { victory: 'likely victory', defeat: 'likely defeat', draw: 'likely draw' })[forecastColonyBattle(state, player, selected)];
     body = (
       <>
         <h2>{t("{o}'s colony at {n}", '{o} 在{n}的殖民地', { o: name(owner), n: at(island.id) })}</h2>
         <p>{fromFleet ? t("Pay {g}g toll, or open fire on {o}'s fleet?", '缴纳 {g} 金币过路费，还是向 {o} 的舰队开火？', { g: tollDue(state, player, island.id), o: name(owner) })
           : t('Pay {g}g toll, or open fire on the docked ships?', '缴纳 {g} 金币过路费，还是向停靠的船只开火？', { g: tollDue(state, player, island.id) })}</p>
         <p>
-          {t('Your fleet:', '你的舰队：')} <StatTooltip stat="ships">{t('{n} ships', '{n} 艘船', { n: player.fleet.length })}</StatTooltip> · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(player.fleet) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(player.fleet) })}</StatTooltip>{t('.', '。')}<br />
+          {t('Your deployed ships:', '你的出阵船只：')} <StatTooltip stat="ships">{t('{n} ships', '{n} 艘船', { n: selected.length })}</StatTooltip> · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(selected) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(selected) })}</StatTooltip>{t('.', '。')}<br />
           {t('Defenders:', '守军：')} {t('{n} ships', '{n} 艘船', { n: defenders.length })} · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(defenders) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(defenders) })}</StatTooltip> {t('({forecast}).', '（{forecast}）。', { forecast })}
         </p>
         <p>
@@ -230,10 +261,11 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
           {' '}{t('Choose the fraction of your starting fleet to lose before withdrawing (rounded up). The flagship also withdraws at 25% durability, except with Fight to the last ship. A lone starting ship always fights to the end.',
             '可选择损失开战舰船的几分之几后撤退（向上取整）。旗舰耐久降至 25% 时也会撤退；选择打到最后一艘则关闭这两项自动撤退。开战时仅有一艘的舰队始终战斗到底。')}
         </p>
+        {deployment}
         <RetreatThresholdSelector player={player} />
         <div className="row">
           <button className="primary" onClick={() => gameController.payToll()}>{t('Pay toll', '缴纳过路费')} <kbd>P</kbd></button>
-          <button onClick={() => gameController.fight()}>{t('Fight', '开战')} <kbd>F</kbd></button>
+          {fightButton}
         </div>
       </>
     );

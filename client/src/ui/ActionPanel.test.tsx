@@ -376,8 +376,10 @@ describe('build menu', () => {
     expect(html).toContain(`Rival&#x27;s colony at ${island.name}`);
     expect(html).toContain(`Pay ${island.toll}g toll`);
     expect(html).toContain(`${island.toll! * 2}g double toll`);
-    expect(html).toContain('Defenders: 5 ships');
+    expect(html).toContain('Defenders: 4 ships');
     expect(html).toContain('Fight <kbd>F</kbd>');
+    expect(html).toContain('Choose ships for battle · 4/4');
+    expect(html).toMatch(/<input(?=[^>]*disabled)(?![^>]*checked)[^>]*\/><span>Cargo Ship/);
   });
 });
 

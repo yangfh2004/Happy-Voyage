@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { battleResult, createBattle, issueCommand, replayBattle, stepBattle, TICK, type BattleLog } from './battle';
-import { fightNavalBattle, forecastColonyBattle, forecastNavalBattle } from './combat';
+import { COMBAT, defaultBattleDeployment, fightNavalBattle, forecastColonyBattle, forecastNavalBattle } from './combat';
 import { GameEngine } from './engine';
 import { MAX_FLEET_SIZE, SHIP_TYPES } from './ships';
 import type { Ship } from './types';
@@ -15,21 +15,21 @@ function siege(attackerAI = false, defenderAI = false) {
 }
 
 describe('configurable retreat thresholds', () => {
-  it('uses the full docked defense with its owner threshold even beyond the sailing fleet cap', () => {
+  it('uses the capped docked defense with its owner threshold even beyond the sailing fleet cap', () => {
     const engine = siege();
     const owner = engine.state.players[1], nodeId = engine.currentPlayer.position;
     owner.position = nodeId;
     owner.retreatThreshold = 'threeQuarters';
     engine.setRetreatThreshold('quarter');
     while (owner.fleet.length < MAX_FLEET_SIZE) engine.addShipToFleet(owner.id, 'cargo');
-    for (let i = 0; i < MAX_FLEET_SIZE + 1; i++) engine.addShipToFleet(owner.id, 'cargo');
+    for (let i = 0; i < MAX_FLEET_SIZE + 1; i++) engine.addShipToFleet(owner.id, 'warship');
     expect(owner.fleet).toHaveLength(MAX_FLEET_SIZE);
     expect(engine.state.docks[nodeId]).toHaveLength(MAX_FLEET_SIZE + 1);
     engine.fight();
     const setup = engine.state.pendingBattle!.setup;
-    expect(setup.defenders).toHaveLength(MAX_FLEET_SIZE + 1);
+    expect(setup.defenders).toHaveLength(COMBAT.deploymentLimit);
     expect(setup.retreatThresholds).toEqual({ attacker: 'quarter', defender: 'threeQuarters' });
-    expect(sinkingCap(setup.defenders, setup.retreatThresholds!.defender)).toBe(Math.ceil((MAX_FLEET_SIZE + 1) * .75));
+    expect(sinkingCap(setup.defenders, setup.retreatThresholds!.defender)).toBe(Math.ceil(COMBAT.deploymentLimit * .75));
   });
 
   it.each(['auto', 'realtime'] as const)('pirates spare the actual last-sunk ship and its cargo in %s mode', mode => {
@@ -202,7 +202,7 @@ describe('configurable retreat thresholds', () => {
     const ai = siege(true, true);
     ai.state.players.forEach(p => { p.retreatThreshold = 'last'; });
     ai.currentPlayer.fleet.forEach(s => { s.firepower = 100000; });
-    const defenders = ai.state.players[1].fleet.length;
+    const defenders = defaultBattleDeployment(ai.state.players[1].fleet).length;
     expect(ai.fight()!.defenderSunk).toHaveLength(Math.ceil(defenders / 2));
   });
 });

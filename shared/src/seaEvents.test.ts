@@ -38,7 +38,7 @@ describe('sea event outcomes', () => {
     expect(results[0]).toMatchObject({ event: 'pirates', outcome: win ? 'victory' : 'defeat', gold: win ? SEA_RULES.pirateLoot : -SEA_RULES.pirates });
     expect(p.fleet.length).toBeGreaterThan(0);
     expect(p.fleetLost).not.toBe(true);
-    if (!win) { expect(results[0].shipsLost).toHaveLength(3); expect(p.fleet).toHaveLength(2); }
+    if (!win) { expect(results[0].shipsLost).toHaveLength(2); expect(p.fleet).toHaveLength(3); }
   });
 
   it('small monsters damage just one ship and charge a small loss', () => {
