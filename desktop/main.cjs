@@ -1,6 +1,7 @@
-const { app, BrowserWindow, dialog, session } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, session } = require('electron');
 const { join } = require('node:path');
 const { GAME_URL, serveGameFiles } = require('./game-files.cjs');
+const { loadPlayerConfig, playerConfigPath } = require('./player-config.cjs');
 
 function openWindow(gameSession) {
   const window = new BrowserWindow({
@@ -10,6 +11,7 @@ function openWindow(gameSession) {
     height: 850,
     webPreferences: {
       session: gameSession,
+      preload: join(__dirname, 'preload.cjs'),
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
@@ -27,7 +29,27 @@ function openWindow(gameSession) {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  const { config, invalid } = await loadPlayerConfig(playerConfigPath({
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    executable: process.execPath,
+    portableDirectory: process.env.PORTABLE_EXECUTABLE_DIR,
+    appDirectory: process.platform === 'darwin' && app.isPackaged ? join(process.resourcesPath, '../..') : __dirname,
+  }));
+  if (invalid) {
+    await dialog.showMessageBox({
+      type: 'warning',
+      title: 'config.json',
+      message: '无法读取 config.json，将使用默认设置。\nCould not read config.json. Using default settings.',
+      detail: '请确认文件是有效的 JSON 对象。\nMake sure the file contains a valid JSON object.',
+    });
+  }
+  ipcMain.on('player-config', (event) => {
+    const frame = event.senderFrame;
+    const url = frame?.url ? new URL(frame.url) : null;
+    event.returnValue = frame === event.sender.mainFrame && url?.origin === GAME_URL.origin && url.pathname === GAME_URL.pathname ? config : undefined;
+  });
   const gameSession = session.fromPartition('persist:happy-voyage');
   const directory = app.isPackaged ? join(process.resourcesPath, 'game') : join(__dirname, '../client/dist');
   // Keep the hosted demo origin for room requests and invite links while serving the game offline.

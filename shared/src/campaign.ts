@@ -1,5 +1,5 @@
 import { ZH, registerCampaignText, type Locale } from './i18n';
-import { NO_ROUND_LIMIT } from './modes';
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import { createNationRoster, type NationPick } from './nations';
 import type { AIDifficulty, GameConfig } from './types';
 
@@ -35,41 +35,43 @@ export interface CampaignState {
   status: 'active' | 'completed' | 'failed';
 }
 
+const rules = GAMEPLAY_TUNING.campaign;
+
 export const CAMPAIGN_STAGES: readonly CampaignStage[] = [
   {
     id: 'first-voyage',
     name: 'First Voyage',
     briefing: 'Plant the crown’s flag on a new land and return home to report your discovery.',
-    rivals: 1,
+    get rivals() { return rules['first-voyage'].rivals; },
     difficulty: 'easy',
-    config: { startingGold: 1400, homeSalary: 400, maxRounds: NO_ROUND_LIMIT },
+    config: rules['first-voyage'].config,
     missions: [
-      { objective: 'foundColony', description: 'Found a colony on an unclaimed island', target: 1, reward: 150 },
-      { objective: 'reportHome', description: 'Land at your home port while holding a colony', target: 1, reward: 250 },
+      { objective: 'foundColony', description: 'Found a colony on an unclaimed island', get target() { return rules['first-voyage'].foundColony.target; }, get reward() { return rules['first-voyage'].foundColony.reward; } },
+      { objective: 'reportHome', description: 'Land at your home port while holding a colony', get target() { return rules['first-voyage'].reportHome.target; }, get reward() { return rules['first-voyage'].reportHome.reward; } },
     ],
   },
   {
     id: 'merchant-charter',
     name: 'The Merchant Charter',
     briefing: 'Sail to Nightless Island to sell specialties, and build a collection field to supply future voyages.',
-    rivals: 2,
+    get rivals() { return rules['merchant-charter'].rivals; },
     difficulty: 'normal',
-    config: { startingGold: 1600, homeSalary: 400, maxRounds: 28 },
+    config: rules['merchant-charter'].config,
     missions: [
-      { objective: 'sellSpecialties', description: 'Sell 3 units of specialties at Nightless Island', target: 3, reward: 200 },
-      { objective: 'buildCollectionField', description: 'Build a collection field at one of your colonies', target: 1, reward: 250 },
+      { objective: 'sellSpecialties', description: 'Sell 3 units of specialties at Nightless Island', get target() { return rules['merchant-charter'].sellSpecialties.target; }, get reward() { return rules['merchant-charter'].sellSpecialties.reward; } },
+      { objective: 'buildCollectionField', description: 'Build a collection field at one of your colonies', get target() { return rules['merchant-charter'].buildCollectionField.target; }, get reward() { return rules['merchant-charter'].buildCollectionField.reward; } },
     ],
   },
   {
     id: 'crown-of-the-seas',
     name: 'Crown of the Seas',
     briefing: 'Expand your fleet’s territory and take a rival colony before the crown’s deadline.',
-    rivals: 3,
+    get rivals() { return rules['crown-of-the-seas'].rivals; },
     difficulty: 'hard',
-    config: { startingGold: 1200, homeSalary: 300, maxRounds: 20 },
+    config: rules['crown-of-the-seas'].config,
     missions: [
-      { objective: 'holdColonies', description: 'Hold 2 colonies at the same time', target: 2, reward: 250 },
-      { objective: 'captureColony', description: 'Win a naval battle to capture a rival colony', target: 1, reward: 400 },
+      { objective: 'holdColonies', description: 'Hold 2 colonies at the same time', get target() { return rules['crown-of-the-seas'].holdColonies.target; }, get reward() { return rules['crown-of-the-seas'].holdColonies.reward; } },
+      { objective: 'captureColony', description: 'Win a naval battle to capture a rival colony', get target() { return rules['crown-of-the-seas'].captureColony.target; }, get reward() { return rules['crown-of-the-seas'].captureColony.reward; } },
     ],
   },
 ];

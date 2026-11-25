@@ -1,3 +1,4 @@
+import { DEFAULT_GAMEPLAY_TUNING, GAMEPLAY_TUNING } from './gameplayTuning';
 import { aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount,
   aiTravelTarget, aiBattleStrategy, aiSeaStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase, aiMistTake } from './ai';
 import { STRATEGIES, STRATEGY_RULES, strategyTarget, defectionCount, type StrategyId } from './strategies';
@@ -8,8 +9,8 @@ import { isRetreatThreshold, playerRetreatThreshold, type RetreatThreshold } fro
 import type { PendingBattle } from './types';
 import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
-import { HERMITS, NIM_MAX_TAKE, hermitStoneTake, type HermitId, type MistResult } from './mist';
-import { CAPTAINS, MAX_CAPTAINS, recruitOffers, aiRecruitChoice } from './captains';
+import { HERMITS, hermitStoneTake, type HermitId, type MistResult } from './mist';
+import { CAPTAINS, recruitOffers, aiRecruitChoice } from './captains';
 import { BUILDINGS, buildingLevel, nextBuildingCost, colonyIncome, colonyProduction, colonyCanRepair } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
@@ -20,29 +21,25 @@ export { SEA_RULES } from './seaRules';
 import { spinCompass, type Rng } from './compass';
 import { createDefaultMap } from './map';
 import { walkPath, WIND_DIRECTIONS } from './graph';
-import { GAME_MODES, hasRoundLimit } from './modes';
+import { hasRoundLimit } from './modes';
 import { campaignRoster, campaignStage, type CampaignObjective, type CampaignSetup, type CampaignState } from './campaign';
 import { advanceMarket, createMarket, quoteMarketTrade } from './market';
-import { isEliminated, seatAtTurnOrderPosition, turnOrderPosition, COLONY_RETURN_COOLDOWN, SEA_HAZARD_DAMAGE, REPAIR_GOLD_PER_POINT } from './rules';
+import { isEliminated, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
 import { GameView } from './gameView';
-import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, MAX_FLEET_SIZE, USED_SHIP_PRICES, USED_SHIP_CONDITION, shipSalePrice } from './ships';
+import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, shipSalePrice } from './ships';
 import type { Good, SeaEventResult, Specialty } from './types';
 import { navigatorById, type SignatureShip } from './navigators';
 import type { VictoryKind, BattleReport, ColonyStockpile, GameConfig, GameEvent, GameState, MapNode, MarketOrder, Player, PlayerSetup, Ship, ShipStats, ShipType } from './types';
 
 export const DEFAULT_CONFIG: GameConfig = {
   battleMode: 'realtime',
-  startingStrategies: 3,
-  startingGold: 3200,
-  homeSalary: 400,
-  ...GAME_MODES[0].config,
+  startingStrategies: DEFAULT_GAMEPLAY_TUNING.starting.strategies,
+  startingGold: DEFAULT_GAMEPLAY_TUNING.starting.gold,
+  homeSalary: DEFAULT_GAMEPLAY_TUNING.starting.homeSalary,
+  ...DEFAULT_GAMEPLAY_TUNING.modes.conquest,
 };
 
-export const EVENT_GOLD = {
-  treasure: { min: 50, max: 200, step: 50 },
-  storm: { min: 50, max: 100, step: 25 },
-  tradeWind: { base: 50, perColony: 30 },
-} as const;
+export const EVENT_GOLD = GAMEPLAY_TUNING.sea;
 
 export type EngineOptions = {
   map?: MapNode[];
@@ -85,7 +82,15 @@ export class GameEngine extends GameView {
     const players = options.campaign ? campaignRoster(options.campaign.navigator, stage!) : options.players;
     if (players.length < 1) throw new Error('At least one player is required');
     const map = options.map ?? createDefaultMap();
-    const config = { ...DEFAULT_CONFIG, ...(stage?.config ?? options.config) };
+    const { gold, homeSalary, strategies } = GAMEPLAY_TUNING.starting;
+    const config = {
+      ...DEFAULT_CONFIG,
+      startingGold: gold,
+      startingStrategies: strategies,
+      homeSalary,
+      ...GAMEPLAY_TUNING.modes.conquest,
+      ...(stage?.config ?? options.config),
+    };
     const islandCount = map.filter((node) => node.kind === 'island').length;
     if (islandCount > 0) config.islandsToWin = Math.min(config.islandsToWin, islandCount);
     const ports = map.filter((node) => node.kind === 'port');
@@ -179,9 +184,13 @@ export class GameEngine extends GameView {
       const flagshipIndex = flagship ? STARTING_FLEET.indexOf(flagship.type) : -1;
       STARTING_FLEET.forEach((type, index) => this.commissionShip(player.id, type, index === flagshipIndex ? flagship : undefined));
     }
-    this.state.wind = { direction: WIND_DIRECTIONS[Math.floor(this.rng() * 4)], turnsLeft: 2 + Math.floor(this.rng() * 3) };
-    for (const [id, kind] of (['pirates', 'pirates', 'smallMonster'] as const).entries()) {
-      const nodes = this.roamerNodes().filter((node) => !this.state.roamers.some((r) => r.node === node.id) && !this.state.players.some((p) => Math.min((node.id - p.homePort + map.length) % map.length, (p.homePort - node.id + map.length) % map.length) < 3));
+    this.state.wind = { direction: WIND_DIRECTIONS[Math.floor(this.rng() * 4)], turnsLeft: GAMEPLAY_TUNING.map.windMinTurns + Math.floor(this.rng() * (1 + GAMEPLAY_TUNING.map.windExtraTurns)) };
+    const roamers = [
+      ...Array.from({ length: SEA_RULES.roamingPirates }, () => 'pirates' as const),
+      ...Array.from({ length: SEA_RULES.roamingMonsters }, () => 'smallMonster' as const),
+    ];
+    for (const [id, kind] of roamers.entries()) {
+      const nodes = this.roamerNodes().filter((node) => !this.state.roamers.some((r) => r.node === node.id) && !this.state.players.some((p) => Math.min((node.id - p.homePort + map.length) % map.length, (p.homePort - node.id + map.length) % map.length) < SEA_RULES.roamerStartDistance));
       if (nodes.length) this.state.roamers.push({ id, kind, node: nodes[Math.floor(this.rng() * nodes.length)].id });
     }
   }
@@ -225,7 +234,7 @@ export class GameEngine extends GameView {
       const selected = [...ships].sort((a, b) => a.firepower - b.firepower).slice(0, defectionCount(ships.length, fromFleet));
       for (const ship of selected) { ships.splice(ships.indexOf(ship), 1); this.receiveShip(this.currentPlayer, ship); }
     },
-    tailwind: () => { this.state.compassMultiplier = 2; },
+    tailwind: () => { this.state.compassMultiplier = STRATEGY_RULES.tailwindMultiplier; },
     reverse: () => { this.state.compassMultiplier = -1; },
     blockade: (target) => { this.state.players[target!].skipNextTurn = true; },
     plunder: (target) => {
@@ -258,10 +267,10 @@ export class GameEngine extends GameView {
     },
     scorch: (target) => {
       const stock = this.state.stockpiles[target!];
-      stock.lumber = Math.floor(stock.lumber / 2);
-      stock.iron = Math.floor(stock.iron / 2);
+      stock.lumber = Math.floor(stock.lumber * STRATEGY_RULES.scorchRemaining);
+      stock.iron = Math.floor(stock.iron * STRATEGY_RULES.scorchRemaining);
       for (const [good, qty] of Object.entries(stock.specialties) as [Specialty, number][]) {
-        const remaining = Math.floor(qty / 2);
+        const remaining = Math.floor(qty * STRATEGY_RULES.scorchRemaining);
         if (remaining > 0) stock.specialties[good] = remaining;
         else delete stock.specialties[good];
       }
@@ -280,7 +289,7 @@ export class GameEngine extends GameView {
   returnToColony(nodeId: number): void {
     if (!this.colonyReturnTargets().some((node) => node.id === nodeId)) throw new Error('Cannot return to that colony');
     const player = this.currentPlayer;
-    player.nextColonyReturnRound = this.state.round + COLONY_RETURN_COOLDOWN;
+    player.nextColonyReturnRound = this.state.round + GAMEPLAY_TUNING.economy.colonyReturnCooldown;
     this.log(tx('{p} heads directly to {n} to resupply.', '{p} 直接返回{n}补给。', { p: ref.player(player.id), n: ref.node(nodeId) }));
     this.sailDirectly(nodeId);
   }
@@ -325,7 +334,7 @@ export class GameEngine extends GameView {
   }
 
   private receiveShip(player: Player, ship: Ship, isNew = false): void {
-    if (player.fleet.length < MAX_FLEET_SIZE) {
+    if (player.fleet.length < GAMEPLAY_TUNING.ships.maxFleetSize) {
       player.fleet.push(ship);
       if (isNew) this.emit({ type: 'shipAdded', playerId: player.id, shipId: ship.id });
       return;
@@ -479,7 +488,7 @@ export class GameEngine extends GameView {
     const promoted = !!next && merit >= next.merit;
     if (promoted) player.rank++;
     const rank = RANKS[player.rank];
-    const reward = promoted ? rank.purse : Math.max(0, merit - player.audienceMerit) * 2;
+    const reward = promoted ? rank.purse : Math.max(0, merit - player.audienceMerit) * GAMEPLAY_TUNING.ranks.goldPerAudienceMerit;
     player.audienceMerit = Math.max(player.audienceMerit, merit);
     const homeNation = player.nation ?? this.node(player.homePort).nation;
     const nation = homeNation ? ref.nation(homeNation) : tx('your homeland', '你的祖国');
@@ -524,7 +533,7 @@ export class GameEngine extends GameView {
     const captain = CAPTAINS.find((candidate) => candidate.id === id);
     if (!captain) throw new Error('Unknown captain offer');
     const player = this.currentPlayer;
-    if (player.captains.length >= MAX_CAPTAINS) throw new Error('Crew is full');
+    if (player.captains.length >= GAMEPLAY_TUNING.captains.max) throw new Error('Crew is full');
     if (player.captains.includes(captain.id)) throw new Error('Captain already aboard');
     if (player.rank < captain.minRank) throw new Error('Higher military rank required');
     if (player.gold < captain.fee) throw new Error('Not enough gold');
@@ -829,7 +838,7 @@ export class GameEngine extends GameView {
     const index = source.findIndex((ship) => ship.id === shipId);
     if (index < 0) throw new Error('Ship not available here');
     if (direction === 'dock' && source.length <= 1) throw new Error('Fleet must keep at least one ship');
-    if (direction === 'board' && target.length >= MAX_FLEET_SIZE) throw new Error('Fleet is full');
+    if (direction === 'board' && target.length >= GAMEPLAY_TUNING.ships.maxFleetSize) throw new Error('Fleet is full');
     const [ship] = source.splice(index, 1);
     target.push(ship);
     const moved = { p: ref.player(player.id), s: ref.ship(ship.name), n: ref.node(nodeId) };
@@ -1025,7 +1034,7 @@ export class GameEngine extends GameView {
       const hard = this.currentPlayer.aiDifficulty === 'hard';
       if (!duel.hermitId) this.challengeHermit(hard ? 'brook' : HERMITS[Math.floor(this.rng() * HERMITS.length)].id);
       while (!duel.result) {
-        const take = hard ? aiMistTake(duel.hermitId!, duel.stonesLeft) || 1 : 1 + Math.floor(this.rng() * Math.min(NIM_MAX_TAKE, duel.stonesLeft));
+        const take = hard ? aiMistTake(duel.hermitId!, duel.stonesLeft) || 1 : 1 + Math.floor(this.rng() * Math.min(GAMEPLAY_TUNING.sea.nimMaxTake, duel.stonesLeft));
         this.takeMistStones(take);
       }
       this.leaveMistIsland();
@@ -1039,7 +1048,7 @@ export class GameEngine extends GameView {
         kind = aiBuildingChoice(this.state, this.currentPlayer);
       }
       for (const ship of [...this.state.docks[player.position]]) {
-        if (player.fleet.length >= MAX_FLEET_SIZE) break;
+        if (player.fleet.length >= GAMEPLAY_TUNING.ships.maxFleetSize) break;
         if (ship.durability === ship.maxDurability || !colonyCanRepair(this.state, player.position)) this.boardShip(ship.id);
       }
       const ship = aiShipChoice(player, (type) => this.canBuildShip(type));
@@ -1075,7 +1084,7 @@ export class GameEngine extends GameView {
     if (!this.canBuyUsedShip(type)) throw new Error('Cannot buy ship: market, stock or gold');
     this.state.marketStock.splice(this.state.marketStock.indexOf(type), 1);
     this.changeGold(this.currentPlayer, -USED_SHIP_PRICES[type], 'second-hand ship');
-    const ship = this.commissionShip(this.currentPlayer.id, type, undefined, USED_SHIP_CONDITION);
+    const ship = this.commissionShip(this.currentPlayer.id, type, undefined, GAMEPLAY_TUNING.ships.usedCondition);
     this.log(tx('{p} buys {s} at {n}.', '{p} 在{n}买下{s}。', { p: ref.player(this.currentPlayer.id), s: ref.ship(ship.name), n: ref.node(this.currentPlayer.position) }));
     return ship;
   }
@@ -1122,8 +1131,8 @@ export class GameEngine extends GameView {
         break;
       case 'revival': {
         const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
-        const points = Math.min(damage, Math.floor(Math.max(0, player.gold) / REPAIR_GOLD_PER_POINT));
-        const goldSpent = points * REPAIR_GOLD_PER_POINT;
+        const points = Math.min(damage, Math.floor(Math.max(0, player.gold) / GAMEPLAY_TUNING.economy.repairGoldPerPoint));
+        const goldSpent = points * GAMEPLAY_TUNING.economy.repairGoldPerPoint;
         if (goldSpent) this.changeGold(player, -goldSpent, 'revival repairs');
         let remaining = points;
         for (const ship of player.fleet) {
@@ -1157,7 +1166,7 @@ export class GameEngine extends GameView {
         break;
       }
       case 'dragonSnake': {
-        if (player.captains.length >= MAX_CAPTAINS) {
+        if (player.captains.length >= GAMEPLAY_TUNING.captains.max) {
           this.log(tx("{p}'s crew is full. No more captains can join.", '{p} 的船员已满，无法再招募船长。', { p: ref.player(player.id) }));
           break;
         }
@@ -1381,18 +1390,18 @@ export class GameEngine extends GameView {
           this.buryHoard(node.id);
         }
         const { min, max, step } = EVENT_GOLD.treasure;
-        const amount = min + Math.floor(this.rng() * ((max - min) / step + 1)) * step;
+        const amount = min + Math.floor(this.rng() * (Math.floor((max - min) / step) + 1)) * step;
         this.log(tx('{p} hauls up a sunken chest worth {g}g!', '{p} 打捞起价值 {g} 金币的沉箱！', { p: ref.player(player.id), g: amount }));
         this.changeGold(player, amount, 'treasure');
         announce('gold', { gold: amount });
         break;
       }
       case 'storm': {
-        const stormDamage = player.fleet.reduce((sum, ship) => sum + Math.min(ship.durability, SEA_HAZARD_DAMAGE), 0);
+        const stormDamage = player.fleet.reduce((sum, ship) => sum + Math.min(ship.durability, GAMEPLAY_TUNING.economy.seaHazardDamage), 0);
         this.damageFleet(player);
-        this.state.market.repairDemandThroughRound = this.state.round + 1;
+        this.state.market.repairDemandThroughRound = this.state.round + GAMEPLAY_TUNING.market.repairDemandRounds;
         const { min, max, step } = EVENT_GOLD.storm;
-        const amount = min + Math.floor(this.rng() * ((max - min) / step + 1)) * step;
+        const amount = min + Math.floor(this.rng() * (Math.floor((max - min) / step) + 1)) * step;
         this.log(tx("A storm batters {p}'s fleet: repairs cost {g}g.", '风暴重创 {p} 的舰队：修理花费 {g} 金币。', { p: ref.player(player.id), g: amount }));
         this.changeGold(player, -amount, 'storm repairs');
         announce('damaged', { gold: -amount, damage: stormDamage });
@@ -1481,7 +1490,7 @@ export class GameEngine extends GameView {
   private moveRoamers(): void {
     for (const roamer of this.state.roamers) {
       let direction = this.rng() < 0.5 ? -1 : 1;
-      const steps = 1 + Math.floor(this.rng() * 3);
+      const steps = 1 + Math.floor(this.rng() * SEA_RULES.roamerMaxSteps);
       for (let i = 0; i < steps; i++) {
         let next = walkPath(this.state.map, roamer.node, direction, this.state.wind.direction)[0];
         const eligible = (id: number) => this.node(id).kind !== 'port' && this.node(id).kind !== 'special';
@@ -1516,7 +1525,7 @@ export class GameEngine extends GameView {
     if (--this.state.wind.turnsLeft === 0) {
       const choices = WIND_DIRECTIONS.filter((d) => d !== this.state.wind.direction);
       const direction = choices[Math.floor(this.rng() * choices.length)];
-      this.state.wind = { direction, turnsLeft: 2 + Math.floor(this.rng() * 3) };
+      this.state.wind = { direction, turnsLeft: GAMEPLAY_TUNING.map.windMinTurns + Math.floor(this.rng() * (1 + GAMEPLAY_TUNING.map.windExtraTurns)) };
       const en = { N: 'North', E: 'East', S: 'South', W: 'West' }[direction];
       const zh = { N: '北风', E: '东风', S: '南风', W: '西风' }[direction];
       const turns = this.state.wind.turnsLeft === 1 ? 'turn' : 'turns';
@@ -1559,9 +1568,9 @@ export class GameEngine extends GameView {
 
   private damageFleet(player: Player): void {
     for (const ship of player.fleet) {
-      ship.durability = Math.max(0, ship.durability - SEA_HAZARD_DAMAGE);
+      ship.durability = Math.max(0, ship.durability - GAMEPLAY_TUNING.economy.seaHazardDamage);
     }
-    this.log(tx("{p}'s ships each lose up to {d} durability (minimum 0; ships are not sunk).", '{p} 的每艘船最多损失 {d} 点耐久（最低为 0，不会沉没）。', { p: ref.player(player.id), d: SEA_HAZARD_DAMAGE }));
+    this.log(tx("{p}'s ships each lose up to {d} durability (minimum 0; ships are not sunk).", '{p} 的每艘船最多损失 {d} 点耐久（最低为 0，不会沉没）。', { p: ref.player(player.id), d: GAMEPLAY_TUNING.economy.seaHazardDamage }));
   }
 
   private repairDockedShips(): void {

@@ -1,3 +1,4 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import type { Ship, ShipStats, ShipType } from './types';
 
 export function cargoLoad(ship: Ship): number {
@@ -6,24 +7,36 @@ export function cargoLoad(ship: Ship): number {
 
 export const GOODS = ['lumber', 'iron', 'Wine', 'Sugar', 'Cotton', 'Timber', 'Cocoa', 'Tobacco', 'Silver', 'Spices', 'Silk', 'Tea'] as const;
 
-export const SHIP_TYPES = {
-  warship: { label: 'Warship', maxDurability: 120, firepower: 30, cargoCapacity: 25, speed: 4, crewCapacity: 60 },
-  cargo: { label: 'Cargo Ship', maxDurability: 100, firepower: 8, cargoCapacity: 120, speed: 3, crewCapacity: 30 },
-  explorer: { label: 'Explorer', maxDurability: 80, firepower: 12, cargoCapacity: 40, speed: 7, crewCapacity: 25 },
-} as const satisfies Record<ShipType, ShipStats & { label: string }>;
+const labels = { warship: 'Warship', cargo: 'Cargo Ship', explorer: 'Explorer' } as const;
 
-export const STARTING_FLEET: readonly ShipType[] = ['warship', 'cargo', 'explorer', 'explorer', 'explorer', 'warship', 'warship', 'warship'];
-export const MAX_FLEET_SIZE = 20;
+function shipStats(type: ShipType): ShipStats & { label: string } {
+  return {
+    label: labels[type],
+    get maxDurability() { return GAMEPLAY_TUNING.ships[type].durability; },
+    get firepower() { return GAMEPLAY_TUNING.ships[type].firepower; },
+    get cargoCapacity() { return GAMEPLAY_TUNING.ships[type].cargo; },
+    get speed() { return GAMEPLAY_TUNING.ships[type].speed; },
+    get crewCapacity() { return GAMEPLAY_TUNING.ships[type].crew; },
+  };
+}
 
-export const USED_SHIP_PRICES: Record<ShipType, number> = { explorer: 180, cargo: 300, warship: 450 };
-export const USED_SHIP_CONDITION = 0.6;
+export const SHIP_TYPES = { warship: shipStats('warship'), cargo: shipStats('cargo'), explorer: shipStats('explorer') };
+export const STARTING_FLEET: readonly ShipType[] = GAMEPLAY_TUNING.starting.fleet;
+export const MAX_FLEET_SIZE = GAMEPLAY_TUNING.ships.maxFleetSize;
+
+export const USED_SHIP_PRICES: Record<ShipType, number> = {
+  get explorer() { return GAMEPLAY_TUNING.ships.explorer.usedPrice; },
+  get cargo() { return GAMEPLAY_TUNING.ships.cargo.usedPrice; },
+  get warship() { return GAMEPLAY_TUNING.ships.warship.usedPrice; },
+};
+export const USED_SHIP_CONDITION = GAMEPLAY_TUNING.ships.usedCondition;
 
 export function shipSalePrice(ship: Ship): number {
-  return Math.floor(USED_SHIP_PRICES[ship.type] * 0.5 * Math.max(0, Math.min(1, ship.durability / ship.maxDurability)));
+  return Math.floor(USED_SHIP_PRICES[ship.type] * GAMEPLAY_TUNING.ships.saleMultiplier * Math.max(0, Math.min(1, ship.durability / ship.maxDurability)));
 }
 
 export const SHIP_RECIPES = {
-  explorer: { yardLevel: 1, lumber: 2, iron: 1 },
-  cargo: { yardLevel: 2, lumber: 4, iron: 2 },
-  warship: { yardLevel: 3, lumber: 6, iron: 4 },
-} as const satisfies Record<ShipType, { yardLevel: number; lumber: number; iron: number }>;
+  explorer: GAMEPLAY_TUNING.ships.explorer,
+  cargo: GAMEPLAY_TUNING.ships.cargo,
+  warship: GAMEPLAY_TUNING.ships.warship,
+};

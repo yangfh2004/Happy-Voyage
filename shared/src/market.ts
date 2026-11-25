@@ -1,22 +1,19 @@
 import { cargoLoad, GOODS } from './ships';
 import { isEliminated } from './rules';
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import type { GameState, Good, MarketOrder, MarketState } from './types';
 
-const BASE_PRICE: Record<Good, number> = {
-  lumber: 10, iron: 14, Wine: 18, Sugar: 13, Cotton: 12, Timber: 15, Cocoa: 16,
-  Tobacco: 17, Silver: 24, Spices: 22, Silk: 21, Tea: 19,
-};
-const NORMAL_STOCK = 16;
+const rules = GAMEPLAY_TUNING.market;
 
 export function createMarket(): MarketState {
-  const stock = Object.fromEntries(GOODS.map((good) => [good, NORMAL_STOCK])) as MarketState['stock'];
+  const stock = Object.fromEntries(GOODS.map((good) => [good, rules.normalStock])) as MarketState['stock'];
   return { stock, repairDemandThroughRound: 0 };
 }
 
 export function advanceMarket(market: MarketState): void {
   for (const good of GOODS) {
-    const gap = NORMAL_STOCK - market.stock[good];
-    market.stock[good] += Math.sign(gap) * Math.min(Math.abs(gap), 2);
+    const gap = rules.normalStock - market.stock[good];
+    market.stock[good] += Math.sign(gap) * Math.min(Math.abs(gap), rules.recoveryPerRound);
   }
 }
 
@@ -29,25 +26,25 @@ export function marketDemand(state: GameState) {
 
 function unitValue(state: GameState, good: Good, stock: number): number {
   const { featuredGood, stormRepairs } = marketDemand(state);
-  const demand = (good === featuredGood ? 3 : 0) +
-    (stormRepairs && (good === 'lumber' || good === 'iron') ? 4 : 0);
+  const demand = (good === featuredGood ? rules.featuredDemand : 0) +
+    (stormRepairs && (good === 'lumber' || good === 'iron') ? rules.repairDemand : 0);
   return inventoryValue(good, stock) + demand;
 }
 
 function inventoryValue(good: Good, stock: number): number {
-  const base = BASE_PRICE[good];
-  return base + Math.max(-Math.floor(base / 2), Math.min(base, NORMAL_STOCK - stock));
+  const base = rules.basePrice[good];
+  return base + Math.max(-Math.floor(base * rules.discountCapRate), Math.min(Math.floor(base * rules.premiumCapRate), rules.normalStock - stock));
 }
 
 /** Sale estimate after stock returns to normal, ignoring temporary demand bonuses. */
 export function normalMarketSale(good: Good, quantity: number): number {
   let total = 0;
-  for (let i = 1; i <= quantity; i++) total += inventoryValue(good, NORMAL_STOCK + i);
+  for (let i = 1; i <= quantity; i++) total += inventoryValue(good, rules.normalStock + i);
   return total;
 }
 
 function spread(good: Good): number {
-  return Math.ceil(BASE_PRICE[good] / 4);
+  return Math.ceil(rules.basePrice[good] * rules.buySpreadRate);
 }
 
 export function marketPrices(state: GameState, good: Good) {

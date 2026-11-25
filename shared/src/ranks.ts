@@ -1,13 +1,14 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import type { GameState } from './types';
 import { SEA_RULES } from './seaRules';
 
 export const RANKS = [
-  { name: 'Ensign', chineseName: '少尉', merit: 0, salary: 0, taxDiscount: 0, purse: 0 },
-  { name: 'Lieutenant (Junior Grade)', chineseName: '中尉', merit: 100, salary: 50, taxDiscount: 0.1, purse: 200 },
-  { name: 'Lieutenant', chineseName: '上尉', merit: 250, salary: 100, taxDiscount: 0.2, purse: 350 },
-  { name: 'Lieutenant Commander', chineseName: '少校', merit: 450, salary: 175, taxDiscount: 0.3, purse: 500 },
-  { name: 'Commander', chineseName: '中校', merit: 700, salary: 250, taxDiscount: 0.4, purse: 700 },
-  { name: 'Captain', chineseName: '上校', merit: 1000, salary: 350, taxDiscount: 0.5, purse: 1000 },
+  { name: 'Ensign', chineseName: '少尉', get merit() { return GAMEPLAY_TUNING.ranks.ensign.merit; }, get salary() { return GAMEPLAY_TUNING.ranks.ensign.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.ensign.taxDiscount; }, get purse() { return GAMEPLAY_TUNING.ranks.ensign.purse; } },
+  { name: 'Lieutenant (Junior Grade)', chineseName: '中尉', get merit() { return GAMEPLAY_TUNING.ranks.junior.merit; }, get salary() { return GAMEPLAY_TUNING.ranks.junior.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.junior.taxDiscount; }, get purse() { return GAMEPLAY_TUNING.ranks.junior.purse; } },
+  { name: 'Lieutenant', chineseName: '上尉', get merit() { return GAMEPLAY_TUNING.ranks.lieutenant.merit; }, get salary() { return GAMEPLAY_TUNING.ranks.lieutenant.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.lieutenant.taxDiscount; }, get purse() { return GAMEPLAY_TUNING.ranks.lieutenant.purse; } },
+  { name: 'Lieutenant Commander', chineseName: '少校', get merit() { return GAMEPLAY_TUNING.ranks.lieutenantCommander.merit; }, get salary() { return GAMEPLAY_TUNING.ranks.lieutenantCommander.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.lieutenantCommander.taxDiscount; }, get purse() { return GAMEPLAY_TUNING.ranks.lieutenantCommander.purse; } },
+  { name: 'Commander', chineseName: '中校', get merit() { return GAMEPLAY_TUNING.ranks.commander.merit; }, get salary() { return GAMEPLAY_TUNING.ranks.commander.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.commander.taxDiscount; }, get purse() { return GAMEPLAY_TUNING.ranks.commander.purse; } },
+  { name: 'Captain', chineseName: '上校', get merit() { return GAMEPLAY_TUNING.ranks.captain.merit; }, get salary() { return GAMEPLAY_TUNING.ranks.captain.salary; }, get taxDiscount() { return GAMEPLAY_TUNING.ranks.captain.taxDiscount; }, get purse() { return GAMEPLAY_TUNING.ranks.captain.purse; } },
 ] as const;
 
 export function foreignTaxDue(rank: number): number {
@@ -17,7 +18,7 @@ export function foreignTaxDue(rank: number): number {
 /** Durable achievements only: cash gifts from the crown cannot generate more merit. */
 export function playerMerit(state: GameState, playerId: number): number {
   return state.owners.reduce<number>((merit, owner, nodeId) => owner !== playerId ? merit :
-    merit + 100 + Object.values(state.buildings[nodeId]).reduce((sum, level) => sum + level * 25, 0), 0);
+    merit + GAMEPLAY_TUNING.ranks.meritPerColony + Object.values(state.buildings[nodeId]).reduce((sum, level) => sum + level * GAMEPLAY_TUNING.ranks.meritPerBuildingLevel, 0), 0);
 }
 
 export interface RoyalAudience {

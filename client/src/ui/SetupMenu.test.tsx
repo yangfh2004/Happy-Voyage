@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { DEFAULT_GAMEPLAY_TUNING } from '@happy-voyage/shared';
 
 const hooks = vi.hoisted(() => ({ values: [] as unknown[], index: 0 }));
 vi.mock('react', async (original) => ({
@@ -11,7 +12,7 @@ vi.mock('react', async (original) => ({
     return [hooks.values[index], (value: unknown) => { hooks.values[index] = value; }];
   },
 }));
-vi.mock('../game/GameController', () => ({ gameController: { newGame: vi.fn(), newCampaign: vi.fn() } }));
+vi.mock('../game/GameController', () => ({ gameController: { localTuning: DEFAULT_GAMEPLAY_TUNING, newGame: vi.fn(), newCampaign: vi.fn() } }));
 vi.mock('./SpeedControl', () => ({ SpeedControl: () => null }));
 vi.mock('./SoundControl', () => ({ SoundControl: () => null }));
 vi.mock('./LanguageSwitch', () => ({ LanguageSwitch: () => null }));

@@ -1,23 +1,9 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import type { Phase } from './types';
 
 export type StrategyId = 'navigate' | 'inspire' | 'mislead' | 'locate' | 'betray' | 'tailwind' | 'reverse' | 'blockade' | 'plunder' | 'gale' | 'escort' | 'exemption' | 'ambush' | 'revolt' | 'harvest' | 'charter' | 'repair' | 'recall' | 'exchange' | 'scorch';
 export type StrategyTarget = 'none' | 'node' | 'rival' | 'rivalColony';
-export const STRATEGY_RULES = {
-  handCap: 5,
-  hoardGold: 200,
-  inspireMultiplier: 1.25,
-  bottleChance: 0.5,
-  misleadDamage: 40,
-  betrayMaxShips: 1,
-  plunderRate: 0.1,
-  plunderCap: 150,
-  galeDamage: 15,
-  ambushDefenseMultiplier: 0.5,
-  ambushSeconds: 4,
-  charterPerColony: 40,
-  charterCap: 300,
-  repairAmount: 30,
-} as const;
+export const STRATEGY_RULES = GAMEPLAY_TUNING.strategies;
 export const STRATEGIES: Record<StrategyId, { id: StrategyId; name: string; chineseName: string; description: string; phases: Phase[]; target: StrategyTarget }> = {
   navigate: { id: 'navigate', name: 'Navigate', chineseName: '导航', description: 'Sail directly to any destination without a compass spin.', phases: ['awaitingSpin'], target: 'node' },
   inspire: { id: 'inspire', name: 'Inspire', chineseName: '激励', description: 'Boost firepower by 25% in every battle this turn, including pirates.', phases: ['awaitingSpin', 'awaitingToll'], target: 'none' },

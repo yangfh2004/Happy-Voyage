@@ -1,4 +1,5 @@
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyIncome, colonyToll, colonyDefenders, COLONY_RETURN_COOLDOWN, COMBAT, forecastColonyBattle, GameView, isEliminated, MAX_FLEET_SIZE, tollDue, SHIP_RECIPES, STRATEGIES, STRATEGY_RULES, strategyTarget, type StrategyId, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { GAMEPLAY_TUNING } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, nextBuildingCost, colonyIncome, colonyToll, colonyDefenders, COMBAT, forecastColonyBattle, GameView, isEliminated, tollDue, SHIP_RECIPES, STRATEGIES, STRATEGY_RULES, strategyTarget, type StrategyId, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ShipMarketPanel } from './ShipMarketPanel';
 import { ColonyGoods } from './ColonyGoods';
@@ -180,7 +181,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
             <button onClick={() => gameController.returnToColony(returnTo.id)}>
               {t('Return to {n}', '返回{n}', { n: at(returnTo.id) })}
             </button>
-            <small>{t('Instead of spinning; once every {n} rounds.', '代替转动罗盘；每 {n} 回合可用一次。', { n: COLONY_RETURN_COOLDOWN })}</small>
+            <small>{t('Instead of spinning; once every {n} rounds.', '代替转动罗盘；每 {n} 回合可用一次。', { n: GAMEPLAY_TUNING.economy.colonyReturnCooldown })}</small>
           </div>
         )}
       </>
@@ -214,8 +215,8 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
           );
         })}
         <section aria-labelledby="shipbuilding-heading">
-          <h3 id="shipbuilding-heading">{t('Shipbuilding', '造船')} · {t('Fleet {n}/{max}', '舰队 {n}/{max}', { n: player.fleet.length, max: MAX_FLEET_SIZE })}</h3>
-          {player.fleet.length >= MAX_FLEET_SIZE && <p>{t('New ships stay at this colony’s shipyard.', '新船留在本殖民地的船坞。')}</p>}
+          <h3 id="shipbuilding-heading">{t('Shipbuilding', '造船')} · {t('Fleet {n}/{max}', '舰队 {n}/{max}', { n: player.fleet.length, max: GAMEPLAY_TUNING.ships.maxFleetSize })}</h3>
+          {player.fleet.length >= GAMEPLAY_TUNING.ships.maxFleetSize && <p>{t('New ships stay at this colony’s shipyard.', '新船留在本殖民地的船坞。')}</p>}
           {yardLevel === 0 ? <p>{t('Build a shipyard to launch ships.', '建造造船厂后才能造船。')}</p> :
             (Object.keys(SHIP_RECIPES) as ShipType[]).map((type) => {
               const recipe = SHIP_RECIPES[type];

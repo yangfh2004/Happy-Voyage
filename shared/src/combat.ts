@@ -1,19 +1,11 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import type { BattleOutcome, GameState, Player, Ship } from './types';
 import type { Rng } from './compass';
 import { colonyToll } from './buildings';
 import { STRATEGY_RULES } from './strategies';
 import { playerRetreatThreshold, sinkingCap, withdrawalReason, type BattleWithdrawal, type RetreatThreshold } from './withdrawal';
 
-export const COMBAT = {
-  deploymentLimit: 4,
-  hitChance: 0.85,
-  /** Volleys exchanged before an undecided battle is called a draw. */
-  rounds: 3,
-  /** Each ship's shot deals firepower × (minRoll … minRoll + rollSpread). */
-  minRoll: 0.75,
-  rollSpread: 0.5,
-  defeatTollMultiplier: 2,
-} as const;
+export const COMBAT = GAMEPLAY_TUNING.combat;
 
 export function defaultBattleDeployment(fleet: Ship[]): Ship[] {
   const afloat = fleet.filter((ship) => ship.durability > 0);

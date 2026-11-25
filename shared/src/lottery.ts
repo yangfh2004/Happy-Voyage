@@ -1,16 +1,15 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import type { Rng } from './compass';
 
 /** Treasure Island (金银岛) lottery: buy numbers before the timer runs out, then balls are drawn from the jar. */
 export const LOTTERY = {
-  /** Balls in the glass jar, numbered 1..balls. */
-  balls: 20,
-  drawn: 5,
-  maxPicks: 5,
-  ticketPrice: 40,
-  timerSeconds: 20,
-  /** Prize by number of matching picks (index = matches). */
-  payouts: [0, 80, 240, 720, 2400, 8000],
-} as const;
+  get balls() { return GAMEPLAY_TUNING.lottery.balls; },
+  get drawn() { return GAMEPLAY_TUNING.lottery.drawn; },
+  get maxPicks() { return GAMEPLAY_TUNING.lottery.maxPicks; },
+  get ticketPrice() { return GAMEPLAY_TUNING.lottery.ticketPrice; },
+  get timerSeconds() { return GAMEPLAY_TUNING.lottery.timerSeconds; },
+  get payouts() { return Object.values(GAMEPLAY_TUNING.lottery.payouts); },
+};
 
 /** One recorded Treasure Island draw. */
 export interface LotteryDraw {

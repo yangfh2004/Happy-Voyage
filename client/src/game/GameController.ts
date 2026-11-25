@@ -9,6 +9,14 @@ import type { SeaEventResult } from '@happy-voyage/shared';
 import { landingTarget } from './landingTarget';
 import type { BattleLog } from '@happy-voyage/shared';
 import type { RetreatThreshold } from '@happy-voyage/shared';
+import { DEFAULT_GAMEPLAY_TUNING, resolveGameplayTuning, selectGameplayTuning, type GameplayTuning } from '@happy-voyage/shared';
+
+function desktopTuning(): GameplayTuning {
+  const config = (globalThis as { happyVoyageDesktop?: { config: unknown } }).happyVoyageDesktop?.config;
+  const { rules, warnings } = resolveGameplayTuning(config);
+  if (warnings.length) console.warn('无效的 config.json 设置（使用默认值） / Ignored config.json settings (using defaults):', warnings);
+  return rules;
+}
 
 export interface SeaNotice {
   id: number;
@@ -29,8 +37,7 @@ export interface Headline {
 }
 
 export const SPEEDS = {
-  Normal: { ai: 700, step: 200, spin: 1400 },
-  Fast: { ai: 250, step: 70, spin: 500 },
+  ...DEFAULT_GAMEPLAY_TUNING.pacing,
   Instant: { ai: 0, step: 0, spin: 0 },
 };
 export type GameSpeed = keyof typeof SPEEDS;
@@ -52,6 +59,7 @@ export const LOTTERY_BALL_DROP_MS = 450;
 const LOTTERY_REVEAL_GRACE_MS = 500;
 
 export class GameController {
+  readonly localTuning = desktopTuning();
   private engine: GameEngine | null = null;
   private onlineView: GameView | null = null;
   room: OnlineRoom | null = null;
@@ -115,14 +123,16 @@ export class GameController {
   }
 
   get timings() {
-    const local = SPEEDS[this.skipping ? 'Instant' : this.speed];
-    if (!this.room) return local;
+    const speed = this.skipping ? 'Instant' : this.speed;
+    const local = SPEEDS[speed];
+    if (!this.room) return speed === 'Instant' ? local : this.localTuning.pacing[speed];
     const online = this.view?.currentPlayer.isAI ? ONLINE_PACING.rival : ONLINE_PACING.human;
     return { ...local, spin: Math.min(local.spin, online.spin), step: Math.min(local.step, online.step) };
   }
 
   get turnNoticeDuration(): number {
-    return this.timings.step === 0 ? 0 : this.timings.step === SPEEDS.Normal.step ? 1000 : 350;
+    const normalStep = this.room ? SPEEDS.Normal.step : this.localTuning.pacing.Normal.step;
+    return this.timings.step === 0 ? 0 : this.timings.step === normalStep ? 1000 : 350;
   }
 
   get spinId(): number {
@@ -171,6 +181,7 @@ export class GameController {
 
   openOnline(invite: string | null = null): void {
     if (this.room || this.engine) return;
+    selectGameplayTuning();
     const room = new OnlineRoom(invite, () => {
       if (this.room === room) this.changed();
     }, (snapshot) => {
@@ -225,6 +236,7 @@ export class GameController {
     EventBus.emit('cancel-move');
     this.headline = null;
     this.clearSeaNotices();
+    selectGameplayTuning(this.localTuning);
     this.engine = new GameEngine(options);
     this.viewerId = this.engine.state.players.find((player) => !player.isAI)?.id ?? null;
     this.handoffTo = null;
@@ -253,6 +265,7 @@ export class GameController {
     this.pendingMove = null;
     EventBus.emit('cancel-move');
     this.engine = null;
+    selectGameplayTuning();
     this.viewerId = null;
     this.handoffTo = null;
     this.handoffNote = null;

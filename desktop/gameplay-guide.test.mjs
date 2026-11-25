@@ -11,3 +11,9 @@ test('renders Chinese Markdown and GFM tables in a printable document', () => {
   assert.match(html, /<table>[\s\S]*<td>战舰<\/td>[\s\S]*<\/table>/);
   assert.doesNotMatch(html, /<script>|ignored\(\)/);
 });
+
+test('uses the guide heading in PDF metadata and the page footer', () => {
+  const html = renderGuide('# 欢乐大航海｜配置说明');
+  assert.match(html, /<title>欢乐大航海｜配置说明<\/title>/);
+  assert.match(html, /content: "欢乐大航海 · 配置说明"/);
+});

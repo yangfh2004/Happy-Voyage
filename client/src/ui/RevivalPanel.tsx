@@ -1,4 +1,5 @@
-import { REPAIR_GOLD_PER_POINT, shipName, type GameState } from '@happy-voyage/shared';
+import { GAMEPLAY_TUNING } from '@happy-voyage/shared';
+import { shipName, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
 
@@ -18,7 +19,7 @@ export function RevivalPanel({ state }: { state: GameState }) {
         <h2 id="revival-title">{t('Harbor of Renewal', '复苏港湾')}</h2>
       </div>
     </div>
-    <p>{t('Repairs cost {rate}g per durability point. Repairs are automatic, limited by your gold.', '每点耐久修理费为 {rate} 金币。自动修理，费用以现有金币为限。', { rate: REPAIR_GOLD_PER_POINT })}</p>
+    <p>{t('Repairs cost {rate}g per durability point. Repairs are automatic, limited by your gold.', '每点耐久修理费为 {rate} 金币。自动修理，费用以现有金币为限。', { rate: GAMEPLAY_TUNING.economy.repairGoldPerPoint })}</p>
     <dl className="revival-tally">
       <div><dt>{t('Durability restored', '恢复耐久')}</dt><dd>{t('{restored} of {damage}', '{restored} / {damage}', { restored, damage })}</dd></div>
       <div><dt>{t('Repair fee paid', '已付修理费')}</dt><dd>{t('{goldSpent}g', '{goldSpent} 金币', { goldSpent })}</dd></div>

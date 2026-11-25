@@ -9,12 +9,14 @@ Monopoly-style turn-based occupation meets Uncharted Waters-style fleets, tradin
 
 ## Desktop downloads / 桌面版下载
 
-Get the ZIP for your computer from [GitHub Releases](https://github.com/yangfh2004/Happy-Voyage/releases). Each ZIP includes the app and a Chinese gameplay guide PDF (`Happy-Voyage-玩法说明.pdf`). No installer or internet connection is needed for local play. / 每个 ZIP 都包含游戏和中文版 PDF 玩法说明，本机游玩无需安装或联网。
+Get the ZIP for your computer from [GitHub Releases](https://github.com/yangfh2004/Happy-Voyage/releases). New ZIPs include the app, `config.json`, and two Chinese PDFs: `Happy-Voyage-玩法说明.pdf` and `Happy-Voyage-配置说明.pdf`. Local play requires neither an installer nor internet access. / 新版 ZIP 包含游戏、配置文件、中文版玩法和配置说明两份 PDF。本机游玩无需安装或联网。
+
+Edit `config.json` next to the Windows EXE or macOS App and relaunch to change local gameplay values. Missing or malformed files fall back to defaults; online rooms keep server rules. / 编辑与 Windows EXE 或 macOS App 同目录的 `config.json`，重启后即可自定义本机玩法。文件缺失或格式错误时使用默认值；在线房间始终以服务器为准。详见[配置说明](配置说明.md)。
 
 - **Windows (x64):** Download `happy-voyage-win-x64.zip`, extract it, and double-click the portable `.exe`. / 下载并解压 Windows ZIP 后，双击便携版 `.exe`。
 - **macOS:** Download the `arm64` ZIP for Apple silicon or the `x64` ZIP for Intel. Unzip it and open **Happy Voyage.app**. If macOS blocks the first launch, right-click the app and choose **Open**, or use **System Settings → Privacy & Security → Open Anyway**. / Apple 芯片下载 `arm64`，Intel 下载 `x64`。解压后打开应用；若首次运行被拦截，右键选择「打开」，或前往「系统设置 → 隐私与安全性 → 仍要打开」。
 
-Publishing a GitHub release runs the desktop packaging workflow. To add or replace binaries on an existing release, run **Publish desktop builds** in Actions and enter its tag.
+Publishing a GitHub release runs the desktop packaging workflow. To add or replace binaries on an existing release whose tag includes desktop configuration support, run **Publish desktop builds** in Actions and enter its tag.
 
 ## Online rooms
 

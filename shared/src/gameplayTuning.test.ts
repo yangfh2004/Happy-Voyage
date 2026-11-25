@@ -1,0 +1,50 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { GameEngine } from './engine';
+import { DEFAULT_GAMEPLAY_TUNING, gameplayTuningFields, resolveGameplayTuning, selectGameplayTuning } from './gameplayTuning';
+
+afterEach(() => selectGameplayTuning());
+
+const engine = () => new GameEngine({ players: [{ name: 'Sailor', color: 1, isAI: false }], rng: () => 0.5 });
+
+describe('desktop gameplay tuning', () => {
+  it('keeps stock gameplay when the default template or no file is used', () => {
+    const stock = engine().state;
+    expect(stock.players[0].gold).toBe(3200);
+    expect(stock.players[0].fleet.map(({ type }) => type)).toEqual([
+      'warship', 'cargo', 'explorer', 'explorer', 'explorer', 'warship', 'warship', 'warship',
+    ]);
+    expect(resolveGameplayTuning()).toEqual({ rules: DEFAULT_GAMEPLAY_TUNING, warnings: [] });
+    const { rules, warnings } = resolveGameplayTuning(JSON.parse(JSON.stringify(DEFAULT_GAMEPLAY_TUNING)));
+    expect(warnings).toEqual([]);
+    selectGameplayTuning(rules);
+    expect(engine().state).toEqual(stock);
+  });
+
+  it('validates nested partial values and uses accepted settings in a new voyage', () => {
+    const { rules, warnings } = resolveGameplayTuning({
+      starting: { gold: 9999, fleet: ['warship', 'warship', 'cargo'], strategies: '3' },
+      ships: { warship: { firepower: 45, speed: 0, unknown: true } },
+      market: { normalStock: 22 },
+      map: { colonyBasePrice: 200 },
+      sea: null,
+    });
+    expect(warnings.sort()).toEqual(['sea', 'ships.warship.speed', 'ships.warship.unknown', 'starting.strategies']);
+    selectGameplayTuning(rules);
+    const { players, market, map } = engine().state;
+    expect(players[0].gold).toBe(9999);
+    expect(players[0].strategies).toHaveLength(3);
+    expect(players[0].fleet.map(({ type }) => type)).toEqual(['warship', 'warship', 'cargo']);
+    expect(players[0].fleet[0]).toMatchObject({ firepower: 45, speed: 4 });
+    expect(market.stock.lumber).toBe(22);
+    expect(map.find(({ kind }) => kind === 'island')?.price).toBe(200);
+    selectGameplayTuning();
+    expect(engine().state.players[0].gold).toBe(3200);
+  });
+
+  it('rejects unknown keys without changing the prototype and falls back on conflicting settings', () => {
+    const { rules, warnings } = resolveGameplayTuning(JSON.parse('{"__proto__":{},"ships":{"maxFleetSize":1},"sea":{"storm":{"min":500}}}'));
+    expect(warnings).toEqual(['__proto__', 'ships.maxFleetSize', 'sea.storm']);
+    expect(rules).toEqual(DEFAULT_GAMEPLAY_TUNING);
+    expect(gameplayTuningFields().length).toBeGreaterThan(100);
+  });
+});

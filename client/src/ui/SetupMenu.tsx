@@ -11,8 +11,6 @@ import { LanguageSwitch } from './LanguageSwitch';
 import { useT } from '../i18n';
 import { tx } from '@happy-voyage/shared';
 
-export const MAX_LOCAL_PLAYERS = 6;
-
 interface Seat {
   customName: string | null;
   nation: Nation;
@@ -26,12 +24,13 @@ export function SetupMenu({ onRules, paletteToggle, onBack }: { onRules: () => v
   const { t, l, locale } = useT();
   const [seats, setSeats] = useState<Seat[]>([{ customName: null, nation: NATIONS[0].name }]);
   const [active, setActive] = useState(0);
-  const [totalPlayers, setTotalPlayers] = useState(4);
+  const { total, humanLimit } = gameController.localTuning.localSeats;
+  const [totalPlayers, setTotalPlayers] = useState(total);
   const [battleMode, setBattleMode] = useState<'realtime' | 'auto'>('realtime');
   const [modeId, setModeId] = useState<GameModeId | 'campaign'>(GAME_MODES[0].id);
   const [stageId, setStageId] = useState<CampaignStageId>(CAMPAIGN_STAGES[0].id);
-  const mode = modeId === 'campaign' ? null : gameMode(modeId);
-  const stage = campaignStage(stageId);
+  const mode = modeId === 'campaign' ? null : { ...gameMode(modeId), config: gameController.localTuning.modes[modeId] };
+  const stage = { ...campaignStage(stageId), ...gameController.localTuning.campaign[stageId] };
   const [difficulty, setDifficulty] = useState<AIDifficulty>('normal');
   const seatIndex = mode ? active : 0;
   const [campaignSeat, setCampaignSeat] = useState<Seat>({ customName: null, nation: NATIONS[0].name });
@@ -47,7 +46,7 @@ export function SetupMenu({ onRules, paletteToggle, onBack }: { onRules: () => v
   };
   const addSeat = () => {
     const free = NATIONS.find((n) => !seats.some((s) => s.nation === n.name));
-    if (!free || seats.length >= Math.min(MAX_LOCAL_PLAYERS, totalPlayers)) return;
+    if (!free || seats.length >= Math.min(humanLimit, totalPlayers)) return;
     setSeats([...seats, { customName: null, nation: free.name }]);
     setActive(seats.length);
   };
@@ -96,8 +95,8 @@ export function SetupMenu({ onRules, paletteToggle, onBack }: { onRules: () => v
         <div className="seat-count">
           <button aria-label={t('Remove player', '移除玩家')} disabled={!multi} onClick={removeSeat}>−</button>
           <strong aria-live="polite">{seats.length}</strong>
-          <button aria-label={t('Add player', '添加玩家')} disabled={seats.length >= Math.min(MAX_LOCAL_PLAYERS, totalPlayers)} onClick={addSeat}>+</button>
-          <small className="nation-note">{t('Up to {n} people take turns; pass the device when prompted.', '最多 {n} 人轮流操作；提示时请传递设备。', { n: MAX_LOCAL_PLAYERS })}</small>
+          <button aria-label={t('Add player', '添加玩家')} disabled={seats.length >= Math.min(humanLimit, totalPlayers)} onClick={addSeat}>+</button>
+          <small className="nation-note">{t('Up to {n} people take turns; pass the device when prompted.', '最多 {n} 人轮流操作；提示时请传递设备。', { n: humanLimit })}</small>
         </div>
         {multi && (
           <div className="choices" role="tablist" aria-label={t('Seat to edit', '要编辑的座位')}>

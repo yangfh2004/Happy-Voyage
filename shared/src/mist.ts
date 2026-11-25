@@ -1,6 +1,7 @@
+import { GAMEPLAY_TUNING } from './gameplayTuning';
 import type { StrategyId } from './strategies';
 
-export const NIM_MAX_TAKE = 3;
+export const NIM_MAX_TAKE = GAMEPLAY_TUNING.sea.nimMaxTake;
 
 export const HERMITS = [
   { id: 'brook', name: 'Brook Hermit', style: 'Gentle', reward: 'navigate' },
@@ -28,8 +29,8 @@ export interface MistDuel {
 }
 
 export function hermitStoneTake(hermit: HermitId, stonesLeft: number): number {
-  if (hermit === 'pine') return Math.min(NIM_MAX_TAKE, Math.max(1, stonesLeft - 1));
+  if (hermit === 'pine') return Math.min(GAMEPLAY_TUNING.sea.nimMaxTake, Math.max(1, stonesLeft - 1));
   // An expert leaves 1 mod 4 whenever possible, forcing the opponent to take the last stone.
-  if (hermit === 'summit') return (stonesLeft - 1) % (NIM_MAX_TAKE + 1) || 1;
+  if (hermit === 'summit') return (stonesLeft - 1) % (GAMEPLAY_TUNING.sea.nimMaxTake + 1) || 1;
   return 1;
 }
