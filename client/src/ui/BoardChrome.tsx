@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { chartIdentity, isEliminated, nodeName, playerName, rankName, tollDue, type GameState } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
@@ -6,9 +7,20 @@ import { cssColor } from './nations';
 import { LogPanel } from './LogPanel';
 import { SoundControl } from './SoundControl';
 
-function ResourceIcon({ ship = false }: { ship?: boolean }) {
-  return <svg className="resource-icon" viewBox="0 0 24 24" aria-hidden="true">{ship ? <><path d="M3 16h18l-4 5H7Z" fill="#91bfdd" /><path d="M12 2v14H5Zm2 2 6 10h-6Z" fill="#fff4d5" stroke="#947439" /></> : <><circle cx="12" cy="12" r="10" fill="#edbd45" stroke="#9c6b13" /><path d="M15 7h-5a3 3 0 0 0 0 5h4a3 3 0 0 1 0 5H8m4-13v16" fill="none" stroke="#855313" strokeWidth="2" /></>}</svg>;
+type Resource = 'gold' | 'ship' | 'colony' | 'card';
+
+const RESOURCE_ART: Record<Resource, ReactElement> = {
+  gold: <><circle cx="12" cy="12" r="10" fill="#edbd45" stroke="#9c6b13" /><path d="M15 7h-5a3 3 0 0 0 0 5h4a3 3 0 0 1 0 5H8m4-13v16" fill="none" stroke="#855313" strokeWidth="2" /></>,
+  ship: <><path d="M3 16h18l-4 5H7Z" fill="#91bfdd" /><path d="M12 2v14H5Zm2 2 6 10h-6Z" fill="#fff4d5" stroke="#947439" /></>,
+  colony: <><path d="M2 21c3-4 17-4 20 0Z" fill="#7fb36a" stroke="#3f6b33" /><path d="M8 19V3" stroke="#e8d7a8" strokeWidth="2" /><path d="M9 3h10l-3 3.5L19 10H9Z" fill="#e0574a" stroke="#8c2c23" /></>,
+  card: <><rect x="7" y="3" width="13" height="17" rx="2" fill="#c9a55a" stroke="#7a5a1d" transform="rotate(10 13 11)" /><rect x="4" y="4" width="13" height="17" rx="2" fill="#fff4d5" stroke="#947439" /><path d="m10.5 8 1.4 3 3 .3-2.3 2 .7 3-2.8-1.6-2.8 1.6.7-3-2.3-2 3-.3Z" fill="#2f6ea3" /></>,
+};
+
+function ResourceIcon({ kind = 'gold' }: { kind?: Resource }) {
+  return <svg className="resource-icon" viewBox="0 0 24 24" aria-hidden="true">{RESOURCE_ART[kind]}</svg>;
 }
+
+const SrLabel = ({ text }: { text: string }) => <span className="visually-hidden">{text}</span>;
 
 export function endTurnAction(state: GameState, atHelm: boolean, lotteryRevealed = true) {
   if (!atHelm) return null;
@@ -47,7 +59,8 @@ export function VoyageTopBar({ state, colorBlind, onMenu, menuOpen }: { state: G
           {p.id === state.currentPlayer && <span className="current-label">♛ {t('CURRENT TURN', '当前回合')}</span>}
           {p.navigator && <NavigatorPortrait navigator={p.navigator} color={color} size={30} />}
           <strong>{!badge && <span className="seat-number">{p.id + 1} </span>}{badge && `${badge} · `}{playerName(p, locale)}</strong>
-          <span aria-label={t('Gold and ships', '金币与船只')}><ResourceIcon /> {gameController.displayGold(p)} · <ResourceIcon ship /> {p.fleet.length}</span>
+          <span><ResourceIcon /><SrLabel text={t('Gold', '金币')} /> {gameController.displayGold(p)} · <ResourceIcon kind="ship" /><SrLabel text={t('Ships', '船只')} /> {p.fleet.length}</span>
+          <span><ResourceIcon kind="colony" /><SrLabel text={t('Colonies', '殖民地')} /> {gameController.islandsOwnedBy(p.id)} · <ResourceIcon kind="card" /><SrLabel text={t('Strategy cards', '谋略卡')} /> {p.strategies.length}</span>
           <small>{p.fleetLost ? t('Fleet lost', '舰队覆没') : p.bankrupt ? t('Bankrupt', '破产') : p.isAI ? t('AI', '电脑') : t('Player', '玩家')}</small>
         </div>;
       })}
@@ -64,7 +77,7 @@ export function HelmCard({ state, colorBlind, atHelm }: { state: GameState; colo
     <h2>☸ {atHelm ? t('YOUR TURN', '你的回合') : t('AT THE HELM', '掌舵中')}</h2>
     {p.navigator && <div className="helm-portrait"><NavigatorPortrait navigator={p.navigator} color={color} size={88} /></div>}
     <h2>{playerName(p, locale)}</h2>
-    <dl><div><dt><ResourceIcon /> {t('Gold', '金币')}</dt><dd>{gameController.displayGold(p)}</dd></div><div><dt><ResourceIcon ship /> {t('Ships', '船只')}</dt><dd>{p.fleet.length}</dd></div><div><dt>{t('Rank', '军衔')}</dt><dd>{rankName(p.rank, locale)}</dd></div></dl>
+    <dl><div><dt><ResourceIcon /> {t('Gold', '金币')}</dt><dd>{gameController.displayGold(p)}</dd></div><div><dt><ResourceIcon kind="ship" /> {t('Ships', '船只')}</dt><dd>{p.fleet.length}</dd></div><div><dt>{t('Rank', '军衔')}</dt><dd>{rankName(p.rank, locale)}</dd></div></dl>
   </section>;
 }
 

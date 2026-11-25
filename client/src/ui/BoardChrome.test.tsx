@@ -4,6 +4,7 @@ import { createNationRoster, GameEngine, playerName, tx, type GameState } from '
 
 vi.mock('../game/GameController', () => ({ gameController: {
   displayGold: (p: { gold: number }) => p.gold,
+  islandsOwnedBy: (id: number) => (id === 1 ? 1 : 0),
   visibleLogText: () => [], feedback: { logTones: new Map() }, decline: vi.fn(),
   get landingTarget() { return null; },
 } }));
@@ -58,6 +59,17 @@ describe('board chrome', () => {
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('3200');
     expect(html).toContain('1 ·');
+  });
+  it('shows colony and strategy card counts for every navigator', () => {
+    const { state } = game();
+    state.players[1].strategies = state.players[1].strategies.slice(0, 1);
+    const html = renderToStaticMarkup(<VoyageTopBar state={state} colorBlind={false} onMenu={() => {}} menuOpen={false} />);
+    expect(html.match(/>Colonies<\/span> /g)).toHaveLength(state.players.length);
+    expect(html).toContain('>Colonies</span> 1 · ');
+    expect(html).toContain('>Strategy cards</span> 1</span>');
+    expect(html).toContain('>Colonies</span> 0 · ');
+    expect(html).toContain('>Strategy cards</span> 3</span>');
+    expect(html).toContain(`>Gold</span> ${state.players[0].gold} · `);
   });
   it('shows the current human and handles an empty fleet', () => {
     const { state } = game();

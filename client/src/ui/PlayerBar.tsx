@@ -11,10 +11,11 @@ import { SpeedControl } from './SpeedControl';
 import { seatTag } from './seats';
 import { StatTooltip } from './StatTooltip';
 
-/** Gold and colonies for every navigator; the current one is highlighted. */
+/** Gold, ships, colonies and strategy cards for every navigator; the current one is highlighted. */
 export function PlayerBar({ state, colorBlind, paletteToggle, onRules, onFleet, onTutorial }: { state: GameState; colorBlind: boolean; paletteToggle: ReactNode; onRules: () => void; onFleet: () => void; onTutorial: () => void }) {
   const { t, locale } = useT();
   const islands = (n: number) => t(`{n} island${n === 1 ? '' : 's'}`, '{n} 座岛屿', { n });
+  const colonies = (n: number) => t(`{n} ${n === 1 ? 'colony' : 'colonies'}`, '{n} 座殖民地', { n });
   return (
     <div className="panel players">
       <SpeedControl />
@@ -52,7 +53,8 @@ export function PlayerBar({ state, colorBlind, paletteToggle, onRules, onFleet, 
             <div className="stats">
               <StatTooltip stat="rank">{rankName(p.rank, locale)}</StatTooltip><br />
               {p.nation && <>{nationName(p.nation, locale)}<br /></>}
-              <StatTooltip stat="gold">{t('{g}g', '{g} 金币', { g: gameController.displayGold(p) })}</StatTooltip> · <StatTooltip stat="islands">{islands(gameController.islandsOwnedBy(p.id))}</StatTooltip> · <StatTooltip stat="ships">{t(`{n} ${p.fleet.length === 1 ? 'ship' : 'ships'}`, '{n} 艘船', { n: p.fleet.length })}</StatTooltip>
+              <StatTooltip stat="gold">{t('{g}g', '{g} 金币', { g: gameController.displayGold(p) })}</StatTooltip> · <StatTooltip stat="ships">{t(`{n} ${p.fleet.length === 1 ? 'ship' : 'ships'}`, '{n} 艘船', { n: p.fleet.length })}</StatTooltip><br />
+              <StatTooltip stat="islands">{colonies(gameController.islandsOwnedBy(p.id))}</StatTooltip> · <StatTooltip stat="cards">{t(`{n} ${p.strategies.length === 1 ? 'card' : 'cards'}`, '{n} 张谋略卡', { n: p.strategies.length })}</StatTooltip>
             </div>
           </div>
           );

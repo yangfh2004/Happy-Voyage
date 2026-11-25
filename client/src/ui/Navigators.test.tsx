@@ -46,6 +46,16 @@ describe('navigators in the UI', () => {
     expect(html).toContain('>Tutorial</button>');
   });
 
+  it('shows colony and strategy card counts for every navigator', () => {
+    const { state } = new GameEngine({ players: createNationRoster([{ name: 'Me', nation: 'China' }]) });
+    state.players[1].strategies = state.players[1].strategies.slice(0, 1);
+    const html = renderToStaticMarkup(<PlayerBar state={state} colorBlind={false} paletteToggle={null} onRules={() => {}} onFleet={() => {}} onTutorial={() => {}} />);
+    expect(html).toContain('0 colonies');
+    expect(html).toContain('3 cards');
+    expect(html).toContain('1 card<');
+    expect(html).toContain('Strategy cards currently held by this navigator');
+  });
+
   it('marks the signature ship in the fleet panel', () => {
     vi.stubGlobal('document', { body: null });
     const { state } = new GameEngine({ players: createNationRoster([{ name: 'Me', nation: 'England' }]) });
