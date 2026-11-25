@@ -61,7 +61,7 @@ A navigator goes bankrupt only when a deduction takes their gold below zero; exa
 
 **Building income**: At the end of each round, the current owner receives one quarter of the total cost of all completed building levels on that island, rounded down, even if no rival lands or pays a toll. Each level pays back in four rounds as long as you hold the colony. For example, a level-one lumber mill, iron mine, and shipyard cost 260 gold together and pay 65 gold per round. Tolls and material production are separate.
 
-**Dockside repairs**: A colony with either a Shipyard or a Repair yard fully repairs all ships docked there for free at the start of its owner's turn. Ships are not repaired immediately upon landing or docking, and ships still in the sailing fleet are not repaired. Repaired ships can rejoin the fleet on the next visit.
+**Dockside repairs**: Ships & cargo transfer shows current/max durability for every ship in your sailing fleet and every ship docked at the colony. It also tells you whether the colony offers automatic repairs. A colony with either a Shipyard or a Repair yard fully repairs all ships docked there for free at the start of its owner's turn. Ships are not repaired immediately upon landing or docking, and ships still in the sailing fleet are not repaired. Repaired ships can rejoin the fleet on the next visit.
 
 ### Ships
 

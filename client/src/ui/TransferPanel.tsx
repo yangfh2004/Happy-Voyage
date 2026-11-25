@@ -50,15 +50,21 @@ export function TransferContents({ state }: { state: GameState }) {
     return goods.length ? goods.map((good) => `${gn(good)} ${ship.cargo[good]}`).join(t(', ', '、')) : t('Empty hold', '空舱');
   };
   const shipCard = (ship: Ship, action: ReactNode) => <li key={ship.id} className="transfer-ship">
-    <div><strong>{sn(ship.name)}</strong><small><StatTooltip stat="cargoCapacity">{t('Cargo', '货物')} {cargoLoad(ship)}/{ship.cargoCapacity}</StatTooltip> · {cargoSummary(ship)}</small></div>
+    <div>
+      <strong>{sn(ship.name)}</strong>
+      <small><StatTooltip stat="durability">{t('Durability', '耐久')} {ship.durability}/{ship.maxDurability}</StatTooltip></small>
+      <small><StatTooltip stat="cargoCapacity">{t('Cargo', '货物')} {cargoLoad(ship)}/{ship.cargoCapacity}</StatTooltip> · {cargoSummary(ship)}</small>
+    </div>
     {action}
   </li>;
   return <>
     <p className="transfer-place">{nodeName(state.map[player.position], locale)} · {playerName(player, locale)}</p>
     <section className="transfer-section" aria-labelledby="transfer-ships-heading">
       <h3 id="transfer-ships-heading">{t('Ships', '船只调度')}</h3>
-      <p className="transfer-hint">{t('Docked ships stay to defend this colony; board them to sail again.', '停靠的船只留下守卫殖民地；让它们归队即可再次出航。')}
-        {colonyCanRepair(state, player.position) && <> {t('Dock ships here for free repairs at the start of your next turn.', '将船只停靠在此，下次回合开始时免费修好。')}</>}</p>
+      <p className="transfer-hint">{t('Docked ships stay to defend this colony; board them to sail again.', '停靠的船只留下守卫殖民地；让它们归队即可再次出航。')}{' '}
+        {colonyCanRepair(state, player.position)
+          ? t('Dock ships here for free repairs at the start of your next turn.', '将船只停靠在此，下次回合开始时免费修好。')
+          : t('No shipyard or repair yard: docked ships are not repaired here.', '没有造船厂或修船厂，停靠的船只不会在此修理。')}</p>
       <div className="transfer-columns">
         <div>
           <h4>{t('Fleet {n}/{max}', '舰队 {n}/{max}', { n: player.fleet.length, max: MAX_FLEET_SIZE })}</h4>
@@ -66,7 +72,7 @@ export function TransferContents({ state }: { state: GameState }) {
             <button disabled={player.fleet.length <= 1} onClick={() => act(() => gameController.dockShip(ship.id))}>{t('Dock {s}', '停靠{s}', { s: sn(ship.name) })}</button>))}</ul>
         </div>
         <div>
-          <h4>{t('Colony shipyard', '殖民地船坞')} ({docked.length})</h4>
+          <h4>{t('Docked ships', '停靠船只')} ({docked.length})</h4>
           {docked.length === 0 && <p className="transfer-hint">{t('No docked ships.', '没有停靠的船只。')}</p>}
           {fleetFull && docked.length > 0 && <p className="transfer-hint">{t('The fleet is full. Dock a fleet ship before boarding another.', '舰队已满。先停靠一艘随行船只，再让另一艘归队。')}</p>}
           <ul>{docked.map((ship) => shipCard(ship,
