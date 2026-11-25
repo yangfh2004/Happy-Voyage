@@ -9,33 +9,41 @@ const angle = 5 * Math.PI / 180;
 export const SHIP_BERTH_WIDTH = .95 * (112 * Math.cos(angle) + 124 * Math.sin(angle));
 export const SHIP_BERTH_HEIGHT = .95 * (124 * Math.cos(angle) + 112 * Math.sin(angle));
 export const MAX_BERTH_OFFSET = 270;
+const MAX_NEIGHBOUR_CLEARANCE = 400;
 export const MIN_BERTH_SCALE = .65;
 export const SINGLE_SHORE_DISTANCE = 100;
 export const SHARED_SHORE_DISTANCE = 110;
 const SCALES = [1, .95, .9, .85, .8, .75, .7, MIN_BERTH_SCALE];
+const SEA_MARKER_EXTENT = 17;
 
 export function shipBounds(x: number, y: number, scale = 1): BerthBox {
   return { left: x - SHIP_BERTH_WIDTH * scale / 2, right: x + SHIP_BERTH_WIDTH * scale / 2, top: y - SHIP_BERTH_HEIGHT * scale / 2, bottom: y + SHIP_BERTH_HEIGHT * scale / 2 };
 }
 
-export function berthObstacles(map: MapNode[], labels = new Map<number, BerthBox>()): BerthBox[] {
-  return map.flatMap(node => {
-    const offset = node.kind === 'island' || node.kind === 'port' ? 63 : 55;
-    const lines = [0];
-    for (const word of node.name.split(' ')) {
-      const width = word.length * 9.75;
-      const index = lines.length - 1;
-      if (lines[index] && lines[index] + 5 + width > 146) lines.push(width);
-      else lines[index] += (lines[index] ? 5 : 0) + width;
-    }
-    const chineseWidth = nodeName(node, 'zh').length * 19;
-    const width = Math.max(...lines, Math.min(146, chineseWidth), node.kind === 'island' ? 96 : 0) + 6;
-    const height = (Math.max(lines.length, Math.ceil(chineseWidth / 146)) + (node.kind === 'island' ? 1 : 0)) * 24;
-    return [
-      { left: node.x - 80, right: node.x + 80, top: node.y - 76, bottom: node.y + 76 },
-      labels.get(node.id) ?? { left: node.x - width / 2, right: node.x + width / 2, top: node.y + offset, bottom: node.y + offset + height },
-    ];
-  });
+function stopObstacles(node: MapNode, labels?: Map<number, BerthBox>): [BerthBox, BerthBox?] {
+  if (node.kind === 'sea') return [{
+    left: node.x - SEA_MARKER_EXTENT, right: node.x + SEA_MARKER_EXTENT,
+    top: node.y - SEA_MARKER_EXTENT, bottom: node.y + SEA_MARKER_EXTENT,
+  }];
+  const offset = node.kind === 'island' || node.kind === 'port' ? 63 : 55;
+  const lines = [0];
+  for (const word of node.name.split(' ')) {
+    const width = word.length * 9.75;
+    const index = lines.length - 1;
+    if (lines[index] && lines[index] + 5 + width > 146) lines.push(width);
+    else lines[index] += (lines[index] ? 5 : 0) + width;
+  }
+  const chineseWidth = nodeName(node, 'zh').length * 19;
+  const width = Math.max(...lines, Math.min(146, chineseWidth), node.kind === 'island' ? 96 : 0) + 6;
+  const height = (Math.max(lines.length, Math.ceil(chineseWidth / 146)) + (node.kind === 'island' ? 1 : 0)) * 24;
+  return [
+    { left: node.x - 80, right: node.x + 80, top: node.y - 76, bottom: node.y + 76 },
+    labels?.get(node.id) ?? { left: node.x - width / 2, right: node.x + width / 2, top: node.y + offset, bottom: node.y + offset + height },
+  ];
+}
+
+export function berthObstacles(map: MapNode[], labels?: Map<number, BerthBox>): BerthBox[] {
+  return map.flatMap(node => stopObstacles(node, labels).filter((box): box is BerthBox => box !== undefined));
 }
 
 export function boxesOverlap(a: BerthBox, b: BerthBox, gap = 2): boolean {
@@ -57,33 +65,41 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
     cache.set(map, stored);
   }
   const ordered = [...map].sort((a, b) => a.id - b.id);
-  const obstacles = berthObstacles(ordered, labels), art = obstacles.filter((_, i) => i % 2 === 0), names = obstacles.filter((_, i) => i % 2 === 1);
+  const obstacles = ordered.map(node => stopObstacles(node, labels));
+  const art = obstacles.map(([box]) => box), names = obstacles.flatMap(([, name]) => name ? [name] : []);
   const candidatesFor = (node: MapNode, scale: number, allowLabels = false, fine = false): Candidate[] => {
     const id = `${node.id}:${scale}:${allowLabels}:${fine}`;
     if (stored.candidates.has(id)) return stored.candidates.get(id)!;
     const candidates: Candidate[] = [];
-    const neighbours = map.filter(other => other.id !== node.id);
-    const ownIndex = ordered.findIndex(other => other.id === node.id);
+    const neighbours = map.filter(other => other.id !== node.id &&
+      Math.hypot(node.x - other.x, node.y - other.y) < MAX_BERTH_OFFSET + MAX_NEIGHBOUR_CLEARANCE);
+    const reach = shipBounds(node.x, node.y, scale);
+    reach.left -= MAX_BERTH_OFFSET;
+    reach.right += MAX_BERTH_OFFSET;
+    reach.top -= MAX_BERTH_OFFSET;
+    reach.bottom += MAX_BERTH_OFFSET;
+    const localNames = names.filter(label => boxesOverlap(reach, label));
+    const localArt = art.filter((box, index) => ordered[index].id !== node.id && boxesOverlap(reach, box, 0));
     const coast = node.kind === 'island' ? islandLandscape(node).coast : node.kind === 'port' ? harbourLandscape(node).coast : null;
     const step = fine ? 3 : 6;
     for (let dy = -MAX_BERTH_OFFSET; dy <= MAX_BERTH_OFFSET; dy += step) for (let dx = -MAX_BERTH_OFFSET; dx <= MAX_BERTH_OFFSET; dx += step) {
       const distance = Math.hypot(dx, dy), x = node.x + dx, y = node.y + dy;
       if (distance > MAX_BERTH_OFFSET) continue;
       if (fine && distance > SHARED_SHORE_DISTANCE && (dx % 6 !== 0 || dy % 6 !== 0)) continue;
-      let clearance = 400;
+      let clearance = MAX_NEIGHBOUR_CLEARANCE;
       for (const other of neighbours) clearance = Math.min(clearance, Math.hypot(x - other.x, y - other.y));
       if (clearance <= distance) continue;
       const box = shipBounds(x, y, scale);
       if (box.left < 8 || box.top < 8 || box.right > WORLD.width - 8 || box.bottom > WORLD.height - 8) continue;
-      const collisions = names.filter(label => boxesOverlap(box, label));
+      const collisions = localNames.filter(label => boxesOverlap(box, label));
       if (!allowLabels && collisions.length) continue;
-      const area = art.reduce((sum, island, index) => sum + (index === ownIndex ? 0 : overlapArea(box, island)), 0);
+      const area = localArt.reduce((sum, island) => sum + overlapArea(box, island), 0);
       const penalty = collisions.reduce((sum, label) => sum + 1e9 + overlapArea(box, label), 0);
       const hullY = dy + 39 * .95 * scale;
       const hullDistance = Math.hypot(dx, hullY);
       const ux = hullDistance ? dx / hullDistance : 0, uy = hullDistance ? hullY / hullDistance : -1;
       const radius = coast ? Math.max(...coast.map(point => (point.x - 80) * ux + (point.y - 76) * uy))
-        : Math.hypot(45 * ux, 30 * uy);
+        : node.kind === 'sea' ? SEA_MARKER_EXTENT : Math.hypot(45 * ux, 30 * uy);
       const shore = radius + Math.hypot(ux * 38, uy * 10) * .95 * scale - 4;
       const shoreGap = Math.abs(hullDistance - shore);
       const remote = Math.max(0, distance - SINGLE_SHORE_DISTANCE);
@@ -162,12 +178,12 @@ export function occupiedShipPlacements(map: MapNode[], players: { id: number; po
   while (!search()) {
     const next = groups.filter(g => g.level < SCALES.length - 1).sort((a, b) => layoutsFor(a.node, a.occupants.length, SCALES[a.level]).length - layoutsFor(b.node, b.occupants.length, SCALES[b.level]).length || a.node.id - b.node.id)[0];
     if (!next) {
-      if (fixed.size) return occupiedShipPlacements(map, players, labels);
       if (shoreLimit < MAX_BERTH_OFFSET) {
         shoreLimit = MAX_BERTH_OFFSET;
         visits = 0;
         continue;
       }
+      if (fixed.size) return occupiedShipPlacements(map, players, labels);
       break;
     }
     next.level++; visits = 0;

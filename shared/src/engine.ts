@@ -401,6 +401,7 @@ export class GameEngine extends GameView {
         if (nodes.length) roamer.node = nodes[Math.floor(this.rng() * nodes.length)].id;
       } else if (node.kind !== 'port' && (node.event === 'openSea' || this.rng() < SEA_RULES.encounterChance)) {
         const entries = Object.entries(SEA_RULES.encounterWeights) as [NonNullable<MapNode['event']>, number][];
+        if (node.kind === 'sea') entries.push(['treasure', SEA_RULES.blankSeaSalvageWeight]);
         let roll = this.rng() * entries.reduce((sum, [, weight]) => sum + weight, 0);
         event = entries.find(([, weight]) => (roll -= weight) < 0)![0];
       }
@@ -437,6 +438,8 @@ export class GameEngine extends GameView {
       case 'event':
         if (this.skipMerchantLanding) { this.skipMerchantLanding = false; break; }
         if (node.event !== 'openSea' && this.resolveEvent(player, node)) return;
+        break;
+      case 'sea':
         break;
       case 'island': {
         const owner = this.state.owners[node.id];
@@ -1371,7 +1374,7 @@ export class GameEngine extends GameView {
         return true;
       }
       case 'treasure': {
-        if (node.id === this.state.hoardNode) {
+        if (node.kind === 'event' && node.id === this.state.hoardNode) {
           this.changeGold(player, STRATEGY_RULES.hoardGold, 'buried hoard');
           this.log(tx('{p} digs up the buried hoard: {g}g!', '{p} 挖出了埋藏的宝藏：{g} 金币！', { p: ref.player(player.id), g: STRATEGY_RULES.hoardGold }));
           for (const p of this.state.players) p.knownHoard = null;

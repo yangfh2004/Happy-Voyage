@@ -369,8 +369,33 @@ export class OceanScene extends Phaser.Scene {
         this.islands.set(node.id, this.add.image(node.x, node.y, islandTexture(this, node)));
       } else if (node.kind === 'port') {
         this.islands.set(node.id, this.add.image(node.x, node.y, harbourTexture(this, node)));
+      } else if (node.kind === 'sea') {
+        this.add.circle(node.x, node.y, 15, 0x12364a).setStrokeStyle(4, 0xb8e9ee);
       } else {
         this.add.image(node.x, node.y, specialIslandTexture(this, node));
+      }
+
+      const showTooltip = () => {
+        const locale = getLocale();
+        const help: [string, string] | undefined = node.kind === 'sea'
+          ? ['20% chance of an encounter or treasure salvage when stopping here.', '停在这里有 20% 概率发生海上遭遇或打捞宝藏。']
+          : node.event === 'openSea'
+            ? ['A random sea encounter is guaranteed here.', '海上遭遇：每次停靠都会发生。']
+            : SPECIAL_HELP[node.special ?? ''];
+        const buildings = gameController.state?.buildings[node.id] ?? {};
+        const lines = Object.entries(buildings).filter(([, level]) => level > 0).map(([kind]) => `${buildingName(kind as BuildingKind, locale)}: ${buildingDescription(kind as BuildingKind, locale)}`);
+        if (help) lines.unshift(pick(locale, ...help));
+        if (!lines.length) return;
+        this.stopTooltip?.destroy();
+        this.stopTooltip = this.add.text(node.x, node.y - (node.kind === 'sea' ? 26 : 80), `${nodeName(node, locale)}\n${lines.join('\n')}`, { fontFamily: '"Sea Names", sans-serif', fontSize: '15px', color: '#fff6dc', backgroundColor: '#092f46', padding: { x: 12, y: 9 }, wordWrap: { width: 240 } }).setOrigin(.5, 1).setDepth(40).setScale(1 / this.cameras.main.zoom);
+        const camera = this.cameras.main;
+        const position = stopHelpPosition(this.stopTooltip, { width: this.stopTooltip.displayWidth, height: this.stopTooltip.displayHeight }, camera.worldView, 8 / camera.zoom);
+        this.stopTooltip.setPosition(position.x, position.y);
+      };
+      const hideTooltip = () => { this.stopTooltip?.destroy(); this.stopTooltip = null; };
+      if (node.kind === 'sea') {
+        bindStopHelp(this.add.zone(node.x, node.y, 52, 52).setInteractive({ useHandCursor: true }), showTooltip, hideTooltip);
+        continue;
       }
 
       const text = this.add
@@ -388,20 +413,6 @@ export class OceanScene extends Phaser.Scene {
       this.labels.add(text);
       this.stopLabels.set(node.id, text);
       text.setInteractive({ useHandCursor: true });
-      const showTooltip = () => {
-        const locale = getLocale();
-        const help = node.event === 'openSea' ? ['A random sea encounter is guaranteed here.', '海上遭遇：每次停靠都会发生。'] as [string, string] : SPECIAL_HELP[node.special ?? ''];
-        const buildings = gameController.state?.buildings[node.id] ?? {};
-        const lines = Object.entries(buildings).filter(([, level]) => level > 0).map(([kind]) => `${buildingName(kind as BuildingKind, locale)}: ${buildingDescription(kind as BuildingKind, locale)}`);
-        if (help) lines.unshift(pick(locale, ...help));
-        if (!lines.length) return;
-        this.stopTooltip?.destroy();
-        this.stopTooltip = this.add.text(node.x, node.y - 80, `${nodeName(node, locale)}\n${lines.join('\n')}`, { fontFamily: '"Sea Names", sans-serif', fontSize: '15px', color: '#fff6dc', backgroundColor: '#092f46', padding: { x: 12, y: 9 }, wordWrap: { width: 240 } }).setOrigin(.5, 1).setDepth(40).setScale(1 / this.cameras.main.zoom);
-        const camera = this.cameras.main;
-        const position = stopHelpPosition(this.stopTooltip, { width: this.stopTooltip.displayWidth, height: this.stopTooltip.displayHeight }, camera.worldView, 8 / camera.zoom);
-        this.stopTooltip.setPosition(position.x, position.y);
-      };
-      const hideTooltip = () => { this.stopTooltip?.destroy(); this.stopTooltip = null; };
       bindStopHelp(text, showTooltip, hideTooltip);
       bindStopHelp(this.add.zone(node.x, node.y, 140, 110).setInteractive({ useHandCursor: true }), showTooltip, hideTooltip);
     }

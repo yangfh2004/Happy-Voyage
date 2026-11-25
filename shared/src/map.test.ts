@@ -8,9 +8,17 @@ describe('organic archipelagos', () => {
     const another = createDefaultMap();
     expect(another).toEqual(map);
     expect(another[0]).not.toBe(map[0]);
-    expect(map).toHaveLength(70);
+    expect(map).toHaveLength(100);
     expect(map.filter((node) => node.kind === 'island')).toHaveLength(40);
     expect(map.filter((node) => node.kind === 'port')).toHaveLength(10);
+    expect(map.filter((node) => node.kind === 'special')).toHaveLength(7);
+    expect(map.filter((node) => node.kind === 'event')).toHaveLength(13);
+    const sea = map.filter((node) => node.kind === 'sea');
+    expect(sea).toHaveLength(30);
+    for (const node of sea) {
+      expect(Object.keys(node).sort()).toEqual(['chineseName', 'id', 'kind', 'name', 'x', 'y']);
+      expect(successors(map, node.id)).toEqual([(node.id + 1) % map.length]);
+    }
     for (let i = 0; i < map.length; i++) expect(map[i].id).toBe(i);
   });
   it('leaves room for icons and labels within the sea', () => {
@@ -19,7 +27,11 @@ describe('organic archipelagos', () => {
       expect(a.y).toBeGreaterThan(100);
       expect(a.x).toBeLessThan(WORLD.width - 100);
       expect(a.y).toBeLessThan(WORLD.height - 100);
-      for (const b of map) if (a.id !== b.id) expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(MIN_NODE_SPACING);
+      for (const b of map) {
+        if (a.id === b.id) continue;
+        const spacing = a.kind === 'sea' || b.kind === 'sea' ? 85 : MIN_NODE_SPACING;
+        expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(spacing);
+      }
     }
   });
   it('gives every fork two distinct cardinal headings, each selectable by wind', () => {
@@ -37,14 +49,17 @@ describe('organic archipelagos', () => {
     expect(shortcutWinds).toEqual(new Set(WIND_DIRECTIONS));
   });
   it('keeps shortcuts local in distance and route order', () => {
-    const lengths = map.map((node) => Math.hypot(node.x - map[(node.id + 1) % map.length].x, node.y - map[(node.id + 1) % map.length].y)).sort((a, b) => a - b);
+    const stops = map.filter((node) => node.kind !== 'sea');
+    const lengths = stops.map((node, i) => Math.hypot(node.x - stops[(i + 1) % stops.length].x, node.y - stops[(i + 1) % stops.length].y)).sort((a, b) => a - b);
     const typical = lengths[Math.floor(lengths.length / 2)];
     for (const node of map) {
       for (const id of successors(map, node.id).slice(1)) {
         expect(Math.hypot(node.x - map[id].x, node.y - map[id].y)).toBeLessThanOrEqual(typical * 2.5);
         const steps = (id - node.id + map.length) % map.length;
         expect(steps).toBeGreaterThanOrEqual(2);
-        expect(steps).toBeLessThanOrEqual(9);
+        expect(steps).toBeLessThanOrEqual(12);
+        const from = stops.indexOf(node), to = stops.indexOf(map[id]);
+        expect((to - from + stops.length) % stops.length).toBeLessThanOrEqual(9);
       }
     }
   });
@@ -59,7 +74,7 @@ describe('organic archipelagos', () => {
         for (const p of map) {
           if (p.id === node.id || p.id === id) continue;
           const t = Math.max(0, Math.min(1, ((p.x - node.x) * dx + (p.y - node.y) * dy) / length));
-          expect(Math.hypot(p.x - node.x - t * dx, p.y - node.y - t * dy)).toBeGreaterThan(85);
+          expect(Math.hypot(p.x - node.x - t * dx, p.y - node.y - t * dy)).toBeGreaterThan(p.kind === 'sea' ? 45 : 85);
         }
       }
     }
