@@ -60,7 +60,9 @@ app.whenReady().then(async () => {
   ipcMain.on('player-config', (event) => {
     const frame = event.senderFrame;
     const url = frame?.url ? new URL(frame.url) : null;
-    event.returnValue = frame === event.sender.mainFrame && url?.origin === GAME_URL.origin && url.pathname === GAME_URL.pathname ? config : undefined;
+    const allowed = url?.origin === GAME_URL.origin &&
+      (url.pathname === GAME_URL.pathname || (debugEnabled && url.pathname === DEBUG_URL.pathname));
+    event.returnValue = frame === event.sender.mainFrame && allowed ? config : undefined;
   });
   const gameSession = session.fromPartition('persist:happy-voyage');
   const directory = app.isPackaged ? join(process.resourcesPath, 'game') : join(__dirname, '../client/dist');

@@ -70,6 +70,17 @@ it('applies desktop config only while a local match is active', () => {
   expect(COMBAT.deploymentLimit).toBe(4);
 });
 
+it('starts tester preview voyages with the config exposed by the launcher preload', () => {
+  vi.stubGlobal('window', {
+    frameElement: {},
+    parent: { happyVoyageDesktop: { config: { starting: { gold: 9999, fleet: ['warship'] } } } },
+  });
+  controller = new GameController();
+  controller.newGame(players);
+  expect(controller.state!.players[0].gold).toBe(9999);
+  expect(controller.state!.players[0].fleet).toHaveLength(1);
+});
+
 it('routes retreat threshold changes through the human action guard and refreshes the view', () => {
   controller.newGame(players);
   const before = controller.getVersion();

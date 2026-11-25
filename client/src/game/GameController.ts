@@ -12,7 +12,9 @@ import type { RetreatThreshold } from '@happy-voyage/shared';
 import { DEFAULT_GAMEPLAY_TUNING, resolveGameplayTuning, selectGameplayTuning, type GameplayTuning } from '@happy-voyage/shared';
 
 function desktopTuning(): GameplayTuning {
-  const config = (globalThis as { happyVoyageDesktop?: { config: unknown } }).happyVoyageDesktop?.config;
+  type DesktopBridge = { happyVoyageDesktop?: { config: unknown } };
+  const previewHost = typeof window !== 'undefined' && window.frameElement ? window.parent as Window & DesktopBridge : undefined;
+  const config = (globalThis as DesktopBridge).happyVoyageDesktop?.config ?? previewHost?.happyVoyageDesktop?.config;
   const { rules, warnings } = resolveGameplayTuning(config);
   if (warnings.length) console.warn('无效的 config.json 设置（使用默认值） / Ignored config.json settings (using defaults):', warnings);
   return rules;
