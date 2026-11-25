@@ -22,7 +22,7 @@ A navigator goes bankrupt only when a deduction takes their gold below zero; exa
 
 ## 2. Chart, rounds, and sailing
 
-- The standard chart has 70 spaces: 10 national ports, 40 new continents, 7 special islands, and 13 event spaces (9 Open sea spaces, 2 treasure spaces, 1 storm space, and 1 trade wind space). Ports, special islands, and event spaces cannot be claimed.
+- The standard chart has 100 spaces: 10 national ports, 40 new continents, 7 special islands, 13 event spaces (9 Open sea event spaces, 2 treasure spaces, 1 storm space, and 1 trade wind space), and 30 blank sea spaces. Blank sea spaces count as sailing steps but contain no ports or islands. Only new continents can be claimed.
 - In each round, every active seat gets one turn in fixed seat order. At the end of the round, colonies produce goods, market stock moves back toward its starting level, and roaming units move. Blockade makes the affected seat skip its next turn.
 - Each turn begins with the option to use a Strategy card or **Return to a colony**, then to spin the compass (sailing directly replaces the spin). A normal spin moves the fleet 2–12 spaces with respective weights of 1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1 (36 total, with 7 spaces most likely). After moving, resolve home-port salary along the route first, then any en-route encounter, then the landing itself. If the landing offers a choice, finish it or leave its screen before passing the turn.
 - The forward route has 9 forks. North, east, south, and west winds steer the fleet toward the exit most aligned with the wind. If none is downwind, the fleet follows the main route. Reverse Course goes backward along the main route. The initial wind is random; it changes to another direction every 2–4 player turns thereafter. Ship speed does not increase the number of spaces moved on a compass spin.
@@ -35,7 +35,7 @@ A navigator goes bankrupt only when a deduction takes their gold below zero; exa
 
 - Landing on an unclaimed new continent automatically plants your flag for free. The price shown on the chart is its **valuation** (100–350 gold), not a claim fee. Number the new continents 1–40 in the main-route order below. Continent `n` is valued at `100 + (n − 1) × 250 ÷ 39`, rounded to the nearest 5. The base toll is 35% of its valuation, rounded to the nearest whole gold. Specialties cycle through Wine, Sugar, Cotton, Timber, Cocoa, Tobacco, Silver, Spices, Silk, and Tea. Base iron yields repeat 1, 2, 3.
 
-| Port order | Following new continents (excluding special islands and event spaces) |
+| Port order | Following new continents (excluding special islands, event spaces, and blank sea spaces) |
 | --- | --- |
 | Spain | Madeira, Canary Isles, Cape Verde, Azores |
 | Netherlands | Hispaniola, Cuba, Yucatan, Veracruz |
@@ -144,7 +144,7 @@ Only ships above 0 durability at the start of battle count toward the starting s
 
 ## 6. Sea encounters
 
-Two roaming pirate groups and one roaming Small sea monster move 1–3 spaces each round along the route, forward or backward, without passing through ports or special islands. A roaming unit triggers an encounter only when a fleet lands on its space (passing through does not trigger it), then relocates to an empty space. If no roaming unit is at the landing space, landing on an Open sea space always triggers a random encounter. Any other non-port landing has a 20% chance to trigger a random encounter before resolving the landing itself. Fixed treasure, storm, and trade wind spaces resolve their own events separately. Escort blocks the next harmful event: Storm, Pirates, either size of sea monster, Destructive sea turtle, or Bermuda whirlpool.
+Two roaming pirate groups and one roaming Small sea monster move 1–3 spaces each round along the route, forward or backward, without passing through ports or special islands. A roaming unit triggers an encounter only when a fleet lands on its space (passing through does not trigger it), then relocates to an empty space. If no roaming unit is at the landing space, landing on an Open sea event space always triggers a random encounter. Any other non-port landing, including a blank sea space, has a 20% chance to trigger a random encounter before resolving the landing itself. Blank sea spaces have no other landing action, but add sunken treasure salvage to the encounter table below at weight 14 (114 total on blank sea spaces only). Fixed treasure, storm, and trade wind spaces resolve their own events separately. Escort blocks the next harmful event: Storm, Pirates, either size of sea monster, Destructive sea turtle, or Bermuda whirlpool.
 
 | Encounter | Random weight (100 total) | Effect |
 | --- | ---: | --- |

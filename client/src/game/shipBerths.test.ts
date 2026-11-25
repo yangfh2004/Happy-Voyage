@@ -4,7 +4,7 @@ import { berthObstacles, boxesOverlap, MAX_BERTH_OFFSET, MIN_BERTH_SCALE, SINGLE
 
 function check(map: MapNode[], players: { id: number; position: number }[], labels?: Map<number, BerthBox>, previous?: Map<number, MooredBerth>) {
   const placements = occupiedShipPlacements(map, players, labels, previous);
-  const names = berthObstacles(map, labels).filter((_, i) => i % 2 === 1);
+  const names = berthObstacles(map.filter(node => node.kind !== 'sea'), labels).filter((_, i) => i % 2 === 1);
   expect(placements.size).toBe(players.length);
   const boxes: BerthBox[] = [];
   for (const player of players) {
@@ -159,6 +159,12 @@ describe('attached ship berths', () => {
     expect(positions.size).toBe(players.length);
     for (const berth of positions.values()) expect(berth.scale).toBe(MIN_BERTH_SCALE);
     expect(() => occupiedShipPlacements(map, Array.from({ length: 20 }, (_, id) => ({ id, position: 11 })))).not.toThrow();
+  });
+
+  it('positions ships at a sea marker without reserving an island or label', () => {
+    const node = map.find(node => node.kind === 'sea')!;
+    expect(berthObstacles([node])).toEqual([{ left: node.x - 17, right: node.x + 17, top: node.y - 17, bottom: node.y + 17 }]);
+    check(map, [{ id: 0, position: node.id }, { id: 1, position: node.id }]);
   });
 
   it('handles empty charts, missing stops and empty fleets', () => {

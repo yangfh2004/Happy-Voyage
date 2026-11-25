@@ -5,7 +5,7 @@
  */
 
 /** What a stop on the sea route does when a fleet lands on it. */
-export type NodeKind = 'port' | 'island' | 'event' | 'special';
+export type NodeKind = 'port' | 'island' | 'event' | 'special' | 'sea';
 export type SpecialKind = 'skeleton' | 'treasure' | 'mist' | 'revival' | 'nightless' | 'wind' | 'dragonSnake';
 
 /** Random-event stops (the "joy core" of the original game). */

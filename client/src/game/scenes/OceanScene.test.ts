@@ -131,6 +131,29 @@ describe('map label language and themed stop hover', () => {
     handlers.get('pointerout')!({ wasTouch: false });
     expect(tooltip.destroy).toHaveBeenCalledOnce();
   });
+
+  it.each([
+    ['en', 'Open water', 'treasure salvage'],
+    ['zh', '海上', '打捞宝藏'],
+  ] as const)('draws only a marker with localized help on blank sea in %s', (locale, name, help) => {
+    setLocale(locale);
+    const node = createDefaultMap().find(node => node.kind === 'sea')!;
+    const handlers = new Map<string, (pointer: { wasTouch: boolean }) => void>();
+    const zone = { setInteractive: vi.fn().mockReturnThis(), on: vi.fn((event: string, handler: (pointer: { wasTouch: boolean }) => void) => { handlers.set(event, handler); return zone; }) };
+    const circle = vi.fn(() => ({ setStrokeStyle: vi.fn() }));
+    const image = vi.fn();
+    const text = vi.fn((_x: number, _y: number, _label: string) => ({ setOrigin: vi.fn().mockReturnThis(), setDepth: vi.fn().mockReturnThis(), setScale: vi.fn().mockReturnThis(), setPosition: vi.fn(), displayWidth: 150, displayHeight: 50 }));
+    Object.assign(scene, { map: [node], add: { circle, image, text, zone: () => zone }, cameras: { main: { zoom: 1, worldView: { x: 0, y: 0, width: WORLD.width, height: WORLD.height } } } });
+    scene.drawStops();
+    expect(circle).toHaveBeenCalledOnce();
+    expect(image).not.toHaveBeenCalled();
+    expect(text).not.toHaveBeenCalled();
+    handlers.get('pointerover')!({ wasTouch: false });
+    const content = text.mock.calls[0][2];
+    expect(content).toContain(name);
+    expect(content).toContain(help);
+    if (locale === 'en') expect(content).not.toMatch(/[\u3400-\u9fff]/);
+  });
 });
 
 describe('shared stop ship berths', () => {

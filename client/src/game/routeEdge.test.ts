@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultMap, type MapNode } from '@happy-voyage/shared';
+import { createDefaultMap, WORLD, type MapNode } from '@happy-voyage/shared';
 import { routeEdge } from './routeEdge';
 
 describe('shortcut geometry', () => {
   const map = Array.from({ length: 70 }, (_, id) => ({ id, x: 5000 + id * 200, y: 5000 } as MapNode));
-  Object.assign(map[60], { x: 800, y: 2200 });
-  Object.assign(map[61], { x: 440, y: 2200 });
-  Object.assign(map[64], { x: 80, y: 2200 });
+  Object.assign(map[60], { x: 800, y: WORLD.height - 400 });
+  Object.assign(map[61], { x: 440, y: WORLD.height - 400 });
+  Object.assign(map[64], { x: 80, y: WORLD.height - 400 });
   Object.assign(map[66], { x: 80, y: 678 });
   Object.assign(map[67], { x: 80, y: 482 });
   Object.assign(map[68], { x: 80, y: 286 });
@@ -34,7 +34,7 @@ describe('shortcut geometry', () => {
         for (let i = 0; i <= 100; i++) {
           const p = edge.point(i / 100);
           for (const other of islands) {
-            if (other.id !== node.id && other.id !== target) expect(Math.hypot(p.x - other.x, p.y - other.y)).toBeGreaterThan(80);
+            if (other.id !== node.id && other.id !== target) expect(Math.hypot(p.x - other.x, p.y - other.y)).toBeGreaterThan(other.kind === 'sea' ? 30 : 80);
           }
         }
       }
