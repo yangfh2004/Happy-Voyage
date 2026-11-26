@@ -4,6 +4,7 @@ import { gameController } from '../game/GameController';
 import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { cssColor } from './nations';
+import { fleetDurabilitySummary } from './fleetSummary';
 import { LogPanel } from './LogPanel';
 import { SoundControl } from './SoundControl';
 
@@ -47,8 +48,18 @@ export function canEndTurn(state: GameState, atHelm: boolean, lotteryRevealed = 
   return endTurnAction(state, atHelm, lotteryRevealed) !== null;
 }
 
-export function VoyageTopBar({ state, colorBlind, onMenu, menuOpen }: { state: GameState; colorBlind: boolean; onMenu: () => void; menuOpen: boolean }) {
+export function VoyageTopBar({ state, colorBlind, onMenu, menuOpen, onFleet }: {
+  state: GameState;
+  colorBlind: boolean;
+  onMenu: () => void;
+  menuOpen: boolean;
+  onFleet?: (playerId?: number) => void;
+}) {
   const { t, locale } = useT();
+  const viewer = state.players.find((player) => player.id === gameController.viewerId)
+    ?? state.players.find((player) => !player.isAI)
+    ?? state.players[state.currentPlayer];
+  const viewerHull = fleetDurabilitySummary(viewer.fleet);
   return <header className="voyage-top">
     <div className="voyage-logo">⚓ <span>{t('HAPPY VOYAGE', '欢乐大航海')}</span></div>
     <div className="mobile-sound"><SoundControl /></div>
@@ -65,19 +76,48 @@ export function VoyageTopBar({ state, colorBlind, onMenu, menuOpen }: { state: G
         </div>;
       })}
     </div>
-    <div className="voyage-menu-control"><span>{t('Turn: {p}', '回合：{p}', { p: playerName(state.players[state.currentPlayer], locale) })}</span><button aria-expanded={menuOpen} aria-controls="voyage-menu" onClick={onMenu}>⚙ {t('Menu', '菜单')}</button></div>
+    <div className="voyage-menu-control">
+      <span>{t('Turn: {p}', '回合：{p}', { p: playerName(state.players[state.currentPlayer], locale) })}</span>
+      <div className="voyage-top-actions">
+        {onFleet && (
+          <button
+            type="button"
+            className={`voyage-fleet-btn ${viewerHull.damaged > 0 ? 'has-damage' : ''}`}
+            onClick={() => onFleet(viewer.id)}
+            aria-label={t('Fleet status ({n} ships, {pct}% durability)', '舰队状态（{n} 艘船，耐久 {pct}%）', { n: viewer.fleet.length, pct: viewerHull.percent })}
+          >
+            <ResourceIcon kind="ship" />
+            <span>{t('Fleet', '舰队')}</span>
+            {viewer.fleet.length > 0 && <small className="fleet-hull-pill">{viewerHull.percent}%</small>}
+          </button>
+        )}
+        <button type="button" className="voyage-menu-btn" aria-expanded={menuOpen} aria-controls="voyage-menu" onClick={onMenu}>⚙ {t('Menu', '菜单')}</button>
+      </div>
+    </div>
   </header>;
 }
 
-export function HelmCard({ state, colorBlind, atHelm }: { state: GameState; colorBlind: boolean; atHelm: boolean }) {
+export function HelmCard({ state, colorBlind, atHelm, onFleet }: {
+  state: GameState;
+  colorBlind: boolean;
+  atHelm: boolean;
+  onFleet?: (playerId?: number) => void;
+}) {
   const { t, locale } = useT();
   const p = state.players[state.currentPlayer];
   const { color } = chartIdentity(p, colorBlind);
+  const hull = fleetDurabilitySummary(p.fleet);
   return <section className="helm-card">
     <h2>☸ {atHelm ? t('YOUR TURN', '你的回合') : t('AT THE HELM', '掌舵中')}</h2>
     {p.navigator && <div className="helm-portrait"><NavigatorPortrait navigator={p.navigator} color={color} size={88} /></div>}
     <h2>{playerName(p, locale)}</h2>
     <dl><div><dt><ResourceIcon /> {t('Gold', '金币')}</dt><dd>{gameController.displayGold(p)}</dd></div><div><dt><ResourceIcon kind="ship" /> {t('Ships', '船只')}</dt><dd>{p.fleet.length}</dd></div><div><dt>{t('Rank', '军衔')}</dt><dd>{rankName(p.rank, locale)}</dd></div></dl>
+    {onFleet && (
+      <button type="button" className={`helm-fleet-btn ${hull.damaged > 0 ? 'has-damage' : ''}`} onClick={() => onFleet(p.id)}>
+        <ResourceIcon kind="ship" /> {t('Fleet status', '查看舰队')}
+        {p.fleet.length > 0 && <span> · {hull.percent}%</span>}
+      </button>
+    )}
   </section>;
 }
 

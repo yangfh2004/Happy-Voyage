@@ -193,12 +193,28 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .fleet + .backdrop { background: #06283dbb; }
 .fleet-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .fleet-heading h2 { margin: 0; }
-.fleet select { max-width: 100%; font: inherit; }
+.fleet select, .fleet option { max-width: 100%; font: inherit; font-family: 'Sea Names', system-ui, sans-serif; }
+.fleet-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; padding: 10px 12px; border: 1px solid #c9b27a; border-radius: 10px; background: #fff9e8; }
+.fleet-summary > div { min-width: 0; }
+.fleet-summary dt { font-size: 11px; color: #6d4c41; font-weight: 700; }
+.fleet-summary dd { margin: 2px 0 0; font-size: 14px; font-weight: 700; color: #0a3d62; }
+.fleet-summary dd.is-damaged { color: #a13a18; }
+.fleet-summary dd small { display: block; font-size: 11px; font-weight: 600; color: #a13a18; }
 .fleet-table { overflow: auto; margin-top: 12px; }
 .fleet-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .fleet-table th, .fleet-table td { text-align: left; padding: 6px; border-bottom: 1px solid #8d6e6355; }
 .fleet-table th[scope="row"] { white-space: nowrap; }
+.fleet-table tr.damaged { background: #fbe9df88; }
 .fleet-table small { display: block; font-weight: normal; color: #5d4037; }
+.fleet-durability { display: grid; gap: 3px; min-width: 96px; }
+.fleet-durability meter { width: 100%; height: 10px; }
+.fleet-durability span { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fleet-durability span small { display: inline; color: #5d4037; }
+.fleet-docked { margin-top: 16px; padding-top: 12px; border-top: 1px solid #c9b27a; }
+.fleet-docked h3 { margin: 0 0 8px; }
+.fleet-docked-group { margin-bottom: 12px; }
+.fleet-docked-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; }
+.fleet-docked-heading span { font-size: 12px; color: #5d4037; }
 .tutorial { width: min(450px, 94vw); max-height: 90vh; padding: 22px 24px; }
 .tutorial::backdrop, .tutorial + .backdrop { background: #06283dbb; }
 .tutorial-step { color: #5d4037; font-size: 13px; font-weight: 700; }
@@ -366,7 +382,12 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .voyage-chip.bankrupt { opacity: .45; }
   .current-label { position: absolute; top: 0; left: 0; width: 100%; text-align: center; border-radius: 9px 9px 0 0; background: #f3c24f; color: #14283b; font-size: 9px; font-weight: 800; }
   .voyage-menu-control { display: grid; gap: 6px; justify-items: end; font-size: 12px; }
+  .voyage-top-actions { display: flex; align-items: center; gap: 6px; }
   .voyage-menu-control button { min-height: 44px; color: #fff6dc; background: #204c70; border-color: #c5a65f; }
+  .voyage-fleet-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .voyage-fleet-btn.has-damage { border-color: #f09355; background: #5a2b1c; }
+  .fleet-hull-pill { padding: 1px 6px; border-radius: 999px; background: #0d2b42; color: #f6d37a; font-size: 11px; font-weight: 700; }
+  .voyage-fleet-btn.has-damage .fleet-hull-pill { background: #8f3519; color: #ffe5b4; }
   .playing .sea-map { grid-column: 1; grid-row: 2; border: 2px solid #91bac6; border-radius: 20px; box-shadow: 0 3px 12px #001c30; }
   .playing .overlay { grid-column: 2; grid-row: 2; border: 2px solid #d9b65f; border-radius: 20px; padding: 12px; background: linear-gradient(#fffdf4, #ece9dc); }
   .playing .hud { gap: 8px; }
@@ -378,6 +399,8 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .helm-card dl > div { display: flex; justify-content: space-between; gap: 8px; padding: 5px 3px; border-bottom: 1px solid #c9c4b3; }
   .helm-card dt { font-weight: 700; }
   .helm-card dd { margin: 0; text-align: right; }
+  .helm-fleet-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 40px; margin-top: 6px; font-size: 13px; font-weight: 700; color: #123d59; background: #f3e6c4; border: 1px solid #c5a65f; border-radius: 10px; }
+  .helm-fleet-btn.has-damage { color: #8c2c12; background: #fbe3d5; border-color: #d97c4a; }
   .playing .actions { border: 0; background: transparent; box-shadow: none; border-radius: 0; padding: 0; }
   .playing .actions .primary { background: linear-gradient(#399b35, #12611c); border: 2px solid #d1a72e; border-radius: 16px; color: white; box-shadow: 0 3px 0 #214721; font-weight: 750; min-height: 52px; }
   .playing .actions .big { width: 100%; padding: 12px 8px; font-size: 19px; }
@@ -426,8 +449,12 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .playing .voyage-top { display: flex; grid-row: 1; grid-column: 1; align-items: center; justify-content: space-between; padding: 0 10px; background: #06243f; color: #f4d58c; border-bottom: 1px solid #b99c55; }
   .voyage-logo { display: flex; gap: 6px; font: bold 17px 'Sea Names', Georgia, serif; }
   .voyage-menu-control > span { display: none; }
-  .voyage-menu-control button { font-size: 0; padding: 4px; width: 42px; height: 40px; background: transparent; color: #f4d58c; border: 0; }
-  .voyage-menu-control button::after { content: '⚙'; font-size: 27px; }
+  .voyage-top-actions { display: flex; align-items: center; gap: 4px; }
+  .voyage-fleet-btn { display: inline-flex; align-items: center; gap: 4px; height: 34px; min-height: 34px; min-width: 0; padding: 0 8px; font-size: 12px; font-weight: 700; color: #fff6dc; background: #1c4465; border: 1px solid #c5a65f; border-radius: 10px; }
+  .voyage-fleet-btn.has-damage { border-color: #f09355; background: #6b2e1b; }
+  .voyage-fleet-btn .fleet-hull-pill { font-size: 11px; color: #f6d37a; }
+  .voyage-menu-control .voyage-menu-btn { font-size: 0; padding: 4px; width: 42px; height: 40px; min-width: 42px; min-height: 40px; background: transparent; color: #f4d58c; border: 0; }
+  .voyage-menu-control .voyage-menu-btn::after { content: '⚙'; font-size: 27px; }
   .mobile-sound { display: block; margin-left: auto; }
   .mobile-sound .sound-control { margin: 0; }
   .mobile-sound label { display: none; }
@@ -455,6 +482,8 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .helm-card dl > div { display: flex; gap: 5px; }
   .helm-card dl > div:last-child { display: none; }
   .helm-card dd { margin: 0; font-weight: bold; }
+  .helm-fleet-btn { grid-column: 2; justify-self: start; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; min-width: 0; padding: 2px 10px; margin-top: 2px; font-size: 12px; font-weight: 700; color: #123d59; background: #f3e6c4; border: 1px solid #c5a65f; border-radius: 8px; }
+  .helm-fleet-btn.has-damage { color: #8c2c12; background: #fbe3d5; border-color: #d97c4a; }
   .next-stop { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border: 2px dashed #b59751; border-radius: 12px; color: #17415d; }
   .next-stop > span { font-size: 26px; }
   .next-stop > div { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

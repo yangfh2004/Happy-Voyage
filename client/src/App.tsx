@@ -34,7 +34,13 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
 } = {}) {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [fleetOpen, setFleetOpen] = useState(false);
+  const [fleetPlayerId, setFleetPlayerId] = useState<number | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
+  const openFleet = (playerId?: number) => {
+    setMenuOpen(false);
+    setFleetPlayerId(playerId);
+    setFleetOpen(true);
+  };
   const [setupOpen, setSetupOpen] = useState(false);
   const [chartFocus, setChartFocus] = useState<{ x: number; y: number; bottom: boolean } | null>(null);
   useEffect(() => {
@@ -78,7 +84,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
 
   useEffect(() => {
     if (coverOpen || rulesOpen || fleetOpen || tutorialOpen || menuOpen) return;
-    const shortcuts = keyboardShortcuts(gameController);
+    const shortcuts = keyboardShortcuts(gameController, { onFleet: () => openFleet() });
     window.addEventListener('keydown', shortcuts.keydown);
     window.addEventListener('keyup', shortcuts.keyup);
     window.addEventListener('blur', shortcuts.blur);
@@ -120,7 +126,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
 
   return (
     <div className={`app ${state ? 'playing' : ''} ${state?.phase === 'awaitingBattle' ? 'battling' : ''}`}>
-      {state && <VoyageTopBar state={state} colorBlind={colorBlind} menuOpen={menuOpen} onMenu={() => setMenuOpen(!menuOpen)} />}
+      {state && <VoyageTopBar state={state} colorBlind={colorBlind} menuOpen={menuOpen} onMenu={() => setMenuOpen(!menuOpen)} onFleet={openFleet} />}
       <div className="sea-map">
         <PhaserGame key={chartKey} />
         <Atmosphere state={state} />
@@ -132,7 +138,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
       <div className={`overlay ${landing ? 'has-landing' : ''} ${atHelm ? 'is-your-turn' : ''}`} ref={overlay}>
         {state ? (
           <div className="hud">
-            <HelmCard state={state} colorBlind={colorBlind} atHelm={atHelm} />
+            <HelmCard state={state} colorBlind={colorBlind} atHelm={atHelm} onFleet={openFleet} />
             <NextStop state={state} />
             {landing && <p className="landing-hint">⚓ {t('Choose an action on the card', '请在卡片上选择行动')}</p>}
             {!islandWindow && <section ref={actionSurface} className={landing ? 'landing-placement' : 'turn-action-panel'}>
@@ -159,7 +165,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
               </div>
             )}
             {state.campaign && <CampaignPanel campaign={state.campaign} />}
-            <PlayerBar state={state} colorBlind={colorBlind} paletteToggle={paletteToggle} onRules={() => { setMenuOpen(false); setRulesOpen(true); }} onFleet={() => { setMenuOpen(false); setFleetOpen(true); }} onTutorial={() => { setMenuOpen(false); setTutorialRequested(true); }} />
+            <PlayerBar state={state} colorBlind={colorBlind} paletteToggle={paletteToggle} onRules={() => { setMenuOpen(false); setRulesOpen(true); }} onFleet={() => openFleet()} onTutorial={() => { setMenuOpen(false); setTutorialRequested(true); }} />
             <div className="mobile-log"><LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} limit={3} /></div>
             <RouteDetails state={state} />
             <div className="menu-shortcuts"><ShortcutLegend /></div>
@@ -169,12 +175,12 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
         ) : room ? <OnlineMenu room={room} /> : (
           <SetupMenu onRules={() => setRulesOpen(true)} paletteToggle={paletteToggle} onBack={() => setSetupOpen(false)} />
         )}
-        {state && fleetOpen && <FleetPanel players={state.players} onClose={() => setFleetOpen(false)} />}
+        {state && fleetOpen && <FleetPanel players={state.players} state={state} initialPlayerId={fleetPlayerId} onClose={() => setFleetOpen(false)} />}
         {tutorialOpen && <TutorialPanel onClose={dismissTutorial} />}
         {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} islandCount={state?.map.filter((node) => node.kind === 'island').length} campaign={state?.campaign} onClose={() => setRulesOpen(false)} />}
       </div>
-      {state && islandWindow && !rulesOpen && !fleetOpen && !menuOpen && !tutorialOpen &&
-        <IslandWindow key={islandWindow.island} state={state} activity={islandWindow} />}
+      {state && islandWindow &&
+        <IslandWindow key={islandWindow.island} state={state} activity={islandWindow} onFleet={() => openFleet()} suspended={rulesOpen || fleetOpen || menuOpen || tutorialOpen} />}
       {state && <VoyageBottomBar state={state} atHelm={atHelm} />}
     </div>
   );

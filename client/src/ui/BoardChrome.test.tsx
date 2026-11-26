@@ -52,13 +52,24 @@ describe('board chrome', () => {
   });
   it('shows player resources, current turn and accessible menu control', () => {
     const { state } = game();
-    const html = renderToStaticMarkup(<VoyageTopBar state={state} colorBlind onMenu={() => {}} menuOpen={false} />);
+    const html = renderToStaticMarkup(<VoyageTopBar state={state} colorBlind onMenu={() => {}} menuOpen={false} onFleet={() => {}} />);
     expect(html).toContain('CURRENT TURN');
     expect(html).toContain('Turn:');
     expect(html).toContain('aria-controls="voyage-menu"');
     expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('voyage-fleet-btn');
+    expect(html).toContain('100%');
     expect(html).toContain('3200');
     expect(html).toContain('1 ·');
+  });
+  it('flags damaged fleet durability on the top bar and helm card fleet buttons', () => {
+    const { state } = game();
+    state.players[0].fleet[0].durability = Math.floor(state.players[0].fleet[0].maxDurability / 2);
+    const topHtml = renderToStaticMarkup(<VoyageTopBar state={state} colorBlind={false} onMenu={() => {}} menuOpen={false} onFleet={() => {}} />);
+    expect(topHtml).toContain('voyage-fleet-btn has-damage');
+    const helmHtml = renderToStaticMarkup(<HelmCard state={state} colorBlind={false} atHelm onFleet={() => {}} />);
+    expect(helmHtml).toContain('helm-fleet-btn has-damage');
+    expect(helmHtml).toContain('Fleet status');
   });
   it('shows colony and strategy card counts for every navigator', () => {
     const { state } = game();

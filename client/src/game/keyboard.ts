@@ -1,6 +1,6 @@
 import type { GameController } from './GameController';
 
-export function keyboardShortcuts(controller: GameController) {
+export function keyboardShortcuts(controller: GameController, options?: { onFleet?: () => void }) {
   const held = new Set<string>();
   const finishVisit = () => {
     if (controller.state?.phase === 'awaitingLottery') {
@@ -27,6 +27,7 @@ export function keyboardShortcuts(controller: GameController) {
     d: finishVisit,
     p: () => controller.payToll(),
     f: () => controller.fight(),
+    v: () => options?.onFleet?.(),
     k: () => controller.skipToMyTurn(),
     m: () => controller.toggleMute(),
     '1': () => controller.setSpeed('Normal'),
