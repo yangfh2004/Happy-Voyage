@@ -37,6 +37,20 @@
   text-transform: uppercase;
 }
 .island-window-masthead:focus { outline: none; }
+.island-fleet-btn {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1px solid var(--island-gold);
+  border-radius: 10px;
+  background: #ffffff14;
+  color: var(--island-gold);
+  font: 700 13px 'Sea Names', system-ui, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+.island-fleet-btn:hover { background: #ffffff28; }
 .island-window-content { padding: clamp(14px, 4vw, 28px); }
 .island-window h2 {
   color: inherit;

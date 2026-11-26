@@ -51,6 +51,17 @@ describe('keyboard shortcuts', () => {
     expect(controller.spinCompass).toHaveBeenCalledTimes(3);
   });
 
+  it('opens the fleet panel with V when a game is active', () => {
+    const onFleet = vi.fn();
+    const withFleet = keyboardShortcuts(controller as unknown as GameController, { onFleet });
+    withFleet.keydown(event('v'));
+    expect(onFleet).toHaveBeenCalledOnce();
+    withFleet.keyup(event('v'));
+    controller.state = null;
+    withFleet.keydown(event('v'));
+    expect(onFleet).toHaveBeenCalledOnce();
+  });
+
   it('toggles sound with M, even on the setup menu', () => {
     controller.state = null;
     keys.keydown(event('M'));

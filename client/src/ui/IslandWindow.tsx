@@ -34,8 +34,8 @@ export function islandWindowFor(state: GameState, canHelm: boolean): IslandActiv
   return activity && state.map[player.position]?.special === activity.island ? activity : null;
 }
 
-export function IslandWindow({ state, activity: { island, titleId, Panel } }: { state: GameState; activity: IslandActivity }) {
-  const { locale } = useT();
+export function IslandWindow({ state, activity: { island, titleId, Panel }, onFleet }: { state: GameState; activity: IslandActivity; onFleet?: () => void }) {
+  const { t, locale } = useT();
   const label = nodeName(state.map[state.players[state.currentPlayer].position], locale);
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLDivElement>(null);
@@ -51,7 +51,9 @@ export function IslandWindow({ state, activity: { island, titleId, Panel } }: { 
     <dialog ref={dialog} className={`island-window island-window--${island}`} aria-labelledby={titleId}
       onCancel={(event) => event.preventDefault()}>
       <div className="island-window-masthead" ref={heading} tabIndex={-1}>
-        <span aria-hidden="true">✦</span>{label}
+        <span aria-hidden="true">✦</span>
+        <span>{label}</span>
+        {onFleet && <button type="button" className="island-fleet-btn" onClick={onFleet}>⚓ {t('Fleet', '舰队')}</button>}
       </div>
       <div className="island-window-content"><Panel state={state} /></div>
     </dialog>
