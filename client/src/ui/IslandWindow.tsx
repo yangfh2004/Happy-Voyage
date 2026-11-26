@@ -34,7 +34,7 @@ export function islandWindowFor(state: GameState, canHelm: boolean): IslandActiv
   return activity && state.map[player.position]?.special === activity.island ? activity : null;
 }
 
-export function IslandWindow({ state, activity: { island, titleId, Panel }, onFleet }: { state: GameState; activity: IslandActivity; onFleet?: () => void }) {
+export function IslandWindow({ state, activity: { island, titleId, Panel }, onFleet, suspended = false }: { state: GameState; activity: IslandActivity; onFleet?: () => void; suspended?: boolean }) {
   const { t, locale } = useT();
   const label = nodeName(state.map[state.players[state.currentPlayer].position], locale);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -42,10 +42,16 @@ export function IslandWindow({ state, activity: { island, titleId, Panel }, onFl
   useLayoutEffect(() => {
     const element = dialog.current!;
     dialogPolyfill.registerDialog(element);
-    element.showModal();
-    heading.current?.focus();
+    if (suspended) {
+      if (element.open) element.close();
+      return;
+    }
+    if (!element.open) {
+      element.showModal();
+      heading.current?.focus();
+    }
     return () => { if (element.open) element.close(); };
-  }, []);
+  }, [suspended]);
 
   return (
     <dialog ref={dialog} className={`island-window island-window--${island}`} aria-labelledby={titleId}

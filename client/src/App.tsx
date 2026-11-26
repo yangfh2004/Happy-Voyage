@@ -179,8 +179,8 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
         {tutorialOpen && <TutorialPanel onClose={dismissTutorial} />}
         {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} islandCount={state?.map.filter((node) => node.kind === 'island').length} campaign={state?.campaign} onClose={() => setRulesOpen(false)} />}
       </div>
-      {state && islandWindow && !rulesOpen && !fleetOpen && !menuOpen && !tutorialOpen &&
-        <IslandWindow key={islandWindow.island} state={state} activity={islandWindow} onFleet={() => openFleet()} />}
+      {state && islandWindow &&
+        <IslandWindow key={islandWindow.island} state={state} activity={islandWindow} onFleet={() => openFleet()} suspended={rulesOpen || fleetOpen || menuOpen || tutorialOpen} />}
       {state && <VoyageBottomBar state={state} atHelm={atHelm} />}
     </div>
   );
