@@ -47,8 +47,8 @@ export function aiBarterChoice(player: Player, offers: BarterOffer[]): number | 
 }
 
 /** Rank profitable landings, only using information visible to this seat. */
-export function aiTravelTarget(state: GameState, player: Player, wyvern = false): number | undefined {
-  if (player.aiDifficulty === 'hard') return hardTravelTarget(state, player, wyvern);
+export function aiTravelTarget(state: GameState, player: Player, wyvern = false, nightlessCargo = cargoUnits(player)): number | undefined {
+  if (player.aiDifficulty === 'hard') return hardTravelTarget(state, player, wyvern, nightlessCargo);
   const easy = player.aiDifficulty === 'easy';
   if (!wyvern && player.knownHoard !== null) return player.knownHoard;
   const owned = colonies(state, player);
@@ -68,7 +68,7 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
     if (node.id === player.knownHoard) return 425;
     if (!wyvern) return 0;
     if (node.event === 'tradeWind') return 50 + 30 * owned;
-    if (node.special === 'nightless' && cargoUnits(player) >= 8) return cargoUnits(player) * 12;
+    if (node.special === 'nightless' && nightlessCargo >= 8) return nightlessCargo * 12;
     if (node.special === 'revival') {
       const damage = player.fleet.reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0);
       return Math.min(damage, Math.floor(Math.max(0, player.gold) / GAMEPLAY_TUNING.economy.repairGoldPerPoint));
@@ -88,7 +88,7 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
   return best ?? (wyvern ? player.homePort : undefined);
 }
 
-function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): number | undefined {
+function hardTravelTarget(state: GameState, player: Player, wyvern: boolean, nightlessCargo: number): number | undefined {
   const owned = colonies(state, player);
   const canWin = owned + 1 >= state.config.islandsToWin;
   const salary = state.config.homeSalary + RANKS[player.rank].salary;
@@ -141,7 +141,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       const warships = player.fleet.filter((ship) => ship.type === 'warship' && ship.durability >= ship.maxDurability / 2);
       return warships.length < 2 && cash >= 900 ? 540 : 90;
     }
-    if (node.special === 'nightless') return cargoUnits(player) * 10;
+    if (node.special === 'nightless') return nightlessCargo * 10;
     if (node.special === 'revival') return Math.min(repair, Math.floor(Math.max(0, cash) / GAMEPLAY_TUNING.economy.repairGoldPerPoint));
     return 0;
   };
@@ -197,8 +197,8 @@ export function aiMistTake(hermit: HermitId, stones: number): number {
   return winningMoves[stones] ?? 0;
 }
 
-export function aiWyvernTarget(state: GameState, player: Player): number {
-  return aiTravelTarget(state, player, true)!;
+export function aiWyvernTarget(state: GameState, player: Player, nightlessCargo?: number): number {
+  return aiTravelTarget(state, player, true, nightlessCargo)!;
 }
 
 function estimatedTolls(state: GameState, player: Player, node: MapNode): number {
@@ -401,7 +401,7 @@ export function aiBattleStrategy(state: GameState, player: Player, canUse: (card
   return best;
 }
 
-export function aiSeaStrategy(state: GameState, player: Player, canUse: (card: StrategyId, target?: number) => boolean): { card: StrategyId; target?: number } | undefined {
+export function aiSeaStrategy(state: GameState, player: Player, canUse: (card: StrategyId, target?: number) => boolean, nightlessCargo?: number): { card: StrategyId; target?: number } | undefined {
   if (player.aiDifficulty === 'easy' && (state.round + player.id) % 3 !== 0) return undefined;
   const view = new GameView(state);
   const worth = (p: Player) => view.netWorth(p.id);
@@ -443,7 +443,7 @@ export function aiSeaStrategy(state: GameState, player: Player, canUse: (card: S
   for (const card of ['tailwind', 'reverse'] as const) candidates.push({ card, useful: player.aiDifficulty !== 'hard' || movementValue(card === 'tailwind' ? 2 : -1) > baseline + 25 });
   candidates.push({ card: 'inspire', useful: player.aiDifficulty !== 'hard' && player.fleet.some((s) => s.durability < s.maxDurability) });
   if (player.aiDifficulty === 'hard') {
-    const target = canUse('navigate', player.position) ? aiTravelTarget(state, player) : undefined;
+    const target = canUse('navigate', player.position) ? aiTravelTarget(state, player, false, nightlessCargo) : undefined;
     candidates.push({ card: 'navigate', target, useful: target !== undefined });
     const exchange = candidates.find((c) => c.card === 'exchange');
     if (exchange && leader) exchange.useful = movementValue(1, leader.position) > baseline + 80;

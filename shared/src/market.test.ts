@@ -281,4 +281,27 @@ describe('colony local market', () => {
     expect(g.netWorth(1)).toBe(netWorthBefore + 52);
     expect(g.state.victory).toBe('richest');
   });
+
+  it('holds Silver bought at a colony rather than liquidating it below cost at Nightless Island', () => {
+    const { g, ship } = atColony(0, 1);
+    g.state.map[1] = { ...g.state.map[1], specialty: 'Silver' };
+    g.state.players[0].position = 0;
+    const ai = g.currentPlayer;
+    ai.strategies = [];
+    for (const ship of ai.fleet) ship.durability = 20;
+    const purchase = marketTradeQuote(g.state, { side: 'buy', good: 'Silver', shipId: ship.id, quantity: 16 })!;
+    g.decideForAI();
+    expect(ship.cargo.Silver).toBe(16);
+
+    land(g, 0);
+    land(g, 3);
+    ship.cargo.Silver! += 1;
+    const before = ai.gold;
+    const sale = { side: 'sell', good: 'Silver', shipId: ship.id, quantity: 16 } as const;
+    expect(quoteMarketTrade(g.state, sale)).toBeLessThan(purchase.total);
+    const untrackedProceeds = quoteMarketTrade(g.state, { ...sale, quantity: 1 })!;
+    g.decideForAI();
+    expect(ship.cargo.Silver).toBe(16);
+    expect(ai.gold).toBe(before + untrackedProceeds);
+  });
 });

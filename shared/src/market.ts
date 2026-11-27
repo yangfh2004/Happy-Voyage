@@ -76,6 +76,13 @@ export function marketPrices(state: GameState, good: Good) {
   return { stock, buy: unitValue(state, good, stock) + spread(good), sell: unitValue(state, good, stock + 1) };
 }
 
+export function nightlessSaleTotal(state: GameState, good: Good, quantity: number): number {
+  const stock = state.market.stock[good];
+  let total = 0;
+  for (let i = 1; i <= quantity; i++) total += unitValue(state, good, stock + i);
+  return total;
+}
+
 /** Total at current prices, or null if the full order cannot be filled. */
 export function quoteMarketTrade(state: GameState, order: MarketOrder): number | null {
   return marketTradeQuote(state, order)?.total ?? null;
@@ -104,10 +111,11 @@ export function marketTradeQuote(state: GameState, order: MarketOrder): { total:
   if (state.phase !== 'awaitingCargoMarket' || node?.kind !== 'special' || node.special !== 'nightless') return null;
   const stock = state.market.stock[good];
   if (buying && quantity > stock) return null;
+  if (!buying) return { total: nightlessSaleTotal(state, good, quantity), tax: 0 };
   let total = 0;
   // Price each unit at its inventory level so splitting an order can't improve its price.
   for (let i = 0; i < quantity; i++) {
-    total += buying ? unitValue(state, good, stock - i) + spread(good) : unitValue(state, good, stock + i + 1);
+    total += unitValue(state, good, stock - i) + spread(good);
   }
-  return buying && total > player.gold ? null : { total, tax: 0 };
+  return total > player.gold ? null : { total, tax: 0 };
 }
