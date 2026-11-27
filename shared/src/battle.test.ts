@@ -220,3 +220,43 @@ describe('real-time battle', () => {
     expect(b.retreating).toBe(true);
   });
 });
+
+describe('shore forts in realtime battles', () => {
+  const forts = Array.from({ length: 3 }, () => ({ durability: 60, firepower: 10 }));
+
+  it('keeps fighting after the garrison is gone until every fort falls', () => {
+    const battle = createBattle({ seed: 3, attackers: [ship(1), ship(2), ship(3)], defenders: [], forts });
+    expect(battle.ships.filter((s) => s.fort)).toHaveLength(3);
+    stepBattle(battle);
+    expect(battle.outcome).toBeNull();
+    for (const fort of battle.ships.filter((s) => s.fort)) { fort.durability = 0; fort.sunk = true; }
+    stepBattle(battle);
+    expect(battle.outcome).toBe('victory');
+  });
+
+  it('defeats an attacker wiped out on the tick the last fort falls', () => {
+    const battle = createBattle({ seed: 3, attackers: [ship(1)], defenders: [], forts });
+    for (const fort of battle.ships.filter((s) => s.fort)) { fort.durability = 0; fort.sunk = true; }
+    const attacker = battle.ships.find((s) => s.side === 'attacker')!;
+    attacker.durability = 0; attacker.sunk = true;
+    stepBattle(battle);
+    expect(battle.outcome).toBe('defeat');
+  });
+
+  it('never moves forts and ignores orders for them', () => {
+    const battle = createBattle({ seed: 3, attackers: [ship(1)], defenders: [ship(2)], forts });
+    const before = battle.ships.filter((s) => s.fort).map((s) => [s.x, s.y]);
+    issueCommand(battle, 'defender', { type: 'move', shipIds: [-1, -2, -3], x: 100, y: 100 });
+    for (let i = 0; i < 60 && !battle.outcome; i++) stepBattle(battle);
+    expect(battle.ships.filter((s) => s.fort).map((s) => [s.x, s.y])).toEqual(before);
+  });
+
+  it('lets the garrison withdraw while forts fight on', () => {
+    const battle = createBattle({ seed: 3, attackers: [ship(1)], defenders: [ship(2), ship(3)], forts });
+    issueCommand(battle, 'defender', { type: 'retreat' });
+    stepBattle(battle);
+    expect(battle.outcome).toBeNull();
+    expect(battle.ships.filter((s) => s.side === 'defender' && !s.fort).every((s) => s.escaped)).toBe(true);
+    expect(battle.fortsDestroyed).toEqual([]);
+  });
+});

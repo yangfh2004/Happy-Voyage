@@ -3,7 +3,7 @@ import { COMPASS_SECTORS } from './compass';
 import { walkPath } from './graph';
 import { colonyBattleMode, colonyDefenders, defaultBattleDeployment, forecastColonyBattle, forecastNavalBattle, tollDue } from './combat';
 import { GOOD_VALUES, fleetQuantity } from './barter';
-import { BUILDINGS, buildingLevel, colonyCanRepair, colonyToll, nextBuildingCost } from './buildings';
+import { BUILDINGS, buildingLevel, colonyCanRepair, colonyForts, colonyToll, nextBuildingCost } from './buildings';
 import { isEliminated, turnOrderPosition } from './rules';
 import { SEA_RULES } from './seaRules';
 import { LOTTERY } from './lottery';
@@ -251,6 +251,9 @@ export function aiBuildingChoice(state: GameState, player: Player): BuildingKind
         if (next === 1) return supplies('lumberMill', 'lumber') && supplies('ironMine', 'iron') ? 130 : 0;
         return next === 2 && !player.fleet.some((ship) => ship.type === 'cargo') && canMake('cargo') ? 120 : 0;
       }
+      case 'fort':
+        // Computer fleets cannot break forts, so fortifying their colonies would stall conquest.
+        return 0;
       case 'repairYard':
         return colonyCanRepair(state, node.id) ? 0
           : state.docks[node.id].reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0) * GAMEPLAY_TUNING.economy.repairGoldPerPoint;
@@ -362,7 +365,7 @@ function battleQuality(state: GameState, player: Player, card?: StrategyId): num
     : card === 'mislead'
       ? ships.map((s, i) => i === 0 ? { ...s, durability: Math.min(s.durability, Math.max(1, s.durability - STRATEGY_RULES.misleadDamage)) } : s)
       : ships);
-  const options = { battleMode: colonyBattleMode(state, player, owner), attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner), attackerMultiplier: state.inspired || card === 'inspire' ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: state.ambush || card === 'ambush' };
+  const options = { forts: colonyForts(state, player.position), battleMode: colonyBattleMode(state, player, owner), attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner), attackerMultiplier: state.inspired || card === 'inspire' ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: state.ambush || card === 'ambush' };
   const baseline = forecastNavalBattle(attackers, defenders, options);
   if (player.aiDifficulty !== 'hard') return baseline === 'victory' ? 4 : baseline === 'draw' ? 2 : 0;
   // Stress-test with weaker attack and stronger defense rolls, without drawing from the match RNG.

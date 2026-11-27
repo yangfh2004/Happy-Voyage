@@ -1,5 +1,5 @@
 import { GAMEPLAY_TUNING } from '@happy-voyage/shared';
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyIncome, colonyToll, colonyDefenders, COMBAT, forecastColonyBattle, GameView, isEliminated, tollDue, SHIP_RECIPES, STRATEGIES, STRATEGY_RULES, strategyTarget, type StrategyId, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
+import { BUILDINGS, buildingLevel, colonyForts, nextBuildingCost, colonyIncome, colonyToll, colonyDefenders, COMBAT, forecastColonyBattle, GameView, isEliminated, tollDue, SHIP_RECIPES, STRATEGIES, STRATEGY_RULES, strategyTarget, type StrategyId, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ShipMarketPanel } from './ShipMarketPanel';
 import { ColonyMarketPanel } from './ColonyMarketPanel';
@@ -18,6 +18,7 @@ import { StatTooltip } from './StatTooltip';
 import { EventBus } from '../game/EventBus';
 import { RetreatThresholdSelector } from './RetreatThresholdSelector';
 import { StrategyArt } from './StrategyArt';
+import { SiegeIntro, siegeIntroSeen } from './SiegeIntro';
 import './strategy-cards.css';
 
 const BUILDING_SIZES = { en: ['None', 'Small', 'Medium', 'Large'], zh: ['无', '小型', '中型', '大型'] };
@@ -40,6 +41,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
   const [colonyDestination, setColonyDestination] = useState<number | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [targets, setTargets] = useState<Partial<Record<StrategyId, number>>>({});
+  const [siegeIntro, setSiegeIntro] = useState<number[] | null>(null);
   const player = state.players[state.currentPlayer];
   const room = gameController.room;
   const defeatedHumans = state.players.filter((p) => p.fleetLost && (room ? p.id === gameController.viewerId : !p.isAI));
@@ -59,9 +61,10 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
   const shipIds = selected.map((ship) => ship.id);
   const canFight = !!battlePrompt && shipIds.length > 0;
   useEffect(() => { if (!battlePrompt) setBattleChoice(undefined); }, [battlePrompt]);
+  const requestFight = (ids: number[]) => siegeIntroSeen() ? gameController.fight(ids) : setSiegeIntro(ids);
   useEffect(() => {
     if (!canFight) return;
-    const fight = () => gameController.fight(shipIds);
+    const fight = () => requestFight(shipIds);
     EventBus.on('fight-requested', fight);
     return () => { EventBus.off('fight-requested', fight); };
   }, [canFight, shipIds]);
@@ -78,7 +81,10 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
       })}
     </fieldset>
   );
-  const fightButton = <button disabled={!canFight} onClick={() => gameController.fight(shipIds)}>{t('Fight', '开战')} <kbd>F</kbd></button>;
+  const fightButton = <>
+    <button disabled={!canFight} onClick={() => requestFight(shipIds)}>{t('Fight', '开战')} <kbd>F</kbd></button>
+    {siegeIntro && <SiegeIntro onStart={() => { setSiegeIntro(null); gameController.fight(siegeIntro); }} onCancel={() => setSiegeIntro(null)} />}
+  </>;
   const canPreview = atHelm && state.phase === 'awaitingSpin' && player.strategies.includes('navigate') && !state.strategyUsed;
   useEffect(() => {
     EventBus.emit('navigate-preview', previewing && canPreview ? { playerId: player.id, nodeId: destination } : null);
@@ -253,6 +259,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
     const defenders = defaultBattleDeployment(ships);
     const firepower = (ships: { firepower: number }[]) => ships.reduce((sum, ship) => sum + ship.firepower, 0);
     const hull = (ships: { durability: number }[]) => ships.reduce((sum, ship) => sum + ship.durability, 0);
+    const forts = colonyForts(state, island.id);
     const forecast = canFight ? (locale === 'zh' ? { victory: '可能获胜', defeat: '可能战败', draw: '可能平局' } : { victory: 'likely victory', defeat: 'likely defeat', draw: 'likely draw' })[forecastColonyBattle(state, player, shipIds)] : null;
     body = (
       <>
@@ -261,14 +268,14 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
           : t('Pay {g}g toll, or open fire on the docked ships?', '缴纳 {g} 金币过路费，还是向停靠的船只开火？', { g: tollDue(state, player, island.id) })}</p>
         <p>
           {t('Your deployed ships:', '你的出阵船只：')} <StatTooltip stat="ships">{t('{n} ships', '{n} 艘船', { n: selected.length })}</StatTooltip> · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(selected) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(selected) })}</StatTooltip>{t('.', '。')}<br />
-          {t('Defenders:', '守军：')} {t('{n} ships', '{n} 艘船', { n: defenders.length })} · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(defenders) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(defenders) })}</StatTooltip> {forecast && t('({forecast}).', '（{forecast}）。', { forecast })}
+          {t('Defenders:', '守军：')} {t('{n} ships', '{n} 艘船', { n: defenders.length })} · <StatTooltip stat="firepower">{t('{f} firepower', '火力 {f}', { f: firepower(defenders) })}</StatTooltip> · <StatTooltip stat="durability">{t('{d} durability', '耐久 {d}', { d: hull(defenders) })}</StatTooltip>{forts.length > 0 && <>{t('; shore forts:', '；炮台：')} {t('{n} forts', '{n} 座', { n: forts.length })} · {t('{f} firepower', '火力 {f}', { f: firepower(forts) })} · {t('{d} durability', '耐久 {d}', { d: hull(forts) })}</>} {forecast && t('({forecast}).', '（{forecast}）。', { forecast })}
         </p>
         <p>
           {state.config.battleMode === 'realtime'
-            ? t('Defeat the defenders within 90 s to take the colony. Either side may concede; retreat is defeat. Defeat costs {g}g double toll; timeout is a draw.',
-              '在 90 秒内击败守军即可夺取殖民地。双方均可认输撤退，撤退即战败。战败须缴纳 {g} 金币双倍过路费；超时则平局。', { g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })
-            : t('Defeat the defenders within {r} volleys to take the colony. Defeat costs {g}g double toll; a draw sends both fleets home.',
-              '在 {r} 轮齐射内击败守军即可夺取殖民地。战败须缴纳 {g} 金币双倍过路费；平局则双方各自归队。', { r: COMBAT.rounds, g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })}
+            ? t('Defeat the defenders and destroy every shore fort within 90 s to take the colony. Either side may concede; retreat is defeat. Defeat costs {g}g double toll; timeout is a draw.',
+              '在 90 秒内击败守军并摧毁全部炮台即可夺取殖民地。双方均可认输撤退，撤退即战败。战败须缴纳 {g} 金币双倍过路费；超时则平局。', { g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })
+            : t('Defeat the defenders and destroy every shore fort within {r} volleys to take the colony. Defeat costs {g}g double toll; a draw sends both fleets home.',
+              '在 {r} 轮齐射内击败守军并摧毁全部炮台即可夺取殖民地。战败须缴纳 {g} 金币双倍过路费；平局则双方各自归队。', { r: COMBAT.rounds, g: tollDue(state, player, island.id, COMBAT.defeatTollMultiplier) })}
           {' '}{t('Choose the fraction of your starting fleet to lose before withdrawing (rounded up). The flagship also withdraws at 25% durability, except with Fight to the last ship. A lone starting ship always fights to the end.',
             '可选择损失开战舰船的几分之几后撤退（向上取整）。旗舰耐久降至 25% 时也会撤退；选择打到最后一艘则关闭这两项自动撤退。开战时仅有一艘的舰队始终战斗到底。')}
         </p>

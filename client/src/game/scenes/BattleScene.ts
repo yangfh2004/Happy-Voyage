@@ -69,9 +69,9 @@ export class BattleScene extends Phaser.Scene {
       const pending = state.pendingBattle!;
       const owner = s.side === 'attacker' ? pending.attacker : pending.defender;
       const color = owner === null ? 0xc33535 : state.players[owner].color;
-      const image = this.add.image(0, 0, battleShipTexture(this, s, color, owner === null));
+      const image = this.add.image(0, 0, s.fort ? fortTexture(this, color) : battleShipTexture(this, s, color, owner === null));
       this.field.add(image); this.ships.set(s.id, image);
-      if (s.side === this.session.side) {
+      if (s.side === this.session.side && !s.fort) {
         const glow = this.add.image(0, 0, image.texture.key).setTintFill(0x6ffff1).setVisible(false);
         this.field.add(glow); this.selectionGlows.set(s.id, glow);
       }
@@ -79,7 +79,7 @@ export class BattleScene extends Phaser.Scene {
       label.setDepth(1);
       this.labels.set(s.id, label);
     }
-    void prewarmBattleShips(this, this.session.battle.ships.map(ship => {
+    void prewarmBattleShips(this, this.session.battle.ships.filter(ship => !ship.fort).map(ship => {
       const owner = ship.side === 'attacker' ? state.pendingBattle!.attacker : state.pendingBattle!.defender;
       return { ship, color: owner === null ? 0xc33535 : state.players[owner].color, pirate: owner === null };
     }));
@@ -120,7 +120,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private selectAll() {
-    this.selected = new Set(this.session.battle.ships.filter((s) => s.side === this.session.side && !s.sunk && !s.escaped).map((s) => s.id));
+    this.selected = new Set(this.session.battle.ships.filter((s) => s.side === this.session.side && !s.fort && !s.sunk && !s.escaped).map((s) => s.id));
     this.syncFormation();
   }
 
@@ -139,7 +139,7 @@ export class BattleScene extends Phaser.Scene {
   private point(p: Phaser.Input.Pointer) { return screenToBattle(this.layout(), p); }
   private shipAt(p: { x: number; y: number }) {
     const layout = this.layout(), screen = battleToScreen(layout, p);
-    return pickBattleShip(screen, this.session.battle.ships.filter(s => !s.sunk && !s.escaped).map(ship => {
+    return pickBattleShip(screen, this.session.battle.ships.filter(s => !s.sunk && !s.escaped && !(s.fort && s.side === this.session.side)).map(ship => {
       const image = this.ships.get(ship.id)!;
       return { ship, id: ship.id, x: image.x, y: image.y, depth: image.depth, bounds: image.getBounds(), radius: 38 * layout.zoom * layout.shipScale };
     }))?.ship;
@@ -174,7 +174,7 @@ export class BattleScene extends Phaser.Scene {
     const end = this.point(p);
     if (isBattleDrag({ x: start.screenX, y: start.screenY }, p)) {
       this.selected.clear();
-      for (const s of this.session.battle.ships) if (s.side === this.session.side && !s.sunk && !s.escaped && s.x >= Math.min(start.x, end.x) && s.x <= Math.max(start.x, end.x) && s.y >= Math.min(start.y, end.y) && s.y <= Math.max(start.y, end.y)) this.selected.add(s.id);
+      for (const s of this.session.battle.ships) if (s.side === this.session.side && !s.fort && !s.sunk && !s.escaped && s.x >= Math.min(start.x, end.x) && s.x <= Math.max(start.x, end.x) && s.y >= Math.min(start.y, end.y) && s.y <= Math.max(start.y, end.y)) this.selected.add(s.id);
     } else {
       const s = this.shipAt(start.touch ? start : end);
       if (start.touch && (!s || s.side !== this.session.side)) { this.order(end, s); return; }
@@ -200,6 +200,7 @@ export class BattleScene extends Phaser.Scene {
         for (const s of b.ships) {
           const before = old.find((o) => o.id === s.id)!;
           for (const shot of b.cannonballs.filter(ball => !balls.includes(ball) && ball.side === s.side && ball.shipId === s.id)) {
+            if (s.fort) { this.smoke.push({ x: s.x - 30, y: s.y, z: 30 * this.layout().shipScale, dx: -1, dy: 0, age: 0 }); continue; }
             this.smoke.push(...broadsideMuzzles(s, shot.battery).map((m) => ({ ...m, x: s.x + (m.x - s.x) * this.layout().shipScale, y: s.y + (m.y - s.y) * this.layout().shipScale, z: m.z * this.layout().shipScale, age: 0 })));
           }
           if (s.durability < before.durability) { this.effects.push({ x: s.x, y: s.y, age: 0, damage: before.durability - s.durability }); sfx.splash(); }
@@ -260,7 +261,7 @@ export class BattleScene extends Phaser.Scene {
     for (const s of this.session.battle.ships) {
       const label = this.labels.get(s.id)!;
       const withdrawing = this.session.battle.withdrawal?.side === s.side && this.endedAt !== null;
-      const fade = s.sunk ? Math.max(0, 1 - (this.clock - (this.sunkAt.get(s.id) ?? 0)) / 1.5) : s.escaped ? 0
+      const fade = s.fort ? (s.sunk ? .55 : 1) : s.sunk ? Math.max(0, 1 - (this.clock - (this.sunkAt.get(s.id) ?? 0)) / 1.5) : s.escaped ? 0
         : withdrawing ? Math.max(0, 1 - (this.clock - this.endedAt!) / 1.5) : 1;
       const old = this.previous.get(s.id) ?? s;
       const x = Phaser.Math.Linear(old.x, s.x, alpha), y = Phaser.Math.Linear(old.y, s.y, alpha);
@@ -294,9 +295,9 @@ export class BattleScene extends Phaser.Scene {
       const flash = this.effects.some((e) => e.damage && e.age < .2 && Math.hypot(e.x - s.x, e.y - s.y) < 30);
       const turn = Phaser.Math.Angle.WrapDegrees(s.heading - old.heading);
       const heading = old.heading + turn * alpha + (layout.portrait ? -90 : 0);
-      this.ships.get(s.id)!.setTexture(battleShipTexture(this, s, pirate ? 0xc33535 : color, pirate, heading))
-        .setPosition(screen.x, screen.y + (s.sunk ? (1 - fade) * 18 * zoom : 0)).setScale(zoom * shipScale / 1.5)
-        .setAngle(s.sunk ? (1 - fade) * 20 : 0).setDepth(screen.y).setAlpha(fade).setTint(flash ? 0xff7777 : 0xffffff);
+      this.ships.get(s.id)!.setTexture(s.fort ? fortTexture(this, color, s.sunk) : battleShipTexture(this, s, pirate ? 0xc33535 : color, pirate, heading))
+        .setPosition(screen.x, screen.y + (s.sunk && !s.fort ? (1 - fade) * 18 * zoom : 0)).setScale(zoom * shipScale / 1.5 * (s.fort ? 1.4 : 1))
+        .setAngle(s.sunk && !s.fort ? (1 - fade) * 20 : 0).setDepth(screen.y).setAlpha(fade).setTint(flash ? 0xff7777 : 0xffffff);
       const glow = this.selectionGlows.get(s.id);
       if (glow) {
         const image = this.ships.get(s.id)!;
@@ -305,7 +306,7 @@ export class BattleScene extends Phaser.Scene {
           .setScale(image.scaleX * 1.1).setDepth(screen.y - .1).setAlpha(.5 * pulse.alpha * fade);
       }
       const showName = battleNameVisible(s, this.session.side, this.selected, this.session.battle.ships);
-      label.setText(showName ? pirate ? text('Pirate', '海盗') : shipName(s.name, getLocale()) : '');
+      label.setText(s.fort ? s.sunk ? '' : text(`Fort ${-s.id}`, `炮台 ${-s.id}`) : showName ? pirate ? text('Pirate', '海盗') : shipName(s.name, getLocale()) : '');
       const labelSize = Math.max(layout.portrait ? 13 : 11, 19 * zoom);
       label.setFontSize(labelSize);
       const labelColor = selected ? '#fff39b' : '#fff4d5', labelBackground = selected ? '#063c50' : '';
@@ -314,8 +315,8 @@ export class BattleScene extends Phaser.Scene {
       const wrapWidth = Math.max(1, layout.bounds.width - 12);
       if (label.style.wordWrapWidth !== wrapWidth) label.setWordWrapWidth(wrapWidth, true);
       const barWidth = Math.max(32, 64 * zoom), barHeight = Math.max(4, 7 * zoom);
-      const mast = project(x, y, (battleShipModel(this, s.type, shipGrade(s)).mastHeight + 18) * shipScale);
-      const nameHeight = showName ? label.height : 0;
+      const mast = project(x, y, ((s.fort ? 70 : battleShipModel(this, s.type, shipGrade(s)).mastHeight) + 18) * shipScale);
+      const nameHeight = showName || (s.fort && !s.sunk) ? label.height : 0;
       const box = placeBattleLabel(layout.bounds, labelBoxes, { x: mast.x, y: mast.y - nameHeight - barHeight - 8 }, { width: Math.max(label.width, barWidth), height: nameHeight + barHeight + 2 }, 0);
       const labelX = box.x + box.width / 2, labelY = box.y + barHeight + 2;
       if (fade > 0) labelBoxes.push(box);
@@ -412,7 +413,9 @@ export class BattleScene extends Phaser.Scene {
     sides.forEach((side, index) => {
       const owner = side === 'attacker' ? pending.attacker : pending.defender;
       const color = owner === null ? 0xb93434 : state.players[owner].color;
-      const fleet = this.session.battle.ships.filter(s => s.side === side);
+      const fleet = this.session.battle.ships.filter(s => s.side === side && !s.fort);
+      const forts = this.session.battle.ships.filter(s => s.side === side && s.fort);
+      const fortText = forts.length ? ` · ${text('Forts', '炮台')} ${forts.filter(f => !f.sunk).length}/${forts.length}` : '';
       const hp = fleet.reduce((n, s) => n + s.durability, 0), max = fleet.reduce((n, s) => n + s.maxDurability, 0);
       const afloat = fleet.filter(s => !s.sunk && !s.escaped).length, started = fleet.filter(s => s.startedAfloat).length;
       const x = index ? width - bannerWidth - 6 : 6;
@@ -425,7 +428,7 @@ export class BattleScene extends Phaser.Scene {
       const threshold = this.session.battle.retreatThresholds[side];
       const lossText = started < 2 || threshold === 'last' ? text('Fight to the end', '战斗到底') : text(`Withdraw at ${sinkingCap(fleet.filter(s => s.startedAfloat), threshold)} lost`, `损失 ${sinkingCap(fleet.filter(s => s.startedAfloat), threshold)} 艘撤退`);
       label.setFontSize(compact ? 11 : 12).setPosition(x + bannerWidth / 2 + 7, 9)
-        .setText(`${name}\n${afloat}/${started} ${text('ships', '艘')} · ${hp}/${max}\n${lossText}`);
+        .setText(`${name}\n${afloat}/${started} ${text('ships', '艘')} · ${hp}/${max}${fortText}\n${lossText}`);
     });
     g.fillStyle(0x251e19).fillCircle(width / 2, 35, 29).lineStyle(3, 0xc5a15b).strokeCircle(width / 2, 35, 29);
     g.lineStyle(1, 0x80663b).strokeCircle(width / 2, 35, 24);
@@ -458,4 +461,24 @@ export class BattleScene extends Phaser.Scene {
     this.help.setDepth(3).setVisible(!touch && !compact && !short).setPosition(width / 2, height - 12).setFontSize(10)
       .setText(text('Right-click to order · Broadside auto-fire', '右键下令 · 侧舷自动开火'));
   }
+}
+
+/** A stone shore battery in the owner's colours; rubble once destroyed. */
+function fortTexture(scene: Phaser.Scene, color: number, ruined = false): string {
+  const key = `battle-fort-${color.toString(16)}-${ruined ? 'ruin' : 'up'}`;
+  if (scene.textures.exists(key)) return key;
+  const g = scene.make.graphics({ x: 0, y: 0 }, false);
+  g.fillStyle(0x0a2a35, .35).fillEllipse(60, 104, 116, 30);
+  if (ruined) {
+    g.fillStyle(0x6d6559).fillRect(18, 74, 84, 26).fillStyle(0x4b453d).fillTriangle(22, 74, 46, 48, 66, 74).fillTriangle(56, 74, 84, 58, 100, 74);
+    g.fillStyle(0x2c2723, .7).fillCircle(48, 84, 9).fillCircle(78, 88, 7);
+  } else {
+    g.fillStyle(0x837a69).fillRect(14, 54, 92, 46).fillStyle(0x9d937f).fillRect(14, 54, 92, 8);
+    for (let x = 14; x < 106; x += 20) g.fillStyle(0x9d937f).fillRect(x, 44, 12, 12);
+    g.fillStyle(0x2a2420).fillRect(30, 70, 14, 8).fillRect(76, 70, 14, 8);
+    g.fillStyle(0x3b2a1e).fillRect(58, 8, 4, 40).fillStyle(color).fillTriangle(62, 9, 90, 17, 62, 25);
+    g.lineStyle(2, 0x4d473f).strokeRect(14, 54, 92, 46);
+  }
+  g.generateTexture(key, 120, 112); g.destroy();
+  return key;
 }

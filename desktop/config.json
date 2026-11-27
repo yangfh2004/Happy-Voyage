@@ -230,6 +230,11 @@
         "level1": 60,
         "level2": 120,
         "level3": 180
+      },
+      "fort": {
+        "level1": 150,
+        "level2": 300,
+        "level3": 450
       }
     }
   },
@@ -380,6 +385,13 @@
     "distanceScatter": 88,
     "aiDecisionSeconds": 1,
     "aiRetreatStrength": 0.35,
+    "forts": {
+      "count": 3,
+      "durabilityPerLevel": 60,
+      "firepowerPerLevel": 10,
+      "range": 600,
+      "reload": 4
+    },
     "battleStats": {
       "warship": {
         "turn": 50,

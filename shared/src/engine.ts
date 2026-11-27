@@ -11,7 +11,7 @@ import { barterOffers, fleetQuantity, GOOD_VALUES } from './barter';
 import { LOTTERY, drawLotteryBalls, lotteryMatches, type LotteryDraw } from './lottery';
 import { HERMITS, hermitStoneTake, type HermitId, type MistResult } from './mist';
 import { CAPTAINS, recruitOffers, aiRecruitChoice } from './captains';
-import { BUILDINGS, buildingLevel, nextBuildingCost, colonyIncome, colonyProduction, colonyCanRepair } from './buildings';
+import { BUILDINGS, buildingLevel, colonyForts, nextBuildingCost, colonyIncome, colonyProduction, colonyCanRepair } from './buildings';
 import type { BuildingKind } from './types';
 import { SEA_RULES } from './seaRules';
 import { seaEventTx } from './seaEvents';
@@ -571,14 +571,15 @@ export class GameEngine extends GameView {
     const { ships, owner, fromFleet } = colonyDefenders(this.state, node.id);
     const attackers = selectBattleDeployment(player.fleet, shipIds);
     const defenders = defaultBattleDeployment(ships);
+    const forts = colonyForts(this.state, node.id);
     if (colonyBattleMode(this.state, player, owner) === 'realtime') {
-      this.startBattle('colony', attackers, defenders, owner.id);
+      this.startBattle('colony', attackers, defenders, owner.id, false, forts);
       return null;
     }
     const sides = { p: ref.player(player.id), o: ref.player(owner.id), n: ref.node(node.id) };
     this.log(fromFleet ? tx("{p} opens fire on {o}'s fleet at {n}!", '{p} 在{n}向 {o} 的舰队开火！', sides)
       : tx("{p} opens fire on {o}'s docked ships at {n}!", '{p} 在{n}向 {o} 停靠的船只开火！', sides));
-    const result = fightNavalBattle(attackers, defenders, this.rng, { attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner), attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: this.state.ambush });
+    const result = fightNavalBattle(attackers, defenders, this.rng, { attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner), attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1, skipFirstDefense: this.state.ambush, forts });
     return this.settleColonyBattle(result);
   }
 
@@ -600,11 +601,13 @@ export class GameEngine extends GameView {
       rounds: result.rounds,
       attackerSunk: result.attackerSunk.map((ship) => ship.name),
       defenderSunk: result.defenderSunk.map((ship) => ship.name),
+      ...(result.fortsDestroyed !== undefined ? { fortsDestroyed: result.fortsDestroyed, forts: colonyForts(this.state, node.id).length } : {}),
       tollPaid: 0,
     };
     this.log(realtime
       ? tx('The battle lasted {s}s. Sunk: {p} {a}; {o} {d}.', '海战持续 {s} 秒。被击沉：{p} {a}；{o} {d}。', { ...sides, s: (result.rounds / 20).toFixed(1), a: ref.ships(report.attackerSunk), d: ref.ships(report.defenderSunk) })
       : tx('{r} rounds of cannon fire. Sunk: {p} {a}; {o} {d}.', '炮火交战 {r} 回合。被击沉：{p} {a}；{o} {d}。', { ...sides, r: result.rounds, a: ref.ships(report.attackerSunk), d: ref.ships(report.defenderSunk) }));
+    if (report.forts) this.log(tx('Shore forts destroyed: {d} of {t}.', '炮台被摧毁：{d}／{t} 座。', { d: report.fortsDestroyed ?? 0, t: report.forts }));
     switch (result.outcome) {
       case 'victory': {
         const returningShips = fromFleet ? [] : defenders.splice(0);
@@ -640,14 +643,14 @@ export class GameEngine extends GameView {
     this.currentPlayer.retreatThreshold = threshold;
   }
 
-  private startBattle(kind: PendingBattle['kind'], attackers: Ship[], defenders: Ship[], defender: number | null, resumeLanding = false): void {
+  private startBattle(kind: PendingBattle['kind'], attackers: Ship[], defenders: Ship[], defender: number | null, resumeLanding = false, forts: { durability: number; firepower: number }[] = []): void {
     const player = this.currentPlayer;
     const seed = Math.floor(this.rng() * 4294967296) >>> 0;
     const battle: PendingBattle = {
       kind, nodeId: player.position, attacker: player.id, defender, seed, resumeLanding,
       setup: { seed, attackers: attackers.map((s) => ({ ...s, cargo: { ...s.cargo } })), defenders: defenders.map((s) => ({ ...s, cargo: { ...s.cargo } })),
         retreatThresholds: { attacker: playerRetreatThreshold(player), defender: defender === null ? 'half' : playerRetreatThreshold(this.state.players[defender]) },
-        attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1, ambush: this.state.ambush },
+        attackerMultiplier: this.state.inspired ? STRATEGY_RULES.inspireMultiplier : 1, ambush: this.state.ambush, ...(forts.length ? { forts } : {}) },
       commanders: [!player.isAI ? 'attacker' : 'defender'],
     };
     this.state.pendingBattle = battle;
@@ -674,7 +677,7 @@ export class GameEngine extends GameView {
         if (fought) ship.durability = fought.durability;
       }
     }
-    const result: BattleResult = { outcome: replay.outcome, rounds: replay.ticks, ...(replay.withdrawal ? { withdrawal: replay.withdrawal } : {}),
+    const result: BattleResult = { outcome: replay.outcome, rounds: replay.ticks, ...(replay.withdrawal ? { withdrawal: replay.withdrawal } : {}), ...(replay.fortsDestroyed !== undefined ? { fortsDestroyed: replay.fortsDestroyed } : {}),
       attackerSunk: replay.attackerSunk.map(id => attackers.find(s => s.id === id)!),
       defenderSunk: replay.defenderSunk.map(id => defenders.find(s => s.id === id)!) };
     this.state.pendingBattle = null;

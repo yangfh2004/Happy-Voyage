@@ -6,7 +6,7 @@ import { pick } from '../i18n';
 
 export const specialIslands = ['treasure', 'mist', 'skeleton', 'dragonSnake', 'wind', 'nightless', 'revival'] as const satisfies readonly SpecialKind[];
 export const seaEncounters = (Object.keys(SEA_EVENT_NAMES) as EventKind[]).filter((kind) => kind !== 'openSea');
-export const gameScenes = ['landing', 'colonyMarket', 'strategies', 'strategyGallery', 'battle', 'battleCommand', 'battleDefense', 'battlePirates', 'defeat', 'victory'] as const;
+export const gameScenes = ['landing', 'colonyMarket', 'strategies', 'strategyGallery', 'battle', 'siegeForts', 'battleCommand', 'battleDefense', 'battlePirates', 'defeat', 'victory'] as const;
 type GameScene = (typeof gameScenes)[number];
 export type Scenario = GameScene | `island-${SpecialKind}` | `sea-${EventKind}`;
 
@@ -16,6 +16,7 @@ const sceneNames: Record<GameScene, readonly [string, string]> = {
   strategies: ['Strategy cards and targets', '谋略卡与目标'],
   strategyGallery: ['All 20 strategy illustrations', '全部20张谋略卡插画'],
   battle: ['Battle decision', '海战决策'],
+  siegeForts: ['Siege a colony with shore forts', '进攻建有炮台的殖民地'],
   battleCommand: ['Command a colony battle', '指挥殖民地海战'],
   battleDefense: ['Defend against an AI fleet', '抵御电脑舰队'],
   battlePirates: ['Command against pirates', '指挥舰队迎战海盗'],
@@ -105,6 +106,14 @@ export function stageScenario(engine: GameEngine, id: Exclude<Scenario, 'landing
     state.owners[colonies[1].id] = state.players[2].id;
     state.stockpiles[colonies[0].id].lumber = 5;
     state.stockpiles[colonies[1].id].iron = 5;
+  } else if (id === 'siegeForts') {
+    state.config.battleMode = 'realtime';
+    const { id: colony } = colonies[0];
+    state.owners[colony] = rival.id;
+    state.owners[colonies[1].id] = captain.id;
+    state.buildings[colony] = { fort: 2, shipyard: 1 };
+    rival.position = colony;
+    land(colony);
   } else if (id === 'battle' || id === 'defeat') {
     const { id: colony } = colonies[0];
     state.owners[colony] = rival.id;
