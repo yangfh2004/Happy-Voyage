@@ -52,6 +52,14 @@ function start(ai = false, rivalAI = true) {
   return state;
 }
 
+function startAtSea(ai = false, rivalAI = true) {
+  const state = start(ai, rivalAI);
+  const sea = state.map.filter((node) => node.kind === 'sea');
+  state.players.forEach((player, i) => { player.position = sea[i].id; });
+  state.turnStartPosition = state.players[state.currentPlayer].position;
+  return state;
+}
+
 function land(event: EventKind, ai = false, rivalAI = true) {
   const state = start(ai, rivalAI);
   state.map[2] = { ...state.map[2], kind: 'event', event };
@@ -76,7 +84,7 @@ afterEach(() => { gameController.quit(); vi.useRealTimers(); vi.restoreAllMocks(
 
 describe('sea notifications', () => {
   function startWithSalvage(rivalAI = true) {
-    start(false, rivalAI);
+    startAtSea(false, rivalAI);
     gameController.salvageWreck();
   }
 
@@ -162,7 +170,7 @@ describe('human sea choices wired to the real engine', () => {
   }
 
   it.each([true, false])('lets players optionally salvage before spinning (pay: %s)', (pay) => {
-    const state = start();
+    const state = startAtSea();
     const before = state.players[0].gold;
     const salvage = controls().find((button) => button.props.children === 'Salvage · 100g')!;
     expect(salvage.props.disabled).toBe(false);
@@ -182,13 +190,21 @@ describe('human sea choices wired to the real engine', () => {
   });
 
   it('disables salvage when the player cannot afford it', () => {
-    const state = start();
+    const state = startAtSea();
     state.players[0].gold = 99;
     expect(controls().find((button) => button.props.children === 'Salvage · 100g')!.props.disabled).toBe(true);
   });
 
+  it.each(['port', 'island', 'special'] as const)('explains why salvage is disabled at a %s start', (kind) => {
+    const state = start();
+    state.players[0].position = state.turnStartPosition = state.map.find((node) => node.kind === kind)!.id;
+    const salvage = controls().find((button) => button.props.children === 'Salvage · Sea only')!;
+    expect(salvage.props.disabled).toBe(true);
+    expect(salvage.props.title).toBe('Your turn must start at sea to salvage.');
+  });
+
   it('shows AI salvage before the AI spins', () => {
-    const state = start(true);
+    const state = startAtSea(true);
     vi.advanceTimersByTime(700);
     expect(state.phase).toBe('spinning');
     expect(state.salvageUsed).toBe(true);

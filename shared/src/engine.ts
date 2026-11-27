@@ -153,6 +153,7 @@ export class GameEngine extends GameView {
       pendingClaim: null,
       pendingBarter: null,
       pendingMerchant: null,
+      turnStartPosition: homes[0]!,
       salvageUsed: false,
       roamers: [],
       pendingWyvern: false,
@@ -1339,6 +1340,7 @@ export class GameEngine extends GameView {
     this.assertPhase('awaitingSpin');
     const player = this.currentPlayer;
     const fee = SEA_RULES.wreckSalvageFee;
+    if (!this.startedTurnAtSea()) throw new Error('Salvage requires starting the turn at sea.');
     if (this.state.salvageUsed) throw new Error('Already salvaged this turn.');
     if (player.gold < fee) throw new Error('Not enough gold to salvage the wreck.');
     if (!this.canSalvageWreck()) throw new Error('Cannot salvage without an active fleet.');
@@ -1657,6 +1659,7 @@ export class GameEngine extends GameView {
     }
 
     this.state.currentPlayer = next;
+    this.state.turnStartPosition = this.currentPlayer.position;
     this.state.lastSpin = null;
     this.state.strategyUsed = false;
     this.state.inspired = false;
