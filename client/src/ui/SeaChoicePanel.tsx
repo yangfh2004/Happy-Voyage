@@ -8,8 +8,6 @@ export function SeaChoicePanel({ state }: { state: GameState }) {
   const [error, setError] = useState('');
   const [quantity, setQuantity] = useState(1);
   const { t, locale } = useT();
-  const salvageFee = state.salvageFee;
-  const canAffordSalvage = salvageFee !== null && state.players[state.currentPlayer].gold >= salvageFee;
   const act = (action: () => void) => {
     try { action(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : t('Sea encounter failed', '海上遭遇失败')); }
@@ -27,13 +25,6 @@ export function SeaChoicePanel({ state }: { state: GameState }) {
         <button onClick={() => act(() => gameController.buyMerchant(quantity))}>{t('Buy cargo', '买入货物')}</button>
       </>}
       <button onClick={() => gameController.declineMerchant()}>{t('Leave merchant ship', '离开商船')}</button>
-    </>}
-    {state.phase === 'awaitingSalvage' && salvageFee !== null && <>
-      <h2 id="sea-choice-title">⚓ {t('Wreck salvage', '沉船打捞')}</h2>
-      <p>{t('Pay {fee}g to recover a random amount of gold. You might recover less than you spend.', '支付 {fee} 金币打捞随机数量的金币，有可能收不回费用。', { fee: salvageFee })}</p>
-      {!canAffordSalvage && <p>{t('Not enough gold to pay the fee.', '金币不足，无法支付费用。')}</p>}
-      <button className="primary" disabled={!canAffordSalvage} onClick={() => act(() => gameController.salvageWreck())}>{t('Pay {fee}g and salvage', '支付 {fee} 金币打捞', { fee: salvageFee })}</button>
-      <button onClick={() => gameController.skipSalvage()}>{t('Skip salvage', '跳过打捞')}</button>
     </>}
     {state.phase === 'awaitingWyvern' && <>
       <h2 id="sea-choice-title">W {t('Wyvern · Choose your destination', '翼龙 · 选择目的地')}</h2>

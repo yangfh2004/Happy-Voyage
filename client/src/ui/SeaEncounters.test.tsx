@@ -6,12 +6,14 @@ import { SEA_EVENT_NAMES, type EventKind, type SeaEventResult } from '@happy-voy
 const hooks = vi.hoisted(() => ({ values: [] as unknown[], index: 0 }));
 vi.mock('react', async (original) => ({
   ...await original<typeof import('react')>(),
+  useEffect: () => {},
   useState: (initial: unknown) => {
     const index = hooks.index++;
     if (!(index in hooks.values)) hooks.values[index] = initial;
     return [hooks.values[index], (value: unknown) => { hooks.values[index] = value; }];
   },
 }));
+vi.mock('dialog-polyfill', () => ({ default: { registerDialog: vi.fn() } }));
 vi.mock('../game/EventBus', () => {
   const listeners = new Map<string, ((...args: unknown[]) => void)[]>();
   return { EventBus: {
@@ -22,6 +24,7 @@ vi.mock('../game/EventBus', () => {
 
 import { gameController, SEA_NOTICE_DURATION_MS, SEA_NOTICE_LIMIT } from '../game/GameController';
 import { EventBus } from '../game/EventBus';
+import { ActionPanel } from './ActionPanel';
 import { SeaChoicePanel } from './SeaChoicePanel';
 import { SeaNotifications, SEA_ICONS } from './SeaNotifications';
 
@@ -42,11 +45,16 @@ function click(text: string) {
 let moveId = 0;
 EventBus.on('animate-move', (move: { id: number }) => { moveId = move.id; });
 
-function land(event: EventKind | 'wreckSalvage', ai = false, rivalAI = true) {
+function start(ai = false, rivalAI = true) {
   gameController.newGame([{ name: 'Captain', color: 0, isAI: ai }, { name: 'Rival', color: 1, isAI: rivalAI }], { battleMode: 'auto' });
   const state = gameController.state!;
   state.roamers = [];
-  state.map[2] = event === 'wreckSalvage' ? { ...state.map[2], kind: 'sea', event: undefined } : { ...state.map[2], kind: 'event', event };
+  return state;
+}
+
+function land(event: EventKind, ai = false, rivalAI = true) {
+  const state = start(ai, rivalAI);
+  state.map[2] = { ...state.map[2], kind: 'event', event };
   state.players[0].fleet[0].cargo.Silk = 3;
   state.players[0].strategies = [];
   if (ai) vi.advanceTimersByTime(700);
@@ -68,21 +76,20 @@ afterEach(() => { gameController.quit(); vi.useRealTimers(); vi.restoreAllMocks(
 
 describe('sea notifications', () => {
   function startWithSalvage(rivalAI = true) {
-    land('wreckSalvage', false, rivalAI);
+    start(false, rivalAI);
     gameController.salvageWreck();
   }
 
   function addNotice() {
     const state = gameController.state!;
-    state.players[1].isAI = false;
-    state.currentPlayer = 0;
-    state.phase = 'awaitingSpin';
-    state.players[0].position = 0;
     gameController.spinCompass();
     gameController.finishSpin(gameController.spinId);
+    const { position } = state.players[state.currentPlayer];
+    state.map[position] = { ...state.map[position], kind: 'sea', event: undefined };
     vi.mocked(Math.random).mockReturnValue(0.99);
     EventBus.emit('move-complete', moveId);
     vi.mocked(Math.random).mockReturnValue(0);
+    gameController.confirmHandoff();
     gameController.salvageWreck();
   }
 
@@ -149,24 +156,43 @@ describe('sea notifications', () => {
 });
 
 describe('human sea choices wired to the real engine', () => {
-  it.each([true, false])('lets players pay for or skip wreck salvage (pay: %s)', (pay) => {
-    const state = land('wreckSalvage');
-    expect(state.phase).toBe('awaitingSalvage');
+  function controls() {
+    hooks.index = 0;
+    return elements(ActionPanel({ state: gameController.state! })).filter((el) => el.type === 'button');
+  }
+
+  it.each([true, false])('lets players optionally salvage before spinning (pay: %s)', (pay) => {
+    const state = start();
     const before = state.players[0].gold;
-    expect(renderToStaticMarkup(panel())).toContain('You might recover less than you spend');
-    click(pay ? 'Pay 100g and salvage' : 'Skip salvage');
+    const salvage = controls().find((button) => button.props.children === 'Salvage · 100g')!;
+    expect(salvage.props.disabled).toBe(false);
+    if (pay) {
+      (salvage.props.onClick as () => void)();
+      const used = controls().find((button) => button.props.children === 'Salvaged')!;
+      expect(used.props.disabled).toBe(true);
+    }
     expect(state.phase).toBe('awaitingSpin');
-    expect(state.currentPlayer).toBe(1);
-    expect(state.players[0].gold).toBe(before - (pay ? 50 : 0));
-    expect(state.log.some((line) => line.includes('Wreck salvage: paid 100g and recovered 50g.'))).toBe(pay);
+    expect(state.currentPlayer).toBe(0);
+    expect(state.players[0].gold).toBe(before + (pay ? 10 : 0));
+    expect(state.log.some((line) => line.includes('Wreck salvage: paid 100g and recovered 110g.'))).toBe(pay);
+    const spin = controls().find((button) => button.props.className === 'primary big')!;
+    (spin.props.onClick as () => void)();
+    expect(state.phase).toBe('spinning');
+    expect(controls().some((button) => String(button.props.children).includes('Salvage'))).toBe(false);
   });
 
-  it('disables the paid salvage action when the player cannot afford it', () => {
-    const state = land('wreckSalvage');
+  it('disables salvage when the player cannot afford it', () => {
+    const state = start();
     state.players[0].gold = 99;
-    const html = renderToStaticMarkup(panel());
-    expect(html).toContain('Not enough gold to pay the fee.');
-    expect(html).toMatch(/<button[^>]+disabled="">Pay 100g and salvage/);
+    expect(controls().find((button) => button.props.children === 'Salvage · 100g')!.props.disabled).toBe(true);
+  });
+
+  it('shows AI salvage before the AI spins', () => {
+    const state = start(true);
+    vi.advanceTimersByTime(700);
+    expect(state.phase).toBe('spinning');
+    expect(state.salvageUsed).toBe(true);
+    expect(gameController.seaNotices[0].event.salvageFee).toBe(100);
   });
 
   it.each([true, false])('merchant accept=%s advances the turn and only accepted cargo is removed', (accept) => {
@@ -181,8 +207,6 @@ describe('human sea choices wired to the real engine', () => {
       expect(state.phase).toBe('awaitingMerchant');
       click('Leave merchant ship');
     }
-    expect(state.phase).toBe('awaitingSalvage');
-    click('Skip salvage');
     expect(state.phase).toBe('awaitingSpin');
     expect(state.currentPlayer).toBe(1);
     expect(state.players[0].gold).toBe(before + (accept ? 405 : 0));
@@ -201,8 +225,6 @@ describe('human sea choices wired to the real engine', () => {
     expect(stock.quantity).toBe(3);
     expect(state.phase).toBe('awaitingMerchant');
     click('Leave merchant ship');
-    expect(state.phase).toBe('awaitingSalvage');
-    click('Skip salvage');
     expect(state.currentPlayer).toBe(1);
   });
 
@@ -242,18 +264,15 @@ describe('human sea choices wired to the real engine', () => {
   });
 
   it.each(['merchant', 'wyvern'] as const)('AI continues after %s without human input', (event) => {
-    const state = land(event, true);
+    const state = land(event, true, false);
     vi.advanceTimersByTime(700);
     if (event === 'wyvern') {
       expect(state.phase).toBe('moving');
       EventBus.emit('move-complete', moveId);
       expect(state.phase).toBe('awaitingBuild');
-    } else {
-      expect(state.phase).toBe('awaitingSalvage');
     }
     expect(gameController.seaNotices.some((notice) => notice.event.outcome === (event === 'merchant' ? 'accepted' : 'relocated'))).toBe(true);
     vi.advanceTimersByTime(700);
     expect(state.currentPlayer).toBe(1);
-    if (event === 'merchant') expect(gameController.seaNotices[0].event.salvageFee).toBeDefined();
   });
 });

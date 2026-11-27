@@ -478,10 +478,10 @@
     "cargoUnits": 4,
     "merchantPremium": 1.5,
     "merchantUnits": 5,
-    "treasure": {
-      "min": 50,
-      "max": 200,
-      "step": 50
+    "wreckSalvageReward": {
+      "mean": 110,
+      "standardDeviation": 100,
+      "minimum": 0
     },
     "storm": {
       "min": 50,

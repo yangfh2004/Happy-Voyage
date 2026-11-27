@@ -43,7 +43,6 @@ const actions: Record<RoomAction[0], Handler> = {
   buyMerchant: oneArg(integer, (e, quantity) => e.buyMerchant(quantity)),
   declineMerchant: noArgs((e) => e.declineMerchant()),
   salvageWreck: noArgs((e) => e.salvageWreck()),
-  skipSalvage: noArgs((e) => e.skipSalvage()),
   wyvernFly: oneArg(integer, (e, id) => e.wyvernFly(id)),
   payToll: noArgs((e) => e.payToll()),
   fight: (e, args) => {
