@@ -192,7 +192,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
           </button>
         </div>
         {returnTo && (
-          <div className="row">
+          <div className="row return-actions">
             {colonies.length > 1 && <label>{t('Colony destination', '殖民地目的地')} <select value={returnTo.id} onChange={(e) => setColonyDestination(Number(e.target.value))}>
               {colonies.map((node) => <option key={node.id} value={node.id}>{at(node.id)}</option>)}
             </select></label>}
@@ -220,6 +220,10 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
           <small>{t('Dock or board ships · load or unload goods', '停靠或归队船只 · 装卸货物')}</small>
         </button>
         <ColonyMarketPanel key={nodeId} state={state} />
+        <div className="colony-workspace">
+        <section className="colony-buildings" aria-labelledby="colony-buildings-heading">
+        <h3 id="colony-buildings-heading">{t('Buildings', '建筑')}</h3>
+        <div className="building-grid">
         {(Object.keys(BUILDINGS) as BuildingKind[]).map((kind) => {
           const level = buildingLevel(state, nodeId, kind);
           const cost = nextBuildingCost(state, nodeId, kind);
@@ -233,6 +237,8 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
             </div>
           );
         })}
+        </div>
+        </section>
         <section aria-labelledby="shipbuilding-heading">
           <h3 id="shipbuilding-heading">{t('Shipbuilding', '造船')} · {t('Fleet {n}/{max}', '舰队 {n}/{max}', { n: player.fleet.length, max: GAMEPLAY_TUNING.ships.maxFleetSize })}</h3>
           {player.fleet.length >= GAMEPLAY_TUNING.ships.maxFleetSize && <p>{t('New ships stay at this colony’s shipyard.', '新船留在本殖民地的船坞。')}</p>}
@@ -254,7 +260,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
             })}
         </section>
         <ShipMarketPanel state={state} />
-        <button className="primary" onClick={() => gameController.finishBuilding()}>{t('Done', '完成')} <kbd>D / Esc</kbd></button>
+        </div>
       </>
     );
   } else if (state.phase === 'awaitingToll') {
@@ -373,6 +379,9 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
         {headline && (!summary || headline.royal) && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{l(headline.message, state)}</div>}
       </div>
       <ShortcutLegend />
+      {atHelm && state.phase === 'awaitingBuild' && (
+        <footer className="colony-footer"><button className="primary" onClick={() => gameController.finishBuilding()}>{t('Done', '完成')} <kbd>D / Esc</kbd></button></footer>
+      )}
       {transfersOpen && state.phase === 'awaitingBuild' && atHelm && (
         <TransferPanel state={state} onClose={() => setTransfersOpen(false)} />
       )}

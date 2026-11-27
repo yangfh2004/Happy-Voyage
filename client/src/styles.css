@@ -97,6 +97,10 @@ button:hover { background: #ffecb3; }
 button.primary { background: #0a3d62; border-color: #0a3d62; color: #fff; }
 button.primary:hover { background: #145a8d; }
 button.big { font-size: 18px; padding: 10px 22px; }
+button:disabled { cursor: not-allowed; }
+button:not(.stat-trigger):disabled { opacity: .55; }
+:is(button, select, input, summary):focus-visible { outline: 3px solid #237c96; outline-offset: 3px; }
+:is(select, input) { font-family: 'Sea Names', system-ui, sans-serif; }
 
 .setup { width: min(520px, 92vw); max-height: calc(100% - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
 .setup > * { flex-shrink: 0; }
@@ -139,7 +143,12 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .actions :is(select, option), .strategy-cards :is(select, option) { font-family: 'Sea Names', system-ui, -apple-system, 'Segoe UI', sans-serif; }
 .strategy-destination { font: inherit; }
 .actions .row { display: flex; gap: 8px; justify-content: center; }
-.actions .pre-spin-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.actions .pre-spin-actions { display: grid; gap: 8px; }
+.actions .pre-spin-actions > .primary kbd { display: block; margin: 4px 0 0; font-size: 11px; opacity: .8; }
+.actions .return-actions { display: grid; margin-top: 12px; padding-top: 12px; border-top: 1px solid #c9b785; }
+.return-actions label { display: grid; gap: 4px; font-size: 12px; text-align: left; }
+.return-actions select { width: 100%; min-width: 0; min-height: 40px; }
+.return-actions small { color: #6d4c41; }
 .battle-deployment { min-width: 0; margin: 8px 0; border: 1px solid #987747; border-radius: 6px; text-align: start; }
 .battle-deployment label { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
 .battle-deployment label:has(input:disabled) { opacity: .65; cursor: default; }
@@ -293,7 +302,7 @@ button.big { font-size: 18px; padding: 10px 22px; }
   .playing { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100dvh; }
   .playing .overlay { padding-left: 0; }
   .actions { position: static; }
-  .playing .turn-action-panel .action-content { position: sticky; top: -10px; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 8px 0; background: #f5ecd4; }
+  .playing .turn-action-panel .action-content { display: flex; align-items: center; gap: 10px; padding: 8px 0; background: #f5ecd4; }
   .playing .turn-action-panel .action-content > div:last-child { flex: 1; min-width: 0; }
   .playing .turn-action-panel .action-content p { margin: 0 0 4px; }
   .playing .turn-action-panel .compass svg { width: 54px; height: 54px; }
@@ -368,13 +377,12 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .mist-stone.taken { background: transparent; border: 1px dashed #a38f76; box-shadow: none; }
 
 @media (min-width: 900px) and (orientation: landscape) {
-  .playing { padding: 10px; gap: 10px; grid-template-columns: minmax(0, 1fr) 350px; grid-template-rows: 116px minmax(0, 1fr) 88px; background: linear-gradient(135deg, #10436a, #041b30); }
+  .playing { padding: 10px; gap: 10px; grid-template-columns: minmax(0, 1fr) clamp(292px, 25vw, 350px); grid-template-rows: 104px minmax(0, 1fr) 72px; background: linear-gradient(135deg, #10436a, #041b30); }
   .voyage-top, .voyage-bottom { display: flex; align-items: center; gap: 12px; grid-column: 1 / -1; border: 1px solid #d9b65f; border-radius: 18px; background: #06243f; color: #fff6dc; padding: 10px 14px; box-shadow: 0 3px 8px #001423; min-width: 0; }
   .voyage-top { grid-row: 1; }
   .voyage-logo { width: 115px; flex-shrink: 0; color: #f5d381; font: bold 20px 'Sea Names', Georgia, serif; }
   .voyage-logo span { display: block; }
-  .voyage-seats { display: flex; gap: 6px; overflow-x: auto; min-width: 0; flex: 1; padding: 4px; scrollbar-width: none; }
-  .voyage-seats::-webkit-scrollbar { display: none; }
+  .voyage-seats { display: flex; gap: 6px; overflow-x: auto; min-width: 0; flex: 1; padding: 4px; scrollbar-width: thin; scrollbar-color: #c5a65f #06243f; }
   .voyage-chip { position: relative; display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 2px 4px; flex: 0 0 102px; padding: 16px 6px 5px; border: 2px solid; border-radius: 12px; font-size: 11px; background: #103450; }
   .voyage-chip strong { overflow: hidden; text-overflow: ellipsis; }
   .voyage-chip > span:not(.current-label), .voyage-chip small { grid-column: 1 / -1; }
@@ -392,22 +400,28 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .playing .sea-map { grid-column: 1; grid-row: 2; border: 2px solid #91bac6; border-radius: 20px; box-shadow: 0 3px 12px #001c30; }
   .playing .overlay { grid-column: 2; grid-row: 2; border: 2px solid #d9b65f; border-radius: 20px; padding: 12px; background: linear-gradient(#fffdf4, #ece9dc); }
   .playing .hud { gap: 8px; }
-  .helm-card { display: block; text-align: center; }
-  .helm-card h2 { font-family: 'Sea Names', system-ui, sans-serif; font-size: 19px; }
-  .helm-portrait { display: inline-flex; border: 3px solid #d2a33c; border-radius: 50%; padding: 3px; background: #0d527c; margin: 4px; }
-  .helm-portrait .portrait { margin: 0; }
-  .helm-card dl { margin: 8px 0; }
-  .helm-card dl > div { display: flex; justify-content: space-between; gap: 8px; padding: 5px 3px; border-bottom: 1px solid #c9c4b3; }
-  .helm-card dt { font-weight: 700; }
-  .helm-card dd { margin: 0; text-align: right; }
-  .helm-fleet-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 40px; margin-top: 6px; font-size: 13px; font-weight: 700; color: #123d59; background: #f3e6c4; border: 1px solid #c5a65f; border-radius: 10px; }
+  .helm-card { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 2px 10px; padding-bottom: 12px; border-bottom: 1px solid #cebd96; text-align: left; }
+  .helm-card h2 { grid-column: 2; margin: 0; font-family: 'Sea Names', system-ui, sans-serif; font-size: 18px; overflow-wrap: anywhere; }
+  .helm-card > h2:first-child { color: #73603d; font-size: 11px; letter-spacing: .06em; }
+  .helm-portrait { grid-column: 1; grid-row: 1 / 4; display: inline-flex; border: 2px solid #d2a33c; border-radius: 50%; padding: 2px; background: #0d527c; }
+  .helm-portrait .portrait { width: 50px; height: 50px; margin: 0; }
+  .helm-card dl { grid-column: 2; display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0; }
+  .helm-card dl > div { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+  .helm-card dt { color: #6b593a; }
+  .helm-card dt .resource-icon { width: 14px; height: 14px; }
+  .helm-card dd { margin: 0; font-weight: 750; font-variant-numeric: tabular-nums; }
+  .helm-fleet-btn { grid-column: 1 / -1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 40px; margin-top: 6px; font-size: 13px; font-weight: 700; color: #123d59; background: #f3e6c4; border: 1px solid #c5a65f; border-radius: 10px; }
   .helm-fleet-btn.has-damage { color: #8c2c12; background: #fbe3d5; border-color: #d97c4a; }
   .playing .actions { border: 0; background: transparent; box-shadow: none; border-radius: 0; padding: 0; }
   .playing .actions .primary { background: linear-gradient(#399b35, #12611c); border: 2px solid #d1a72e; border-radius: 16px; color: white; box-shadow: 0 3px 0 #214721; font-weight: 750; min-height: 52px; }
   .playing .actions .big { width: 100%; padding: 12px 8px; font-size: 19px; }
   .playing .actions button:not(.stat-trigger) { min-height: 44px; }
   .playing .action-content { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
-  .playing .compass svg { width: 80px; height: 80px; }
+  .playing .turn-action-panel .sailing-action .action-content { display: grid; grid-template-columns: 56px minmax(0, 1fr); align-items: start; gap: 10px; padding: 10px 0 12px; background: #f6f3e8; border-bottom: 1px solid #cebd96; }
+  .playing .turn-action-panel .sailing-action .compass { margin-top: 24px; font-size: 10px; text-align: center; }
+  .playing .pre-spin-actions .big { font-size: 17px; }
+  .playing .sailing-action .action-content p { margin: 0 0 8px; font-size: 13px; }
+  .playing .compass svg { width: 56px; height: 56px; }
   .playing .decision-action .compass { display: none; }
   .playing .decision-action p { font-size: 14px; margin: 5px 0; }
   .playing .actions > .shortcuts, .playing .rival-cards { display: none; }
@@ -440,6 +454,12 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .landing-placement .actions button.primary::before { content: '⚓ '; }
   .landing-placement .actions .row > button:not(.primary)::before { content: '➜ '; }
   .landing-placement .strategy-cards { margin-top: 12px; }
+}
+
+/* Leave room to read and play cards below the command block. On short laptop
+   windows, normal scrolling is preferable to a sticky block covering the deck. */
+@media (min-width: 900px) and (min-height: 850px) and (orientation: landscape) {
+  .playing .turn-action-panel .sailing-action .action-content { position: sticky; top: -12px; z-index: 2; }
 }
 
 @media (max-width: 700px) and (orientation: portrait) {
@@ -491,7 +511,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .playing .compass svg { width: 54px; height: 54px; }
   .playing .action-content { display: flex; align-items: center; justify-content: center; gap: 10px; }
   .playing .actions .primary { color: #fff9e9; background: linear-gradient(#369740, #135b26); border: 2px solid #bda258; border-radius: 16px; min-height: 48px; }
-  .playing .turn-action-panel .action-content { position: sticky; top: -10px; z-index: 1; padding: 8px 0; background: #f5ecd4; }
+  .playing .turn-action-panel .action-content { padding: 8px 0; background: #f5ecd4; }
   .playing .turn-action-panel .action-content > div:last-child { flex: 1; min-width: 0; }
   .playing .turn-action-panel .actions .primary.big { width: 100%; min-height: 54px; font-size: 20px; }
   .playing .turn-action-panel .actions .primary.big kbd { display: none; }
@@ -544,9 +564,13 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .voyage-log-scroll { overflow-y: auto; overscroll-behavior: contain; }
 .voyage-log-history .log { max-height: none; padding: 0 8px; border: 0; box-shadow: none; background: transparent; font-size: 14px; }
 .voyage-log-history .log > div { padding: 8px 0; border-bottom: 1px solid #ddcda9; overflow-wrap: anywhere; }
-.landing-placement .landing-heading { display: flex; }
+.landing-placement .landing-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; margin-bottom: 12px; border-bottom: 1px solid #cfbc8c; }
+.landing-placement .landing-heading > div { min-width: 0; }
+.landing-placement .landing-heading > div:last-child { text-align: right; }
+.landing-placement .landing-heading h2 { overflow-wrap: anywhere; }
 /* 90% × 80% = 72% of the screen, including short menus. */
 .landing-placement, .voyage-menu, .fleet.transfer-window {
+  --dialog-padding: clamp(14px, 3vw, 28px);
   position: fixed;
   inset: 0;
   margin: auto;
@@ -560,17 +584,48 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   overscroll-behavior: contain;
   border: 2px solid #ddb953;
   border-radius: 20px;
-  padding: clamp(14px, 3vw, 28px);
+  padding: var(--dialog-padding);
   background: linear-gradient(#fffdf4, #f3ecd9);
   box-shadow: 0 8px 28px #001b35aa;
 }
 .landing-placement .actions { padding: 0; background: transparent; border: 0; box-shadow: none; }
 .landing-placement .action-content { display: block; }
+.landing-placement .action-content > .compass { display: none; }
+.landing-placement .action-content > div > h2 { display: none; }
 .landing-placement .actions p { font-size: 1rem; line-height: 1.5; }
 .colony-market { margin: 12px 0; padding: 12px; border: 1px solid #ccae65; border-radius: 12px; background: #fffaf0; }
 .colony-market summary { cursor: pointer; font-weight: 700; }
 .colony-market-orders { display: flex; flex-wrap: wrap; gap: 8px; }
 .landing-placement button:not(.stat-trigger) { min-height: 44px; }
+.landing-placement > .menu-dialog-tools {
+  position: sticky;
+  top: calc(-1 * var(--dialog-padding));
+  z-index: 3;
+  margin: calc(-1 * var(--dialog-padding)) calc(-1 * var(--dialog-padding)) 16px;
+  padding: 10px var(--dialog-padding);
+  border-bottom: 1px solid #cebd96;
+  background: #fffaf0;
+}
+.colony-workspace { display: grid; gap: 20px; margin-top: 20px; text-align: left; }
+.colony-workspace > section { min-width: 0; }
+.colony-workspace h3 { margin: 0 0 12px; color: #17415b; font-size: 17px; }
+.building-grid { display: grid; gap: 10px; }
+.colony-workspace .building-option { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; padding: 14px; border: 1px solid #cdbb91; border-radius: 12px; background: #fffaf0; }
+.colony-workspace .building-option small { flex: 1; line-height: 1.5; color: #665538; }
+.colony-workspace .building-option button { width: 100%; margin-top: auto; }
+.colony-workspace > section:last-child { padding-top: 16px; border-top: 1px solid #cebd96; }
+.colony-footer { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: flex-end; margin: 16px calc(-1 * var(--dialog-padding)) 0; padding: 12px var(--dialog-padding); border-top: 1px solid #cebd96; background: #fffaf0; }
+.colony-footer button { min-width: 160px; }
+.market-fields :is(input, select), .transfer-controls :is(input, select) { box-sizing: border-box; min-height: 44px; border: 1px solid #9d8f6c; border-radius: 8px; background: #fffdf7; color: #173941; padding: 8px; }
+.colony-market-orders > button { flex: 1 1 160px; }
+@media (min-width: 680px) {
+  .building-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .transfer-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+}
+@media (min-width: 1100px) {
+  .colony-workspace { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px 24px; }
+  .colony-workspace > section:last-child { grid-column: 1 / -1; }
+}
 @media (prefers-reduced-motion: reduce) { .playing .overlay.is-your-turn { animation: none; } }
 
 @media (pointer: coarse) {
