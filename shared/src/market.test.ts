@@ -252,4 +252,19 @@ describe('colony local market', () => {
     expect(g.state.phase).toBe('awaitingSpin');
     expect(g.state.currentPlayer).toBe(0);
   });
+
+  it('lets an AI short on gold sell cargo before deciding whether it needs to attack', () => {
+    const { g, ship } = atColony(0, 1);
+    g.state.map[1] = { ...g.state.map[1], toll: 50 };
+    g.state.players[0].position = 0;
+    g.currentPlayer.strategies = [];
+    g.currentPlayer.gold = 10;
+    for (const ship of g.currentPlayer.fleet) ship.durability = 20;
+    const visitor = g.currentPlayer;
+    g.decideForAI();
+    expect(ship.cargo.Tea).toBeUndefined();
+    expect(visitor.gold).toBe(12);
+    expect(g.state.battles).toHaveLength(0);
+    expect(g.state.currentPlayer).toBe(0);
+  });
 });

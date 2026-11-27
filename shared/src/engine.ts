@@ -1017,12 +1017,15 @@ export class GameEngine extends GameView {
       if (p.knownHoard === null && this.canUseStrategy('locate')) this.useStrategy('locate');
     }
     if (this.state.phase === 'awaitingToll') {
-      const card = aiBattleStrategy(this.state, this.currentPlayer, (id) => this.canUseStrategy(id));
+      const player = this.currentPlayer;
+      if (player.gold < tollDue(this.state, player, player.position)) this.sellColonySpecialtiesForAI();
+      const card = aiBattleStrategy(this.state, player, (id) => this.canUseStrategy(id));
       if (card) this.useStrategy(card);
       if (this.state.phase !== 'awaitingToll') return;
-      if (aiShouldFight(this.state, this.currentPlayer)) this.fight();
+      if (aiShouldFight(this.state, player)) this.fight();
       else {
-        this.tradeAtColonyForAI();
+        this.sellColonySpecialtiesForAI();
+        this.buyColonySpecialtyForAI();
         this.payToll();
       }
       return;
@@ -1090,7 +1093,8 @@ export class GameEngine extends GameView {
       const purchase = aiUsedShipChoice(this.state, player, (type) => this.canBuyUsedShip(type));
       if (purchase) this.buyUsedShip(purchase);
       this.autoLoad();
-      this.tradeAtColonyForAI();
+      this.sellColonySpecialtiesForAI();
+      this.buyColonySpecialtyForAI();
       this.finishBuilding();
       return;
     }
@@ -1113,7 +1117,7 @@ export class GameEngine extends GameView {
 
   // --- internals -----------------------------------------------------------
 
-  private tradeAtColonyForAI(): void {
+  private sellColonySpecialtiesForAI(): void {
     const local = colonyMarket(this.state);
     if (!local) return;
     for (const ship of this.currentPlayer.fleet) {
@@ -1123,6 +1127,9 @@ export class GameEngine extends GameView {
         if (quantity > 0) this.tradeAtMarket({ side: 'sell', shipId: ship.id, good, quantity });
       }
     }
+  }
+
+  private buyColonySpecialtyForAI(): void {
     const purchase = aiColonyMarketPurchase(this.state, this.currentPlayer);
     if (purchase) this.tradeAtMarket(purchase);
   }
