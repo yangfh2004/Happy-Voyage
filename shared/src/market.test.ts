@@ -132,7 +132,9 @@ describe('Nightless Island market', () => {
     const lumber = marketPrices(g.state, 'lumber');
     land(g, 2);
     expect(marketPrices(g.state, 'lumber').buy).toBe(lumber.buy + 4);
+    g.skipSalvage();
     land(g, 4);
+    if (g.state.phase === 'awaitingSalvage') g.skipSalvage();
     expect(g.state.round).toBe(3);
     expect(marketPrices(g.state, 'lumber')).toMatchObject({ stock: lumber.stock + 1, buy: lumber.buy + 3 });
     expect(marketPrices(g.state, featured).buy).toBeLessThan(price);

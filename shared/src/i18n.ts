@@ -135,6 +135,7 @@ export const ZH = {
     'Treasure Shoal': '宝藏浅滩', 'Tempest Passage': '风暴水道', 'Zephyr Strait': '和风海峡', 'Pirate Cove': '海盗湾',
     'Serpent Shallows': '海蛇浅滩', 'Bermuda Triangle': '百慕达三角', 'Drifting Bottle Reef': '漂流瓶礁', 'Castaway Cargo Bay': '浮货湾',
     'Merchant Lane': '商船航道', 'Wyvern Cliffs': '翼龙崖', 'Kraken Deep': '海怪深渊', 'Turtle Reach': '海龟海域', 'Sunken Crown Shoal': '沉冠浅滩',
+    'Amber Shoal': '琥珀浅滩', 'Crown Shoal': '王冠浅滩',
     'Uncharted Waters': '未知海域', 'Silent Shoals': '寂静浅滩', 'Azure Passage': '碧海航道', 'Distant Horizon': '远方地平线', 'Open Ocean': '广阔大洋', 'Wandering Tides': '漫游潮汐', 'Ocean Crossing': '远洋航线', 'Silver Current': '银色洋流', 'Farwater Reach': '遥远海域',
   } as Record<string, string>,
   specials: { skeleton: '骷髅岛', treasure: '金银岛', mist: '迷雾岛', revival: '复活岛', nightless: '不夜岛', wind: '风之岛', dragonSnake: '龙蛇岛' } as Record<SpecialKind, string>,

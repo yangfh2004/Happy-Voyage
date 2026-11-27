@@ -78,22 +78,59 @@ describe('random sea encounters', () => {
   });
 
   it.each([
-    [SEA_RULES.encounterChance, 0.99, undefined, 0],
-    [0.19, 0, 'pirates', 0],
-    [0.19, 0.99, 'treasure', 50],
-  ] as const)('settles a blank sea landing with encounter roll %s and table roll %s', (chance, outcome, event, reward) => {
+    [SEA_RULES.encounterChance, 0.99, undefined],
+    [0.19, 0, 'pirates'],
+  ] as const)('offers salvage on a blank sea landing with encounter roll %s and table roll %s', (chance, outcome, event) => {
     const { game, events, sail, roll } = voyage();
     game.state.map[2] = { id: 2, x: 20, y: 0, kind: 'sea', name: 'Open water' };
     game.state.hoardNode = 2;
     game.currentPlayer.escortProtection = true;
     const gold = game.currentPlayer.gold;
-    roll([chance, outcome, 0]);
+    roll([chance, outcome]);
     sail();
+    expect(game.state.phase).toBe('awaitingSalvage');
     expect(events.filter((e) => e.type === 'seaEvent')).toMatchObject(event ? [{ event }] : []);
     expect(game.state.hoardNode).toBe(2);
-    expect(game.currentPlayer.gold).toBe(gold + reward);
+    expect(game.currentPlayer.gold).toBe(gold);
     expect(game.currentPlayer.position).toBe(2);
     expect(game.state.owners[2]).toBeNull();
+    game.skipSalvage();
+    expect(game.state.phase).toBe('awaitingSpin');
+  });
+
+  it.each([
+    [0, SEA_RULES.treasure.min],
+    [0.999, SEA_RULES.treasure.max],
+  ])('charges once and pays the randomized reward at roll %s', (rewardRoll, reward) => {
+    const { game, events, sail, roll } = voyage();
+    game.state.map[2] = { id: 2, x: 20, y: 0, kind: 'sea', name: 'Open water' };
+    const player = game.currentPlayer;
+    player.gold = SEA_RULES.wreckSalvageFee;
+    sail();
+    expect(game.state.phase).toBe('awaitingSalvage');
+    roll([rewardRoll]);
+    game.salvageWreck();
+    expect(player.gold).toBe(reward);
+    expect(player.bankrupt).toBe(false);
+    expect(events).toContainEqual({ type: 'seaEvent', playerId: player.id, event: 'treasure', outcome: 'gold', gold: reward, salvageFee: SEA_RULES.wreckSalvageFee });
+    expect(() => game.salvageWreck()).toThrow('Expected phase awaitingSalvage');
+    expect(game.state.salvageFee).toBeNull();
+  });
+
+  it.each([true, false])('skips salvage without charging gold (can afford: %s)', (canAfford) => {
+    const { game, events, sail } = voyage();
+    game.state.map[2] = { id: 2, x: 20, y: 0, kind: 'sea', name: 'Open water' };
+    const player = game.currentPlayer;
+    player.gold = SEA_RULES.wreckSalvageFee - Number(!canAfford);
+    const before = player.gold;
+    sail();
+    expect(game.state.phase).toBe('awaitingSalvage');
+    if (!canAfford) expect(() => game.salvageWreck()).toThrow('Not enough gold');
+    expect(game.state.phase).toBe('awaitingSalvage');
+    if (canAfford) game.skipSalvage();
+    else game.decideForAI();
+    expect(player.gold).toBe(before);
+    expect(events.some((event) => event.type === 'seaEvent')).toBe(false);
     expect(game.state.phase).toBe('awaitingSpin');
   });
 
@@ -103,6 +140,7 @@ describe('random sea encounters', () => {
     sail();
     expect(events.filter((e) => e.type === 'seaEvent')).toHaveLength(1);
     expect(events.find((e) => e.type === 'seaEvent')).toMatchObject({ event: 'turtle' });
+    expect(game.state.phase).toBe('awaitingSalvage');
   });
 
   it('also rolls when a navigation card moves the fleet to open sea', () => {
@@ -193,6 +231,7 @@ describe('random sea encounters', () => {
       game.resolveLanding();
       expect(game.currentPlayer.position).toBe(6);
       expect(events.filter((e) => e.type === 'seaEvent')).toHaveLength(1);
+      expect(events.filter((e) => e.type === 'salvageOffered')).toMatchObject([{ playerId: game.currentPlayer.id }]);
     }
   });
 
@@ -260,6 +299,8 @@ describe('random sea encounters', () => {
     game.state.map[2] = { ...game.state.map[2], kind: 'event', event: 'merchant' };
     game.state.phase = 'moving';
     game.resolveLanding();
+    expect(game.state.phase).toBe('awaitingSalvage');
+    game.skipSalvage();
     expect(game.state.phase).toBe('awaitingSpin');
     expect(events.find((e) => e.type === 'seaEvent')).toMatchObject({ event: 'merchant', outcome: 'noTrade' });
   });

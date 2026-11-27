@@ -189,6 +189,8 @@ describe('living sea board', () => {
     land(g, node.id);
     expect(p.gold).toBe(g.state.config.startingGold);
     expect(p.revivalProtection).toBe(false);
+    expect(g.state.phase).toBe('awaitingSalvage');
+    g.skipSalvage();
     expect(g.state.phase).toBe('awaitingSpin');
   });
 
@@ -202,6 +204,8 @@ describe('living sea board', () => {
       else { resolutions++; g.resolveLanding(); }
     }
     expect(resolutions).toBe(5);
+    expect(g.state.phase).toBe('awaitingSalvage');
+    g.skipSalvage();
     expect(g.state.phase).toBe('awaitingSpin');
     expect(() => g.resolveLanding()).toThrow('Expected phase moving');
   });

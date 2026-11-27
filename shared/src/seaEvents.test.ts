@@ -21,7 +21,7 @@ function encounter(event: EventKind, rng = 0.5, setup: (g: GameEngine) => void =
 }
 
 describe('sea event outcomes', () => {
-  it('keeps only fixed weather, treasure and neutral encounter stations on the map', () => {
+  it('keeps only fixed weather, buried hoard shoals and neutral encounter stations on the map', () => {
     expect(new Set(createDefaultMap().flatMap((n) => n.event ? [n.event] : []))).toEqual(new Set([
       'treasure', 'storm', 'tradeWind', 'openSea',
     ]));
@@ -124,12 +124,13 @@ describe('sea event outcomes', () => {
     expect(() => g.wyvernFly(-1)).toThrow('Unknown destination');
     expect(() => g.wyvernFly(1.2)).toThrow('Unknown destination');
     expect(results).toHaveLength(0);
-    const target = g.state.map.find((n) => n.event === 'treasure')!.id;
+    const target = g.state.map.find((n) => n.event === 'treasure' && n.id !== g.state.hoardNode)!.id;
     g.wyvernFly(target);
     expect(p.position).toBe(target);
     expect(g.state.phase).toBe('moving');
     g.resolveLanding();
-    expect(results.map((e) => e.outcome)).toEqual(['relocated', 'gold']);
+    expect(results.map((e) => e.outcome)).toEqual(['relocated']);
+    expect(g.state.phase).toBe('awaitingSalvage');
     expect(() => g.wyvernFly(0)).toThrow();
   });
 
@@ -145,7 +146,7 @@ describe('sea event outcomes', () => {
     const { g, results } = encounter('whirlpool', rng);
     expect(results).toHaveLength(1);
     expect(results[0].outcome).toBe(rng === 0 ? 'damaged' : 'relocated');
-    expect(g.state.phase).toBe(rng === 0 ? 'awaitingSpin' : 'moving');
+    expect(g.state.phase).toBe(rng === 0 ? 'awaitingSalvage' : 'moving');
   });
 
   it.each(['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'] as const)('revival emits one protected %s outcome', (event) => {

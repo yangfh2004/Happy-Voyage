@@ -107,7 +107,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
   const needsInput = state && !state.players[state.currentPlayer].isAI &&
     (state.phase === 'awaitingSpin' || state.phase === 'awaitingClaim' ||
       state.phase === 'awaitingRecruit' || state.phase === 'awaitingLottery' || state.phase === 'awaitingBarter' || state.phase === 'awaitingCargoMarket' || state.phase === 'awaitingToll' ||
-      state.phase === 'awaitingMerchant' || state.phase === 'awaitingWyvern' || state.phase === 'awaitingRevival');
+      state.phase === 'awaitingMerchant' || state.phase === 'awaitingSalvage' || state.phase === 'awaitingWyvern' || state.phase === 'awaitingRevival');
   const prompt = state && (needsInput || landing) ? `${state.round}:${state.currentPlayer}:${state.phase}` : null;
   const map = state?.map;
   const chartKey = useMemo(() => map ? JSON.stringify(map) : 'default-chart', [map]);

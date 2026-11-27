@@ -433,8 +433,8 @@
       "largeMonster": 4,
       "turtle": 4
     },
-    "blankSeaSalvageWeight": 14,
     "foreignTax": 40,
+    "wreckSalvageFee": 100,
     "nimStones": 12,
     "nimPrize": 130,
     "nimMaxTake": 3,

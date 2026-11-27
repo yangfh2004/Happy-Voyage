@@ -101,6 +101,31 @@ it('validates and executes merchant purchases through online actions', () => {
   expect(player.gold).toBe(before - stock.unitPrice * 2);
   expect(engine.state.phase).toBe('awaitingMerchant');
   match.act(player.id, match.revision, ['declineMerchant']);
+  expect(engine.state.phase).toBe('awaitingSalvage');
+  match.act(player.id, match.revision, ['skipSalvage']);
+  expect(engine.state.phase).toBe('awaitingSpin');
+  match.dispose();
+});
+
+it('validates and settles wreck salvage through online actions', () => {
+  const seats: RoomPick[] = [{ name: 'Captain', nation: 'Spain' }, { name: 'Rival', nation: 'Portugal' }];
+  const publish = vi.fn();
+  const match = new RoomMatch(seats, { mode: 'conquest', difficulty: 'normal' }, publish, vi.fn(), { rng: () => 0.999 });
+  const { engine } = match;
+  const player = engine.currentPlayer;
+  player.position = engine.state.map.find((node) => node.kind === 'sea')!.id;
+  engine.state.phase = 'moving';
+  engine.resolveLanding();
+  const fee = engine.state.salvageFee!;
+  expect(fee).toBe(100);
+  expect(() => match.act(1, match.revision, ['salvageWreck'])).toThrow('not your turn');
+  expect(() => match.act(player.id, match.revision, ['salvageWreck', 0])).toThrow('Invalid game command');
+  player.gold = fee - 1;
+  expect(() => match.act(player.id, match.revision, ['salvageWreck'])).toThrow('Not enough gold');
+  player.gold = fee;
+  match.act(player.id, match.revision, ['salvageWreck']);
+  expect(player.gold).toBe(200);
+  expect(publish).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ type: 'seaEvent', salvageFee: fee, gold: 200 })]));
   expect(engine.state.phase).toBe('awaitingSpin');
   match.dispose();
 });

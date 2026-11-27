@@ -8,6 +8,8 @@ export function SeaChoicePanel({ state }: { state: GameState }) {
   const [error, setError] = useState('');
   const [quantity, setQuantity] = useState(1);
   const { t, locale } = useT();
+  const salvageFee = state.salvageFee;
+  const canAffordSalvage = salvageFee !== null && state.players[state.currentPlayer].gold >= salvageFee;
   const act = (action: () => void) => {
     try { action(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : t('Sea encounter failed', '海上遭遇失败')); }
@@ -26,12 +28,19 @@ export function SeaChoicePanel({ state }: { state: GameState }) {
       </>}
       <button onClick={() => gameController.declineMerchant()}>{t('Leave merchant ship', '离开商船')}</button>
     </>}
+    {state.phase === 'awaitingSalvage' && salvageFee !== null && <>
+      <h2 id="sea-choice-title">⚓ {t('Wreck salvage', '沉船打捞')}</h2>
+      <p>{t('Pay {fee}g to recover a random amount of gold. You might recover less than you spend.', '支付 {fee} 金币打捞随机数量的金币，有可能收不回费用。', { fee: salvageFee })}</p>
+      {!canAffordSalvage && <p>{t('Not enough gold to pay the fee.', '金币不足，无法支付费用。')}</p>}
+      <button className="primary" disabled={!canAffordSalvage} onClick={() => act(() => gameController.salvageWreck())}>{t('Pay {fee}g and salvage', '支付 {fee} 金币打捞', { fee: salvageFee })}</button>
+      <button onClick={() => gameController.skipSalvage()}>{t('Skip salvage', '跳过打捞')}</button>
+    </>}
     {state.phase === 'awaitingWyvern' && <>
       <h2 id="sea-choice-title">W {t('Wyvern · Choose your destination', '翼龙 · 选择目的地')}</h2>
       <p>{t('Fly to any stop. Its landing effect will resolve when you arrive.', '飞往任意地点。抵达时会结算该地的停靠效果。')}</p>
       <label htmlFor="wyvern-destination">{t('Destination', '目的地')}</label>{' '}
       <select id="wyvern-destination" value={destination} onChange={(e) => setDestination(e.target.value)}>
-        {state.map.map((node) => <option key={node.id} value={node.id}>{node.id + 1}. {nodeName(node, locale)}{locale === 'en' ? ` · ${node.event ?? node.special ?? node.kind}` : node.event ? ` · ${seaEventName(node.event, locale)}` : ''}</option>)}
+        {state.map.map((node) => <option key={node.id} value={node.id}>{node.id + 1}. {nodeName(node, locale)}{node.event === 'treasure' ? '' : locale === 'en' ? ` · ${node.event ?? node.special ?? node.kind}` : node.event ? ` · ${seaEventName(node.event, locale)}` : ''}</option>)}
       </select>
       <button className="primary" onClick={() => act(() => gameController.wyvernFly(Number(destination)))}>{t('Fly with wyvern', '乘翼龙飞行')}</button>
     </>}

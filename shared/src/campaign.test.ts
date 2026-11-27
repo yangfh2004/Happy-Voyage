@@ -124,9 +124,11 @@ describe('royal campaign', () => {
     state.round = state.config.maxRounds - 1;
     for (const rival of state.players.slice(1)) rival.bankrupt = true;
     landAs(game, 0, winds.id);
+    game.skipSalvage();
     expect(state.campaign!.status).toBe('active');
     expect(state.round).toBe(state.config.maxRounds);
     landAs(game, 0, winds.id);
+    game.skipSalvage();
     expect(state).toMatchObject({ phase: 'gameOver', winner: null, victory: null, campaign: { status: 'failed' } });
     expect(state.log.at(-1)).toBe('The 28-round deadline passed.');
   });

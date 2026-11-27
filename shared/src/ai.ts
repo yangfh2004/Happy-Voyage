@@ -67,7 +67,6 @@ export function aiTravelTarget(state: GameState, player: Player, wyvern = false)
     }
     if (node.id === player.knownHoard) return 425;
     if (!wyvern) return 0;
-    if (node.event === 'treasure') return 125;
     if (node.event === 'tradeWind') return 50 + 30 * owned;
     if (node.special === 'nightless' && cargoUnits(player) >= 8) return cargoUnits(player) * 12;
     if (node.special === 'revival') {
@@ -134,7 +133,7 @@ function hardTravelTarget(state: GameState, player: Player, wyvern: boolean): nu
       }
     }
     if (node.kind === 'port') return node.id === player.homePort ? Math.max(0, audience) : -foreignTaxDue(player.rank);
-    if (node.event === 'treasure') return 125 + (node.id === player.knownHoard ? STRATEGY_RULES.hoardGold : 0);
+    if (node.event === 'treasure' && node.id === player.knownHoard) return STRATEGY_RULES.hoardGold;
     if (node.event === 'tradeWind') return 50 + 30 * owned;
     if (node.event === 'storm') return player.escortProtection ? 0 : -100;
     if (node.special === 'mist') return SEA_RULES.nimPrize + 150;
