@@ -1,5 +1,4 @@
-import { useLayoutEffect, useRef, type ComponentType } from 'react';
-import dialogPolyfill from 'dialog-polyfill';
+import type { ComponentType } from 'react';
 import { nodeName, type GameState, type SpecialKind } from '@happy-voyage/shared';
 import { useT } from '../i18n';
 import { LotteryPanel } from './LotteryPanel';
@@ -9,6 +8,7 @@ import { RecruitPanel } from './RecruitPanel';
 import { BarterPanel } from './BarterPanel';
 import { MarketPanel } from './MarketPanel';
 import { RevivalPanel } from './RevivalPanel';
+import { MenuDialog } from './MenuDialog';
 import './IslandWindow.css';
 
 interface IslandActivity {
@@ -34,34 +34,20 @@ export function islandWindowFor(state: GameState, canHelm: boolean): IslandActiv
   return activity && state.map[player.position]?.special === activity.island ? activity : null;
 }
 
-export function IslandWindow({ state, activity: { island, titleId, Panel }, onFleet, suspended = false }: { state: GameState; activity: IslandActivity; onFleet?: () => void; suspended?: boolean }) {
+export function IslandWindow({ state, activity: { island, titleId, Panel }, onFleet, onMenu, suspended = false }: { state: GameState; activity: IslandActivity; onFleet?: () => void; onMenu?: () => void; suspended?: boolean }) {
   const { t, locale } = useT();
   const label = nodeName(state.map[state.players[state.currentPlayer].position], locale);
-  const dialog = useRef<HTMLDialogElement>(null);
-  const heading = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const element = dialog.current!;
-    dialogPolyfill.registerDialog(element);
-    if (suspended) {
-      if (element.open) element.close();
-      return;
-    }
-    if (!element.open) {
-      element.showModal();
-      heading.current?.focus();
-    }
-    return () => { if (element.open) element.close(); };
-  }, [suspended]);
-
   return (
-    <dialog ref={dialog} className={`island-window island-window--${island}`} aria-labelledby={titleId}
-      onCancel={(event) => event.preventDefault()}>
-      <div className="island-window-masthead" ref={heading} tabIndex={-1}>
+    <MenuDialog className={`island-window island-window--${island}`} labelledBy={titleId} suspended={suspended}>
+      <div className="island-window-masthead">
         <span aria-hidden="true">✦</span>
         <span>{label}</span>
-        {onFleet && <button type="button" className="island-fleet-btn" onClick={onFleet}>⚓ {t('Fleet', '舰队')}</button>}
+        <div className="menu-dialog-tools">
+          {onFleet && <button type="button" className="island-fleet-btn" onClick={onFleet}>⚓ {t('Fleet', '舰队')}</button>}
+          {onMenu && <button type="button" className="island-fleet-btn" onClick={onMenu}>⚙ {t('Menu', '菜单')}</button>}
+        </div>
       </div>
       <div className="island-window-content"><Panel state={state} /></div>
-    </dialog>
+    </MenuDialog>
   );
 }

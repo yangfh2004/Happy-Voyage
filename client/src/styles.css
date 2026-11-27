@@ -1,6 +1,5 @@
 .building-option { margin-bottom: 12px; }
-.voyage-top, .voyage-bottom, .helm-card, .menu-close, .menu-scrim { display: none; }
-.secondary-hud, .voyage-menu { display: contents; }
+.voyage-top, .voyage-bottom, .helm-card { display: none; }
 .menu-shortcuts { display: none; }
 .resource-icon { width: 18px; height: 18px; vertical-align: middle; }
 .mobile-sound, .seat-number { display: none; }
@@ -74,6 +73,11 @@ body {
   border-radius: 20px;
   padding: 10px 14px;
   box-shadow: 0 6px 0 #126c8333, 0 12px 28px #063d6240, inset 0 2px 0 #fff;
+}
+
+/* Modal surfaces must fully hide map labels and routes behind their backdrop. */
+dialog.panel {
+  background: #fdf6e3;
 }
 
 h1 { margin: 0; font-family: 'Sea Names', Georgia, serif; font-size: 40px; color: #0a3d62; }
@@ -159,8 +163,7 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .player-header .round { margin-bottom: 0; }
 .player-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
 .player-controls button { font-size: 12px; padding: 3px 10px; white-space: nowrap; }
-.rules-backdrop { position: absolute; inset: 0; background: #06283dbb; display: grid; place-items: center; padding: 20px; box-sizing: border-box; }
-.rules { width: min(570px, 100%); box-sizing: border-box; max-height: calc(100dvh - 40px); overflow: auto; overscroll-behavior: contain; padding: 20px 24px; }
+.rules { width: min(570px, calc(100% - 24px)); box-sizing: border-box; max-height: calc(100dvh - 40px); overflow: auto; overscroll-behavior: contain; padding: 20px 24px; }
 .rules-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .rules dt { font-weight: 700; color: #0a3d62; margin-top: 12px; }
 .rules dd { margin: 3px 0 0 30px; line-height: 1.4; }
@@ -230,15 +233,12 @@ button.big { font-size: 18px; padding: 10px 22px; }
 .playing { display: grid; grid-template-columns: minmax(0, 1fr) 310px; grid-template-rows: minmax(0, 1fr); }
 .playing .phaser-container { position: relative; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
 .phaser-container canvas { display: block; }
-/* Raise the HUD's whole stacking context above the mobile player strip (5).
-   Safari touch-scrolling can isolate descendants, so a landing card's own
-   z-index cannot lift it out of an otherwise unranked HUD. Map notices stay
-   inside the isolated sea-map context, below menus and their tooltips. */
+/* Only sailing controls live here. Menus are body-level modal dialogs, not
+   fixed descendants of this touch-scrolling/animated stacking context. */
 .playing .overlay { position: relative; z-index: 10; display: block; background: #06283d; overflow: auto; padding: 10px; min-height: 0; pointer-events: auto; overscroll-behavior: contain; }
 .playing .hud { width: 100%; }
 .chart-controls { display: flex; gap: 6px; }
 .chart-controls button { flex: 1; font-size: 12px; }
-.playing .rules-backdrop { position: fixed; z-index: 20; }
 @media (max-width: 700px) {
   .playing { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) 285px; height: 100dvh; }
   .playing .overlay { padding: 5px; }
@@ -419,12 +419,8 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .voyage-bottom .log .latest { color: #f6d37a; }
   .voyage-bottom > button { min-width: 140px; min-height: 52px; border-radius: 16px; color: white; background: linear-gradient(#287bc0, #124b83); border-color: #75b5e2; font-weight: 750; }
   .voyage-bottom > button:disabled { opacity: .45; cursor: not-allowed; }
-  .playing .secondary-hud { display: none; }
-  .playing .secondary-hud.is-open { display: block; }
-  .menu-scrim { display: block; position: fixed; inset: 0; border: 0; border-radius: 0; background: #00182c99; z-index: 30; }
-  .playing .voyage-menu { display: flex; flex-direction: column; gap: 10px; position: fixed; z-index: 31; top: 90px; right: 18px; width: 440px; max-height: calc(100vh - 110px); overflow: auto; padding: 18px; border: 2px solid #d4ad50; border-radius: 18px; background: #f8f0dc; box-shadow: 0 10px 40px #001424; }
   .menu-close { display: block; align-self: flex-end; min-height: 44px; }
-  .playing .mobile-log { display: none; }
+  .voyage-menu .mobile-log { display: none; }
   .next-stop { display: flex; align-items: center; gap: 12px; border: 2px dashed #b59751; padding: 12px; border-radius: 14px; background: #fff9e9; color: #123d59; }
   .next-stop > span { font-size: 32px; }
   .next-stop > div { display: grid; gap: 2px; }
@@ -435,13 +431,13 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .landing-heading small { color: #8b6426; letter-spacing: .1em; font-weight: 800; }
   .landing-heading h2 { font-size: 24px; margin: 4px 0; }
   .landing-heading > div:last-child { text-align: right; font-size: 14px; }
-  .playing .landing-placement .actions { text-align: left; }
-  .playing .landing-placement .actions .action-content > div > h2 { display: none; }
-  .playing .landing-placement .actions .row { justify-content: flex-start; margin-top: 12px; }
-  .playing .landing-placement .actions button:not(.stat-trigger) { min-height: 44px; }
-  .playing .landing-placement .actions button.primary::before { content: '⚓ '; }
-  .playing .landing-placement .actions .row > button:not(.primary)::before { content: '➜ '; }
-  .playing .landing-placement .strategy-cards { margin-top: 12px; }
+  .landing-placement .actions { text-align: left; }
+  .landing-placement .actions .action-content > div > h2 { display: none; }
+  .landing-placement .actions .row { justify-content: flex-start; margin-top: 12px; }
+  .landing-placement .actions button:not(.stat-trigger) { min-height: 44px; }
+  .landing-placement .actions button.primary::before { content: '⚓ '; }
+  .landing-placement .actions .row > button:not(.primary)::before { content: '➜ '; }
+  .landing-placement .strategy-cards { margin-top: 12px; }
 }
 
 @media (max-width: 700px) and (orientation: portrait) {
@@ -503,27 +499,38 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .landing-heading h2 { font-size: 20px; margin: 2px 0; }
   .landing-heading small { font-size: 10px; color: #80672e; }
   .landing-heading > div:last-child { text-align: right; font-size: 11px; }
-  .playing .landing-placement .action-content { display: block; }
-  .playing .landing-placement .actions { text-align: left; }
-  .playing .landing-placement .stat-trigger { min-width: 0; min-height: 0; }
-  .playing .landing-placement .action-content h2 { display: none; }
-  .playing .landing-placement button:not(.stat-trigger) { min-height: 44px; }
-  .playing .secondary-hud { display: none; }
-  .playing .secondary-hud.is-open { display: block; }
-  .menu-scrim { display: block; position: fixed; inset: 0; z-index: 30; background: #00182c99; border: 0; border-radius: 0; }
-  .playing .voyage-menu { display: flex; flex-direction: column; gap: 8px; position: fixed; z-index: 31; inset: 52px 8px 12px; overflow: auto; padding: 12px; border: 2px solid #d4ad50; border-radius: 18px; background: #f8f0dc; }
+  .landing-placement .action-content { display: block; }
+  .landing-placement .actions { text-align: left; }
+  .landing-placement .stat-trigger { min-width: 0; min-height: 0; }
+  .landing-placement .action-content h2 { display: none; }
+  .landing-placement button:not(.stat-trigger) { min-height: 44px; }
   .menu-close { display: block; min-height: 44px; }
-  .playing .mobile-log { display: block; }
-  .playing .mobile-log .log { max-height: 100px; overflow-y: auto; font-size: 12px; }
+  .voyage-menu .mobile-log { display: block; }
+  .voyage-menu .mobile-log .log { max-height: 100px; overflow-y: auto; font-size: 12px; }
   .strategy-cards { margin-top: 4px; }
   .strategy-cards summary { padding: 7px; }
   @keyframes mobile-sheet { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
 }
-/* Landing decisions use 90% × 80% = 72% of the screen, including short menus.
-   Keep their own scroll surface instead of squeezing them into the HUD. */
-.playing .landing-placement, .fleet.transfer-window {
+/* Menus live directly under body and enter the browser's top layer via showModal.
+   No map/HUD stacking context, transform or scroll clipping can cover them. */
+.menu-dialog { color: #2b1d0e; }
+.menu-dialog:not([open]) { display: none; }
+.menu-dialog::backdrop, .menu-dialog + .backdrop { background: #041823b8; }
+.menu-dialog-tools { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.menu-dialog-tools button { min-height: 44px; }
+.hud-menu-tools { margin-bottom: 8px; }
+@media (min-width: 900px) and (orientation: landscape), (max-width: 700px) and (orientation: portrait) {
+  .hud-menu-tools { display: none; }
+}
+.landing-placement > .menu-dialog-tools { margin-bottom: 12px; }
+.voyage-menu[open] { display: flex; flex-direction: column; gap: 10px; }
+.voyage-menu > * { flex-shrink: 0; }
+.voyage-menu .menu-close { align-self: flex-end; }
+.voyage-menu .menu-shortcuts { display: block; }
+.landing-placement .landing-heading { display: flex; }
+/* 90% × 80% = 72% of the screen, including short menus. */
+.landing-placement, .voyage-menu, .fleet.transfer-window {
   position: fixed;
-  z-index: 15;
   inset: 0;
   margin: auto;
   width: 90vw;
@@ -540,13 +547,11 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   background: linear-gradient(#fffdf4, #f3ecd9);
   box-shadow: 0 8px 28px #001b35aa;
 }
-/* A transformed mobile HUD would make the fixed card relative to the HUD. */
-.playing .overlay.has-landing { animation: none; }
-.playing .landing-placement .actions { padding: 0; background: transparent; border: 0; box-shadow: none; }
-.playing .landing-placement .action-content { display: block; }
-.playing .landing-placement .actions p { font-size: 1rem; line-height: 1.5; }
-.playing .landing-placement button:not(.stat-trigger) { min-height: 44px; }
-@media (prefers-reduced-motion: reduce) { .playing .overlay.is-your-turn, .playing .landing-placement { animation: none; } }
+.landing-placement .actions { padding: 0; background: transparent; border: 0; box-shadow: none; }
+.landing-placement .action-content { display: block; }
+.landing-placement .actions p { font-size: 1rem; line-height: 1.5; }
+.landing-placement button:not(.stat-trigger) { min-height: 44px; }
+@media (prefers-reduced-motion: reduce) { .playing .overlay.is-your-turn { animation: none; } }
 
 @media (pointer: coarse) {
   button:not(.stat-trigger), select, input, .strategy-cards summary, .route-details summary { min-height: 44px; min-width: 44px; }

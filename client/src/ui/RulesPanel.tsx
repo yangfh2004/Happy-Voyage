@@ -1,5 +1,5 @@
 import { GAMEPLAY_TUNING } from '@happy-voyage/shared';
-import { useEffect, useRef } from 'react';
+import { MenuDialog } from './MenuDialog';
 import { useT } from '../i18n';
 import { tx } from '@happy-voyage/shared';
 import { COMBAT, EVENT_GOLD, LOTTERY, SEA_RULES, DEFAULT_ISLAND_COUNT, hasRoundLimit, winConditionText, winConditionTx, localize, type CampaignState, type GameConfig } from '@happy-voyage/shared';
@@ -7,23 +7,11 @@ import { COMBAT, EVENT_GOLD, LOTTERY, SEA_RULES, DEFAULT_ISLAND_COUNT, hasRoundL
 const TURN_ORDER = tx('Navigators take turns in seat order, skipping eliminated players.', '航海家按座位顺序轮流行动，跳过已失败的玩家。');
 
 export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaign, onClose }: { config: GameConfig; islandCount?: number; campaign?: CampaignState | null; onClose: () => void }) {
-  const close = useRef<HTMLButtonElement>(null);
   const { locale } = useT();
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    close.current?.focus();
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-      if (event.key === 'Tab') { event.preventDefault(); close.current?.focus(); }
-    };
-    window.addEventListener('keydown', escape);
-    return () => { window.removeEventListener('keydown', escape); previous?.focus(); };
-  }, [onClose]);
 
   return (
-    <div className="rules-backdrop">
-      <section className="panel rules" role="dialog" aria-modal="true" aria-labelledby="rules-title">
-        <div className="rules-heading"><h2 id="rules-title">{locale === 'zh' ? '玩法说明' : 'How to play'}</h2><button ref={close} onClick={onClose}>{locale === 'zh' ? '关闭' : 'Close'}</button></div>
+    <MenuDialog className="panel rules" labelledBy="rules-title" onDismiss={onClose}>
+        <div className="rules-heading"><h2 id="rules-title">{locale === 'zh' ? '玩法说明' : 'How to play'}</h2><button onClick={onClose}>{locale === 'zh' ? '关闭' : 'Close'}</button></div>
         {locale === 'zh' ? <RulesZh config={config} islandCount={islandCount} campaign={campaign} /> : <>
         <p>Spin the compass and sail <strong>clockwise</strong> by the number of stops it shows. The arrows show the way.</p>
         <p>In command battles, orders to multiple ships keep them in formation at the slowest ship's speed. Individual orders detach ships. Changing formation preserves the selected group's order; arrived or free-fire groups hold position.</p>
@@ -54,8 +42,7 @@ export function RulesPanel({ config, islandCount = DEFAULT_ISLAND_COUNT, campaig
           : <p><strong>Win:</strong> {winConditionText(config, islandCount)}. Classic conquest is the original rule; Quick match and Sprint are shorter modes picked at setup.</p>}
         <p>{localize('en', TURN_ORDER)} Net worth = gold + 75% of each colony's purchase price, rounded down.</p>
         </>}
-      </section>
-    </div>
+    </MenuDialog>
   );
 }
 

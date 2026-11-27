@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DEFAULT_CONFIG } from '@happy-voyage/shared';
 import { setLocale } from '../i18n';
 import { RulesPanel } from './RulesPanel';
+
+// Rule-copy tests render without a browser; modal interactions are checked in UI tests.
+vi.mock('./MenuDialog', () => ({ MenuDialog: ({ children }: { children: ReactNode }) => <section>{children}</section> }));
 
 describe('repair rules', () => {
   it.each(['en', 'zh'] as const)('limits withdrawal setting instructions to the pre-battle prompt in %s', locale => {
