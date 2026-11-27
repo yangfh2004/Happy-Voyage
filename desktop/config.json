@@ -188,7 +188,7 @@
     }
   },
   "map": {
-    "targetSeaSpacing": 255,
+    "targetSeaSpacing": 300,
     "colonyBasePrice": 100,
     "colonyPriceIncrease": 250,
     "colonyPriceStep": 5,

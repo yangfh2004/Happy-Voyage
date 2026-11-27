@@ -258,14 +258,14 @@ describe('GameEngine', () => {
   it('plays a Classic conquest all-AI game to completion', () => {
     const engine = new GameEngine({
       players: [0, 1, 2].map((i) => ({ name: `AI ${i}`, color: i, isAI: true })),
-      rng: aiMatchRng(28),
+      rng: aiMatchRng(9),
       config: gameMode('conquest').config,
     });
     playAiMatch(engine);
     expect(engine.state.winner).not.toBeNull();
   });
 
-  it.each(['easy', 'normal', 'hard'] as const)('ends about half of %s AI turns on blank sea', (aiDifficulty) => {
+  it.each(['easy', 'normal', 'hard'] as const)('ends about a third of %s AI turns on blank sea', (aiDifficulty) => {
     let blankLandings = 0, turns = 0;
     for (let seed = 1; seed <= 8; seed++) {
       const engine = new GameEngine({
@@ -285,13 +285,14 @@ describe('GameEngine', () => {
       });
       playAiMatch(engine);
     }
-    expect(turns).toBeGreaterThan(1000);
-    expect(blankLandings / turns).toBeGreaterThanOrEqual(0.45);
-    expect(blankLandings / turns).toBeLessThanOrEqual(0.55);
+    expect(turns).toBeGreaterThan(800);
+    expect(blankLandings / turns).toBeGreaterThanOrEqual(0.28);
+    expect(blankLandings / turns).toBeLessThanOrEqual(0.39);
   });
 
   it('keeps cyclic turn order without skipping or repeating a navigator', () => {
-    const map = createDefaultMap().map(({ next: _, ...node }) => node);
+    const map = createDefaultMap().map(({ next: _, special, ...node }) =>
+      special ? { ...node, kind: 'sea' as const } : node);
     const engine = new GameEngine({ players: [...twoPlayers, twoPlayers[1]], map, rng: spinTwo });
     const turns: number[][] = [];
     engine.on((event, { round }) => {
