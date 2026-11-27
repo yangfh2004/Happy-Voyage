@@ -11,10 +11,12 @@ describe('organic archipelagos', () => {
     expect(map).toHaveLength(107);
     expect(map.filter((node) => node.kind === 'island')).toHaveLength(40);
     expect(map.filter((node) => node.kind === 'port')).toHaveLength(10);
-    expect(map.filter((node) => node.kind === 'special')).toHaveLength(7);
+    expect(map.filter((node) => node.kind === 'special')).toHaveLength(9);
+    expect(map.filter((node) => node.special === 'nightless').map((node) => node.name))
+      .toEqual(['East Nightless Island', 'Nightless Island', 'West Nightless Island']);
     expect(map.filter((node) => node.kind === 'event')).toHaveLength(13);
     const sea = map.filter((node) => node.kind === 'sea');
-    expect(sea).toHaveLength(37);
+    expect(sea).toHaveLength(35);
     for (const node of sea) {
       expect(Object.keys(node).sort()).toEqual(['chineseName', 'id', 'kind', 'name', 'x', 'y']);
       expect(successors(map, node.id)).toEqual([(node.id + 1) % map.length]);
@@ -78,6 +80,15 @@ describe('organic archipelagos', () => {
     const [blank, calicut] = walkPath(map, goa.id, 2, 'N').map(id => map[id]);
     expect(blank.kind).toBe('sea');
     expect(calicut.name).toBe('Calicut');
+  });
+  it('leaves a route out of every stop that can host a roaming encounter', () => {
+    const allowsRoamer = (id: number) => map[id].kind !== 'port' && map[id].kind !== 'special';
+    for (const node of map.filter(({ id }) => allowsRoamer(id))) {
+      for (const wind of WIND_DIRECTIONS) {
+        const exits = [-1, 1].flatMap((direction) => walkPath(map, node.id, direction, wind));
+        expect(exits.some(allowsRoamer), `${node.name} in ${wind} wind`).toBe(true);
+      }
+    }
   });
   it('leaves short hops direct and divides longer main-route crossings evenly', () => {
     const fixedStops = map.filter(node => node.kind !== 'sea');
