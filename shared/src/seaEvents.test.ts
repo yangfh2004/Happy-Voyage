@@ -130,7 +130,7 @@ describe('sea event outcomes', () => {
     expect(g.state.phase).toBe('moving');
     g.resolveLanding();
     expect(results.map((e) => e.outcome)).toEqual(['relocated']);
-    expect(g.state.phase).toBe('awaitingSalvage');
+    expect(g.state.phase).toBe('awaitingSpin');
     expect(() => g.wyvernFly(0)).toThrow();
   });
 
@@ -146,7 +146,7 @@ describe('sea event outcomes', () => {
     const { g, results } = encounter('whirlpool', rng);
     expect(results).toHaveLength(1);
     expect(results[0].outcome).toBe(rng === 0 ? 'damaged' : 'relocated');
-    expect(g.state.phase).toBe(rng === 0 ? 'awaitingSalvage' : 'moving');
+    expect(g.state.phase).toBe(rng === 0 ? 'awaitingSpin' : 'moving');
   });
 
   it.each(['storm', 'pirates', 'smallMonster', 'largeMonster', 'turtle', 'whirlpool'] as const)('revival emits one protected %s outcome', (event) => {

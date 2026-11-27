@@ -69,7 +69,7 @@ describe('strategy cards', () => {
     g.state.phase = 'moving';
     g.resolveLanding();
     expect(g.state.players[0].gold - gold).toBe(STRATEGY_RULES.hoardGold);
-    expect(g.state.phase).toBe('awaitingSalvage');
+    expect(g.state.phase).toBe('awaitingSpin');
     expect(g.state.players.every((p) => p.knownHoard === null)).toBe(true);
     expect(g.state.hoardNode).not.toBe(node);
   });

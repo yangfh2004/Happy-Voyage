@@ -103,7 +103,7 @@ export interface ColonyStockpile {
 
 export type Phase = 'awaitingSpin' | 'spinning' | 'moving' | 'awaitingClaim' | 'awaitingBuild' |
   'awaitingMarket' | 'awaitingRecruit' | 'awaitingLottery' | 'awaitingBarter' | 'awaitingMistDuel' |
-  'awaitingMerchant' | 'awaitingSalvage' | 'awaitingWyvern' | 'awaitingCargoMarket' | 'awaitingRevival' | 'awaitingToll' | 'awaitingBattle' | 'gameOver';
+  'awaitingMerchant' | 'awaitingWyvern' | 'awaitingCargoMarket' | 'awaitingRevival' | 'awaitingToll' | 'awaitingBattle' | 'gameOver';
 
 export interface RevivalReport {
   damage: number;
@@ -215,7 +215,7 @@ export interface GameState {
   pendingClaim: number | null;
   pendingBarter: BarterOffer[] | null;
   pendingMerchant: MerchantOffer | null;
-  salvageFee: number | null;
+  salvageUsed: boolean;
   pendingWyvern: boolean;
   /** Treasure Island lottery the current player is playing, while phase === 'awaitingLottery'. */
   lottery: import('./lottery').LotteryState | null;
@@ -241,7 +241,6 @@ export type GameEvent =
   | { type: 'windChanged'; direction: WindDirection; turnsLeft: number }
   | SeaEventResult
   | { type: 'merchantOffered'; playerId: number; offer: MerchantOffer }
-  | { type: 'salvageOffered'; playerId: number }
   | { type: 'wyvernOffered'; playerId: number }
   | { type: 'strategyGained'; playerId: number; card: import('./strategies').StrategyId; source: string }
   | { type: 'strategyUsed'; playerId: number; card: import('./strategies').StrategyId; target?: number }

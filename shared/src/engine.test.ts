@@ -108,7 +108,7 @@ describe('GameEngine', () => {
     engine.state.phase = 'moving';
     engine.resolveLanding();
     expect(engine.state.players[0].gold).toBe(DEFAULT_CONFIG.startingGold + delta);
-    expect(engine.state.phase).toBe('awaitingSalvage');
+    expect(engine.state.phase).toBe('awaitingSpin');
   });
 
   it('adds colony income to trade winds', () => {
@@ -304,7 +304,6 @@ describe('GameEngine', () => {
       if (engine.state.phase === 'awaitingClaim') engine.decline();
       if (engine.state.phase === 'awaitingBuild') engine.finishBuilding();
       if (engine.state.phase === 'awaitingMarket') engine.finishMarket();
-      if (engine.state.phase === 'awaitingSalvage') engine.skipSalvage();
     }
     expect(turns).toEqual([[0, 1, 2], [0, 1, 2], [0, 1, 2]]);
   });
@@ -322,7 +321,6 @@ describe('GameEngine', () => {
     engine.resolveLanding();
     if (engine.state.phase === 'awaitingClaim') engine.decline();
     if (engine.state.phase === 'awaitingBuild') engine.finishBuilding();
-    if (engine.state.phase === 'awaitingSalvage') engine.skipSalvage();
     if (engine.state.phase === 'awaitingCargoMarket') engine.finishTrading();
     expect(engine.state.winner).toBe(1);
   });

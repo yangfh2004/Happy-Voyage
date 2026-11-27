@@ -218,7 +218,7 @@ const schema = {
     bottlePrizeChance: probability(.1, '漂流瓶中大奖'), bottleRepairChance: probability(.3, '漂流瓶修理舰船'),
     floatingCargo: gold(100, '漂浮货物现金奖励'), cargoGoldChance: probability(.5, '漂浮货物给金币而非货物'),
     cargoUnits: int(4, 1, 100, '漂浮货物数量（单位）'), merchantPremium: ratio(1.5, 0, 10, '商船收购价格倍数'), merchantUnits: int(5, 1, 100, '商船买卖货物数量（单位）'),
-    treasure: { min: gold(50, '打捞奖励最低金币'), max: gold(200, '打捞奖励最高金币'), step: positive(50, '打捞奖励步进（金币）') },
+    wreckSalvageReward: { mean: gold(110, '打捞奖励正态分布的均值'), standardDeviation: positive(100, '打捞奖励正态分布的标准差（金币）'), minimum: gold(0, '打捞奖励下限') },
     storm: { min: gold(50, '暴风最低损失'), max: gold(100, '暴风最高损失'), step: positive(25, '暴风损失步进（金币）') },
     tradeWind: { base: gold(50, '贸易风基础奖励'), perColony: gold(30, '贸易风每块殖民地额外奖励') },
   },
@@ -277,12 +277,10 @@ export function resolveGameplayTuning(override?: unknown): { rules: GameplayTuni
       rules.starting.fleet = [...fleet.value];
     }
   }
-  for (const event of ['treasure', 'storm'] as const) {
-    if (rules.sea[event].min > rules.sea[event].max) {
-      warnings.push(`sea.${event}`);
-      const { min, max, step } = schema.sea[event];
-      rules.sea[event] = { min: min.value, max: max.value, step: step.value };
-    }
+  if (rules.sea.storm.min > rules.sea.storm.max) {
+    warnings.push('sea.storm');
+    const { min, max, step } = schema.sea.storm;
+    rules.sea.storm = { min: min.value, max: max.value, step: step.value };
   }
   return { rules, warnings };
 }

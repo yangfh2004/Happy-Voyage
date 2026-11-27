@@ -166,14 +166,21 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
     const connected = room?.lobby?.seats.find((seat) => seat.nation === player.nation)?.connected;
     body = <p className="waiting">{connected === false ? t('Waiting for {p} to reconnect…', '正在等待 {p} 重新连接……', { p: name(player) }) : t('{p} is at the helm…', '{p} 正在掌舵……', { p: name(player) })}</p>;
   } else if (state.phase === 'awaitingSpin') {
-    const colonies = new GameView(state).colonyReturnTargets();
+    const view = new GameView(state);
+    const colonies = view.colonyReturnTargets();
+    const fee = GAMEPLAY_TUNING.sea.wreckSalvageFee;
     const returnTo = colonies.find((node) => node.id === colonyDestination) ?? colonies[0];
     body = (
       <>
         <p>{t('Your turn, {p}.', '轮到你了，{p}。', { p: name(player) })}</p>
-        <button className="primary big" onClick={() => gameController.spinCompass()}>
-          {l(SPIN_COMPASS_LABEL)} <kbd>Space / Enter</kbd>
-        </button>
+        <div className="pre-spin-actions">
+          <button className="primary big" onClick={() => gameController.spinCompass()}>
+            {l(SPIN_COMPASS_LABEL)} <kbd>Space / Enter</kbd>
+          </button>
+          <button disabled={!view.canSalvageWreck()} onClick={() => gameController.salvageWreck()}>
+            {state.salvageUsed ? t('Salvaged', '已打捞') : t('Salvage · {fee}g', '打捞 · {fee} 金币', { fee })}
+          </button>
+        </div>
         {returnTo && (
           <div className="row">
             {colonies.length > 1 && <label>{t('Colony destination', '殖民地目的地')} <select value={returnTo.id} onChange={(e) => setColonyDestination(Number(e.target.value))}>
@@ -187,7 +194,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
         )}
       </>
     );
-  } else if (state.phase === 'awaitingMerchant' || state.phase === 'awaitingSalvage' || state.phase === 'awaitingWyvern') {
+  } else if (state.phase === 'awaitingMerchant' || state.phase === 'awaitingWyvern') {
     body = <SeaChoicePanel key={`${player.id}:${state.phase}`} state={state} />;
   } else if (state.phase === 'awaitingBuild') {
     const nodeId = player.position;

@@ -87,7 +87,7 @@ describe('debug window scenarios', () => {
       engine.wyvernFly(state.players[0].homePort);
     } else if (kind === 'treasure') {
       expect(state.map[state.players[0].position].kind).toBe('sea');
-      expect(state.phase).toBe('awaitingSalvage');
+      expect(state.phase).toBe('awaitingSpin');
       engine.salvageWreck();
     }
     expect(events).toContainEqual(expect.objectContaining({ type: 'seaEvent', event: kind }));
