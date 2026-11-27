@@ -103,6 +103,7 @@ const schema = {
       shipyard: { level1: gold(120, '造船厂 1 级造价'), level2: gold(240, '造船厂 2 级造价'), level3: gold(360, '造船厂 3 级造价') },
       repairYard: { level1: gold(80, '修船厂造价') },
       collectionField: { level1: gold(60, '采集场 1 级造价'), level2: gold(120, '采集场 2 级造价'), level3: gold(180, '采集场 3 级造价') },
+      fort: { level1: gold(150, '炮台 1 级造价'), level2: gold(300, '炮台 2 级造价'), level3: gold(450, '炮台 3 级造价') },
     },
   },
   modes: {
@@ -173,6 +174,13 @@ const schema = {
     distanceScatter: int(88, 0, 300, '即时炮击每单位相对射程超出半射程的附加散布（像素）'),
     aiDecisionSeconds: int(1, 1, 10, '即时海战电脑指令间隔（秒）'),
     aiRetreatStrength: probability(.35, '困难电脑低于对手此战力比例时撤退'),
+    forts: {
+      count: int(3, 1, 6, '建有炮台的殖民地拥有的炮台数（座）'),
+      durabilityPerLevel: positive(60, '每级炮台增加的每座炮台耐久'),
+      firepowerPerLevel: positive(10, '每级炮台增加的每座炮台火力'),
+      range: positive(600, '即时海战炮台射程（像素）'),
+      reload: ratio(4, .2, 60, '即时海战炮台装填（秒）'),
+    },
     battleStats: {
       warship: { turn: positive(50, '战舰转向（度/秒）'), range: positive(640, '战舰射程（像素）'), reload: ratio(3, .2, 60, '战舰装填（秒）'), radius: int(22, 4, 80, '战舰碰撞半径（像素）') },
       cargo: { turn: positive(45, '货船转向（度/秒）'), range: positive(440, '货船射程（像素）'), reload: ratio(3, .2, 60, '货船装填（秒）'), radius: int(20, 4, 80, '货船碰撞半径（像素）') },

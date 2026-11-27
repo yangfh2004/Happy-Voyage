@@ -251,6 +251,9 @@ export function aiBuildingChoice(state: GameState, player: Player): BuildingKind
         if (next === 1) return supplies('lumberMill', 'lumber') && supplies('ironMine', 'iron') ? 130 : 0;
         return next === 2 && !player.fleet.some((ship) => ship.type === 'cargo') && canMake('cargo') ? 120 : 0;
       }
+      case 'fort':
+        // Guard colonies worth holding once the fleet and industry are under way.
+        return !newShip && development > 1 && turns >= 8 && level(kind) === 0 ? 60 : 0;
       case 'repairYard':
         return colonyCanRepair(state, node.id) ? 0
           : state.docks[node.id].reduce((sum, ship) => sum + ship.maxDurability - ship.durability, 0) * GAMEPLAY_TUNING.economy.repairGoldPerPoint;

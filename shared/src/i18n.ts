@@ -178,6 +178,7 @@ export const ZH = {
     shipyard: { name: '造船厂', description: '用本地木材与铁矿造船。船厂越大，能造的船越大。在所有者回合开始时免费修好停靠的船只。' },
     repairYard: { name: '修船厂', description: '在所有者回合开始时免费修好停靠的船只。' },
     collectionField: { name: '采集场', description: '每回合采集当地特产。' },
+    fort: { name: '炮台', description: '三座岸防炮台向进攻方开火；进攻方须击败留守舰队并摧毁全部三座炮台才能夺岛。每升一级，炮台更坚固、火力更强。' },
   } as Record<BuildingKind, { name: string; description: string }>,
   hermits: { brook: { name: '溪边隐士', style: '温和' }, pine: { name: '松下隐士', style: '大胆' }, summit: { name: '峰顶隐士', style: '高手' } } as Record<string, { name: string; style: string }>,
   events: {

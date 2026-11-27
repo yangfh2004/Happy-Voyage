@@ -24,6 +24,8 @@ export interface BattleSetup {
   defenders: Ship[];
   attackerMultiplier?: number;
   ambush?: boolean;
+  /** Shore forts on the defender's side of a colony battle. */
+  forts?: { durability: number; firepower: number }[];
 }
 export type BattleOrder = { type: 'free' } | { type: 'move'; x: number; y: number } | { type: 'attack'; targetId: number };
 export type BattleBattery = 'port' | 'starboard';
@@ -54,6 +56,8 @@ export interface BattleShip extends Ship {
   order: BattleOrder;
   charge: boolean;
   groupId?: number;
+  /** A fixed shore fort: never moves, fires all round, has no loss cap and takes no orders. */
+  fort?: boolean;
 }
 export interface Cannonball {
   side: BattleSide;
@@ -81,6 +85,9 @@ export interface BattleState {
   ambush: boolean;
   outcome: BattleOutcome | null;
   withdrawal: BattleWithdrawal | null;
+  /** Set when the colony garrison withdraws while forts still stand. */
+  garrisonWithdrawal?: BattleWithdrawal;
+  fortsDestroyed: number[];
 }
 export type BattleControllers = Partial<Record<BattleSide, AIDifficulty>>;
 export interface RealtimeBattleResult {
@@ -89,19 +96,24 @@ export interface RealtimeBattleResult {
   durability: { id: number; side: BattleSide; durability: number }[];
   attackerSunk: number[];
   defenderSunk: number[];
+  fortsDestroyed?: number;
   ticks: number;
   withdrawal?: BattleWithdrawal;
 }
 
 const active = (s: BattleShip) => !s.sunk && !s.escaped;
+const afloatFleet = (battle: BattleState, side: BattleSide) => battle.ships.filter((s) => s.side === side && s.startedAfloat && !s.fort);
+const fortStats = () => ({ range: rules.forts.range, reload: rules.forts.reload, radius: BATTLE_STATS.warship.radius, turn: 0 });
+const statsOf = (s: BattleShip) => s.fort ? fortStats() : BATTLE_STATS[s.type];
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 const angle = (a: number) => ((a + 540) % 360 + 360) % 360 - 180;
 const bearing = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const clearance = (s: { type: ShipType }) => BATTLE_STATS[s.type].radius + 32;
 
-function separate(ships: { x: number; y: number; type: ShipType; side?: BattleSide; groupId?: number }[], padding = 0, retreating = false): void {
+function separate(ships: { x: number; y: number; type: ShipType; side?: BattleSide; groupId?: number; fort?: boolean }[], padding = 0, retreating = false): void {
   const constrain = (s: typeof ships[number]) => {
+    if (s.fort) return;
     const radius = clearance(s) + padding;
     s.x = clamp(s.x, retreating && s.side === 'attacker' ? -100 : radius, BATTLE_FIELD.width - radius);
     s.y = clamp(s.y, radius, BATTLE_FIELD.height - radius);
@@ -112,6 +124,7 @@ function separate(ships: { x: number; y: number; type: ShipType; side?: BattleSi
     for (let i = 0; i < ships.length; i++) for (let j = i + 1; j < ships.length; j++) {
       const a = ships[i], b = ships[j];
       if (a.groupId !== undefined && a.groupId === b.groupId && a.side === b.side) continue;
+      if (a.fort && b.fort) continue;
       const dx = b.x - a.x, dy = b.y - a.y;
       const length = Math.hypot(dx, dy);
       const penetration = clearance(a) + clearance(b) + padding * 2 - length;
@@ -120,9 +133,9 @@ function separate(ships: { x: number; y: number; type: ShipType; side?: BattleSi
       const direction = (i * ships.length + j) * 2.399963229728653;
       const nx = length > .001 ? dx / length : Math.cos(direction);
       const ny = length > .001 ? dy / length : Math.sin(direction);
-      const push = penetration * .5;
-      a.x -= nx * push; a.y -= ny * push;
-      b.x += nx * push; b.y += ny * push;
+      const pushA = a.fort ? 0 : b.fort ? penetration : penetration * .5, pushB = b.fort ? 0 : a.fort ? penetration : penetration * .5;
+      a.x -= nx * pushA; a.y -= ny * pushA;
+      b.x += nx * pushB; b.y += ny * pushB;
       constrain(a); constrain(b);
     }
     if (overlap < .1) break;
@@ -145,7 +158,12 @@ export function createBattle(setup: BattleSetup): BattleState {
     heading: side === 'attacker' ? 0 : 180, vx: 0, vy: 0, reload: { port: 0, starboard: 0 },
     sunk: ship.durability <= 0, startedAfloat: ship.durability > 0, escaped: false, order: { type: 'free' }, charge: false,
   }));
-  return { tick: 0, rng: setup.seed >>> 0, ships: [...ships(setup.attackers, 'attacker'), ...ships(setup.defenders, 'defender')],
+  const forts: BattleShip[] = (setup.forts ?? []).map((fort, i, all) => ({
+    id: -(i + 1), name: `Fort ${i + 1}`, type: 'warship', cargo: {}, durability: fort.durability, maxDurability: fort.durability, firepower: fort.firepower,
+    cargoCapacity: 0, speed: 0, crewCapacity: 0, side: 'defender', x: BATTLE_FIELD.width * .955, y: BATTLE_FIELD.height * (i + 1) / (all.length + 1),
+    heading: 180, vx: 0, vy: 0, reload: { port: 0, starboard: 0 }, sunk: false, startedAfloat: true, escaped: false, order: { type: 'free' }, charge: false, fort: true,
+  }));
+  return { tick: 0, rng: setup.seed >>> 0, ships: [...ships(setup.attackers, 'attacker'), ...ships(setup.defenders, 'defender'), ...forts], fortsDestroyed: [],
     sinkingOrder: { attacker: [], defender: [] },
     retreatThresholds: { attacker: setup.retreatThresholds?.attacker ?? 'half', defender: setup.retreatThresholds?.defender ?? 'half' },
     groups: [], nextGroupId: 1, lastFormations: { attacker: 'line', defender: 'line' },
@@ -153,7 +171,7 @@ export function createBattle(setup: BattleSetup): BattleState {
 }
 
 const flagshipOrder = (a: BattleShip, b: BattleShip) => Number(!!b.signature) - Number(!!a.signature) || b.maxDurability - a.maxDurability || a.id - b.id;
-const groupMembers = (battle: BattleState, group: BattleGroup) => battle.ships.filter(s => s.side === group.side && s.groupId === group.id && active(s)).sort(flagshipOrder);
+const groupMembers = (battle: BattleState, group: BattleGroup) => battle.ships.filter(s => s.side === group.side && s.groupId === group.id && active(s) && !s.fort).sort(flagshipOrder);
 
 function refreshGroups(battle: BattleState): void {
   battle.groups = battle.groups.filter(group => {
@@ -292,21 +310,35 @@ function moveGroups(battle: BattleState): void {
   }
 }
 
+const fortsStanding = (battle: BattleState) => battle.ships.some((s) => s.fort && !s.sunk);
+
 function withdraw(battle: BattleState, withdrawal: BattleWithdrawal): void {
+  if (withdrawal.side === 'defender' && fortsStanding(battle)) {
+    // The garrison sails off; the forts fight on.
+    battle.garrisonWithdrawal = withdrawal;
+    for (const s of battle.ships) if (s.side === 'defender' && !s.fort && !s.sunk) s.escaped = true;
+    return;
+  }
   battle.withdrawal = withdrawal;
   battle.retreating = true;
   battle.outcome = withdrawal.side === 'attacker' ? 'defeat' : 'victory';
 }
 
 function resolveWithdrawal(battle: BattleState): void {
-  const fleets = (['attacker', 'defender'] as const).map((side) => ({ side, fleet: battle.ships.filter((s) => s.side === side && s.startedAfloat) }));
+  const fleets = (['attacker', 'defender'] as const).map((side) => ({ side, fleet: afloatFleet(battle, side) }));
+  const forts = fortsStanding(battle);
   for (const { side, fleet } of fleets) {
-    if (!fleet.length) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
+    if (!fleet.length && (side === 'attacker' || !forts)) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
   }
   for (const { side, fleet } of fleets) {
-    if (!fleet.some((s) => !s.sunk)) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
+    if (!fleet.some((s) => !s.sunk && !s.escaped)) {
+      if (side === 'defender' && forts) continue;
+      if (side === 'defender' && battle.garrisonWithdrawal) { battle.withdrawal = battle.garrisonWithdrawal; battle.retreating = true; }
+      battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return;
+    }
+    if (side === 'defender' && battle.garrisonWithdrawal) continue;
     const reason = withdrawalReason(fleet, battle.retreatThresholds[side]);
-    if (reason) { withdraw(battle, { side, reason }); return; }
+    if (reason) { withdraw(battle, { side, reason }); if (battle.outcome) return; }
   }
 }
 
@@ -331,7 +363,7 @@ export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleC
   }
   if (cmd.type === 'move' && (!Number.isFinite(cmd.x) || !Number.isFinite(cmd.y))) return;
   if (cmd.type === 'attack' && !battle.ships.some((s) => s.id === cmd.targetId && s.side !== side && active(s))) return;
-  const ships = battle.ships.filter((s) => s.side === side && active(s) && cmd.shipIds.includes(s.id));
+  const ships = battle.ships.filter((s) => s.side === side && active(s) && !s.fort && cmd.shipIds.includes(s.id));
   if (!ships.length) return;
   for (const s of ships) delete s.groupId;
   refreshGroups(battle);
@@ -356,7 +388,7 @@ export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleC
       y: cmd.type === 'move' ? cmd.y + (cmd.formation === 'line' ? 0 : cmd.formation === 'spread' ? (Math.floor(i / columns) - (Math.ceil(ships.length / columns) - 1) / 2) * spacing : offset) : s.y };
   });
   if (cmd.type === 'move') {
-    const holding = battle.ships.filter((s) => s.side === side && active(s) && s.groupId === undefined && !ships.includes(s) && s.order.type === 'move');
+    const holding = battle.ships.filter((s) => s.side === side && active(s) && !s.fort && s.groupId === undefined && !ships.includes(s) && s.order.type === 'move');
     const heldTargets = holding.map((s) => ({ type: s.type, x: s.order.type === 'move' ? s.order.x : s.x, y: s.order.type === 'move' ? s.order.y : s.y }));
     separate([...targets, ...heldTargets], 12);
     holding.forEach((s, i) => { s.order = { type: 'move', x: heldTargets[i].x, y: heldTargets[i].y }; });
@@ -371,7 +403,7 @@ export function issueCommand(battle: BattleState, side: BattleSide, cmd: BattleC
 
 export function battleAI(battle: BattleState, side: BattleSide, difficulty: AIDifficulty): void {
   if (battle.outcome || battle.tick % (rules.aiDecisionSeconds / TICK) !== 0) return;
-  const own = battle.ships.filter((s) => s.side === side && active(s));
+  const own = battle.ships.filter((s) => s.side === side && active(s) && !s.fort);
   const enemies = battle.ships.filter((s) => s.side !== side && active(s));
   if (!enemies.length) return;
   const total = (ships: BattleShip[]) => ships.reduce((sum, s) => sum + s.durability, 0);
@@ -405,7 +437,7 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
   moveGroups(battle);
   for (const s of battle.ships.filter(active)) {
     s.reload = { port: Math.max(0, s.reload.port - TICK), starboard: Math.max(0, s.reload.starboard - TICK) };
-    if (s.groupId !== undefined) continue;
+    if (s.groupId !== undefined || s.fort) continue;
     const enemies = battle.ships.filter((e) => e.side !== s.side && active(e));
     const order = s.order;
     const target = (order.type === 'attack' ? enemies.find((e) => e.id === order.targetId) : undefined)
@@ -430,13 +462,13 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
   separate(battle.ships.filter(active), 0, battle.retreating);
   for (const s of battle.ships.filter(active)) {
     if (s.side === 'defender' && battle.ambush && battle.tick < STRATEGY_RULES.ambushSeconds / TICK) continue;
-    const stats = BATTLE_STATS[s.type];
-    const targets = battle.ships.filter((e) => e.side !== s.side && active(e) && distance(s, e) <= stats.range && inBroadsideArc(s, e))
+    const stats = statsOf(s);
+    const targets = battle.ships.filter((e) => e.side !== s.side && active(e) && distance(s, e) <= stats.range && (s.fort || inBroadsideArc(s, e)))
       .sort((a, b) => distance(s, a) - distance(s, b) || a.id - b.id);
     const order = s.order;
-    for (const battery of ['port', 'starboard'] as const) {
+    for (const battery of s.fort ? ['port'] as const : ['port', 'starboard'] as const) {
       if (s.reload[battery] > 0) continue;
-      const candidates = targets.filter(e => broadsideBattery(s, e) === battery);
+      const candidates = s.fort ? targets : targets.filter(e => broadsideBattery(s, e) === battery);
       const target = (order.type === 'attack' ? candidates.find((e) => e.id === order.targetId) : undefined) ?? candidates[0];
       if (!target) continue;
       const rangeToTarget = distance(s, target);
@@ -458,8 +490,12 @@ export function stepBattle(battle: BattleState, controllers: BattleControllers =
     if (ball.remaining > 0) continue;
     const hit = battle.ships.filter((s) => s.side !== ball.side && active(s) && distance(s, { x: ball.landingX, y: ball.landingY }) <= BATTLE_STATS[s.type].radius)
       .sort((a, b) => distance(a, ball) - distance(b, ball))[0];
-    if (hit) {
-      const fleet = battle.ships.filter((s) => s.side === hit.side && s.startedAfloat);
+    if (hit?.fort) {
+      hit.durability = Math.max(0, hit.durability - ball.damage);
+      hit.sunk = hit.durability === 0;
+      if (hit.sunk) battle.fortsDestroyed.push(hit.id);
+    } else if (hit) {
+      const fleet = afloatFleet(battle, hit.side);
       const capped = fleet.filter((s) => s.sunk).length >= sinkingCap(fleet, battle.retreatThresholds[hit.side]);
       hit.durability = Math.max(capped ? 1 : 0, hit.durability - ball.damage);
       hit.sunk = hit.durability === 0;
@@ -479,7 +515,8 @@ export function battleResult(battle: BattleState): RealtimeBattleResult {
     retreatThresholds: { ...battle.retreatThresholds },
     durability: battle.ships.map((s) => ({ id: s.id, side: s.side, durability: s.durability })),
     attackerSunk: [...battle.sinkingOrder.attacker],
-    defenderSunk: [...battle.sinkingOrder.defender] };
+    defenderSunk: [...battle.sinkingOrder.defender],
+    ...(battle.ships.some((s) => s.fort) ? { fortsDestroyed: battle.fortsDestroyed.length } : {}) };
 }
 
 export function replayBattle(setup: BattleSetup, log: BattleLog, controllers: BattleControllers = {}): RealtimeBattleResult {

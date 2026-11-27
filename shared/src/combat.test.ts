@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine } from './engine';
 import { aiShouldFight } from './ai';
-import { colonyToll } from './buildings';
+import { colonyForts, colonyToll } from './buildings';
 import { COMBAT, defaultBattleDeployment, fightNavalBattle } from './combat';
 import type { GameEvent, Ship } from './types';
 
@@ -219,5 +219,33 @@ describe('naval combat', () => {
     expect(result.defenderSunk.map((s) => s.id)).toEqual([2, 3]);
     expect(defenders[0].durability).toBe(45);
     expect(result).toMatchObject({ outcome: 'victory', rounds: 1, withdrawal: { side: 'defender', reason: 'losses' } });
+  });
+});
+
+describe('shore forts in auto battles', () => {
+  const ship = (id: number, durability: number, firepower: number) => ({ id, name: `S${id}`, durability, maxDurability: durability, firepower }) as Ship;
+
+  it('requires destroying every fort after the garrison falls', () => {
+    const result = fightNavalBattle([ship(1, 500, 100)], [ship(2, 10, 0)], () => 0.5, { forts: [{ durability: 60, firepower: 10 }, { durability: 60, firepower: 10 }, { durability: 60, firepower: 10 }] });
+    expect(result).toMatchObject({ outcome: 'victory', fortsDestroyed: 3 });
+  });
+
+  it('is a draw while a fort still stands', () => {
+    const result = fightNavalBattle([ship(1, 500, 20)], [], () => 0.5, { forts: Array.from({ length: 3 }, () => ({ durability: 180, firepower: 1 })) });
+    expect(result.outcome).toBe('draw');
+    expect(result.fortsDestroyed).toBeLessThan(3);
+  });
+
+  it('lets forts sink attackers', () => {
+    const result = fightNavalBattle([ship(1, 20, 1)], [], () => 0.5, { forts: Array.from({ length: 3 }, () => ({ durability: 180, firepower: 30 })) });
+    expect(result.outcome).toBe('defeat');
+  });
+
+  it('keeps colony forts at one per tuning count once built', () => {
+    const engine = new GameEngine({ players: [{ name: 'A', color: 0, isAI: true }, { name: 'B', color: 1, isAI: true }], rng: () => 0.5 });
+    const island = engine.state.map.find((node) => node.kind === 'island')!;
+    expect(colonyForts(engine.state, island.id)).toEqual([]);
+    engine.state.buildings[island.id] = { fort: 2 };
+    expect(colonyForts(engine.state, island.id)).toEqual(Array.from({ length: 3 }, () => ({ durability: 120, firepower: 20 })));
   });
 });

@@ -91,7 +91,7 @@ export interface Player extends PlayerSetup {
   reservedShips?: Ship[];
 }
 
-export type BuildingKind = 'lumberMill' | 'ironMine' | 'shipyard' | 'repairYard' | 'collectionField';
+export type BuildingKind = 'lumberMill' | 'ironMine' | 'shipyard' | 'repairYard' | 'collectionField' | 'fort';
 export type Specialty = 'Wine' | 'Sugar' | 'Cotton' | 'Timber' | 'Cocoa' | 'Tobacco' | 'Silver' | 'Spices' | 'Silk' | 'Tea';
 export type Good = 'lumber' | 'iron' | Specialty;
 
@@ -165,6 +165,9 @@ export interface BattleReport {
   rounds: number;
   attackerSunk: string[];
   defenderSunk: string[];
+  /** Shore forts destroyed out of those defending the colony. */
+  fortsDestroyed?: number;
+  forts?: number;
   /** Double toll paid after a defeat; 0 otherwise. */
   tollPaid: number;
 }

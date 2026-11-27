@@ -1,7 +1,7 @@
 import { DEFAULT_GAMEPLAY_TUNING, GAMEPLAY_TUNING } from './gameplayTuning';
 import type { BattleOutcome, GameConfig, GameState, Player, Ship } from './types';
 import type { Rng } from './compass';
-import { colonyToll } from './buildings';
+import { colonyForts, colonyToll } from './buildings';
 import { STRATEGY_RULES } from './strategies';
 import { playerRetreatThreshold, sinkingCap, withdrawalReason, type BattleWithdrawal, type RetreatThreshold } from './withdrawal';
 
@@ -32,7 +32,11 @@ export interface BattleResult {
   attackerSunk: Ship[];
   defenderSunk: Ship[];
   withdrawal?: BattleWithdrawal;
+  /** Shore forts destroyed; forts only defend colonies. */
+  fortsDestroyed?: number;
 }
+
+export type FortSetup = { durability: number; firepower: number };
 
 /** Ships docked at the colony defend it; with none docked, the owner's fleet sails in. */
 export function colonyDefenders(state: GameState, nodeId: number): { ships: Ship[]; owner: Player; fromFleet: boolean } {
@@ -56,9 +60,9 @@ function volley(ships: Ship[], rng: Rng, hitRng: Rng, multiplier = 1, forecastAc
   return damage * (forecastAccuracy ?? 1);
 }
 
-/** Cannon fire lands on the most battered ship first; overflow carries to the next. Returns ships sunk. */
-function absorb(line: Ship[], damage: number, remainingSinks: number): Ship[] {
-  const sunk: Ship[] = [];
+/** Cannon fire lands on the most battered ship first; overflow carries to the next. Returns ships sunk and unspent damage. */
+function absorb(line: Ship[], damage: number, remainingSinks: number): Ship[] & { rest?: number } {
+  const sunk: Ship[] & { rest?: number } = [];
   for (const ship of [...line].sort((a, b) => a.durability - b.durability)) {
     if (damage <= 0) break;
     const hit = Math.min(damage, ship.durability);
@@ -69,10 +73,11 @@ function absorb(line: Ship[], damage: number, remainingSinks: number): Ship[] {
       else ship.durability = 1;
     }
   }
+  sunk.rest = damage;
   return sunk;
 }
 
-type BattleOptions = { attackerMultiplier?: number; defenderRng?: Rng; hitRng?: Rng; skipFirstDefense?: boolean; attackerThreshold?: RetreatThreshold; defenderThreshold?: RetreatThreshold };
+type BattleOptions = { forts?: FortSetup[]; attackerMultiplier?: number; defenderRng?: Rng; hitRng?: Rng; skipFirstDefense?: boolean; attackerThreshold?: RetreatThreshold; defenderThreshold?: RetreatThreshold };
 
 /**
  * Both lines fire simultaneously until a side is sunk, withdraws, or the rounds run out.
@@ -87,38 +92,48 @@ function resolveNavalBattle(attackers: Ship[], defenders: Ship[], rng: Rng, opti
   const defenseFleet = defenders.filter((s) => s.durability > 0);
   let attackLine = [...attackFleet];
   let defenseLine = [...defenseFleet];
+  // Forts fight on after the garrison is gone and have no loss cap; the attacker must destroy every one.
+  let fortLine: Ship[] = (options.forts ?? []).map((fort, i) => ({ id: -(i + 1), name: `Fort ${i + 1}`, type: 'warship', cargo: {}, durability: fort.durability, maxDurability: fort.durability, firepower: fort.firepower, cargoCapacity: 0, speed: 0, crewCapacity: 0 }));
+  const forts = fortLine.length;
   const attackerSunk: Ship[] = [];
   const defenderSunk: Ship[] = [];
   let rounds = 0;
   let withdrawal: BattleWithdrawal | undefined;
-  while (attackLine.length && defenseLine.length && rounds < COMBAT.rounds) {
+  let garrisonWithdrawal: BattleWithdrawal | undefined;
+  while (attackLine.length && (defenseLine.length || fortLine.length) && rounds < COMBAT.rounds) {
     rounds += 1;
     const attackFire = volley(attackLine, rng, options.hitRng ?? rng, options.attackerMultiplier, forecastAccuracy);
-    const defenseFire = volley(defenseLine, options.defenderRng ?? rng, options.hitRng ?? rng, options.skipFirstDefense && rounds === 1 ? STRATEGY_RULES.ambushDefenseMultiplier : 1, forecastAccuracy);
+    const defenseMultiplier = options.skipFirstDefense && rounds === 1 ? STRATEGY_RULES.ambushDefenseMultiplier : 1;
+    const defenseFire = volley(defenseLine, options.defenderRng ?? rng, options.hitRng ?? rng, defenseMultiplier, forecastAccuracy)
+      + volley(fortLine, options.defenderRng ?? rng, options.hitRng ?? rng, defenseMultiplier, forecastAccuracy);
     const lostDefenders = absorb(defenseLine, attackFire, sinkingCap(defenseFleet, options.defenderThreshold) - defenderSunk.length);
+    const lostForts = absorb(fortLine, lostDefenders.rest ?? attackFire, forts);
     const lostAttackers = absorb(attackLine, defenseFire, sinkingCap(attackFleet, options.attackerThreshold) - attackerSunk.length);
     defenderSunk.push(...lostDefenders);
     attackerSunk.push(...lostAttackers);
     defenseLine = defenseLine.filter((ship) => !lostDefenders.includes(ship));
+    fortLine = fortLine.filter((fort) => !lostForts.includes(fort));
     attackLine = attackLine.filter((ship) => !lostAttackers.includes(ship));
-    const attackerReason = withdrawalReason(attackFleet, options.attackerThreshold), defenderReason = withdrawalReason(defenseFleet, options.defenderThreshold);
+    const attackerReason = withdrawalReason(attackFleet, options.attackerThreshold);
+    const defenderReason = garrisonWithdrawal ? null : withdrawalReason(defenseFleet, options.defenderThreshold);
     if (!attackLine.length || attackerReason) { if (attackerReason) withdrawal = { side: 'attacker', reason: attackerReason }; break; }
-    if (!defenseLine.length || defenderReason) { if (defenderReason) withdrawal = { side: 'defender', reason: defenderReason }; break; }
+    if (defenderReason) { garrisonWithdrawal = { side: 'defender', reason: defenderReason }; defenseLine = []; }
+    if (!defenseLine.length && !fortLine.length) { withdrawal = garrisonWithdrawal; break; }
   }
   // Losing every ship is a defeat even if the last volley also sank the defenders.
-  const outcome: BattleOutcome = !attackLine.length || withdrawal?.side === 'attacker' ? 'defeat' : !defenseLine.length || withdrawal?.side === 'defender' ? 'victory' : 'draw';
-  return { outcome, rounds, attackerSunk, defenderSunk, ...(withdrawal ? { withdrawal } : {}) };
+  const outcome: BattleOutcome = !attackLine.length || withdrawal?.side === 'attacker' ? 'defeat' : !defenseLine.length && !fortLine.length ? 'victory' : 'draw';
+  return { outcome, rounds, attackerSunk, defenderSunk, ...(withdrawal ? { withdrawal } : {}), ...(forts ? { fortsDestroyed: forts - fortLine.length } : {}) };
 }
 
 /** Forecast with the same withdrawal rules and loss caps, without touching real ships or match RNG. */
-export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], options: { battleMode?: GameConfig['battleMode']; attackerMultiplier?: number; attackerRoll?: number; defenderRoll?: number; skipFirstDefense?: boolean; attackerThreshold?: RetreatThreshold; defenderThreshold?: RetreatThreshold } = {}): BattleOutcome {
+export function forecastNavalBattle(attackers: Ship[], defenders: Ship[], options: { battleMode?: GameConfig['battleMode']; attackerMultiplier?: number; attackerRoll?: number; defenderRoll?: number; skipFirstDefense?: boolean; attackerThreshold?: RetreatThreshold; defenderThreshold?: RetreatThreshold; forts?: FortSetup[] } = {}): BattleOutcome {
   const copy = (ships: Ship[]) => ships.map((ship) => ({ ...ship }));
   // Keep the stock full-hit estimate, scaling forecast damage down for lower accuracy.
   const accuracy = options.battleMode === 'realtime' ? 1 : Math.min(1, COMBAT.hitChance / DEFAULT_GAMEPLAY_TUNING.combat.hitChance);
   return resolveNavalBattle(copy(attackers), copy(defenders), () => options.attackerRoll ?? 0.5, {
     attackerMultiplier: options.attackerMultiplier,
     attackerThreshold: options.attackerThreshold, defenderThreshold: options.defenderThreshold,
-    skipFirstDefense: options.skipFirstDefense,
+    skipFirstDefense: options.skipFirstDefense, forts: options.forts,
     defenderRng: () => options.defenderRoll ?? 0.5,
   }, accuracy).outcome;
 }
@@ -129,6 +144,6 @@ export function forecastColonyBattle(state: GameState, player: Player, shipIds?:
     battleMode: colonyBattleMode(state, player, owner),
     attackerThreshold: playerRetreatThreshold(player), defenderThreshold: playerRetreatThreshold(owner),
     attackerMultiplier: state.inspired ? STRATEGY_RULES.inspireMultiplier : 1,
-    skipFirstDefense: state.ambush,
+    skipFirstDefense: state.ambush, forts: colonyForts(state, player.position),
   });
 }
