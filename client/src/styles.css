@@ -421,7 +421,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .voyage-bottom .voyage-log-button:hover { background: #2b5e85; }
   .voyage-bottom > button:disabled { opacity: .45; cursor: not-allowed; }
   .menu-close { display: block; align-self: flex-end; min-height: 44px; }
-  .voyage-menu .mobile-log { display: none; }
+  .voyage-menu-log .log { display: none; }
   .next-stop { display: flex; align-items: center; gap: 12px; border: 2px dashed #b59751; padding: 12px; border-radius: 14px; background: #fff9e9; color: #123d59; }
   .next-stop > span { font-size: 32px; }
   .next-stop > div { display: grid; gap: 2px; }
@@ -506,8 +506,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .landing-placement .action-content h2 { display: none; }
   .landing-placement button:not(.stat-trigger) { min-height: 44px; }
   .menu-close { display: block; min-height: 44px; }
-  .voyage-menu .mobile-log { display: block; }
-  .voyage-menu .mobile-log .log { max-height: 100px; overflow-y: auto; font-size: 12px; }
+  .voyage-menu-log .log { max-height: 100px; overflow-y: auto; font-size: 12px; }
   .strategy-cards { margin-top: 4px; }
   .strategy-cards summary { padding: 7px; }
   @keyframes mobile-sheet { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -529,7 +528,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .voyage-menu .menu-close { align-self: flex-end; }
 .voyage-menu .menu-shortcuts { display: block; }
 .voyage-log-button { min-height: 44px; font-weight: 700; }
-.mobile-log .voyage-log-button { margin-bottom: 6px; }
+.voyage-menu-log .log { margin-top: 6px; }
 .voyage-log-history[open] {
   display: flex;
   flex-direction: column;

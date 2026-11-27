@@ -182,7 +182,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
             )}
             {state.campaign && <CampaignPanel campaign={state.campaign} />}
             <PlayerBar state={state} colorBlind={colorBlind} paletteToggle={paletteToggle} onRules={() => { setMenuOpen(false); setRulesOpen(true); }} onFleet={() => openFleet()} onTutorial={() => { setMenuOpen(false); setTutorialRequested(true); }} />
-            <div className="mobile-log">
+            <div className="voyage-menu-log">
               {openLog && <VoyageLogButton onOpen={openLog} />}
               <LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} limit={3} />
             </div>
