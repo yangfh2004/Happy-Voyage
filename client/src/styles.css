@@ -564,7 +564,10 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .voyage-log-scroll { overflow-y: auto; overscroll-behavior: contain; }
 .voyage-log-history .log { max-height: none; padding: 0 8px; border: 0; box-shadow: none; background: transparent; font-size: 14px; }
 .voyage-log-history .log > div { padding: 8px 0; border-bottom: 1px solid #ddcda9; overflow-wrap: anywhere; }
-.landing-placement .landing-heading { display: flex; }
+.landing-placement .landing-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; margin-bottom: 12px; border-bottom: 1px solid #cfbc8c; }
+.landing-placement .landing-heading > div { min-width: 0; }
+.landing-placement .landing-heading > div:last-child { text-align: right; }
+.landing-placement .landing-heading h2 { overflow-wrap: anywhere; }
 /* 90% × 80% = 72% of the screen, including short menus. */
 .landing-placement, .voyage-menu, .fleet.transfer-window {
   --dialog-padding: clamp(14px, 3vw, 28px);
@@ -587,6 +590,8 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 }
 .landing-placement .actions { padding: 0; background: transparent; border: 0; box-shadow: none; }
 .landing-placement .action-content { display: block; }
+.landing-placement .action-content > .compass { display: none; }
+.landing-placement .action-content > div > h2 { display: none; }
 .landing-placement .actions p { font-size: 1rem; line-height: 1.5; }
 .colony-market { margin: 12px 0; padding: 12px; border: 1px solid #ccae65; border-radius: 12px; background: #fffaf0; }
 .colony-market summary { cursor: pointer; font-weight: 700; }
@@ -609,7 +614,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .colony-workspace .building-option small { flex: 1; line-height: 1.5; color: #665538; }
 .colony-workspace .building-option button { width: 100%; margin-top: auto; }
 .colony-workspace > section:last-child { padding-top: 16px; border-top: 1px solid #cebd96; }
-.colony-footer { position: sticky; bottom: calc(-1 * var(--dialog-padding)); z-index: 2; display: flex; justify-content: flex-end; margin: 16px calc(-1 * var(--dialog-padding)) calc(-1 * var(--dialog-padding)); padding: 12px var(--dialog-padding); border-top: 1px solid #cebd96; background: #fffaf0; }
+.colony-footer { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: flex-end; margin: 16px calc(-1 * var(--dialog-padding)) 0; padding: 12px var(--dialog-padding); border-top: 1px solid #cebd96; background: #fffaf0; }
 .colony-footer button { min-width: 160px; }
 .market-fields :is(input, select), .transfer-controls :is(input, select) { box-sizing: border-box; min-height: 44px; border: 1px solid #9d8f6c; border-radius: 8px; background: #fffdf7; color: #173941; padding: 8px; }
 .colony-market-orders > button { flex: 1 1 160px; }
