@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG, EVENT_GOLD, GameEngine } from './engine';
 import type { Rng } from './compass';
 import { createDefaultMap } from './map';
 import { gameMode } from './modes';
+import { localize } from './i18n';
 
 const spinTwo: Rng = () => 0;
 const spinTwelve: Rng = () => 0.999;
@@ -113,12 +114,17 @@ describe('GameEngine', () => {
 
   it('adds colony income to trade winds', () => {
     const engine = new GameEngine({ players: twoPlayers });
+    const ship = engine.currentPlayer.fleet[0];
+    ship.cargo.Wine = 3;
     engine.state.owners[1] = 0;
     engine.state.map[11] = { ...engine.state.map[11], kind: 'event', event: 'tradeWind' };
     engine.currentPlayer.position = 11;
     engine.state.phase = 'moving';
     engine.resolveLanding();
     expect(engine.state.players[0].gold).toBe(DEFAULT_CONFIG.startingGold + EVENT_GOLD.tradeWind.base + EVENT_GOLD.tradeWind.perColony);
+    expect(ship.cargo.Wine).toBe(3);
+    expect(engine.state.log).toContain('Trade winds award 80g to You.');
+    expect(engine.state.logText?.map((line) => localize('zh', line, engine.state))).toContain('信风为 You 带来 80 金币。');
   });
 
   it('announces a storm loss before bankruptcy and neutralizes colonies', () => {
