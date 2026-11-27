@@ -11,10 +11,12 @@ describe('organic archipelagos', () => {
     expect(map).toHaveLength(107);
     expect(map.filter((node) => node.kind === 'island')).toHaveLength(40);
     expect(map.filter((node) => node.kind === 'port')).toHaveLength(10);
-    expect(map.filter((node) => node.kind === 'special')).toHaveLength(7);
+    expect(map.filter((node) => node.kind === 'special')).toHaveLength(9);
+    expect(map.filter((node) => node.special === 'nightless').map((node) => node.name))
+      .toEqual(['East Nightless Island', 'Nightless Island', 'West Nightless Island']);
     expect(map.filter((node) => node.kind === 'event')).toHaveLength(13);
     const sea = map.filter((node) => node.kind === 'sea');
-    expect(sea).toHaveLength(37);
+    expect(sea).toHaveLength(35);
     for (const node of sea) {
       expect(Object.keys(node).sort()).toEqual(['chineseName', 'id', 'kind', 'name', 'x', 'y']);
       expect(successors(map, node.id)).toEqual([(node.id + 1) % map.length]);

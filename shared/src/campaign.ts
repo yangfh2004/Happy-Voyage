@@ -53,12 +53,12 @@ export const CAMPAIGN_STAGES: readonly CampaignStage[] = [
   {
     id: 'merchant-charter',
     name: 'The Merchant Charter',
-    briefing: 'Sail to Nightless Island to sell specialties, and build a collection field to supply future voyages.',
+    briefing: 'Sail to any Nightless Island to sell specialties, and build a collection field to supply future voyages.',
     get rivals() { return rules['merchant-charter'].rivals; },
     difficulty: 'normal',
     config: rules['merchant-charter'].config,
     missions: [
-      { objective: 'sellSpecialties', description: 'Sell 3 units of specialties at Nightless Island', get target() { return rules['merchant-charter'].sellSpecialties.target; }, get reward() { return rules['merchant-charter'].sellSpecialties.reward; } },
+      { objective: 'sellSpecialties', description: 'Sell 3 units of specialties across the Nightless Islands', get target() { return rules['merchant-charter'].sellSpecialties.target; }, get reward() { return rules['merchant-charter'].sellSpecialties.reward; } },
       { objective: 'buildCollectionField', description: 'Build a collection field at one of your colonies', get target() { return rules['merchant-charter'].buildCollectionField.target; }, get reward() { return rules['merchant-charter'].buildCollectionField.reward; } },
     ],
   },

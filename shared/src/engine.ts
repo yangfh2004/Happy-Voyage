@@ -932,8 +932,8 @@ export class GameEngine extends GameView {
     else delete ship.cargo[good];
     this.state.market.stock[good] -= change;
     this.changeGold(player, buying ? -total : total, 'Nightless Island market');
-    const trade = { p: ref.player(player.id), q: quantity, g: ref.good(good), t: total };
-    this.log(buying ? tx('{p} buys {q} {g} for {t}g at Nightless Island.', '{p} 在不夜岛以 {t} 金币买入 {q} 单位{g}。', trade) : tx('{p} sells {q} {g} for {t}g at Nightless Island.', '{p} 在不夜岛以 {t} 金币卖出 {q} 单位{g}。', trade));
+    const trade = { p: ref.player(player.id), q: quantity, g: ref.good(good), t: total, n: ref.node(player.position) };
+    this.log(buying ? tx('{p} buys {q} {g} for {t}g at {n}.', '{p} 在{n}以 {t} 金币买入 {q} 单位{g}。', trade) : tx('{p} sells {q} {g} for {t}g at {n}.', '{p} 在{n}以 {t} 金币卖出 {q} 单位{g}。', trade));
     this.emit({ ...order, type: 'marketTrade', playerId: player.id, total });
     if (!buying && good !== 'lumber' && good !== 'iron') {
       this.updateCampaignMission(player.id, 'sellSpecialties', (progress) => progress + quantity);

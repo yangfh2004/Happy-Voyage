@@ -33,6 +33,23 @@ function atMarket() {
 }
 
 describe('Nightless Island market', () => {
+  it('opens at all three chart locations with shared stock', () => {
+    const g = new GameEngine({ players: [...players, { name: 'Captain 2', color: 2, isAI: false }], rng: () => 0.99 });
+    const markets = g.state.map.filter((node) => node.special === 'nightless');
+    expect(markets).toHaveLength(3);
+    const initialStock = marketPrices(g.state, 'Wine').stock;
+    for (const [i, market] of markets.entries()) {
+      land(g, market.id);
+      expect(g.state.phase).toBe('awaitingCargoMarket');
+      expect(marketPrices(g.state, 'Wine').stock).toBe(initialStock - i);
+      const ship = g.currentPlayer.fleet[0];
+      g.tradeAtMarket({ side: 'buy', good: 'Wine', shipId: ship.id, quantity: 1 });
+      expect(ship.cargo.Wine).toBe(1);
+      expect(g.state.log.at(-1)).toContain(`at ${market.name}.`);
+      g.finishTrading();
+    }
+  });
+
   it('takes a voyage from founding a colony to selling its own production', () => {
     const g = new GameEngine({ players: [players[0]], map, config: { startingStrategies: 0 }, rng: () => 0.99 });
     g.state.roamers = [];
