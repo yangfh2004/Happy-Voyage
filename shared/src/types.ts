@@ -218,6 +218,7 @@ export interface GameState {
   pendingClaim: number | null;
   pendingBarter: BarterOffer[] | null;
   pendingMerchant: MerchantOffer | null;
+  turnStartPosition: number;
   salvageUsed: boolean;
   pendingWyvern: boolean;
   /** Treasure Island lottery the current player is playing, while phase === 'awaitingLottery'. */

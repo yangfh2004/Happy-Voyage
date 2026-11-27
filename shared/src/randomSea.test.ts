@@ -21,6 +21,11 @@ function voyage(roll = 0.99) {
   return { game, events, sail, roll: (n: number | number[]) => { if (Array.isArray(n)) values = [...n]; else value = n; } };
 }
 
+function stageSalvageStart(game: GameEngine, kind: MapNode['kind']) {
+  const { position } = game.currentPlayer;
+  game.state.map[position] = { ...game.state.map[position], kind };
+}
+
 describe('random sea encounters', () => {
   it('advances exactly once when a hazard bankrupts a fleet sailing to Skeleton Island', () => {
     const { game, events, sail, roll } = voyage();
@@ -105,7 +110,7 @@ describe('random sea encounters', () => {
     const player = game.currentPlayer;
     const fee = SEA_RULES.wreckSalvageFee;
     player.gold = fee;
-    expect(game.state.map[player.position].kind).toBe('port');
+    stageSalvageStart(game, 'sea');
     roll([u, v]);
     game.salvageWreck();
     expect(game.state.phase).toBe('awaitingSpin');
@@ -116,8 +121,43 @@ describe('random sea encounters', () => {
     expect(() => game.salvageWreck()).toThrow('Already salvaged this turn');
   });
 
+  it.each(['port', 'island', 'special'] as const)('rejects manual and AI salvage when starting at a %s', (kind) => {
+    const { game } = voyage();
+    stageSalvageStart(game, kind);
+    const { gold } = game.currentPlayer;
+    expect(game.canSalvageWreck()).toBe(false);
+    expect(() => game.salvageWreck()).toThrow('Salvage requires starting the turn at sea');
+    game.decideForAI();
+    expect(game.currentPlayer.gold).toBe(gold);
+    expect(game.state.salvageUsed).toBe(false);
+  });
+
+  it('does not unlock salvage after exchanging positions from port to sea', () => {
+    const { game } = voyage();
+    const player = game.currentPlayer;
+    game.state.map[2] = { ...game.state.map[2], kind: 'sea' };
+    game.state.players.push({ ...player, id: 1, position: 2 });
+    player.strategies = ['exchange'];
+    game.useStrategy('exchange', 1);
+    expect(player.position).toBe(2);
+    expect(game.state.phase).toBe('awaitingSpin');
+    expect(game.canSalvageWreck()).toBe(false);
+    expect(() => game.salvageWreck()).toThrow('Salvage requires starting the turn at sea');
+  });
+
+  it('unlocks salvage on the next turn after landing on a sea event', () => {
+    const { game, sail } = voyage();
+    game.state.map[2] = { ...game.state.map[2], kind: 'event', event: 'tradeWind' };
+    expect(game.canSalvageWreck()).toBe(false);
+    sail();
+    expect(game.canSalvageWreck()).toBe(true);
+    game.salvageWreck();
+    expect(game.state.salvageUsed).toBe(true);
+  });
+
   it('resets salvage at the next turn and rejects it after spinning', () => {
     const { game, sail, roll } = voyage();
+    stageSalvageStart(game, 'sea');
     game.state.map[2] = { ...game.state.map[2], kind: 'sea' };
     roll([0, 0]);
     game.salvageWreck();
@@ -129,6 +169,7 @@ describe('random sea encounters', () => {
 
   it.each([true, false])('spins without charging for salvage (can afford: %s)', (canAfford) => {
     const { game, events } = voyage();
+    stageSalvageStart(game, 'sea');
     const player = game.currentPlayer;
     player.gold = SEA_RULES.wreckSalvageFee - Number(!canAfford);
     const before = player.gold;
@@ -143,6 +184,7 @@ describe('random sea encounters', () => {
 
   it('uses a seeded normal spread with occasional large hauls', () => {
     const { game, events, roll } = voyage();
+    stageSalvageStart(game, 'sea');
     let seed = 42;
     const next = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
     const rewards = Array.from({ length: 4000 }, () => {

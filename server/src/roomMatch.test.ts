@@ -143,6 +143,8 @@ it('validates and settles wreck salvage through online actions', () => {
   const fee = 100;
   expect(() => match.act(1, match.revision, ['salvageWreck'])).toThrow('not your turn');
   expect(() => match.act(player.id, match.revision, ['salvageWreck', 0])).toThrow('Invalid game command');
+  expect(() => match.act(player.id, match.revision, ['salvageWreck'])).toThrow('Salvage requires starting the turn at sea');
+  player.position = engine.state.turnStartPosition = engine.state.map.find((node) => node.kind === 'sea')!.id;
   player.gold = fee - 1;
   expect(() => match.act(player.id, match.revision, ['salvageWreck'])).toThrow('Not enough gold');
   player.gold = fee;

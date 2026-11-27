@@ -88,6 +88,7 @@ export function stageScenario(engine: GameEngine, id: Exclude<Scenario, 'landing
     land(state.map.find((node) => node.special === id.slice(7))!.id);
   } else if (id === 'sea-treasure') {
     captain.position = state.map.find((node) => node.kind === 'sea')!.id;
+    state.turnStartPosition = captain.position;
   } else if (id.startsWith('sea-')) {
     const node = state.map.find((stop) => stop.event === 'openSea')!;
     // Merchant and wyvern need the real pending state so their buttons work.

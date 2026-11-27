@@ -15,9 +15,14 @@ export class GameView {
     return this.state.players[this.state.currentPlayer];
   }
 
+  startedTurnAtSea(): boolean {
+    const kind = this.state.map[this.state.turnStartPosition]?.kind;
+    return kind === 'sea' || kind === 'event';
+  }
+
   canSalvageWreck(): boolean {
     const player = this.currentPlayer;
-    return this.state.phase === 'awaitingSpin' && !this.state.salvageUsed && !isEliminated(player) &&
+    return this.state.phase === 'awaitingSpin' && this.startedTurnAtSea() && !this.state.salvageUsed && !isEliminated(player) &&
       player.fleet.length > 0 && player.gold >= GAMEPLAY_TUNING.sea.wreckSalvageFee;
   }
 

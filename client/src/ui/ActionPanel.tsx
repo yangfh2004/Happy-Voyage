@@ -175,6 +175,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
     const view = new GameView(state);
     const colonies = view.colonyReturnTargets();
     const fee = GAMEPLAY_TUNING.sea.wreckSalvageFee;
+    const startedAtSea = view.startedTurnAtSea();
     const returnTo = colonies.find((node) => node.id === colonyDestination) ?? colonies[0];
     body = (
       <>
@@ -183,8 +184,11 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
           <button className="primary big" onClick={() => gameController.spinCompass()}>
             {l(SPIN_COMPASS_LABEL)} <kbd>Space / Enter</kbd>
           </button>
-          <button disabled={!view.canSalvageWreck()} onClick={() => gameController.salvageWreck()}>
-            {state.salvageUsed ? t('Salvaged', '已打捞') : t('Salvage · {fee}g', '打捞 · {fee} 金币', { fee })}
+          <button disabled={!view.canSalvageWreck()} onClick={() => gameController.salvageWreck()}
+            title={startedAtSea ? undefined : t('Your turn must start at sea to salvage.', '必须在海上开始回合才能打捞。')}>
+            {state.salvageUsed ? t('Salvaged', '已打捞')
+              : startedAtSea ? t('Salvage · {fee}g', '打捞 · {fee} 金币', { fee })
+                : t('Salvage · Sea only', '打捞 · 仅限海上')}
           </button>
         </div>
         {returnTo && (
