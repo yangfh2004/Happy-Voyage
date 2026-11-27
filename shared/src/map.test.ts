@@ -81,6 +81,15 @@ describe('organic archipelagos', () => {
     expect(blank.kind).toBe('sea');
     expect(calicut.name).toBe('Calicut');
   });
+  it('leaves a route out of every stop that can host a roaming encounter', () => {
+    const allowsRoamer = (id: number) => map[id].kind !== 'port' && map[id].kind !== 'special';
+    for (const node of map.filter(({ id }) => allowsRoamer(id))) {
+      for (const wind of WIND_DIRECTIONS) {
+        const exits = [-1, 1].flatMap((direction) => walkPath(map, node.id, direction, wind));
+        expect(exits.some(allowsRoamer), `${node.name} in ${wind} wind`).toBe(true);
+      }
+    }
+  });
   it('leaves short hops direct and divides longer main-route crossings evenly', () => {
     const fixedStops = map.filter(node => node.kind !== 'sea');
     for (const [index, node] of fixedStops.entries()) {

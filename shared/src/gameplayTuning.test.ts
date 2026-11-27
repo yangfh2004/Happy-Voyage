@@ -56,7 +56,7 @@ describe('desktop gameplay tuning', () => {
       expect(warnings).toEqual([]);
     }
     selectGameplayTuning(resolveGameplayTuning({ map: { targetSeaSpacing: 255 } }).rules);
-    expect(engine().state.map.filter(node => node.kind === 'sea')).toHaveLength(71);
+    expect(engine().state.map.filter(node => node.kind === 'sea')).toHaveLength(70);
   });
 
   it('rejects a one-ship capacity even if the starting fleet fits', () => {

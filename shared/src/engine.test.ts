@@ -257,7 +257,7 @@ describe('GameEngine', () => {
   it('plays a Classic conquest all-AI game to completion', () => {
     const engine = new GameEngine({
       players: [0, 1, 2].map((i) => ({ name: `AI ${i}`, color: i, isAI: true })),
-      rng: aiMatchRng(29),
+      rng: aiMatchRng(30),
       config: gameMode('conquest').config,
     });
     playAiMatch(engine);

@@ -8,8 +8,8 @@ export const MIN_NODE_SPACING = 175;
 
 /** Fixed archipelagos, grouped by nation in route order. */
 const archipelagos: [number, number][][] = [
-  [[1484, 355], [1596, 572], [1821, 564], [1719, 395], [1619, 191], [1835, 202], [1966, 359]],
-  [[2275, 565], [2329, 385], [2437.5, 347], [2546, 309], [2698, 465], [2494, 514], [2434, 745], [2640, 695]],
+  [[1484, 355], [1596, 572], [1821, 564], [1719, 395], [1619, 191], [1835, 202], [1966, 359], [2120.5, 462]],
+  [[2275, 565], [2329, 385], [2546, 309], [2698, 465], [2494, 514], [2434, 745], [2640, 695]],
   [[2734, 883], [2900, 746], [3106, 839], [3169, 1043], [2958, 981], [2764, 1118], [2988, 1217]],
   [[2999, 1399], [2803, 1455], [2961, 1620], [3166, 1543], [3139, 1754], [2920, 1835], [2766, 1679]],
   [[2518, 1824], [2295, 1866], [2452, 2033], [2643, 1970], [2618, 2226], [2410, 2286], [2000, 1965]],
@@ -23,7 +23,7 @@ const lands = ['Madeira', 'Canary Isles', 'Cape Verde', 'Azores', 'Hispaniola', 
 const goods: Specialty[] = ['Wine', 'Sugar', 'Cotton', 'Timber', 'Cocoa', 'Tobacco', 'Silver', 'Spices', 'Silk', 'Tea'];
 const specials: [sector: number, afterColony: number, special: SpecialKind, name: string, chineseName: string][] = [
   [0, 1, 'skeleton', 'Skeleton Island', '骷髅岛'],
-  [1, 0, 'nightless', 'East Nightless Island', '东不夜岛'],
+  [0, 3, 'nightless', 'East Nightless Island', '东不夜岛'],
   [1, 1, 'treasure', 'Treasure Island', '金银岛'],
   [2, 1, 'mist', 'Mist Island', '迷雾岛'],
   [3, 1, 'revival', 'Revival Island', '复活岛'],
@@ -79,7 +79,7 @@ export function createDefaultMap(): MapNode[] {
       });
     }
   });
-  for (const [from, to] of [[2, 7], [13, 20], [19, 21], [29, 32], [35, 39], [45, 54], [51, 54], [62, 66], [68, 71]]) {
+  for (const [from, to] of [[2, 8], [13, 20], [19, 21], [29, 32], [35, 39], [45, 54], [51, 54], [62, 66], [68, 71]]) {
     const id = stopIds[from];
     map[id].next = [(id + 1) % map.length, stopIds[to]];
   }
