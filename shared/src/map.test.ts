@@ -8,13 +8,13 @@ describe('organic archipelagos', () => {
     const another = createDefaultMap();
     expect(another).toEqual(map);
     expect(another[0]).not.toBe(map[0]);
-    expect(map).toHaveLength(143);
+    expect(map).toHaveLength(107);
     expect(map.filter((node) => node.kind === 'island')).toHaveLength(40);
     expect(map.filter((node) => node.kind === 'port')).toHaveLength(10);
     expect(map.filter((node) => node.kind === 'special')).toHaveLength(7);
     expect(map.filter((node) => node.kind === 'event')).toHaveLength(13);
     const sea = map.filter((node) => node.kind === 'sea');
-    expect(sea).toHaveLength(73);
+    expect(sea).toHaveLength(37);
     for (const node of sea) {
       expect(Object.keys(node).sort()).toEqual(['chineseName', 'id', 'kind', 'name', 'x', 'y']);
       expect(successors(map, node.id)).toEqual([(node.id + 1) % map.length]);
@@ -79,12 +79,26 @@ describe('organic archipelagos', () => {
     expect(blank.kind).toBe('sea');
     expect(calicut.name).toBe('Calicut');
   });
-  it('keeps main-route step lengths comparable across short and long crossings', () => {
+  it('leaves short hops direct and divides longer main-route crossings evenly', () => {
+    const fixedStops = map.filter(node => node.kind !== 'sea');
+    for (const [index, node] of fixedStops.entries()) {
+      const next = fixedStops[(index + 1) % fixedStops.length];
+      const distance = Math.hypot(next.x - node.x, next.y - node.y);
+      const steps = (next.id - node.id + map.length) % map.length;
+      if (distance < 450) expect(steps).toBe(1);
+      else expect(steps).toBeGreaterThan(1);
+      for (let step = 1; step < steps; step++) {
+        const sea = map[(node.id + step) % map.length];
+        expect(sea.kind).toBe('sea');
+        expect(sea.x).toBeCloseTo(node.x + (next.x - node.x) * step / steps);
+        expect(sea.y).toBeCloseTo(node.y + (next.y - node.y) * step / steps);
+      }
+    }
     for (const node of map) {
       const next = map[successors(map, node.id)[0]];
       const distance = Math.hypot(next.x - node.x, next.y - node.y);
-      expect(distance).toBeGreaterThanOrEqual(190);
-      expect(distance).toBeLessThanOrEqual(380);
+      expect(distance).toBeGreaterThanOrEqual(225);
+      expect(distance).toBeLessThan(450);
     }
   });
   it('keeps edges clear of other stops and a complete home-port ring', () => {
