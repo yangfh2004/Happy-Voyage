@@ -513,6 +513,10 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .menu-dialog::backdrop, .menu-dialog + .backdrop { background: #041823b8; }
 .menu-dialog-tools { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .menu-dialog-tools button { min-height: 44px; }
+.hud-menu-tools { margin-bottom: 8px; }
+@media (min-width: 900px) and (orientation: landscape), (max-width: 700px) and (orientation: portrait) {
+  .hud-menu-tools { display: none; }
+}
 .landing-placement > .menu-dialog-tools { margin-bottom: 12px; }
 .voyage-menu[open] { display: flex; flex-direction: column; gap: 10px; }
 .voyage-menu > * { flex-shrink: 0; }

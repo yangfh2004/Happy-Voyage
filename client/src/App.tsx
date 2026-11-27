@@ -131,6 +131,10 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
       <div className={`overlay ${landing ? 'has-landing' : ''} ${atHelm ? 'is-your-turn' : ''}`} ref={overlay}>
         {state ? (
           <div className="hud">
+            <div className="hud-menu-tools menu-dialog-tools">
+              <button type="button" onClick={() => openFleet()}>⚓ {t('Fleet', '舰队')}</button>
+              <button type="button" onClick={() => setMenuOpen(true)}>⚙ {t('Menu', '菜单')}</button>
+            </div>
             <HelmCard state={state} colorBlind={colorBlind} atHelm={atHelm} onFleet={openFleet} />
             <NextStop state={state} />
             {landing && <p className="landing-hint">⚓ {t('Choose an action on the card', '请在卡片上选择行动')}</p>}
