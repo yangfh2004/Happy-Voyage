@@ -75,6 +75,11 @@ body {
   box-shadow: 0 6px 0 #126c8333, 0 12px 28px #063d6240, inset 0 2px 0 #fff;
 }
 
+/* Modal surfaces must fully hide map labels and routes behind their backdrop. */
+dialog.panel {
+  background: #fdf6e3;
+}
+
 h1 { margin: 0; font-family: 'Sea Names', Georgia, serif; font-size: 40px; color: #0a3d62; }
 h2 { margin: 0 0 6px; font-family: 'Sea Names', Georgia, serif; font-size: 20px; color: #0a3d62; }
 p { margin: 6px 0; line-height: 1.4; }
