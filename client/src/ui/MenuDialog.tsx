@@ -15,6 +15,14 @@ export function MenuDialog({ children, className, id, label, labelledBy, suspend
   const dialog = useRef<HTMLDialogElement>(null);
   useLayoutEffect(() => {
     const element = dialog.current!;
+    // Listen on the dialog itself: cancel does not bubble, and a required
+    // landing must never disappear without the controller completing a choice.
+    const cancel = (event: Event) => { event.preventDefault(); onDismiss?.(); };
+    element.addEventListener('cancel', cancel);
+    return () => element.removeEventListener('cancel', cancel);
+  }, [onDismiss]);
+  useLayoutEffect(() => {
+    const element = dialog.current!;
     dialogPolyfill.registerDialog(element);
     if (!suspended && !element.open) {
       element.showModal();
@@ -27,9 +35,7 @@ export function MenuDialog({ children, className, id, label, labelledBy, suspend
 
   return createPortal(
     <dialog ref={dialog} id={id} className={`menu-dialog ${className}`} tabIndex={-1}
-      aria-label={label} aria-labelledby={labelledBy}
-      onKeyDown={(event) => event.stopPropagation()}
-      onCancel={(event) => { event.preventDefault(); onDismiss?.(); }}>
+      aria-label={label} aria-labelledby={labelledBy}>
       {children}
     </dialog>,
     document.body,
