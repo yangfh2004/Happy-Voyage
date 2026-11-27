@@ -48,6 +48,17 @@ describe('desktop gameplay tuning', () => {
     expect(gameplayTuningFields().length).toBeGreaterThan(100);
   });
 
+  it('keeps older chart spacing overrides without changing the stock chart', () => {
+    expect(resolveGameplayTuning().rules.map.targetSeaSpacing).toBe(300);
+    for (const targetSeaSpacing of [255, 275, 299]) {
+      const { rules, warnings } = resolveGameplayTuning({ map: { targetSeaSpacing } });
+      expect(rules.map.targetSeaSpacing).toBe(targetSeaSpacing);
+      expect(warnings).toEqual([]);
+    }
+    selectGameplayTuning(resolveGameplayTuning({ map: { targetSeaSpacing: 255 } }).rules);
+    expect(engine().state.map.filter(node => node.kind === 'sea')).toHaveLength(73);
+  });
+
   it('rejects a one-ship capacity even if the starting fleet fits', () => {
     const starting = { fleet: ['warship'] };
     const rejected = resolveGameplayTuning({ starting, ships: { maxFleetSize: 1 } });

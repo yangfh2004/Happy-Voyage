@@ -78,7 +78,7 @@ const schema = {
     explorer: { durability: positive(80, '探险船最大耐久'), firepower: positive(12, '探险船火力'), cargo: positive(40, '探险船货舱（单位）'), speed: positive(7, '探险船航速'), crew: positive(25, '探险船船员容量（人）'), usedPrice: gold(180, '中古探险船价格'), yardLevel: int(1, 1, 3, '建造探险船所需船厂等级'), lumber: positive(2, '建造探险船所需木材（单位）'), iron: positive(1, '建造探险船所需铁矿（单位）') },
   },
   map: {
-    targetSeaSpacing: int(300, 300, 600, '主航线每步的目标距离（地图像素）；短于该值 1.5 倍的航段不加空白海格'),
+    targetSeaSpacing: int(300, 255, 600, '主航线每步的目标距离（地图像素）；短于该值 1.5 倍的航段不加空白海格'),
     colonyBasePrice: gold(100, '新大陆最低定价'),
     colonyPriceIncrease: gold(250, '路线末端相对首块新大陆的定价涨幅'),
     colonyPriceStep: positive(5, '新大陆定价的取整单位（金币）'),
