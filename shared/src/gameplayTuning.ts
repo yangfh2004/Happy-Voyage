@@ -142,6 +142,11 @@ const schema = {
     discountCapRate: probability(.5, '供过于求时最大折价比例'),
     premiumCapRate: ratio(1, 0, 5, '供不应求时最大加价比例'),
   },
+  colonyMarket: {
+    stockPerRound: int(16, 0, 500, '殖民地本地市场每轮特产库存（单位）'),
+    foreignSpecialtyPremium: ratio(.5, 0, 5, '本地市场外地特产卖价加成'),
+    visitorTaxRate: probability(.1, '非岛主本地市场交易税率'),
+  },
   barter: {
     values: { lumber: positive(10, '木材交换估价'), iron: positive(20, '铁矿交换估价'), Cotton: positive(25, '棉花交换估价'), Timber: positive(30, '优质木材交换估价'), Sugar: positive(35, '糖交换估价'), Wine: positive(40, '葡萄酒交换估价'), Cocoa: positive(45, '可可交换估价'), Tobacco: positive(50, '烟草交换估价'), Tea: positive(60, '茶叶交换估价'), Spices: positive(75, '香料交换估价'), Silk: positive(90, '丝绸交换估价'), Silver: positive(100, '白银交换估价') },
     giveValueCap: positive(50, '能用于以物易物的货物估价上限'),

@@ -15,7 +15,7 @@ export * from './online';
 export * from './modes';
 export * from './campaign';
 export * from './ai';
-export { marketDemand, marketPrices, quoteMarketTrade } from './market';
+export { colonyMarket, marketDemand, marketPrices, marketTradeQuote, quoteMarketTrade } from './market';
 export * from './barter';
 export * from './lottery';
 export * from './mist';

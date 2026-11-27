@@ -192,11 +192,11 @@ export const ZH = {
   } as Record<GameModeId, { name: string; description: string }>,
   stages: {
     'first-voyage': { name: '初次远航', briefing: '在新大陆插上王室的旗帜，然后返回母国报告你的发现。' },
-    'merchant-charter': { name: '商人特许状', briefing: '驶往不夜岛出售特产，并建造采集场为日后的航行供货。' },
+    'merchant-charter': { name: '商人特许状', briefing: '驶往任意一座不夜岛出售特产，并建造采集场为日后的航行供货。' },
     'crown-of-the-seas': { name: '海洋之冠', briefing: '在国王的期限前扩张舰队领地，并夺取一块对手殖民地。' },
   } as Record<CampaignStageId, { name: string; briefing: string }>,
   missions: {
-    foundColony: '在无人占领的岛屿上建立殖民地', reportHome: '持有殖民地时回到母港', sellSpecialties: '在不夜岛出售 3 单位特产',
+    foundColony: '在无人占领的岛屿上建立殖民地', reportHome: '持有殖民地时回到母港', sellSpecialties: '在任意不夜岛卖出特产，共 3 单位',
     buildCollectionField: '在你的殖民地建造采集场', holdColonies: '同时持有 2 块殖民地', captureColony: '赢得海战，夺取一块对手殖民地',
   } as Record<CampaignObjective, string>,
 };

@@ -208,6 +208,8 @@ export interface GameState {
   stockpiles: ColonyStockpile[];
   docks: Ship[][];
   market: MarketState;
+  /** Units of the local specialty for sale, indexed by island. */
+  colonyMarketStock: number[];
   currentPlayer: number;
   round: number;
   phase: Phase;

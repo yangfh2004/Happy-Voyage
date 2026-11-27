@@ -566,6 +566,9 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .landing-placement .actions { padding: 0; background: transparent; border: 0; box-shadow: none; }
 .landing-placement .action-content { display: block; }
 .landing-placement .actions p { font-size: 1rem; line-height: 1.5; }
+.colony-market { margin: 12px 0; padding: 12px; border: 1px solid #ccae65; border-radius: 12px; background: #fffaf0; }
+.colony-market summary { cursor: pointer; font-weight: 700; }
+.colony-market-orders { display: flex; flex-wrap: wrap; gap: 8px; }
 .landing-placement button:not(.stat-trigger) { min-height: 44px; }
 @media (prefers-reduced-motion: reduce) { .playing .overlay.is-your-turn { animation: none; } }
 

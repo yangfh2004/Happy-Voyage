@@ -2,6 +2,7 @@ import { GAMEPLAY_TUNING } from '@happy-voyage/shared';
 import { BUILDINGS, buildingLevel, colonyForts, nextBuildingCost, colonyIncome, colonyToll, colonyDefenders, COMBAT, forecastColonyBattle, GameView, isEliminated, tollDue, SHIP_RECIPES, STRATEGIES, STRATEGY_RULES, strategyTarget, type StrategyId, type BuildingKind, type GameState, type ShipType } from '@happy-voyage/shared';
 import { gameController } from '../game/GameController';
 import { ShipMarketPanel } from './ShipMarketPanel';
+import { ColonyMarketPanel } from './ColonyMarketPanel';
 import { ColonyGoods } from './ColonyGoods';
 import { Compass } from './Compass';
 import { ShortcutLegend } from './ShortcutLegend';
@@ -207,6 +208,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
           <strong>{t('Ships & cargo transfer', '船只与资源调度')}</strong>
           <small>{t('Dock or board ships · load or unload goods', '停靠或归队船只 · 装卸货物')}</small>
         </button>
+        <ColonyMarketPanel key={nodeId} state={state} />
         {(Object.keys(BUILDINGS) as BuildingKind[]).map((kind) => {
           const level = buildingLevel(state, nodeId, kind);
           const cost = nextBuildingCost(state, nodeId, kind);
@@ -270,6 +272,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
           {' '}{t('Choose the fraction of your starting fleet to lose before withdrawing (rounded up). The flagship also withdraws at 25% durability, except with Fight to the last ship. A lone starting ship always fights to the end.',
             '可选择损失开战舰船的几分之几后撤退（向上取整）。旗舰耐久降至 25% 时也会撤退；选择打到最后一艘则关闭这两项自动撤退。开战时仅有一艘的舰队始终战斗到底。')}
         </p>
+        <ColonyMarketPanel key={island.id} state={state} />
         {deployment}
         <RetreatThresholdSelector player={player} />
         <div className="row">
