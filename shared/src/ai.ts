@@ -323,6 +323,7 @@ export function aiMarketPurchase(state: GameState, player: Player): MarketOrder 
 }
 
 export function aiColonyMarketPurchase(state: GameState, player: Player): MarketOrder | undefined {
+  if (roundsLeft(state) === 0) return;
   const local = colonyMarket(state);
   const good = local?.node.specialty;
   if (!local || !good || !local.stock) return;

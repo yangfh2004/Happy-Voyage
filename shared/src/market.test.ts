@@ -171,7 +171,7 @@ describe('colony local market', () => {
   ];
 
   function atColony(owner: number, visitor = 0) {
-    const g = new GameEngine({ players, map: colonyMap, rng: () => 0.99, config: { islandsToWin: 3 } });
+    const g = new GameEngine({ players, map: [...colonyMap], rng: () => 0.99, config: { islandsToWin: 3 } });
     g.state.owners[1] = owner;
     g.state.owners[5] = 0;
     g.state.currentPlayer = visitor;
@@ -266,5 +266,19 @@ describe('colony local market', () => {
     expect(visitor.gold).toBe(12);
     expect(g.state.battles).toHaveLength(0);
     expect(g.state.currentPlayer).toBe(0);
+  });
+
+  it('sells but does not buy speculation cargo on the AI’s last round', () => {
+    const { g, ship } = atColony(0, 1);
+    g.state.config.maxRounds = g.state.round;
+    g.state.players[0].position = 0;
+    g.currentPlayer.strategies = [];
+    for (const ship of g.currentPlayer.fleet) ship.durability = 20;
+    const netWorthBefore = g.netWorth(g.currentPlayer.id);
+    g.decideForAI();
+    expect(ship.cargo.Tea).toBeUndefined();
+    expect(ship.cargo.Wine).toBeUndefined();
+    expect(g.netWorth(1)).toBe(netWorthBefore + 52);
+    expect(g.state.victory).toBe('richest');
   });
 });
