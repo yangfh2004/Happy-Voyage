@@ -121,6 +121,7 @@ function humanAction(state: GameState): RoomAction {
     case 'awaitingMistDuel': return ['leaveMistIsland'];
     case 'awaitingRevival': return ['leaveRevivalIsland'];
     case 'awaitingMerchant': return state.pendingMerchant?.quantity ? ['acceptMerchant'] : ['declineMerchant'];
+    case 'awaitingSalvage': return ['skipSalvage'];
     case 'awaitingWyvern': return ['wyvernFly', state.players[state.currentPlayer].homePort];
     case 'awaitingCargoMarket': return ['finishTrading'];
     default: throw new Error(`Not a human decision: ${state.phase}`);

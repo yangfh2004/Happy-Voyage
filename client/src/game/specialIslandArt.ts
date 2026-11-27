@@ -130,9 +130,9 @@ export function specialIslandTexture(scene: Phaser.Scene, node: MapNode): string
         break;
       case 'treasure':
         g.fillStyle(0x3e98ae, .8).fillEllipse(80, 81, 103, 48);
-        coin(61, 81); coin(82, 90, true); coin(100, 76);
-        g.fillStyle(0xa4edeb).fillPoints([{ x: 75, y: 35 }, { x: 94, y: 49 }, { x: 79, y: 70 }, { x: 62, y: 49 }], true);
-        g.lineStyle(2, 0xf5f9d8).lineBetween(75, 35, 79, 70).strokeCircle(110, 48, 5).strokeCircle(120, 33, 3);
+        g.fillStyle(0xe2cc9a).fillEllipse(80, 72, 78, 33);
+        g.fillStyle(0xf1deb0).fillEllipse(71, 65, 49, 18);
+        g.lineStyle(3, 0xa4edeb).strokeEllipse(80, 79, 107, 46);
         break;
       case 'storm':
         g.fillStyle(0x3d536d).fillEllipse(80, 48, 87, 35).fillCircle(64, 38, 21).fillCircle(92, 37, 24);

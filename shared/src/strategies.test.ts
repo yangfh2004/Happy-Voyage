@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GameEngine, EVENT_GOLD } from './engine';
+import { GameEngine } from './engine';
 import { STRATEGIES, STRATEGY_RULES } from './strategies';
 import type { MapNode } from './types';
 
@@ -68,7 +68,8 @@ describe('strategy cards', () => {
     g.currentPlayer.position = node;
     g.state.phase = 'moving';
     g.resolveLanding();
-    expect(g.state.players[0].gold - gold).toBe(STRATEGY_RULES.hoardGold + EVENT_GOLD.treasure.min);
+    expect(g.state.players[0].gold - gold).toBe(STRATEGY_RULES.hoardGold);
+    expect(g.state.phase).toBe('awaitingSalvage');
     expect(g.state.players.every((p) => p.knownHoard === null)).toBe(true);
     expect(g.state.hoardNode).not.toBe(node);
   });

@@ -186,7 +186,7 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
         )}
       </>
     );
-  } else if (state.phase === 'awaitingMerchant' || state.phase === 'awaitingWyvern') {
+  } else if (state.phase === 'awaitingMerchant' || state.phase === 'awaitingSalvage' || state.phase === 'awaitingWyvern') {
     body = <SeaChoicePanel key={`${player.id}:${state.phase}`} state={state} />;
   } else if (state.phase === 'awaitingBuild') {
     const nodeId = player.position;

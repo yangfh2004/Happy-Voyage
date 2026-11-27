@@ -151,6 +151,7 @@ export class GameEngine extends GameView {
       pendingClaim: null,
       pendingBarter: null,
       pendingMerchant: null,
+      salvageFee: null,
       roamers: [],
       pendingWyvern: false,
       lottery: null,
@@ -410,7 +411,6 @@ export class GameEngine extends GameView {
         if (nodes.length) roamer.node = nodes[Math.floor(this.rng() * nodes.length)].id;
       } else if (node.kind !== 'port' && (node.event === 'openSea' || this.rng() < SEA_RULES.encounterChance)) {
         const entries = Object.entries(SEA_RULES.encounterWeights) as [NonNullable<MapNode['event']>, number][];
-        if (node.kind === 'sea') entries.push(['treasure', SEA_RULES.blankSeaSalvageWeight]);
         let roll = this.rng() * entries.reduce((sum, [, weight]) => sum + weight, 0);
         event = entries.find(([, weight]) => (roll -= weight) < 0)![0];
       }
@@ -473,7 +473,15 @@ export class GameEngine extends GameView {
         break;
       }
     }
-    this.endTurn();
+    this.finishLanding(player, node);
+  }
+
+  private finishLanding(player: Player, node: MapNode): void {
+    if ((node.kind === 'sea' || node.kind === 'event') && !isEliminated(player) && player.fleet.length > 0) {
+      this.state.salvageFee = SEA_RULES.wreckSalvageFee;
+      this.state.phase = 'awaitingSalvage';
+      this.emit({ type: 'salvageOffered', playerId: player.id });
+    } else this.endTurn();
   }
 
   private openColony(nodeId: number): void {
@@ -683,7 +691,7 @@ export class GameEngine extends GameView {
     this.state.phase = 'moving';
     const player = this.currentPlayer;
     if (pending.resumeLanding && !isEliminated(player) && player.fleet.length > 0) this.resolveLanding();
-    else this.endTurn();
+    else this.finishLanding(player, this.node(player.position));
     return null;
   }
 
@@ -968,6 +976,14 @@ export class GameEngine extends GameView {
       if (this.state.phase === 'awaitingMerchant') this.decideForAI();
       return;
     }
+    if (this.state.phase === 'awaitingSalvage') {
+      const fee = this.state.salvageFee!;
+      const { min, max, step } = EVENT_GOLD.treasure;
+      const average = min + Math.floor((max - min) / step) * step / 2;
+      if (this.currentPlayer.gold >= fee && average > fee) this.salvageWreck();
+      else this.skipSalvage();
+      return;
+    }
     if (this.state.phase === 'awaitingWyvern') {
       this.wyvernFly(aiWyvernTarget(this.state, this.currentPlayer));
       return;
@@ -1249,6 +1265,28 @@ export class GameEngine extends GameView {
     } else this.endTurn();
   }
 
+  salvageWreck(): void {
+    this.assertPhase('awaitingSalvage');
+    const player = this.currentPlayer;
+    const fee = this.state.salvageFee!;
+    if (player.gold < fee) throw new Error('Not enough gold to salvage the wreck.');
+    this.changeGold(player, -fee, 'wreck salvage fee');
+    const gold = this.rollTreasureGold();
+    this.changeGold(player, gold, 'wreck salvage reward');
+    this.emit({ type: 'seaEvent', playerId: player.id, event: 'treasure', outcome: 'gold', gold, salvageFee: fee });
+    this.endTurn();
+  }
+
+  skipSalvage(): void {
+    this.assertPhase('awaitingSalvage');
+    this.endTurn();
+  }
+
+  private rollTreasureGold(): number {
+    const { min, max, step } = EVENT_GOLD.treasure;
+    return min + Math.floor(this.rng() * (Math.floor((max - min) / step) + 1)) * step;
+  }
+
   wyvernFly(nodeId: number): void {
     this.assertPhase('awaitingWyvern');
     if (!Number.isInteger(nodeId) || !this.state.map[nodeId]) throw new Error('Unknown destination');
@@ -1389,11 +1427,6 @@ export class GameEngine extends GameView {
           for (const p of this.state.players) p.knownHoard = null;
           this.buryHoard(node.id);
         }
-        const { min, max, step } = EVENT_GOLD.treasure;
-        const amount = min + Math.floor(this.rng() * (Math.floor((max - min) / step) + 1)) * step;
-        this.log(tx('{p} hauls up a sunken chest worth {g}g!', '{p} 打捞起价值 {g} 金币的沉箱！', { p: ref.player(player.id), g: amount }));
-        this.changeGold(player, amount, 'treasure');
-        announce('gold', { gold: amount });
         break;
       }
       case 'storm': {
@@ -1533,6 +1566,7 @@ export class GameEngine extends GameView {
       this.emit({ type: 'windChanged', ...this.state.wind });
     }
     this.state.pendingMerchant = null;
+    this.state.salvageFee = null;
     this.state.pendingWyvern = false;
     this.state.pendingClaim = null;
     this.state.pendingBarter = null;

@@ -35,6 +35,7 @@ export function isScenario(id: string | null): id is Scenario {
 
 export function scenarioName(id: Scenario, locale: Locale, map: GameEngine['state']['map']): string {
   if (id.startsWith('island-')) return nodeName(map.find((node) => node.special === id.slice(7))!, locale);
+  if (id === 'sea-treasure') return pick(locale, 'Wreck salvage', '沉船打捞');
   if (id.startsWith('sea-')) return seaEventName(id.slice(4) as EventKind, locale);
   return pick(locale, ...sceneNames[id as GameScene]);
 }
@@ -84,6 +85,8 @@ export function stageScenario(engine: GameEngine, id: Exclude<Scenario, 'landing
       captain.fleet[0].durability -= 30;
     }
     land(state.map.find((node) => node.special === id.slice(7))!.id);
+  } else if (id === 'sea-treasure') {
+    land(state.map.find((node) => node.kind === 'sea')!.id);
   } else if (id.startsWith('sea-')) {
     const node = state.map.find((stop) => stop.event === 'openSea')!;
     // Merchant and wyvern need the real pending state so their buttons work.

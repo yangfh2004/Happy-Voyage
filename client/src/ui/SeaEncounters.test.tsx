@@ -42,11 +42,11 @@ function click(text: string) {
 let moveId = 0;
 EventBus.on('animate-move', (move: { id: number }) => { moveId = move.id; });
 
-function land(event: EventKind, ai = false, rivalAI = true) {
+function land(event: EventKind | 'wreckSalvage', ai = false, rivalAI = true) {
   gameController.newGame([{ name: 'Captain', color: 0, isAI: ai }, { name: 'Rival', color: 1, isAI: rivalAI }], { battleMode: 'auto' });
   const state = gameController.state!;
   state.roamers = [];
-  state.map[2] = { ...state.map[2], kind: 'event', event };
+  state.map[2] = event === 'wreckSalvage' ? { ...state.map[2], kind: 'sea', event: undefined } : { ...state.map[2], kind: 'event', event };
   state.players[0].fleet[0].cargo.Silk = 3;
   state.players[0].strategies = [];
   if (ai) vi.advanceTimersByTime(700);
@@ -67,6 +67,11 @@ beforeEach(() => {
 afterEach(() => { gameController.quit(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('sea notifications', () => {
+  function startWithSalvage(rivalAI = true) {
+    land('wreckSalvage', false, rivalAI);
+    gameController.salvageWreck();
+  }
+
   function addNotice() {
     const state = gameController.state!;
     state.players[1].isAI = false;
@@ -78,21 +83,22 @@ describe('sea notifications', () => {
     vi.mocked(Math.random).mockReturnValue(0.99);
     EventBus.emit('move-complete', moveId);
     vi.mocked(Math.random).mockReturnValue(0);
+    gameController.salvageWreck();
   }
 
   it('keeps only the three newest banners while preserving all outcomes in the log', () => {
-    land('treasure', false, false);
+    startWithSalvage(false);
     for (let i = 0; i < 5; i++) addNotice();
     const ids = gameController.seaNotices.map((notice) => notice.id);
     expect(ids).toHaveLength(SEA_NOTICE_LIMIT);
     expect(ids).toEqual([...ids].sort((a, b) => b - a));
-    expect(gameController.state!.log.filter((line) => line.includes('Sunken treasure!'))).toHaveLength(6);
+    expect(gameController.state!.log.filter((line) => line.includes('Wreck salvage:'))).toHaveLength(6);
     const html = renderToStaticMarkup(<SeaNotifications notices={gameController.seaNotices} onDismiss={() => {}} />);
     expect(html.match(/role="status"/g)).toHaveLength(3);
   });
 
   it('expires each banner after five seconds without expiring a newer one early', () => {
-    land('treasure', false, false);
+    startWithSalvage(false);
     vi.advanceTimersByTime(SEA_NOTICE_DURATION_MS - 1000);
     expect(gameController.seaNotices).toHaveLength(1);
     addNotice();
@@ -101,16 +107,16 @@ describe('sea notifications', () => {
     expect(gameController.seaNotices.map((notice) => notice.id)).toEqual([newest]);
     vi.advanceTimersByTime(SEA_NOTICE_DURATION_MS - 1000);
     expect(gameController.seaNotices).toHaveLength(0);
-    expect(gameController.state!.log.filter((line) => line.includes('Sunken treasure!'))).toHaveLength(2);
+    expect(gameController.state!.log.filter((line) => line.includes('Wreck salvage:'))).toHaveLength(2);
   });
 
   it('cleans banner timers on quit and does not carry banners into a new voyage', () => {
-    land('treasure');
+    startWithSalvage();
     gameController.quit();
     expect(gameController.seaNotices).toHaveLength(0);
     expect(vi.getTimerCount()).toBe(0);
-    land('treasure');
-    land('treasure');
+    startWithSalvage();
+    startWithSalvage();
     expect(gameController.seaNotices).toHaveLength(1);
   });
 
@@ -143,6 +149,26 @@ describe('sea notifications', () => {
 });
 
 describe('human sea choices wired to the real engine', () => {
+  it.each([true, false])('lets players pay for or skip wreck salvage (pay: %s)', (pay) => {
+    const state = land('wreckSalvage');
+    expect(state.phase).toBe('awaitingSalvage');
+    const before = state.players[0].gold;
+    expect(renderToStaticMarkup(panel())).toContain('You might recover less than you spend');
+    click(pay ? 'Pay 100g and salvage' : 'Skip salvage');
+    expect(state.phase).toBe('awaitingSpin');
+    expect(state.currentPlayer).toBe(1);
+    expect(state.players[0].gold).toBe(before - (pay ? 50 : 0));
+    expect(state.log.some((line) => line.includes('Wreck salvage: paid 100g and recovered 50g.'))).toBe(pay);
+  });
+
+  it('disables the paid salvage action when the player cannot afford it', () => {
+    const state = land('wreckSalvage');
+    state.players[0].gold = 99;
+    const html = renderToStaticMarkup(panel());
+    expect(html).toContain('Not enough gold to pay the fee.');
+    expect(html).toMatch(/<button[^>]+disabled="">Pay 100g and salvage/);
+  });
+
   it.each([true, false])('merchant accept=%s advances the turn and only accepted cargo is removed', (accept) => {
     const state = land('merchant');
     expect(state.phase).toBe('awaitingMerchant');
@@ -155,6 +181,8 @@ describe('human sea choices wired to the real engine', () => {
       expect(state.phase).toBe('awaitingMerchant');
       click('Leave merchant ship');
     }
+    expect(state.phase).toBe('awaitingSalvage');
+    click('Skip salvage');
     expect(state.phase).toBe('awaitingSpin');
     expect(state.currentPlayer).toBe(1);
     expect(state.players[0].gold).toBe(before + (accept ? 405 : 0));
@@ -173,6 +201,8 @@ describe('human sea choices wired to the real engine', () => {
     expect(stock.quantity).toBe(3);
     expect(state.phase).toBe('awaitingMerchant');
     click('Leave merchant ship');
+    expect(state.phase).toBe('awaitingSalvage');
+    click('Skip salvage');
     expect(state.currentPlayer).toBe(1);
   });
 
@@ -218,9 +248,12 @@ describe('human sea choices wired to the real engine', () => {
       expect(state.phase).toBe('moving');
       EventBus.emit('move-complete', moveId);
       expect(state.phase).toBe('awaitingBuild');
-      vi.advanceTimersByTime(700);
+    } else {
+      expect(state.phase).toBe('awaitingSalvage');
     }
-    expect(state.currentPlayer).toBe(1);
     expect(gameController.seaNotices.some((notice) => notice.event.outcome === (event === 'merchant' ? 'accepted' : 'relocated'))).toBe(true);
+    vi.advanceTimersByTime(700);
+    expect(state.currentPlayer).toBe(1);
+    if (event === 'merchant') expect(gameController.seaNotices[0].event.salvageFee).toBeDefined();
   });
 });

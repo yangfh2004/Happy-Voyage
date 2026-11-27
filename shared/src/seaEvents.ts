@@ -23,6 +23,11 @@ const OUTCOMES: Record<SeaEventResult['outcome'], [string, string]> = {
 
 /** The sea event as a message in every language; `destination` names where a wyvern or whirlpool carried the fleet. */
 export function seaEventTx(event: SeaEventResult, destination?: TextParam): Text {
+  if (event.salvageFee !== undefined) {
+    return tx('Wreck salvage: paid {fee}g and recovered {gold}g.', '沉船打捞：支付 {fee} 金币，打捞到 {gold} 金币。', {
+      fee: event.salvageFee, gold: event.gold ?? 0,
+    });
+  }
   const en: string[] = [];
   const zh: string[] = [];
   if (event.gold) {
