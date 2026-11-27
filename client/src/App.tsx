@@ -60,7 +60,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
   const coverOpen = !state && !room && !setupOpen;
   const atHelm = !!state && !state.players[state.currentPlayer].isAI && (!room || gameController.canHelm) && !gameController.awaitingHandoff && state.phase !== 'gameOver';
   const islandWindow = state && islandWindowFor(state, atHelm);
-  const landing = atHelm && !islandWindow && state.phase.startsWith('awaiting') && state.phase !== 'awaitingSpin';
+  const landing = atHelm && !islandWindow && state.phase.startsWith('awaiting') && state.phase !== 'awaitingSpin' && state.phase !== 'awaitingBattle';
   const tutorialOpen = !!state && (!tutorialDismissed || tutorialRequested);
   function dismissTutorial() {
     writePreference('tutorial-dismissed', true);
