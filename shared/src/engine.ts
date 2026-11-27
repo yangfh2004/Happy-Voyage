@@ -153,7 +153,7 @@ export class GameEngine extends GameView {
       pendingClaim: null,
       pendingBarter: null,
       pendingMerchant: null,
-      salvageFee: null,
+      salvageUsed: false,
       roamers: [],
       pendingWyvern: false,
       lottery: null,
@@ -475,15 +475,7 @@ export class GameEngine extends GameView {
         break;
       }
     }
-    this.finishLanding(player, node);
-  }
-
-  private finishLanding(player: Player, node: MapNode): void {
-    if ((node.kind === 'sea' || node.kind === 'event') && !isEliminated(player) && player.fleet.length > 0) {
-      this.state.salvageFee = SEA_RULES.wreckSalvageFee;
-      this.state.phase = 'awaitingSalvage';
-      this.emit({ type: 'salvageOffered', playerId: player.id });
-    } else this.endTurn();
+    this.endTurn();
   }
 
   private openColony(nodeId: number): void {
@@ -693,7 +685,7 @@ export class GameEngine extends GameView {
     this.state.phase = 'moving';
     const player = this.currentPlayer;
     if (pending.resumeLanding && !isEliminated(player) && player.fleet.length > 0) this.resolveLanding();
-    else this.finishLanding(player, this.node(player.position));
+    else this.endTurn();
     return null;
   }
 
@@ -994,20 +986,13 @@ export class GameEngine extends GameView {
       if (this.state.phase === 'awaitingMerchant') this.decideForAI();
       return;
     }
-    if (this.state.phase === 'awaitingSalvage') {
-      const fee = this.state.salvageFee!;
-      const { min, max, step } = EVENT_GOLD.treasure;
-      const average = min + Math.floor((max - min) / step) * step / 2;
-      if (this.currentPlayer.gold >= fee && average > fee) this.salvageWreck();
-      else this.skipSalvage();
-      return;
-    }
     if (this.state.phase === 'awaitingWyvern') {
       this.wyvernFly(aiWyvernTarget(this.state, this.currentPlayer, this.aiNightlessCargoUnits()));
       return;
     }
     if (this.state.phase === 'awaitingSpin') {
       const p = this.currentPlayer;
+      if (this.canSalvageWreck() && SEA_RULES.wreckSalvageReward.mean > SEA_RULES.wreckSalvageFee) this.salvageWreck();
       if (p.fleet.length <= 2) {
         const target = this.colonyReturnTargets().find(({ id }) =>
           aiShipChoice(p, (type) => this.hasShipbuildingSupplies(id, type)));
@@ -1348,25 +1333,19 @@ export class GameEngine extends GameView {
   }
 
   salvageWreck(): void {
-    this.assertPhase('awaitingSalvage');
+    this.assertPhase('awaitingSpin');
     const player = this.currentPlayer;
-    const fee = this.state.salvageFee!;
+    const fee = SEA_RULES.wreckSalvageFee;
+    if (this.state.salvageUsed) throw new Error('Already salvaged this turn.');
     if (player.gold < fee) throw new Error('Not enough gold to salvage the wreck.');
+    if (!this.canSalvageWreck()) throw new Error('Cannot salvage without an active fleet.');
+    this.state.salvageUsed = true;
     this.changeGold(player, -fee, 'wreck salvage fee');
-    const gold = this.rollTreasureGold();
+    const { mean, standardDeviation, minimum } = SEA_RULES.wreckSalvageReward;
+    const normal = Math.sqrt(-2 * Math.log1p(-this.rng())) * Math.cos(2 * Math.PI * this.rng());
+    const gold = Math.max(minimum, Math.round(mean + standardDeviation * normal));
     this.changeGold(player, gold, 'wreck salvage reward');
     this.emit({ type: 'seaEvent', playerId: player.id, event: 'treasure', outcome: 'gold', gold, salvageFee: fee });
-    this.endTurn();
-  }
-
-  skipSalvage(): void {
-    this.assertPhase('awaitingSalvage');
-    this.endTurn();
-  }
-
-  private rollTreasureGold(): number {
-    const { min, max, step } = EVENT_GOLD.treasure;
-    return min + Math.floor(this.rng() * (Math.floor((max - min) / step) + 1)) * step;
   }
 
   wyvernFly(nodeId: number): void {
@@ -1648,7 +1627,7 @@ export class GameEngine extends GameView {
       this.emit({ type: 'windChanged', ...this.state.wind });
     }
     this.state.pendingMerchant = null;
-    this.state.salvageFee = null;
+    this.state.salvageUsed = false;
     this.state.pendingWyvern = false;
     this.state.pendingClaim = null;
     this.state.pendingBarter = null;

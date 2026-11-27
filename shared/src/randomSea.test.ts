@@ -80,7 +80,7 @@ describe('random sea encounters', () => {
   it.each([
     [SEA_RULES.encounterChance, 0.99, undefined],
     [0.19, 0, 'pirates'],
-  ] as const)('offers salvage on a blank sea landing with encounter roll %s and table roll %s', (chance, outcome, event) => {
+  ] as const)('settles a blank sea landing without a salvage prompt with encounter roll %s and table roll %s', (chance, outcome, event) => {
     const { game, events, sail, roll } = voyage();
     game.state.map[2] = { id: 2, x: 20, y: 0, kind: 'sea', name: 'Open water' };
     game.state.hoardNode = 2;
@@ -88,50 +88,78 @@ describe('random sea encounters', () => {
     const gold = game.currentPlayer.gold;
     roll([chance, outcome]);
     sail();
-    expect(game.state.phase).toBe('awaitingSalvage');
+    expect(game.state.phase).toBe('awaitingSpin');
     expect(events.filter((e) => e.type === 'seaEvent')).toMatchObject(event ? [{ event }] : []);
     expect(game.state.hoardNode).toBe(2);
     expect(game.currentPlayer.gold).toBe(gold);
     expect(game.currentPlayer.position).toBe(2);
     expect(game.state.owners[2]).toBeNull();
-    game.skipSalvage();
-    expect(game.state.phase).toBe('awaitingSpin');
   });
 
   it.each([
-    [0, SEA_RULES.treasure.min],
-    [0.999, SEA_RULES.treasure.max],
-  ])('charges once and pays the randomized reward at roll %s', (rewardRoll, reward) => {
-    const { game, events, sail, roll } = voyage();
-    game.state.map[2] = { id: 2, x: 20, y: 0, kind: 'sea', name: 'Open water' };
+    [0, 0, 110],
+    [0.99, 0.5, 0],
+    [0.99, 0, 413],
+  ])('settles a pre-spin haul for rolls %s and %s', (u, v, reward) => {
+    const { game, events, roll } = voyage();
     const player = game.currentPlayer;
-    player.gold = SEA_RULES.wreckSalvageFee;
-    sail();
-    expect(game.state.phase).toBe('awaitingSalvage');
-    roll([rewardRoll]);
+    const fee = SEA_RULES.wreckSalvageFee;
+    player.gold = fee;
+    expect(game.state.map[player.position].kind).toBe('port');
+    roll([u, v]);
     game.salvageWreck();
+    expect(game.state.phase).toBe('awaitingSpin');
+    expect(game.currentPlayer).toBe(player);
     expect(player.gold).toBe(reward);
     expect(player.bankrupt).toBe(false);
-    expect(events).toContainEqual({ type: 'seaEvent', playerId: player.id, event: 'treasure', outcome: 'gold', gold: reward, salvageFee: SEA_RULES.wreckSalvageFee });
-    expect(() => game.salvageWreck()).toThrow('Expected phase awaitingSalvage');
-    expect(game.state.salvageFee).toBeNull();
+    expect(events).toContainEqual({ type: 'seaEvent', playerId: player.id, event: 'treasure', outcome: 'gold', gold: reward, salvageFee: fee });
+    expect(() => game.salvageWreck()).toThrow('Already salvaged this turn');
   });
 
-  it.each([true, false])('skips salvage without charging gold (can afford: %s)', (canAfford) => {
-    const { game, events, sail } = voyage();
-    game.state.map[2] = { id: 2, x: 20, y: 0, kind: 'sea', name: 'Open water' };
+  it('resets salvage at the next turn and rejects it after spinning', () => {
+    const { game, sail, roll } = voyage();
+    game.state.map[2] = { ...game.state.map[2], kind: 'sea' };
+    roll([0, 0]);
+    game.salvageWreck();
+    game.spinCompass();
+    expect(() => game.salvageWreck()).toThrow('Expected phase awaitingSpin');
+    sail();
+    expect(game.canSalvageWreck()).toBe(true);
+  });
+
+  it.each([true, false])('spins without charging for salvage (can afford: %s)', (canAfford) => {
+    const { game, events } = voyage();
     const player = game.currentPlayer;
     player.gold = SEA_RULES.wreckSalvageFee - Number(!canAfford);
     const before = player.gold;
-    sail();
-    expect(game.state.phase).toBe('awaitingSalvage');
-    if (!canAfford) expect(() => game.salvageWreck()).toThrow('Not enough gold');
-    expect(game.state.phase).toBe('awaitingSalvage');
-    if (canAfford) game.skipSalvage();
-    else game.decideForAI();
+    if (!canAfford) {
+      expect(() => game.salvageWreck()).toThrow('Not enough gold');
+      game.decideForAI();
+    }
+    game.spinCompass();
     expect(player.gold).toBe(before);
     expect(events.some((event) => event.type === 'seaEvent')).toBe(false);
-    expect(game.state.phase).toBe('awaitingSpin');
+  });
+
+  it('uses a seeded normal spread with occasional large hauls', () => {
+    const { game, events, roll } = voyage();
+    let seed = 42;
+    const next = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+    const rewards = Array.from({ length: 4000 }, () => {
+      game.state.salvageUsed = false;
+      game.currentPlayer.gold = SEA_RULES.wreckSalvageFee;
+      roll([next(), next()]);
+      game.salvageWreck();
+      const event = events.at(-1);
+      return event?.type === 'seaEvent' ? event.gold! : -1;
+    });
+    const mean = rewards.reduce((sum, reward) => sum + reward, 0) / rewards.length;
+    expect(mean).toBeGreaterThan(110);
+    expect(mean).toBeLessThan(125);
+    expect(rewards.filter((reward) => reward === 0).length).toBeGreaterThan(400);
+    expect(rewards.filter((reward) => reward >= 300).length).toBeGreaterThan(70);
+    expect(rewards.filter((reward) => reward >= 300).length).toBeLessThan(180);
+    expect(rewards.every((reward) => reward >= 0 && Number.isInteger(reward))).toBe(true);
   });
 
   it('guarantees an encounter on an open-sea station even above the ordinary chance', () => {
@@ -140,7 +168,7 @@ describe('random sea encounters', () => {
     sail();
     expect(events.filter((e) => e.type === 'seaEvent')).toHaveLength(1);
     expect(events.find((e) => e.type === 'seaEvent')).toMatchObject({ event: 'turtle' });
-    expect(game.state.phase).toBe('awaitingSalvage');
+    expect(game.state.phase).toBe('awaitingSpin');
   });
 
   it('also rolls when a navigation card moves the fleet to open sea', () => {
@@ -231,7 +259,7 @@ describe('random sea encounters', () => {
       game.resolveLanding();
       expect(game.currentPlayer.position).toBe(6);
       expect(events.filter((e) => e.type === 'seaEvent')).toHaveLength(1);
-      expect(events.filter((e) => e.type === 'salvageOffered')).toMatchObject([{ playerId: game.currentPlayer.id }]);
+      expect(game.state.phase).toBe('awaitingSpin');
     }
   });
 
@@ -299,8 +327,6 @@ describe('random sea encounters', () => {
     game.state.map[2] = { ...game.state.map[2], kind: 'event', event: 'merchant' };
     game.state.phase = 'moving';
     game.resolveLanding();
-    expect(game.state.phase).toBe('awaitingSalvage');
-    game.skipSalvage();
     expect(game.state.phase).toBe('awaitingSpin');
     expect(events.find((e) => e.type === 'seaEvent')).toMatchObject({ event: 'merchant', outcome: 'noTrade' });
   });

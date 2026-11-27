@@ -378,12 +378,10 @@ export class OceanScene extends Phaser.Scene {
       const showTooltip = () => {
         const locale = getLocale();
         const help: [string, string] | undefined = node.kind === 'sea'
-          ? ['20% chance of a sea encounter. After stopping, you can pay for treasure salvage.', '停在这里有 20% 概率发生海上遭遇，之后可付费打捞宝藏。']
+          ? ['20% chance of a sea encounter when stopping here.', '停在这里有 20% 概率发生海上遭遇。']
           : node.event === 'openSea'
-            ? ['A sea encounter is guaranteed. Afterward, you can pay for treasure salvage.', '每次停靠都会发生海上遭遇，之后可付费打捞宝藏。']
-            : node.kind === 'event'
-              ? ['You can pay for treasure salvage after resolving this stop.', '结算停靠事件后可付费打捞宝藏。']
-              : SPECIAL_HELP[node.special ?? ''];
+            ? ['A sea encounter is guaranteed here.', '海上遭遇：每次停靠都会发生。']
+            : SPECIAL_HELP[node.special ?? ''];
         const buildings = gameController.state?.buildings[node.id] ?? {};
         const lines = Object.entries(buildings).filter(([, level]) => level > 0).map(([kind]) => `${buildingName(kind as BuildingKind, locale)}: ${buildingDescription(kind as BuildingKind, locale)}`);
         if (help) lines.unshift(pick(locale, ...help));

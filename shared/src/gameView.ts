@@ -15,6 +15,12 @@ export class GameView {
     return this.state.players[this.state.currentPlayer];
   }
 
+  canSalvageWreck(): boolean {
+    const player = this.currentPlayer;
+    return this.state.phase === 'awaitingSpin' && !this.state.salvageUsed && !isEliminated(player) &&
+      player.fleet.length > 0 && player.gold >= GAMEPLAY_TUNING.sea.wreckSalvageFee;
+  }
+
   colonyReturnTargets(): MapNode[] {
     const player = this.currentPlayer;
     if (this.state.phase !== 'awaitingSpin' || isEliminated(player) || !player.fleet.length ||

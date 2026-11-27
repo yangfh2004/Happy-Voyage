@@ -30,7 +30,6 @@ export function endTurnAction(state: GameState, atHelm: boolean, lotteryRevealed
     case 'awaitingRecruit': return 'declineRecruit';
     case 'awaitingBarter': return 'declineBarter';
     case 'awaitingMerchant': return state.pendingMerchant ? 'declineMerchant' : null;
-    case 'awaitingSalvage': return 'skipSalvage';
     case 'awaitingBuild': return 'finishBuilding';
     case 'awaitingMarket': return 'finishMarket';
     case 'awaitingCargoMarket': return 'finishTrading';

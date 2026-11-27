@@ -325,7 +325,6 @@ export class GameController {
   decline(): void {
     if (this.isHumanTurn('awaitingClaim')) this.perform(['decline'], () => this.engine!.decline());
     else if (this.isHumanTurn('awaitingMerchant')) this.declineMerchant();
-    else if (this.isHumanTurn('awaitingSalvage')) this.skipSalvage();
     else if (this.isHumanTurn('awaitingRecruit')) this.declineRecruit();
     else this.declineBarter();
   }
@@ -343,11 +342,7 @@ export class GameController {
   }
 
   salvageWreck(): void {
-    if (this.isHumanTurn('awaitingSalvage')) this.perform(['salvageWreck'], () => this.engine!.salvageWreck());
-  }
-
-  skipSalvage(): void {
-    if (this.isHumanTurn('awaitingSalvage')) this.perform(['skipSalvage'], () => this.engine!.skipSalvage());
+    if (this.isHumanTurn('awaitingSpin') && this.view?.canSalvageWreck()) this.perform(['salvageWreck'], () => this.engine!.salvageWreck());
   }
 
   wyvernFly(nodeId: number): void {
@@ -739,7 +734,6 @@ export class GameController {
       case 'claimOffered':
       case 'marketOffered':
       case 'merchantOffered':
-      case 'salvageOffered':
       case 'wyvernOffered':
       case 'barterOffered':
       case 'recruitsOffered':

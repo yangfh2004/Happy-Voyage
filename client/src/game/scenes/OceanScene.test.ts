@@ -149,8 +149,8 @@ describe('map label language and themed stop hover', () => {
   });
 
   it.each([
-    ['en', 'Open water', 'treasure salvage'],
-    ['zh', '海上', '打捞宝藏'],
+    ['en', 'Open water', 'chance of a sea encounter'],
+    ['zh', '海上', '发生海上遭遇'],
   ] as const)('draws only a marker with localized help on blank sea in %s', (locale, name, help) => {
     setLocale(locale);
     const node = createDefaultMap().find(node => node.kind === 'sea')!;
