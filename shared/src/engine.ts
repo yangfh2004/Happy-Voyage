@@ -1507,7 +1507,7 @@ export class GameEngine extends GameView {
       case 'tradeWind': {
         for (const good of GOODS) this.state.market.stock[good] += 3;
         const amount = EVENT_GOLD.tradeWind.perColony * this.islandsOwnedBy(player.id) + EVENT_GOLD.tradeWind.base;
-        this.log(tx("Trade winds carry {p}'s goods to market: +{g}g.", '信风把 {p} 的货物送到市场：+{g} 金币。', { p: ref.player(player.id), g: amount }));
+        this.log(tx('Trade winds award {g}g to {p}.', '信风为 {p} 带来 {g} 金币。', { p: ref.player(player.id), g: amount }));
         this.changeGold(player, amount, 'trade');
         announce('gold', { gold: amount });
         break;
