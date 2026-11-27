@@ -4,6 +4,35 @@ import { RoomMatch } from './roomMatch';
 
 afterEach(() => vi.useRealTimers());
 
+it('publishes a visitor’s colony market purchase with stock, cargo and tax synchronized', () => {
+  const seats: RoomPick[] = [{ name: 'Captain', nation: 'Spain' }, { name: 'Rival', nation: 'Portugal' }];
+  const publish = vi.fn();
+  const match = new RoomMatch(seats, { mode: 'conquest', difficulty: 'normal' }, publish, vi.fn(), { rng: () => .5 });
+  const { currentPlayer, state } = match.engine;
+  const owner = state.players.find((player) => player !== currentPlayer)!;
+  const island = state.map.find((node) => node.kind === 'island' && node.specialty === 'Wine')!;
+  const ship = currentPlayer.fleet[0];
+  state.phase = 'awaitingToll';
+  currentPlayer.position = island.id;
+  state.owners[island.id] = owner.id;
+  const ownerGold = owner.gold;
+  const visitorGold = currentPlayer.gold;
+  const order = ['tradeAtMarket', { side: 'buy', good: 'Wine', shipId: ship.id, quantity: 1 }];
+  expect(() => match.act(owner.id, match.revision, order)).toThrow('not your turn');
+  match.act(currentPlayer.id, match.revision, order);
+  expect(match.revision).toBe(1);
+  expect(publish).toHaveBeenCalledWith(expect.arrayContaining([
+    expect.objectContaining({ type: 'marketTrade', good: 'Wine', total: 20 }),
+    expect.objectContaining({ type: 'goldChanged', playerId: owner.id, delta: 2 }),
+  ]));
+  const snapshot = JSON.parse(JSON.stringify(state));
+  expect(snapshot.colonyMarketStock[island.id]).toBe(15);
+  expect(snapshot.players[owner.id].gold).toBe(ownerGold + 2);
+  expect(snapshot.players[currentPlayer.id].gold).toBe(visitorGold - 20);
+  expect(snapshot.players[currentPlayer.id].fleet[0].cargo.Wine).toBe(1);
+  match.dispose();
+});
+
 it('validates online deployments against the acting player and applies only the selected combatants', () => {
   const seats: RoomPick[] = [{ name: 'Captain', nation: 'Spain' }, { name: 'Rival', nation: 'Portugal' }];
   const match = new RoomMatch(seats, { mode: 'conquest', difficulty: 'normal' }, vi.fn(), vi.fn(), { rng: () => 0.5 });

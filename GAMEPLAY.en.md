@@ -98,6 +98,12 @@ Each navigator's sailing fleet holds at most **20 ships**. Newly acquired or ret
 | Italy / Verrazzano | La Dauphine (Explorer) | Speed +1, cargo capacity +20 |
 | Korea / Yi Sun-sin | Turtle Ship (Warship) | Durability +30, firepower +8 |
 
+### Local colony markets
+
+At your own or a rival colony, you can buy the island’s specialty from the locals and sell specialties carried by your sailing fleet. Each order uses one ship; lumber and iron are not traded here. Purchases require enough gold, local stock, and free cargo space, and sales cannot exceed the ship’s cargo. Each market starts the round with 16 units of its local specialty; sales to the locals do not replenish this stock. The market does not use collection field stock: the field produces goods for the colony owner alone, who can load them via Ships & cargo transfer.
+
+Buy or sell the local specialty at its base price in the table below. Specialties from other islands sell for 50% above base price, rounded to the nearest gold per unit. Colony owners trade tax-free. Visitors pay the colony owner 10% of each order’s untaxed value, rounded to the nearest gold: added to purchases and deducted from sale proceeds. On a rival colony, you can trade before choosing to pay the landing toll or attack. Trading neither pays the landing toll nor ends the turn.
+
 ### Nightless Island market and goods
 
 Land at Nightless Island, East Nightless Island, or West Nightless Island to buy and sell lumber, iron, and specialties at the 24-hour market. All three locations share stock and demand. Each order uses one specified ship in your fleet. Purchases require enough gold, market stock, and cargo space; sales cannot exceed what the ship carries. Each good starts with 16 units of market stock and moves back toward 16 by up to 2 units per round. Prices are calculated per unit, so splitting an order does not change the total:

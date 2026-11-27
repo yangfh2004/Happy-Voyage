@@ -488,7 +488,7 @@ export class GameController {
   }
 
   tradeAtMarket(order: MarketOrder): void {
-    if (this.isHumanTurn('awaitingCargoMarket') && quoteMarketTrade(this.view!.state, order) !== null) {
+    if (this.canHelm && this.view && quoteMarketTrade(this.view.state, order) !== null) {
       this.perform(['tradeAtMarket', order], () => this.engine!.tradeAtMarket(order));
     }
   }

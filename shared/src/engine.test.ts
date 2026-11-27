@@ -16,10 +16,10 @@ function spinAndSail(engine: GameEngine, accountingOnly = true): number[] {
   return engine.sail();
 }
 
-function playAiMatch(engine: GameEngine): void {
+function playAiMatch(engine: GameEngine, maxSteps = 10_000): void {
   engine.start();
   let guard = 0;
-  while (engine.state.phase !== 'gameOver' && guard++ < 10_000) {
+  while (engine.state.phase !== 'gameOver' && guard++ < maxSteps) {
     const { phase, round, currentPlayer } = engine.state;
     if (phase === 'spinning') engine.sail();
     else if (phase === 'moving') engine.resolveLanding();
@@ -260,7 +260,7 @@ describe('GameEngine', () => {
       rng: aiMatchRng(30),
       config: gameMode('conquest').config,
     });
-    playAiMatch(engine);
+    playAiMatch(engine, 30_000);
     expect(engine.state.winner).not.toBeNull();
   });
 
