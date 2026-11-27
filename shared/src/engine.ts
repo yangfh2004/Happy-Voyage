@@ -1,6 +1,6 @@
 import { DEFAULT_GAMEPLAY_TUNING, GAMEPLAY_TUNING } from './gameplayTuning';
 import { aiBuildingChoice, aiBarterChoice, aiShouldFight, aiWyvernTarget, aiLotteryPickCount,
-  aiTravelTarget, aiBattleStrategy, aiSeaStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase, aiMistTake } from './ai';
+  aiTravelTarget, aiBattleStrategy, aiSeaStrategy, aiShipChoice, aiUsedShipChoice, aiUsedShipSale, aiMarketPurchase, aiColonyMarketPurchase, aiMistTake } from './ai';
 import { STRATEGIES, STRATEGY_RULES, strategyTarget, defectionCount, type StrategyId } from './strategies';
 import { COMBAT, colonyBattleMode, colonyDefenders, defaultBattleDeployment, fightNavalBattle, selectBattleDeployment, tollDue } from './combat';
 import type { BattleResult } from './combat';
@@ -23,7 +23,7 @@ import { createDefaultMap } from './map';
 import { walkPath, WIND_DIRECTIONS } from './graph';
 import { hasRoundLimit } from './modes';
 import { campaignRoster, campaignStage, type CampaignObjective, type CampaignSetup, type CampaignState } from './campaign';
-import { advanceMarket, createMarket, quoteMarketTrade } from './market';
+import { advanceMarket, colonyMarket, createMarket, marketTradeQuote } from './market';
 import { isEliminated, seatAtTurnOrderPosition, turnOrderPosition } from './rules';
 import { GameView } from './gameView';
 import { SHIP_RECIPES, SHIP_TYPES, STARTING_FLEET, GOODS, cargoLoad, USED_SHIP_PRICES, shipSalePrice } from './ships';
@@ -144,6 +144,7 @@ export class GameEngine extends GameView {
       stockpiles: map.map(emptyStockpile),
       docks: map.map(() => []),
       market: createMarket(),
+      colonyMarketStock: map.map((node) => node.kind === 'island' && node.specialty ? GAMEPLAY_TUNING.colonyMarket.stockPerRound : 0),
       currentPlayer: 0,
       round: 1,
       phase: 'awaitingSpin',
@@ -920,8 +921,10 @@ export class GameEngine extends GameView {
   }
 
   tradeAtMarket(order: MarketOrder): void {
-    const total = quoteMarketTrade(this.state, order);
-    if (total === null) throw new Error('Cannot fill market order');
+    const quote = marketTradeQuote(this.state, order);
+    if (!quote) throw new Error('Cannot fill market order');
+    const { total, tax } = quote;
+    const local = colonyMarket(this.state);
     const player = this.currentPlayer;
     const { side, good, quantity, shipId } = order;
     const ship = player.fleet.find((candidate) => candidate.id === shipId)!;
@@ -930,12 +933,22 @@ export class GameEngine extends GameView {
     const aboard = (ship.cargo[good] ?? 0) + change;
     if (aboard > 0) ship.cargo[good] = aboard;
     else delete ship.cargo[good];
-    this.state.market.stock[good] -= change;
-    this.changeGold(player, buying ? -total : total, 'Nightless Island market');
     const trade = { p: ref.player(player.id), q: quantity, g: ref.good(good), t: total };
-    this.log(buying ? tx('{p} buys {q} {g} for {t}g at Nightless Island.', '{p} 在不夜岛以 {t} 金币买入 {q} 单位{g}。', trade) : tx('{p} sells {q} {g} for {t}g at Nightless Island.', '{p} 在不夜岛以 {t} 金币卖出 {q} 单位{g}。', trade));
+    if (local) {
+      if (buying) this.state.colonyMarketStock[local.node.id] -= quantity;
+      this.changeGold(player, buying ? -total : total, 'local market');
+      if (tax > 0) this.changeGold(this.state.players[local.owner], tax, 'trade tax');
+      const atColony = { ...trade, n: ref.node(local.node.id), tax };
+      this.log(buying
+        ? tx('{p} buys {q} {g} for {t}g at {n} (trade tax: {tax}g).', '{p} 在{n}以 {t} 金币买入 {q} 单位{g}（交易税：{tax} 金币）。', atColony)
+        : tx('{p} sells {q} {g} for {t}g at {n} (trade tax: {tax}g).', '{p} 在{n}以 {t} 金币卖出 {q} 单位{g}（交易税：{tax} 金币）。', atColony));
+    } else {
+      this.state.market.stock[good] -= change;
+      this.changeGold(player, buying ? -total : total, 'Nightless Island market');
+      this.log(buying ? tx('{p} buys {q} {g} for {t}g at Nightless Island.', '{p} 在不夜岛以 {t} 金币买入 {q} 单位{g}。', trade) : tx('{p} sells {q} {g} for {t}g at Nightless Island.', '{p} 在不夜岛以 {t} 金币卖出 {q} 单位{g}。', trade));
+    }
     this.emit({ ...order, type: 'marketTrade', playerId: player.id, total });
-    if (!buying && good !== 'lumber' && good !== 'iron') {
+    if (!local && !buying && good !== 'lumber' && good !== 'iron') {
       this.updateCampaignMission(player.id, 'sellSpecialties', (progress) => progress + quantity);
     }
   }
@@ -1008,7 +1021,10 @@ export class GameEngine extends GameView {
       if (card) this.useStrategy(card);
       if (this.state.phase !== 'awaitingToll') return;
       if (aiShouldFight(this.state, this.currentPlayer)) this.fight();
-      else this.payToll();
+      else {
+        this.tradeAtColonyForAI();
+        this.payToll();
+      }
       return;
     }
     if (this.state.phase === 'awaitingMarket') {
@@ -1074,6 +1090,7 @@ export class GameEngine extends GameView {
       const purchase = aiUsedShipChoice(this.state, player, (type) => this.canBuyUsedShip(type));
       if (purchase) this.buyUsedShip(purchase);
       this.autoLoad();
+      this.tradeAtColonyForAI();
       this.finishBuilding();
       return;
     }
@@ -1095,6 +1112,20 @@ export class GameEngine extends GameView {
   }
 
   // --- internals -----------------------------------------------------------
+
+  private tradeAtColonyForAI(): void {
+    const local = colonyMarket(this.state);
+    if (!local) return;
+    for (const ship of this.currentPlayer.fleet) {
+      for (const good of GOODS) {
+        if (good === 'lumber' || good === 'iron' || good === local.node.specialty) continue;
+        const quantity = ship.cargo[good] ?? 0;
+        if (quantity > 0) this.tradeAtMarket({ side: 'sell', shipId: ship.id, good, quantity });
+      }
+    }
+    const purchase = aiColonyMarketPurchase(this.state, this.currentPlayer);
+    if (purchase) this.tradeAtMarket(purchase);
+  }
 
   buyUsedShip(type: ShipType): Ship {
     if (!this.canBuyUsedShip(type)) throw new Error('Cannot buy ship: market, stock or gold');
@@ -1582,6 +1613,9 @@ export class GameEngine extends GameView {
       if (this.checkVictory()) return;
       this.produceColonyGoods();
       advanceMarket(this.state.market);
+      for (const node of this.state.map) {
+        if (node.kind === 'island' && node.specialty) this.state.colonyMarketStock[node.id] = GAMEPLAY_TUNING.colonyMarket.stockPerRound;
+      }
       this.state.round += 1;
       this.moveRoamers();
       if (this.checkVictory()) return;

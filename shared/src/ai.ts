@@ -9,7 +9,7 @@ import { SEA_RULES } from './seaRules';
 import { LOTTERY } from './lottery';
 import { RANKS, foreignTaxDue, playerMerit } from './ranks';
 import { GOODS, SHIP_RECIPES, USED_SHIP_PRICES, cargoLoad, shipSalePrice } from './ships';
-import { normalMarketSale, quoteMarketTrade } from './market';
+import { colonyMarket, colonySpecialtyPrice, colonyTradeTax, normalMarketSale, quoteMarketTrade } from './market';
 import { hermitStoneTake, type HermitId } from './mist';
 import { STRATEGY_RULES, defectionCount, type StrategyId } from './strategies';
 import { roundsLeft as roundsToPlay } from './modes';
@@ -316,6 +316,34 @@ export function aiMarketPurchase(state: GameState, player: Player): MarketOrder 
       if (cost !== null && cost <= player.gold - reserve(state, player) && gain > profit) {
         best = order;
         profit = gain;
+      }
+    }
+  }
+  return best;
+}
+
+export function aiColonyMarketPurchase(state: GameState, player: Player): MarketOrder | undefined {
+  const local = colonyMarket(state);
+  const good = local?.node.specialty;
+  if (!local || !good || !local.stock) return;
+  const outlets = state.map.filter((node) => node.kind === 'island' && node.id !== local.node.id &&
+    node.specialty !== good && state.owners[node.id] !== null);
+  if (!outlets.length) return;
+  const resaleTaxRate = outlets.some((node) => state.owners[node.id] === player.id) ? 0 : GAMEPLAY_TUNING.colonyMarket.visitorTaxRate;
+  const resalePrice = colonySpecialtyPrice(undefined, good, 'sell');
+  const purchaseBudget = player.gold - reserve(state, player) - (local.owner === player.id ? 0 : tollDue(state, player, local.node.id));
+  let best: MarketOrder | undefined;
+  let bestGain = 0;
+  for (const ship of player.fleet) {
+    for (let quantity = 1; quantity <= Math.min(local.stock, ship.cargoCapacity - cargoLoad(ship)); quantity++) {
+      const order = { side: 'buy', shipId: ship.id, good, quantity } as const;
+      const cost = quoteMarketTrade(state, order);
+      if (cost === null || cost > purchaseBudget) break;
+      const grossResale = quantity * resalePrice;
+      const gain = grossResale - colonyTradeTax(grossResale, resaleTaxRate) - cost;
+      if (gain > bestGain) {
+        bestGain = gain;
+        best = order;
       }
     }
   }

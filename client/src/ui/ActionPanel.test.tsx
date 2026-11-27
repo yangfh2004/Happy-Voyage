@@ -24,6 +24,29 @@ import { TransferContents } from './TransferPanel';
 import { gameController } from '../game/GameController';
 import { setLocale } from '../i18n';
 
+describe('colony market', () => {
+  it.each(['en', 'zh'] as const)('shows the local specialty and the applicable tax on both colony visits in %s', (locale) => {
+    const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }, { name: 'Rival', color: 1, isAI: false }] });
+    const island = engine.state.map.find((node) => node.kind === 'island' && node.specialty)!;
+    engine.currentPlayer.position = island.id;
+    setLocale(locale);
+    try {
+      engine.state.owners[island.id] = 0;
+      engine.state.phase = 'awaitingBuild';
+      const own = renderToStaticMarkup(<ActionPanel state={engine.state} />);
+      expect(own).toContain(locale === 'en' ? 'No trade tax for the colony owner.' : '岛主交易免税。');
+      expect(own).toContain(locale === 'en' ? 'Local stock: 16' : '市场库存：16');
+      expect(own).toContain(locale === 'en' ? 'Buy · ' : '买入 · ');
+      engine.state.owners[island.id] = 1;
+      engine.state.phase = 'awaitingToll';
+      const rival = renderToStaticMarkup(<ActionPanel state={engine.state} />);
+      expect(rival).toContain(locale === 'en' ? '10% trade tax goes to the colony owner.' : '交易税率为 10%，税金归岛主。');
+      expect(rival).toContain(locale === 'en' ? 'Pay toll' : '缴纳过路费');
+      expect(rival).toMatch(locale === 'en' ? /\(\d+g tax\)/ : /（税 \d+ 金币）/);
+    } finally { setLocale('en'); }
+  });
+});
+
 describe('retreat selector', () => {
   it.each(['en', 'zh'] as const)('does not offer retreat settings outside the pre-battle prompt in %s', locale => {
     const engine = new GameEngine({ players: [{ name: 'You', color: 0, isAI: false }], rng: () => .5 });

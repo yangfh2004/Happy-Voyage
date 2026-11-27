@@ -321,6 +321,11 @@
     "discountCapRate": 0.5,
     "premiumCapRate": 1
   },
+  "colonyMarket": {
+    "stockPerRound": 16,
+    "foreignSpecialtyPremium": 0.5,
+    "visitorTaxRate": 0.1
+  },
   "barter": {
     "values": {
       "lumber": 10,

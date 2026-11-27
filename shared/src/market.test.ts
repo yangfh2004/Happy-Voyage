@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine } from './engine';
-import { marketDemand, marketPrices, quoteMarketTrade } from './market';
+import { colonyMarket, marketDemand, marketPrices, marketTradeQuote, quoteMarketTrade } from './market';
+import { tollDue } from './combat';
 import type { MapNode, MarketOrder } from './types';
 
 const players = [0, 1].map((i) => ({ name: `Captain ${i}`, color: i, isAI: i === 1 }));
@@ -159,5 +160,96 @@ describe('Nightless Island market', () => {
     expect(g.currentPlayer.id).toBe(0);
     land(g, 0);
     expect(g.currentPlayer.id).toBe(1);
+  });
+});
+
+describe('colony local market', () => {
+  const colonyMap: MapNode[] = [
+    ...map,
+    { id: 5, name: 'Tea Colony', kind: 'island', specialty: 'Tea', price: 100, x: 5, y: 0 },
+    { id: 6, name: 'Neutral Island', kind: 'island', price: 100, x: 6, y: 0 },
+  ];
+
+  function atColony(owner: number, visitor = 0) {
+    const g = new GameEngine({ players, map: colonyMap, rng: () => 0.99, config: { islandsToWin: 3 } });
+    g.state.owners[1] = owner;
+    g.state.owners[5] = 0;
+    g.state.currentPlayer = visitor;
+    land(g, 1);
+    const ship = g.currentPlayer.fleet[0];
+    const buy = { side: 'buy', good: 'Wine', shipId: ship.id, quantity: 3 } as const;
+    const sell = { side: 'sell', good: 'Tea', shipId: ship.id, quantity: 2 } as const;
+    ship.cargo.Tea = 2;
+    return { g, ship, buy, sell };
+  }
+
+  it('trades tax-free for the island owner without touching production or Nightless stock', () => {
+    const { g, ship, buy, sell } = atColony(0);
+    g.state.stockpiles[1].specialties.Wine = 4;
+    const nightless = structuredClone(g.state.market);
+    const gold = g.currentPlayer.gold;
+    expect(marketTradeQuote(g.state, buy)).toEqual({ total: 54, tax: 0 });
+    expect(marketTradeQuote(g.state, sell)).toEqual({ total: 58, tax: 0 });
+    g.tradeAtMarket(buy);
+    g.tradeAtMarket(sell);
+    expect(g.currentPlayer.gold).toBe(gold + 4);
+    expect(ship.cargo).toEqual({ Wine: 3 });
+    expect(colonyMarket(g.state)?.stock).toBe(13);
+    expect(g.state.colonyMarketStock[5]).toBe(16);
+    expect(g.state.stockpiles[1].specialties).toEqual({ Wine: 4 });
+    expect(g.state.market).toEqual(nightless);
+    expect(g.state.phase).toBe('awaitingBuild');
+    g.finishBuilding();
+    land(g, 0);
+    expect(g.state.colonyMarketStock[1]).toBe(16);
+    expect(quoteMarketTrade(g.state, buy)).toBeNull();
+  });
+
+  it('adds a visitor’s tax to purchases, deducts it from sales and pays it to the island owner', () => {
+    const { g, buy, sell } = atColony(1);
+    const [visitor, owner] = g.state.players;
+    const visitorGold = visitor.gold;
+    const ownerGold = owner.gold;
+    const toll = tollDue(g.state, visitor, 1);
+    expect(marketTradeQuote(g.state, buy)).toEqual({ total: 59, tax: 5 });
+    expect(marketTradeQuote(g.state, sell)).toEqual({ total: 52, tax: 6 });
+    g.tradeAtMarket(buy);
+    g.tradeAtMarket(sell);
+    expect(visitor.gold).toBe(visitorGold - 7);
+    expect(owner.gold).toBe(ownerGold + 11);
+    expect(g.state.phase).toBe('awaitingToll');
+    g.payToll();
+    expect(visitor.gold).toBe(visitorGold - 7 - toll);
+    expect(owner.gold).toBe(ownerGold + 11 + toll);
+    expect(g.state.currentPlayer).toBe(owner.id);
+  });
+
+  it('rejects invalid goods, depleted local stock, and orders unaffordable after tax without mutations', () => {
+    const { g, ship, buy, sell } = atColony(1);
+    g.state.colonyMarketStock[1] = 3;
+    g.state.stockpiles[1].specialties.Wine = 20;
+    g.currentPlayer.gold = 54;
+    ship.cargo.iron = 1;
+    const before = structuredClone(g.state);
+    for (const order of [buy, { ...buy, quantity: 4 }, { ...buy, good: 'Tea', quantity: 1 },
+      { ...sell, good: 'iron', quantity: 1 }] as MarketOrder[]) {
+      expect(quoteMarketTrade(g.state, order)).toBeNull();
+      expect(() => g.tradeAtMarket(order)).toThrow('Cannot fill market order');
+    }
+    expect(g.state).toEqual(before);
+    g.currentPlayer.gold = 100;
+    g.tradeAtMarket(buy);
+    expect(quoteMarketTrade(g.state, { ...buy, quantity: 1 })).toBeNull();
+  });
+
+  it('lets an AI visitor sell specialties, buy stock for resale, and continue its turn', () => {
+    const { g, ship } = atColony(0, 1);
+    g.state.players[0].position = 0;
+    for (const ship of g.currentPlayer.fleet) ship.durability = 20;
+    g.decideForAI();
+    expect(ship.cargo.Tea).toBeUndefined();
+    expect(ship.cargo.Wine).toBe(16);
+    expect(g.state.phase).toBe('awaitingSpin');
+    expect(g.state.currentPlayer).toBe(0);
   });
 });
