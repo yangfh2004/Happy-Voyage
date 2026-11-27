@@ -328,7 +328,7 @@ function resolveWithdrawal(battle: BattleState): void {
   const fleets = (['attacker', 'defender'] as const).map((side) => ({ side, fleet: afloatFleet(battle, side) }));
   const forts = fortsStanding(battle);
   for (const { side, fleet } of fleets) {
-    if (!fleet.length && (side === 'attacker' || !forts)) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
+    if (!fleet.length && (side === 'attacker' || !battle.ships.some((s) => s.fort))) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
   }
   for (const { side, fleet } of fleets) {
     if (!fleet.some((s) => !s.sunk && !s.escaped)) {

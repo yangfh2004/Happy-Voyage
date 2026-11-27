@@ -234,6 +234,15 @@ describe('shore forts in realtime battles', () => {
     expect(battle.outcome).toBe('victory');
   });
 
+  it('defeats an attacker wiped out on the tick the last fort falls', () => {
+    const battle = createBattle({ seed: 3, attackers: [ship(1)], defenders: [], forts });
+    for (const fort of battle.ships.filter((s) => s.fort)) { fort.durability = 0; fort.sunk = true; }
+    const attacker = battle.ships.find((s) => s.side === 'attacker')!;
+    attacker.durability = 0; attacker.sunk = true;
+    stepBattle(battle);
+    expect(battle.outcome).toBe('defeat');
+  });
+
   it('never moves forts and ignores orders for them', () => {
     const battle = createBattle({ seed: 3, attackers: [ship(1)], defenders: [ship(2)], forts });
     const before = battle.ships.filter((s) => s.fort).map((s) => [s.x, s.y]);
