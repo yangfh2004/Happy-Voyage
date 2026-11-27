@@ -261,7 +261,6 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
         </section>
         <ShipMarketPanel state={state} />
         </div>
-        <footer className="colony-footer"><button className="primary" onClick={() => gameController.finishBuilding()}>{t('Done', '完成')} <kbd>D / Esc</kbd></button></footer>
       </>
     );
   } else if (state.phase === 'awaitingToll') {
@@ -380,6 +379,9 @@ export function ActionPanel({ state, colorBlind = false, strategyHost, expandStr
         {headline && (!summary || headline.royal) && state.phase !== 'gameOver' && <div className={`headline ${headline.tone}`}>{l(headline.message, state)}</div>}
       </div>
       <ShortcutLegend />
+      {atHelm && state.phase === 'awaitingBuild' && (
+        <footer className="colony-footer"><button className="primary" onClick={() => gameController.finishBuilding()}>{t('Done', '完成')} <kbd>D / Esc</kbd></button></footer>
+      )}
       {transfersOpen && state.phase === 'awaitingBuild' && atHelm && (
         <TransferPanel state={state} onClose={() => setTransfersOpen(false)} />
       )}
