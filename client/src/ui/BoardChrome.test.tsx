@@ -11,7 +11,7 @@ vi.mock('../game/GameController', () => ({ gameController: {
 } }));
 vi.mock('./MenuDialog', () => ({ MenuDialog: ({ children }: { children: ReactNode }) => <dialog>{children}</dialog> }));
 import { canEndTurn, endTurnAction, HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } from './BoardChrome';
-import { LogPanel, VoyageLogHistory } from './LogPanel';
+import { canOpenVoyageLog, LogPanel, VoyageLogHistory } from './LogPanel';
 import { gameController } from '../game/GameController';
 import { setLocale } from '../i18n';
 
@@ -147,6 +147,14 @@ describe('board chrome', () => {
     expect(html).not.toContain('Old');
     expect(html).toContain('latest income');
     expect(html.indexOf('Three')).toBeLessThan(html.indexOf('Two'));
+  });
+  it.each([['awaitingBattle', false], ['awaitingSpin', true]] as const)('makes the voyage log unavailable in phase %s with handoff %s', (phase, handoff) => {
+    const { state } = game();
+    expect(canOpenVoyageLog('awaitingSpin', false)).toBe(true);
+    state.phase = phase;
+    expect(canOpenVoyageLog(state.phase, handoff)).toBe(false);
+    expect(renderToStaticMarkup(<VoyageBottomBar state={state} atHelm={false} />)).not.toContain('aria-haspopup="dialog"');
+    expect(canOpenVoyageLog('awaitingClaim', false)).toBe(true);
   });
   it.each([
     ['en', 'Voyage log', 'Newest entry', 'First entry'],

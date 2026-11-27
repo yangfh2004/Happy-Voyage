@@ -4,6 +4,10 @@ import { MenuDialog } from './MenuDialog';
 
 type LogProps = { log: Text[]; state: GameState; tones: Map<number, 'income' | 'expense'> };
 
+export function canOpenVoyageLog(phase: GameState['phase'] | undefined, awaitingHandoff: boolean): boolean {
+  return phase !== undefined && phase !== 'awaitingBattle' && !awaitingHandoff;
+}
+
 /** The ship's log: newest first, in the chosen language. */
 export function LogPanel({ log, state, tones, limit }: LogProps & { limit?: number }) {
   const { l } = useT();
