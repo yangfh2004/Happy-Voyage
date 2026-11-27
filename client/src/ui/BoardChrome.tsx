@@ -5,7 +5,7 @@ import { useT } from '../i18n';
 import { NavigatorPortrait } from './NavigatorPortrait';
 import { cssColor } from './nations';
 import { fleetDurabilitySummary } from './fleetSummary';
-import { LogPanel } from './LogPanel';
+import { LogPanel, VoyageLogButton } from './LogPanel';
 import { SoundControl } from './SoundControl';
 
 type Resource = 'gold' | 'ship' | 'colony' | 'card';
@@ -121,10 +121,10 @@ export function HelmCard({ state, colorBlind, atHelm, onFleet }: {
   </section>;
 }
 
-export function VoyageBottomBar({ state, atHelm }: { state: GameState; atHelm: boolean }) {
+export function VoyageBottomBar({ state, atHelm, onLog }: { state: GameState; atHelm: boolean; onLog: () => void }) {
   const { t } = useT();
   const action = endTurnAction(state, atHelm, gameController.lotteryRevealed);
-  return <footer className="voyage-bottom"><strong>📜 {t('EVENT LOG', '航海日志')}</strong><LogPanel state={state} log={gameController.visibleLogText(state)} tones={gameController.feedback.logTones} limit={3} /><button disabled={!action} onClick={() => { if (action) gameController[action](); }}>{t('End Turn', '结束回合')} ↪</button></footer>;
+  return <footer className="voyage-bottom"><VoyageLogButton onOpen={onLog} /><LogPanel state={state} log={gameController.visibleLogText(state)} tones={gameController.feedback.logTones} limit={3} /><button disabled={!action} onClick={() => { if (action) gameController[action](); }}>{t('End Turn', '结束回合')} ↪</button></footer>;
 }
 
 export function NextStop({ state }: { state: GameState }) {

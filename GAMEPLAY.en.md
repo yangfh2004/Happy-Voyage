@@ -37,6 +37,8 @@ A navigator goes bankrupt only when a deduction takes their gold below zero; exa
 
 - Colony construction, Ships & cargo transfer, and special-island menus open in large windows measuring 90% of the screen width and 80% of its height (72% of the screen area, at least two-thirds), including portrait and landscape phones. Landing menus, settings, and rules appear in an independent modal layer; the chart, player strip, and sailing panel stay behind its backdrop and cannot cover the menu or receive accidental clicks. Open Fleet or Menu from inside a landing window; closing them returns to the same landing activity with unfinished selections preserved. Longer menus scroll inside the window; finishing or leaving the menu returns to the chart.
 
+- Select **Voyage log** in the bottom bar (or in **Menu** when the bottom bar is hidden) to scroll through the full history of the current voyage, newest events first.
+
 ## 3. Colonies, fleets, and trade
 
 ### Claiming land, production, and docking
