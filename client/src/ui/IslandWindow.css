@@ -24,6 +24,9 @@
 .island-window::backdrop { background: #041823a3; }
 .island-window + .backdrop { background: #041823a3; }
 .island-window-masthead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -52,6 +55,14 @@
 }
 .island-fleet-btn:hover { background: #ffffff28; }
 .island-window-content { padding: clamp(14px, 4vw, 28px); }
+.island-window-content :is(input, select) { max-width: 100%; }
+@media (max-width: 480px) {
+  .island-window-masthead { gap: 6px; padding: 8px 12px; letter-spacing: .03em; }
+  .island-window-masthead > span:nth-child(2) { flex: 1; min-width: 0; }
+  .island-window-masthead > span:first-child { display: none; }
+  .island-window-masthead .menu-dialog-tools { gap: 4px; flex-wrap: nowrap; }
+  .island-window-masthead .island-fleet-btn { padding-inline: 8px; white-space: nowrap; }
+}
 .island-window h2 {
   color: inherit;
   font-size: clamp(1.6rem, 5vw, 2.4rem);
