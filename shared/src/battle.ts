@@ -331,7 +331,7 @@ function resolveWithdrawal(battle: BattleState): void {
     if (!fleet.length && (side === 'attacker' || !battle.ships.some((s) => s.fort))) { battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return; }
   }
   for (const { side, fleet } of fleets) {
-    if (!fleet.some((s) => !s.sunk && !s.escaped)) {
+    if (!fleet.some((s) => !s.sunk && !(battle.garrisonWithdrawal && s.escaped))) {
       if (side === 'defender' && forts) continue;
       if (side === 'defender' && battle.garrisonWithdrawal) { battle.withdrawal = battle.garrisonWithdrawal; battle.retreating = true; }
       battle.outcome = side === 'attacker' ? 'defeat' : 'victory'; return;
