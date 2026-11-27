@@ -937,20 +937,20 @@ export class GameEngine extends GameView {
     if (!buying) this.consumeColonyPurchaseCosts(ship, good, quantity);
     if (aboard > 0) ship.cargo[good] = aboard;
     else delete ship.cargo[good];
-    const trade = { p: ref.player(player.id), q: quantity, g: ref.good(good), t: total };
+    const trade = { p: ref.player(player.id), q: quantity, g: ref.good(good), t: total, n: ref.node(player.position) };
     if (local) {
       if (buying) this.state.colonyMarketStock[local.node.id] -= quantity;
       if (buying && player.isAI) this.recordColonyPurchaseCosts(ship, good, quantity, total);
       this.changeGold(player, buying ? -total : total, 'local market');
       if (tax > 0) this.changeGold(this.state.players[local.owner], tax, 'trade tax');
-      const atColony = { ...trade, n: ref.node(local.node.id), tax };
+      const atColony = { ...trade, tax };
       this.log(buying
         ? tx('{p} buys {q} {g} for {t}g at {n} (trade tax: {tax}g).', '{p} 在{n}以 {t} 金币买入 {q} 单位{g}（交易税：{tax} 金币）。', atColony)
         : tx('{p} sells {q} {g} for {t}g at {n} (trade tax: {tax}g).', '{p} 在{n}以 {t} 金币卖出 {q} 单位{g}（交易税：{tax} 金币）。', atColony));
     } else {
       this.state.market.stock[good] -= change;
       this.changeGold(player, buying ? -total : total, 'Nightless Island market');
-      this.log(buying ? tx('{p} buys {q} {g} for {t}g at Nightless Island.', '{p} 在不夜岛以 {t} 金币买入 {q} 单位{g}。', trade) : tx('{p} sells {q} {g} for {t}g at Nightless Island.', '{p} 在不夜岛以 {t} 金币卖出 {q} 单位{g}。', trade));
+      this.log(buying ? tx('{p} buys {q} {g} for {t}g at {n}.', '{p} 在{n}以 {t} 金币买入 {q} 单位{g}。', trade) : tx('{p} sells {q} {g} for {t}g at {n}.', '{p} 在{n}以 {t} 金币卖出 {q} 单位{g}。', trade));
     }
     this.emit({ ...order, type: 'marketTrade', playerId: player.id, total });
     if (!local && !buying && good !== 'lumber' && good !== 'iron') {

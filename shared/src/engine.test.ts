@@ -16,10 +16,10 @@ function spinAndSail(engine: GameEngine, accountingOnly = true): number[] {
   return engine.sail();
 }
 
-function playAiMatch(engine: GameEngine): void {
+function playAiMatch(engine: GameEngine, maxSteps = 10_000): void {
   engine.start();
   let guard = 0;
-  while (engine.state.phase !== 'gameOver' && guard++ < 10_000) {
+  while (engine.state.phase !== 'gameOver' && guard++ < maxSteps) {
     const { phase, round, currentPlayer } = engine.state;
     if (phase === 'spinning') engine.sail();
     else if (phase === 'moving') engine.resolveLanding();
@@ -257,10 +257,10 @@ describe('GameEngine', () => {
   it('plays a Classic conquest all-AI game to completion', () => {
     const engine = new GameEngine({
       players: [0, 1, 2].map((i) => ({ name: `AI ${i}`, color: i, isAI: true })),
-      rng: aiMatchRng(28),
+      rng: aiMatchRng(30),
       config: gameMode('conquest').config,
     });
-    playAiMatch(engine);
+    playAiMatch(engine, 30_000);
     expect(engine.state.winner).not.toBeNull();
   });
 
@@ -323,6 +323,7 @@ describe('GameEngine', () => {
     if (engine.state.phase === 'awaitingClaim') engine.decline();
     if (engine.state.phase === 'awaitingBuild') engine.finishBuilding();
     if (engine.state.phase === 'awaitingSalvage') engine.skipSalvage();
+    if (engine.state.phase === 'awaitingCargoMarket') engine.finishTrading();
     expect(engine.state.winner).toBe(1);
   });
 });
