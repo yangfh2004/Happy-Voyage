@@ -9,7 +9,7 @@ import { OnlineMenu, roomError } from './ui/OnlineMenu';
 import { PlayerBar } from './ui/PlayerBar';
 import { ActionPanel } from './ui/ActionPanel';
 import { CampaignPanel } from './ui/CampaignPanel';
-import { LogPanel } from './ui/LogPanel';
+import { canOpenVoyageLog, LogPanel, VoyageLogButton, VoyageLogHistory } from './ui/LogPanel';
 import { RulesPanel } from './ui/RulesPanel';
 import { EventBus } from './game/EventBus';
 import { RouteDetails } from './ui/RouteDetails';
@@ -36,6 +36,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
   const [fleetOpen, setFleetOpen] = useState(false);
   const [fleetPlayerId, setFleetPlayerId] = useState<number | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const openFleet = (playerId?: number) => {
     setMenuOpen(false);
     setFleetPlayerId(playerId);
@@ -57,8 +58,15 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
   const { t, locale } = useT();
   const state = gameController.state;
   const room = gameController.room;
+  const awaitingHandoff = gameController.awaitingHandoff;
+  const logAvailable = canOpenVoyageLog(state?.phase, awaitingHandoff);
+  const openLog = logAvailable ? () => setLogOpen(true) : undefined;
+  if (logOpen && !logAvailable) {
+    setLogOpen(false);
+    setMenuOpen(false);
+  }
   const coverOpen = !state && !room && !setupOpen;
-  const atHelm = !!state && !state.players[state.currentPlayer].isAI && (!room || gameController.canHelm) && !gameController.awaitingHandoff && state.phase !== 'gameOver';
+  const atHelm = !!state && !state.players[state.currentPlayer].isAI && (!room || gameController.canHelm) && !awaitingHandoff && state.phase !== 'gameOver';
   const islandWindow = state && islandWindowFor(state, atHelm);
   const landing = atHelm && !islandWindow && state.phase.startsWith('awaiting') && state.phase !== 'awaitingSpin' && state.phase !== 'awaitingBattle';
   const tutorialOpen = !!state && (!tutorialDismissed || tutorialRequested);
@@ -83,7 +91,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
   const paletteToggle = <button type="button" className="palette-toggle" aria-pressed={colorBlind} onClick={toggleColorBlind}>{t('Color-blind mode', '色觉无障碍模式')}</button>;
 
   useEffect(() => {
-    if (coverOpen || rulesOpen || fleetOpen || tutorialOpen || menuOpen) return;
+    if (coverOpen || rulesOpen || fleetOpen || tutorialOpen || menuOpen || logOpen) return;
     const shortcuts = keyboardShortcuts(gameController, { onFleet: () => openFleet() });
     window.addEventListener('keydown', shortcuts.keydown);
     window.addEventListener('keyup', shortcuts.keyup);
@@ -93,7 +101,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
       window.removeEventListener('keyup', shortcuts.keyup);
       window.removeEventListener('blur', shortcuts.blur);
     };
-  }, [coverOpen, rulesOpen, fleetOpen, tutorialOpen, menuOpen]);
+  }, [coverOpen, rulesOpen, fleetOpen, tutorialOpen, menuOpen, logOpen]);
   useEffect(() => {
     const stop = listenForSoundtrackStart(window, () => gameController.startSoundtrack());
     const onVisibilityChange = () => { if (!document.hidden) resumeSoundtrack(); };
@@ -156,7 +164,7 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
         <LandingHeading state={state} />
         <ActionPanel state={state} colorBlind={colorBlind} expandStrategies={expandStrategies} />
       </MenuDialog>}
-      {state && menuOpen && <MenuDialog id="voyage-menu" className="voyage-menu" label={t('Menu', '菜单')} onDismiss={() => setMenuOpen(false)}>
+      {state && menuOpen && <MenuDialog id="voyage-menu" className="voyage-menu" label={t('Menu', '菜单')} suspended={logOpen} onDismiss={() => setMenuOpen(false)}>
             <button className="menu-close" onClick={() => setMenuOpen(false)}>{t('Close menu', '关闭菜单')} ✕</button>
             <div className="chart-controls"><button onClick={() => EventBus.emit('fit-chart')}>{t('Fit chart', '查看全图')}</button><button onClick={() => EventBus.emit('follow-ship')}>{t('Follow ship', '跟随船只')}</button></div>
             {room && (
@@ -174,7 +182,10 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
             )}
             {state.campaign && <CampaignPanel campaign={state.campaign} />}
             <PlayerBar state={state} colorBlind={colorBlind} paletteToggle={paletteToggle} onRules={() => { setMenuOpen(false); setRulesOpen(true); }} onFleet={() => openFleet()} onTutorial={() => { setMenuOpen(false); setTutorialRequested(true); }} />
-            <div className="mobile-log"><LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} limit={3} /></div>
+            <div className="voyage-menu-log">
+              {openLog && <VoyageLogButton onOpen={openLog} />}
+              <LogPanel log={gameController.visibleLogText(state)} state={state} tones={gameController.feedback.logTones} limit={3} />
+            </div>
             <RouteDetails state={state} />
             <div className="menu-shortcuts"><ShortcutLegend /></div>
       </MenuDialog>}
@@ -182,8 +193,9 @@ export function App({ initialTutorialDismissed, expandStrategies }: {
         {tutorialOpen && <TutorialPanel onClose={dismissTutorial} />}
         {rulesOpen && <RulesPanel config={state?.config ?? DEFAULT_CONFIG} islandCount={state?.map.filter((node) => node.kind === 'island').length} campaign={state?.campaign} onClose={() => setRulesOpen(false)} />}
       {state && islandWindow &&
-        <IslandWindow key={islandWindow.island} state={state} activity={islandWindow} onFleet={() => openFleet()} onMenu={() => setMenuOpen(true)} suspended={rulesOpen || fleetOpen || menuOpen || tutorialOpen} />}
-      {state && <VoyageBottomBar state={state} atHelm={atHelm} />}
+        <IslandWindow key={islandWindow.island} state={state} activity={islandWindow} onFleet={() => openFleet()} onMenu={() => setMenuOpen(true)} suspended={rulesOpen || fleetOpen || menuOpen || tutorialOpen || logOpen} />}
+      {state && <VoyageBottomBar state={state} atHelm={atHelm} onLog={openLog} />}
+      {state && logOpen && <VoyageLogHistory state={state} log={gameController.visibleLogText(state)} tones={gameController.feedback.logTones} onDismiss={() => setLogOpen(false)} />}
     </div>
   );
 }

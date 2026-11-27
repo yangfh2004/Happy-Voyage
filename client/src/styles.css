@@ -412,15 +412,16 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .playing .actions > .shortcuts, .playing .rival-cards { display: none; }
   .menu-shortcuts { display: block; }
   .voyage-bottom { grid-row: 3; }
-  .voyage-bottom > strong { flex: 0 0 110px; color: #edce81; font-size: 14px; }
   .voyage-bottom .log { flex: 1; min-width: 0; background: transparent; color: #fff5da; border: 0; padding: 0; box-shadow: none; font-size: 12px; }
   .voyage-bottom .log > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .voyage-bottom .log > div::before { content: '• '; color: #e8c66b; }
   .voyage-bottom .log .latest { color: #f6d37a; }
-  .voyage-bottom > button { min-width: 140px; min-height: 52px; border-radius: 16px; color: white; background: linear-gradient(#287bc0, #124b83); border-color: #75b5e2; font-weight: 750; }
+  .voyage-bottom > button:not(.voyage-log-button) { min-width: 140px; min-height: 52px; border-radius: 16px; color: white; background: linear-gradient(#287bc0, #124b83); border-color: #75b5e2; font-weight: 750; }
+  .voyage-bottom .voyage-log-button { flex-shrink: 0; color: #ffedbb; background: #204c70; border-color: #c5a65f; }
+  .voyage-bottom .voyage-log-button:hover { background: #2b5e85; }
   .voyage-bottom > button:disabled { opacity: .45; cursor: not-allowed; }
   .menu-close { display: block; align-self: flex-end; min-height: 44px; }
-  .voyage-menu .mobile-log { display: none; }
+  .voyage-menu-log .log { display: none; }
   .next-stop { display: flex; align-items: center; gap: 12px; border: 2px dashed #b59751; padding: 12px; border-radius: 14px; background: #fff9e9; color: #123d59; }
   .next-stop > span { font-size: 32px; }
   .next-stop > div { display: grid; gap: 2px; }
@@ -505,8 +506,7 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
   .landing-placement .action-content h2 { display: none; }
   .landing-placement button:not(.stat-trigger) { min-height: 44px; }
   .menu-close { display: block; min-height: 44px; }
-  .voyage-menu .mobile-log { display: block; }
-  .voyage-menu .mobile-log .log { max-height: 100px; overflow-y: auto; font-size: 12px; }
+  .voyage-menu-log .log { max-height: 100px; overflow-y: auto; font-size: 12px; }
   .strategy-cards { margin-top: 4px; }
   .strategy-cards summary { padding: 7px; }
   @keyframes mobile-sheet { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -527,6 +527,22 @@ button.sound { font-size: 12px; padding: 1px 8px; border-width: 1px; }
 .voyage-menu > * { flex-shrink: 0; }
 .voyage-menu .menu-close { align-self: flex-end; }
 .voyage-menu .menu-shortcuts { display: block; }
+.voyage-log-button { min-height: 44px; font-weight: 700; }
+.voyage-menu-log .log { margin-top: 6px; }
+.voyage-log-history[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(680px, calc(100vw - 24px));
+  max-height: 75dvh;
+  padding: 16px;
+}
+.voyage-log-history header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.voyage-log-history h2 { margin: 0; }
+.voyage-log-history header button { min-height: 44px; }
+.voyage-log-scroll { overflow-y: auto; overscroll-behavior: contain; }
+.voyage-log-history .log { max-height: none; padding: 0 8px; border: 0; box-shadow: none; background: transparent; font-size: 14px; }
+.voyage-log-history .log > div { padding: 8px 0; border-bottom: 1px solid #ddcda9; overflow-wrap: anywhere; }
 .landing-placement .landing-heading { display: flex; }
 /* 90% × 80% = 72% of the screen, including short menus. */
 .landing-placement, .voyage-menu, .fleet.transfer-window {

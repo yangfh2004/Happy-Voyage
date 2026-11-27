@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import type { ReactNode } from 'react';
 import { createNationRoster, GameEngine, playerName, tx, type GameState } from '@happy-voyage/shared';
 
 vi.mock('../game/GameController', () => ({ gameController: {
@@ -8,8 +9,9 @@ vi.mock('../game/GameController', () => ({ gameController: {
   visibleLogText: () => [], feedback: { logTones: new Map() }, decline: vi.fn(),
   get landingTarget() { return null; },
 } }));
+vi.mock('./MenuDialog', () => ({ MenuDialog: ({ children }: { children: ReactNode }) => <dialog>{children}</dialog> }));
 import { canEndTurn, endTurnAction, HelmCard, LandingHeading, NextStop, VoyageBottomBar, VoyageTopBar } from './BoardChrome';
-import { LogPanel } from './LogPanel';
+import { canOpenVoyageLog, LogPanel, VoyageLogHistory } from './LogPanel';
 import { gameController } from '../game/GameController';
 import { setLocale } from '../i18n';
 
@@ -103,7 +105,7 @@ describe('board chrome', () => {
       state.phase = phase;
       expect(canEndTurn(state, true)).toBe(false);
     }
-    expect(renderToStaticMarkup(<VoyageBottomBar state={state} atHelm={false} />)).toContain('disabled=""');
+    expect(renderToStaticMarkup(<VoyageBottomBar state={state} atHelm={false} onLog={() => {}} />)).toContain('disabled=""');
   });
   it('maps continuations to their exact panel actions without skipping unresolved choices', () => {
     const { state } = game();
@@ -145,5 +147,30 @@ describe('board chrome', () => {
     expect(html).not.toContain('Old');
     expect(html).toContain('latest income');
     expect(html.indexOf('Three')).toBeLessThan(html.indexOf('Two'));
+  });
+  it.each([['awaitingBattle', false], ['awaitingSpin', true]] as const)('makes the voyage log unavailable in phase %s with handoff %s', (phase, handoff) => {
+    const { state } = game();
+    expect(canOpenVoyageLog('awaitingSpin', false)).toBe(true);
+    state.phase = phase;
+    expect(canOpenVoyageLog(state.phase, handoff)).toBe(false);
+    expect(renderToStaticMarkup(<VoyageBottomBar state={state} atHelm={false} />)).not.toContain('aria-haspopup="dialog"');
+    expect(canOpenVoyageLog('awaitingClaim', false)).toBe(true);
+  });
+  it.each([
+    ['en', 'Voyage log', 'Newest entry', 'First entry'],
+    ['zh', '航海日志', '最新日志', '启航'],
+  ] as const)('offers the log dialog and renders every entry newest first in %s', (locale, title, newest, oldest) => {
+    setLocale(locale);
+    const { state } = game();
+    const board = renderToStaticMarkup(<VoyageBottomBar state={state} atHelm={false} onLog={() => {}} />);
+    expect(board).toContain(`aria-haspopup="dialog">${title}</button>`);
+    const log = Array.from({ length: 121 }, (_, index) => index === 0 ? tx('First entry', '启航') :
+      index === 120 ? tx('Newest entry', '最新日志') : tx(`Entry ${index}`, `日志 ${index}`));
+    const history = renderToStaticMarkup(<VoyageLogHistory state={state} log={log} tones={new Map([[0, 'income'], [120, 'expense']])} onDismiss={() => {}} />);
+    expect(history.match(/<div class="(?:latest expense|income|)"/g)).toHaveLength(log.length);
+    expect(history).toContain(`class="income">${oldest}`);
+    expect(history).toContain(`class="latest expense">${newest}`);
+    expect(history.indexOf(newest)).toBeLessThan(history.indexOf(oldest));
+    if (locale === 'en') expect(history).not.toMatch(/\p{Script=Han}/u);
   });
 });
